@@ -1,0 +1,336 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User and Authentication
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("member") // member, manager, admin
+  avatar    String?
+  phone     String?
+  status    String   @default("Active") // Active, Inactive, Away
+  joinDate  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  departmentId       String?
+  department         Department?         @relation(fields: [departmentId], references: [id])
+  assignedTasks      Task[]              @relation("TaskAssignee")
+  reportedIssues     Issue[]             @relation("IssueReporter")
+  assignedIssues     Issue[]             @relation("IssueAssignee")
+  projectMemberships ProjectMember[]
+  comments           Comment[]
+  activityLogs       ActivityLog[]
+  notifications      Notification[]
+  timeEntries        TimeEntry[]
+  createdProjects    Project[]           @relation("ProjectCreator")
+  ledDepartment      Department?         @relation("DepartmentLead")
+  createdTasks       Task[]              @relation("TaskCreator")
+  documents          Document[]
+
+  @@index([email])
+  @@index([departmentId])
+}
+
+// Company Information
+model Company {
+  id          String       @id @default(cuid())
+  name        String
+  industry    String?
+  email       String?
+  phone       String?
+  address     String?
+  website     String?
+  logo        String?
+  description String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  departments Department[]
+}
+
+// Department
+model Department {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+  leadId    String?  @unique
+  lead      User?    @relation("DepartmentLead", fields: [leadId], references: [id])
+  members   User[]
+  projects  Project[]
+
+  @@index([companyId])
+}
+
+// Project
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  status      String   @default("Planning") // Planning, In Progress, Review, Completed, On Hold
+  priority    String   @default("Medium") // Low, Medium, High, Critical
+  startDate   DateTime
+  dueDate     DateTime
+  budget      Decimal?
+  spent       Decimal?  @default(0)
+  progress    Int       @default(0) // 0-100
+  colorProject String?  // Project color for visual identification
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  creatorId    String?
+  creator      User?           @relation("ProjectCreator", fields: [creatorId], references: [id])
+  departmentId String?
+  department   Department?     @relation(fields: [departmentId], references: [id])
+  members      ProjectMember[]
+  tasks        Task[]
+  issues       Issue[]
+  documents    Document[]
+  milestones   Milestone[]
+  activityLogs ActivityLog[]
+  timeEntries  TimeEntry[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([creatorId])
+  @@index([departmentId])
+}
+
+// Project Members
+model ProjectMember {
+  id        String   @id @default(cuid())
+  role      String   @default("member") // member, lead, manager
+  joinedAt  DateTime @default(now())
+
+  // Relations
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+}
+
+// Task
+model Task {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  status      String   @default("To Do") // To Do, In Progress, Review, Completed, Blocked
+  priority    String   @default("Medium") // Low, Medium, High, Critical
+  dueDate     DateTime?
+  estimatedHours Int?
+  actualHours    Int?
+  completed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assigneeId  String?
+  assignee    User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  creatorId   String?
+  creator     User?        @relation("TaskCreator", fields: [creatorId], references: [id])
+  milestoneId String?
+  milestone   Milestone?   @relation(fields: [milestoneId], references: [id])
+  comments    Comment[]
+  timeEntries TimeEntry[]
+  dependencies TaskDependency[] @relation("DependentTask")
+  dependedBy   TaskDependency[] @relation("DependencyTask")
+
+  @@index([projectId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([priority])
+}
+
+// Task Dependencies
+model TaskDependency {
+  id        String   @id @default(cuid())
+  type      String   @default("blocks") // blocks, blocked_by, related
+  createdAt DateTime @default(now())
+
+  // Relations
+  taskId       String
+  task         Task   @relation("DependentTask", fields: [taskId], references: [id], onDelete: Cascade)
+  dependencyId String
+  dependency   Task   @relation("DependencyTask", fields: [dependencyId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, dependencyId])
+}
+
+// Issue
+model Issue {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  status      String   @default("Open") // Open, In Progress, Resolved, Closed
+  priority    String   @default("Medium") // Low, Medium, High, Critical
+  type        String   @default("Bug") // Bug, Feature, Enhancement, Question
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  resolvedAt  DateTime?
+
+  // Relations
+  projectId  String
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  reporterId String?
+  reporter   User?     @relation("IssueReporter", fields: [reporterId], references: [id])
+  assigneeId String?
+  assignee   User?     @relation("IssueAssignee", fields: [assigneeId], references: [id])
+  comments   Comment[]
+
+  @@index([projectId])
+  @@index([status])
+  @@index([priority])
+  @@index([type])
+}
+
+// Comment
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  authorId String
+  author   User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  taskId   String?
+  task     Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  issueId  String?
+  issue    Issue?  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@index([authorId])
+  @@index([taskId])
+  @@index([issueId])
+}
+
+// Milestone
+model Milestone {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  dueDate     DateTime
+  status      String   @default("Not Started") // Not Started, In Progress, Completed
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+
+  @@index([projectId])
+}
+
+// Document
+model Document {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  fileUrl     String
+  fileSize    Int? // in bytes
+  fileType    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploaderId String?
+  uploader   User?    @relation(fields: [uploaderId], references: [id])
+
+  @@index([projectId])
+  @@index([uploaderId])
+}
+
+// Time Entry
+model TimeEntry {
+  id          String   @id @default(cuid())
+  description String?
+  remarks     String?
+  hours       Decimal
+  date        DateTime @default(now())
+  status      String?  // To Do, In Progress, Review, Completed, Blocked
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId    String?
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([taskId])
+  @@index([projectId])
+  @@index([date])
+}
+
+// Activity Log
+model ActivityLog {
+  id          String   @id @default(cuid())
+  action      String // created, updated, deleted, commented, assigned, etc.
+  entity      String // project, task, issue, etc.
+  entityId    String
+  description String?
+  metadata    Json? // Additional data about the action
+  createdAt   DateTime @default(now())
+
+  // Relations
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+// Notification
+model Notification {
+  id        String   @id @default(cuid())
+  title     String
+  message   String
+  type      String   @default("info") // info, success, warning, error
+  read      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
