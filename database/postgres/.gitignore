@@ -1,0 +1,5 @@
+# Ignore PostgreSQL data directory contents
+# Note: The data directory itself will be created by Docker
+# PostgreSQL requires a completely empty directory to initialize
+data/*
+

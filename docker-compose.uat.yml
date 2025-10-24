@@ -1,0 +1,84 @@
+# Docker Compose for UAT (User Acceptance Testing) Environment
+# Features: Production-like build, environment variable mapping, PostgreSQL
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: pms-postgres-uat
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-project_management_uat}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data_uat:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pms-network-uat
+
+  # Next.js Application (UAT)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: uat
+      args:
+        - NODE_ENV=production
+    container_name: pms-app-uat
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_ENV=uat
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-project_management_uat}?schema=public
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3001}
+      - PORT=${APP_PORT:-3000}
+    ports:
+      - "${APP_PORT:-3001}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pms-network-uat
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Database Migrations Runner
+  migrations:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: pms-migrations-uat
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-project_management_uat}?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pms-network-uat
+    command: sh -c "pnpm db:push && pnpm db:seed"
+    profiles:
+      - init
+
+networks:
+  pms-network-uat:
+    driver: bridge
+
+volumes:
+  postgres_data_uat:
+    driver: local
+
