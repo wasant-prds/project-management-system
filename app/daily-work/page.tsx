@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Plus } from "lucide-react"
 import { useState, useEffect, useMemo, useCallback } from "react"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { toast } from "@/hooks/use-toast"
 import { formatDate } from "@/lib/utils"
 import { WorkLog, Project, Task, User, WorkLogFormData } from "@/components/page/daily-work/types"
@@ -26,6 +27,7 @@ export default function DailyWorkPage() {
   const [selectedWorkLog, setSelectedWorkLog] = useState<WorkLog | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
+  const [viewPeriod, setViewPeriod] = useState<"day" | "week" | "month" | "year">("day")
 
   // Form state
   const [formData, setFormData] = useState<WorkLogFormData>({
@@ -38,10 +40,10 @@ export default function DailyWorkPage() {
     status: "To Do",
   })
 
-  // Fetch work logs based on selected date
+  // Fetch work logs based on selected date and view period
   useEffect(() => {
     fetchWorkLogs()
-  }, [date])
+  }, [date, viewPeriod])
 
   // Fetch projects, tasks, and users on mount
   useEffect(() => {
@@ -52,8 +54,35 @@ export default function DailyWorkPage() {
 
   const fetchWorkLogs = async () => {
     try {
-      const dateStr = date ? formatDate(date) : null
-      const queryParam = dateStr ? `?date=${dateStr}` : ""
+      let queryParam = ""
+
+      if (date) {
+        if (viewPeriod === "day") {
+          const dateStr = formatDate(date)
+          queryParam = `?date=${dateStr}`
+        } else {
+          // Calculate date range based on view period
+          const startDate = new Date(date)
+          const endDate = new Date(date)
+
+          if (viewPeriod === "week") {
+            // Get start of week (Sunday)
+            const day = startDate.getDay()
+            startDate.setDate(startDate.getDate() - day)
+            endDate.setDate(startDate.getDate() + 6)
+          } else if (viewPeriod === "month") {
+            startDate.setDate(1)
+            endDate.setMonth(endDate.getMonth() + 1)
+            endDate.setDate(0) // Last day of month
+          } else if (viewPeriod === "year") {
+            startDate.setMonth(0, 1)
+            endDate.setMonth(11, 31)
+          }
+
+          queryParam = `?startDate=${formatDate(startDate)}&endDate=${formatDate(endDate)}`
+        }
+      }
+
       const response = await fetch(`/api/work-logs${queryParam}`)
       const data = await response.json()
       if (response.ok) {
@@ -241,7 +270,7 @@ export default function DailyWorkPage() {
   }, [])
 
   const handleViewDetails = useCallback((workLog: WorkLog) => {
-    handleViewDetails(workLog)
+    setSelectedWorkLog(workLog)
     setIsDetailsDialogOpen(true)
   }, [])
 
@@ -266,6 +295,31 @@ export default function DailyWorkPage() {
   const totalHours = filteredWorkLogs.reduce((sum, log) => sum + Number(log.hours), 0)
   const totalTasks = filteredWorkLogs.length
 
+  // Generate button label based on view period
+  const buttonLabel = useMemo(() => {
+    if (!date) return 'All'
+
+    switch (viewPeriod) {
+      case "day":
+        return formatDate(date)
+      case "week": {
+        const start = new Date(date)
+        start.setDate(start.getDate() - start.getDay())
+        const end = new Date(date)
+        end.setDate(end.getDate() + (6 - end.getDay()))
+        const wk_start = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        const wk_end = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        return `Week of [ ${wk_start} - ${wk_end}]`
+      }
+      case "month":
+        return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+      case "year":
+        return date.getFullYear().toString()
+      default:
+        return formatDate(date)
+    }
+  }, [date, viewPeriod])
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -275,14 +329,32 @@ export default function DailyWorkPage() {
           <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
-              <div>
+              <div className="space-y-4">
                 <h1 className="text-3xl font-bold tracking-tight text-balance">Daily Work</h1>
                 <p className="text-muted-foreground mt-1">Track your daily activities and work logs</p>
               </div>
-              <Button className="gap-2" onClick={() => handleOpenDialog()}>
-                <Plus className="h-4 w-4" />
-                Add Work Log ( {date ? formatDate(date) : 'All'} )
-              </Button>
+              <div className="space-y-2">
+                <ToggleGroup type="single" value={viewPeriod} onValueChange={(value) => value && setViewPeriod(value as "day" | "week" | "month" | "year")}>
+                  <ToggleGroupItem value="day" aria-label="Day view">
+                    Day
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="week" aria-label="Week view">
+                    Week
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="month" aria-label="Month view">
+                    Month
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="year" aria-label="Year view">
+                    Year
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+              <div className="space-y-4">
+                <Button className="gap-2" onClick={() => handleOpenDialog()}>
+                  <Plus className="h-4 w-4" />
+                  Add Work Log : {date ? formatDate(date) : buttonLabel}
+                </Button>
+              </div>
             </div>
 
             <div className="grid gap-6 md:grid-cols-3">
@@ -312,6 +384,7 @@ export default function DailyWorkPage() {
                   onSearchChange={setSearchQuery}
                   onWorkLogClick={handleViewDetails}
                   onAddClick={() => handleOpenDialog()}
+                  buttonLabel={buttonLabel}
                 />
               </div>
             </div>
@@ -345,6 +418,6 @@ export default function DailyWorkPage() {
           onDelete={handleDelete}
         />
       </SidebarInset>
-    </SidebarProvider>
+    </SidebarProvider >
   )
 }

@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input"
 import { Plus, Search } from "lucide-react"
 import { WorkLog } from "./types"
 import { WorkLogCard } from "./work-log-card"
-import { formatDate } from "@/lib/utils"
 
 type WorkLogListProps = {
   workLogs: WorkLog[]
@@ -13,6 +12,7 @@ type WorkLogListProps = {
   onSearchChange: (query: string) => void
   onWorkLogClick: (workLog: WorkLog) => void
   onAddClick: () => void
+  buttonLabel: string
 }
 
 export function WorkLogList({
@@ -22,18 +22,19 @@ export function WorkLogList({
   onSearchChange,
   onWorkLogClick,
   onAddClick,
+  buttonLabel,
 }: Readonly<WorkLogListProps>) {
   return (
     <div className="space-y-3">
       <Card className="card-shadow">
         <CardHeader className="pb-0">
-          <CardTitle className="text-base">Work Logs for : {date ? formatDate(date) : 'All'}</CardTitle>
+          <CardTitle className="text-base"> Work Logs for : <span className="font-bold text-blue-500">{buttonLabel}</span></CardTitle>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
               placeholder="Search work logs..."
-              className="pl-10 bg-secondary/50"
+              className="pl-10 bg-secondary/50 border-border/50"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
             />

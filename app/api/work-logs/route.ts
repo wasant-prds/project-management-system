@@ -6,6 +6,8 @@ export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url)
         const date = searchParams.get('date')
+        const startDateParam = searchParams.get('startDate')
+        const endDateParam = searchParams.get('endDate')
         const userId = searchParams.get('userId')
 
         const where: any = {}
@@ -15,6 +17,18 @@ export async function GET(request: Request) {
             const [year, month, day] = date.split('-').map(Number)
             const startDate = new Date(year, month - 1, day, 0, 0, 0, 0)
             const endDate = new Date(year, month - 1, day, 23, 59, 59, 999)
+
+            where.date = {
+                gte: startDate,
+                lte: endDate,
+            }
+        } else if (startDateParam && endDateParam) {
+            // Handle date range queries
+            const [startYear, startMonth, startDay] = startDateParam.split('-').map(Number)
+            const [endYear, endMonth, endDay] = endDateParam.split('-').map(Number)
+            
+            const startDate = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0)
+            const endDate = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999)
 
             where.date = {
                 gte: startDate,

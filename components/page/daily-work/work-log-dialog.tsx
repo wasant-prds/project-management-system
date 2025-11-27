@@ -503,7 +503,7 @@ export function WorkLogDialog({
               <div className="space-y-2">
                 <Label htmlFor="remarks">Remarks</Label>
                 {isViewMode && workLog ? (
-                  <div className="p-3 rounded-lg bg-secondary/30 border border-border/50 min-h-[120px]">
+                  <div className="p-3 rounded-lg bg-secondary/30 border border-border/50 min-h-[120px] max-h-[220px] overflow-y-auto">
                     <p className={`text-sm whitespace-pre-wrap ${getNullStyle(workLog.remarks)}`}>
                       {getDisplayValue(workLog.remarks, "No remarks")}
                     </p>
@@ -514,7 +514,7 @@ export function WorkLogDialog({
                     placeholder="Any additional notes or observations..."
                     value={formData?.remarks || ""}
                     onChange={(e) => onFormDataChange?.({ ...formData!, remarks: e.target.value })}
-                    className="min-h-[120px] resize-none"
+                    className="min-h-[120px] max-h-[220px] overflow-y-auto resize-none"
                     disabled={isLoading}
                   />
                 )}
