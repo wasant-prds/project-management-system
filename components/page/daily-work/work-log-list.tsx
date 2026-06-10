@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Plus, Search, Download, Eye } from "lucide-react"
+import { Plus, Search, Download, Eye, FileText } from "lucide-react"
 import { WorkLog } from "./types"
 import { WorkLogCard } from "./work-log-card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -39,6 +39,35 @@ const sortLogsByProjectTaskUserDate = (a: WorkLog, b: WorkLog, dateOrder: "asc" 
   return sortLogsByTaskUserDate(a, b, dateOrder)
 }
 
+/** Smallest #N in description or remarks; null if none (used for ordering). */
+const extractMinTagNumber = (log: WorkLog): number | null => {
+  const text = `${log.description ?? ""} ${log.remarks ?? ""}`
+  const re = /#(\d+)/g
+  let match: RegExpExecArray | null
+  let min: number | null = null
+  while ((match = re.exec(text)) !== null) {
+    const n = Number.parseInt(match[1], 10)
+    if (!Number.isNaN(n) && (min === null || n < min)) min = n
+  }
+  return min
+}
+
+/** Within a project: by #1, #2, … in description/remarks; entries without tags sort by date (then task for stability). */
+const sortLogsByTagOrDate = (a: WorkLog, b: WorkLog): number => {
+  const tagA = extractMinTagNumber(a)
+  const tagB = extractMinTagNumber(b)
+  if (tagA !== null && tagB !== null) {
+    const byTag = tagA - tagB
+    if (byTag !== 0) return byTag
+  } else if (tagA !== null && tagB === null) return -1
+  else if (tagA === null && tagB !== null) return 1
+
+  const dateA = new Date(a.date).getTime()
+  const dateB = new Date(b.date).getTime()
+  if (dateA !== dateB) return dateA - dateB
+  return getTaskTitle(a).localeCompare(getTaskTitle(b))
+}
+
 const groupWorkLogsByProject = (logs: WorkLog[]): Array<[string, WorkLog[]]> => {
   const grouped = new Map<string, WorkLog[]>()
 
@@ -50,12 +79,10 @@ const groupWorkLogsByProject = (logs: WorkLog[]): Array<[string, WorkLog[]]> => 
     grouped.get(projectName)!.push(log)
   })
 
-  // Sort logs within each project
   grouped.forEach((projectLogs) => {
-    projectLogs.sort((a, b) => sortLogsByTaskUserDate(a, b, "asc"))
+    projectLogs.sort(sortLogsByTagOrDate)
   })
 
-  // Sort projects alphabetically and return as array
   return Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]))
 }
 
@@ -76,6 +103,37 @@ const generateCSVRow = (log: WorkLog): string => {
     log.status || "",
   ]
   return fields.map(escapeCSVField).join(",")
+}
+
+const formatWorkLogMarkdownBlock = (log: WorkLog): string => {
+  const metaLines = [
+    `### ${getTaskTitle(log)}`,
+    "",
+    `- **User:** ${log.user.name} (${log.user.email})`,
+    `- **Hours:** ${log.hours}`,
+    `- **Date:** ${new Date(log.date).toLocaleDateString()}`,
+  ]
+  if (log.status) metaLines.push(`- **Status:** ${log.status}`)
+  metaLines.push("")
+
+  const sections: string[] = [metaLines.join("\n")]
+  if (log.description) sections.push(["**Description**", "", log.description].join("\n"))
+  if (log.remarks) sections.push(["**Remarks**", "", log.remarks].join("\n"))
+  if (!log.description && !log.remarks) sections.push("_No description or remarks._")
+  return sections.join("\n\n")
+}
+
+const generateMarkdownDocument = (
+  grouped: Array<[string, WorkLog[]]>,
+  titleLabel: string
+): string => {
+  const exported = new Date().toISOString().split("T")[0]
+  const header = [`# Work logs: ${titleLabel}`, "", `_Exported ${exported}._`, ""].join("\n")
+  const projectChunks = grouped.map(([projectName, logs]) => {
+    const entries = logs.map(formatWorkLogMarkdownBlock).join("\n\n---\n\n")
+    return [`## ${projectName}`, "", entries].join("\n")
+  })
+  return [header, ...projectChunks].join("\n\n") + "\n"
 }
 
 type WorkLogListProps = {
@@ -135,6 +193,23 @@ export function WorkLogList({
     URL.revokeObjectURL(url)
   }, [workLogs, buttonLabel])
 
+  const exportToMarkdown = useCallback(() => {
+    const md = generateMarkdownDocument(groupedByProject, buttonLabel)
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8;" })
+    const link = document.createElement("a")
+    const url = URL.createObjectURL(blob)
+    const sanitizedLabel = buttonLabel.replaceAll(/[^a-zA-Z0-9]/g, "_")
+    const filename = `work_logs_${sanitizedLabel}_${new Date().toISOString().split("T")[0]}.md`
+
+    link.setAttribute("href", url)
+    link.setAttribute("download", filename)
+    link.style.visibility = "hidden"
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }, [groupedByProject, buttonLabel])
+
   return (
     <div className="space-y-3">
       <Card className="card-shadow">
@@ -162,6 +237,15 @@ export function WorkLogList({
                 >
                   <Download className="h-4 w-4" />
                   Export CSV
+                </Button>
+                <Button
+                  onClick={exportToMarkdown}
+                  variant="default"
+                  size="sm"
+                  className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+                >
+                  <FileText className="h-4 w-4" />
+                  Export Markdown
                 </Button>
               </div>
             )}
@@ -198,13 +282,25 @@ export function WorkLogList({
 
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
         <DialogContent className="!max-w-[80vw] w-full max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">
-              Work Logs for: <span className="text-blue-500">{buttonLabel}</span>
-            </DialogTitle>
-            <DialogDescription>
-              View all work logs grouped by project ( <span className="font-bold text-blue-500">{groupedByProject.length}</span> projects )
-            </DialogDescription>
+          <DialogHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 space-y-0">
+            <div className="space-y-1.5 text-left min-w-0">
+              <DialogTitle className="text-2xl font-bold">
+                Work Logs for: <span className="text-blue-500">{buttonLabel}</span>
+              </DialogTitle>
+              <DialogDescription>
+                View all work logs grouped by project ( <span className="font-bold text-blue-500">{groupedByProject.length}</span> projects ). Within each project, entries are ordered by # tags in description or remarks, otherwise by date.
+              </DialogDescription>
+            </div>
+            <Button
+              type="button"
+              onClick={exportToMarkdown}
+              variant="default"
+              size="sm"
+              className="gap-2 shrink-0 bg-emerald-600 text-white hover:bg-emerald-700 self-start sm:self-auto"
+            >
+              <FileText className="h-4 w-4" />
+              Export Markdown
+            </Button>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto pr-2 space-y-6 mt-4">
