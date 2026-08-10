@@ -23,23 +23,6 @@ async function main() {
 
   console.log('✅ Database is empty. Starting seed process...')
 
-  // Clean existing data (safety measure)
-  console.log('🧹 Cleaning existing data...')
-  await prisma.notification.deleteMany()
-  await prisma.activityLog.deleteMany()
-  await prisma.timeEntry.deleteMany()
-  await prisma.document.deleteMany()
-  await prisma.comment.deleteMany()
-  await prisma.taskDependency.deleteMany()
-  await prisma.task.deleteMany()
-  await prisma.milestone.deleteMany()
-  await prisma.issue.deleteMany()
-  await prisma.projectMember.deleteMany()
-  await prisma.project.deleteMany()
-  await prisma.user.deleteMany()
-  await prisma.department.deleteMany()
-  await prisma.company.deleteMany()
-
   // Create Company
   console.log('🏢 Creating company...')
   const company = await prisma.company.create({

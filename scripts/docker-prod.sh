@@ -14,7 +14,7 @@ NC='\033[0m'
 # Check if .env.production exists
 if [ ! -f .env.production ]; then
     echo -e "${RED}❌ Error: .env.production file not found${NC}"
-    echo "Please create .env.production from env.production.example"
+    echo "Please create .env.production from env.prod.example"
     exit 1
 fi
 
@@ -50,7 +50,7 @@ case "$1" in
   init)
     warning_prompt
     echo -e "${GREEN}Initializing production database...${NC}"
-    docker-compose -f docker-compose.prod.yml --env-file .env.production --profile init up migrations
+    docker-compose -f docker-compose.prod.yml --env-file .env.production up migrations
     echo -e "${GREEN}✅ Production database initialized${NC}"
     ;;
     

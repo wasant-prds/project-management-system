@@ -1,7 +1,7 @@
 # Docker Compose for Production Environment
-# Features: Optimized build, security hardening, environment variable mapping
+# Features: Optimized build, Docker secrets, security hardening
 
-version: '3.8'
+name: project-management-system-production
 
 services:
   # PostgreSQL Database
@@ -9,24 +9,29 @@ services:
     image: postgres:16-alpine
     container_name: pms-postgres-prod
     restart: always
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-project_management_prod}
-      POSTGRES_INITDB_ARGS: "-E UTF8"
+    secrets:
+      - postgres_user
+      - postgres_password
+      - postgres_db
     ports:
       - "${POSTGRES_PORT:-5434}:5432"
     volumes:
       - postgres_data_prod:/var/lib/postgresql/data
+      - ./scripts/init-postgres.sh:/init-postgres.sh:ro
       - ./backups:/backups
+    environment:
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C
+      - POSTGRES_HOST_AUTH_METHOD=scram-sha-256
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/postgres_user) -d $$(cat /run/secrets/postgres_db)"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
     networks:
-      - pms-network-prod
-    command: 
+      - pms-network
+    entrypoint: ["/init-postgres.sh"]
+    command:
       - "postgres"
       - "-c"
       - "max_connections=100"
@@ -60,24 +65,29 @@ services:
       dockerfile: Dockerfile
       target: production
       args:
-        - NODE_ENV=production
+        NEXT_PUBLIC_ENV: production
     container_name: pms-app-prod
     restart: always
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_ENV=production
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-project_management_prod}?schema=public&connection_limit=10&pool_timeout=20
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - NEXTAUTH_URL=${NEXTAUTH_URL}
-      - PORT=${APP_PORT:-3000}
+      - PORT=3000
       - HOSTNAME=0.0.0.0
     ports:
       - "${APP_PORT:-3002}:3000"
+    secrets:
+      - postgres_user
+      - postgres_password
+      - postgres_db
     depends_on:
       postgres:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     networks:
-      - pms-network-prod
+      - pms-network
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
       interval: 30s
@@ -92,43 +102,59 @@ services:
         reservations:
           cpus: '0.5'
           memory: 512M
+    # DATABASE_URL → scripts/docker-entrypoint-app.sh
 
-  # Database Migrations Runner
+  # Database schema sync (runs before app on every up)
   migrations:
     build:
       context: .
       dockerfile: Dockerfile
-      target: builder
+      target: migrate
     container_name: pms-migrations-prod
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-project_management_prod}?schema=public
+    restart: "no"
+    secrets:
+      - postgres_user
+      - postgres_password
+      - postgres_db
     depends_on:
       postgres:
         condition: service_healthy
     networks:
-      - pms-network-prod
-    command: sh -c "pnpm db:push"
-    profiles:
-      - init
+      - pms-network
+    command:
+      - sh
+      - -c
+      - |
+        export POSTGRES_USER=$$(tr -d '\n\r' < /run/secrets/postgres_user | xargs)
+        export POSTGRES_PASSWORD=$$(tr -d '\n\r' < /run/secrets/postgres_password | xargs)
+        export POSTGRES_DB=$$(tr -d '\n\r' < /run/secrets/postgres_db | xargs)
+        export DATABASE_URL="postgresql://$${POSTGRES_USER}:$${POSTGRES_PASSWORD}@postgres:5432/$${POSTGRES_DB}?schema=public"
+        # Non-destructive: aborts if schema change would delete data (see scripts/db-push-safe.sh)
+        pnpm db:push
 
   # Database Backup Service (Optional)
   backup:
     image: postgres:16-alpine
     container_name: pms-backup-prod
+    secrets:
+      - postgres_user
+      - postgres_password
+      - postgres_db
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB:-project_management_prod}
-      - BACKUP_KEEP_DAYS=7
+      - BACKUP_KEEP_DAYS=${BACKUP_KEEP_DAYS:-7}
     volumes:
       - ./backups:/backups
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
-      - pms-network-prod
+      - pms-network
     command: sh -c "
+      export POSTGRES_USER=$$(cat /run/secrets/postgres_user | tr -d '\n\r' | xargs) &&
+      export POSTGRES_PASSWORD=$$(cat /run/secrets/postgres_password | tr -d '\n\r' | xargs) &&
+      export POSTGRES_DB=$$(cat /run/secrets/postgres_db | tr -d '\n\r' | xargs) &&
       while true; do
-        pg_dump -h postgres -U $${POSTGRES_USER} -d $${POSTGRES_DB} > /backups/backup_$$(date +%Y%m%d_%H%M%S).sql;
+        PGPASSWORD=$${POSTGRES_PASSWORD} pg_dump -h postgres -U $${POSTGRES_USER} -d $${POSTGRES_DB} > /backups/backup_$$(date +%Y%m%d_%H%M%S).sql;
         find /backups -type f -name '*.sql' -mtime +$${BACKUP_KEEP_DAYS} -delete;
         sleep 86400;
       done
@@ -137,10 +163,25 @@ services:
       - backup
 
 networks:
-  pms-network-prod:
+  pms-network:
     driver: bridge
 
 volumes:
   postgres_data_prod:
+    name: pms-postgres-data-prod
     driver: local
+    labels:
+      - "com.dhas.project=project-management-system"
+      - "com.dhas.environment=production"
+      - "com.dhas.volume.type=database"
+      - "com.dhas.backup.frequency=daily"
+      - "com.dhas.retention.days=30"
+      - "com.dhas.description=PostgreSQL persistent data volume"
 
+secrets:
+  postgres_user:
+    file: ./secrets/postgres_user.txt
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  postgres_db:
+    file: ./secrets/postgres_db.txt

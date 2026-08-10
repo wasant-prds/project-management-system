@@ -64,20 +64,18 @@ pnpm dev
 ### Docker Development (Recommended)
 
 ```bash
-# Start everything with one command
+# Dev (live reload) — http://localhost:3000
+docker compose up -d --build
+
+# Or via npm scripts
 npm run docker:dev:start
 
 # With Prisma Studio (database GUI)
 npm run docker:dev:start-studio
-
-# Access:
-# 🌐 App: http://localhost:3000
 # 🎨 Prisma Studio: http://localhost:5555
 ```
 
-**That's it!** Docker handles PostgreSQL, database setup, seeding, and hot reload. 🎉
-
-See the scripts directory for detailed Docker management commands.
+**That's it!** Docker handles PostgreSQL, `db:generate` / `push` / `seed`, and hot reload.
 
 ## 📚 Documentation
 
@@ -130,11 +128,14 @@ See the scripts directory for detailed Docker management commands.
 ├── prisma/
 │   ├── schema.prisma     # Database schema (14 models)
 │   └── seed.ts           # Mock data seeding
-├── scripts/              # Docker helper scripts
-├── Dockerfile            # Multi-stage Docker build
-├── docker-compose.yml    # Development environment
-├── docker-compose.uat.yml    # UAT environment
-└── docker-compose.prod.yml   # Production environment
+├── scripts/
+│   ├── docker-entrypoint-dev.sh   # Dev: DB init + pnpm dev
+│   ├── docker-entrypoint-app.sh   # UAT/prod: DATABASE_URL from secrets
+│   └── docker-*.sh                # Compose helper scripts
+├── Dockerfile            # Multi-stage: development | uat | production
+├── docker-compose.yml    # Development (target: development)
+├── docker-compose.uat.yml    # UAT (target: uat)
+└── docker-compose.prod.yml   # Production (target: production)
 ```
 
 ## 🗄️ Database Schema
@@ -160,36 +161,37 @@ See the Prisma schema file for detailed database documentation.
 
 ## 🐳 Docker Environments
 
-### Development
-- Hot reload enabled
-- Source code mounted
-- Prisma Studio available
-- Auto database seeding
+The Dockerfile exposes three app targets:
+
+| Target | Compose file | Behavior |
+|--------|----------------|----------|
+| `development` | `docker-compose.yml` | Bind-mount source, `pnpm dev` hot reload, auto `db:generate` / `push` / `seed` |
+| `uat` | `docker-compose.uat.yml` | Standalone build, `NEXT_PUBLIC_ENV=uat` baked in |
+| `production` | `docker-compose.prod.yml` | Standalone build, `NEXT_PUBLIC_ENV=production` baked in |
+| `migrate` | UAT/prod `migrations` service | Prisma only (no Next build); safe `db:push` (+ seed on UAT) before app — never deletes existing rows |
+
+**How it fits together**
+- Shared: `base` → `deps` → `builder` (app images) and `migrate` (schema push)
+- UAT/prod: same standalone image pattern + `docker-entrypoint-app.sh` (sets `DATABASE_URL` from secrets)
+- UAT/prod also run a one-shot `migrations` service (safe `db:push` that refuses data-loss flags; plus seed on UAT which skips if data exists) before `app` starts
+- Dev: `docker-entrypoint-dev.sh` (DB init + hot reload); source mounted via compose volumes
+
+`NEXT_PUBLIC_ENV` is passed as a **build arg** on UAT/prod so it is inlined into the client bundle. Runtime `ENV` alone is not enough for client code.
+
+### Run
 
 ```bash
-npm run docker:dev:start
+# Dev (live reload) — http://localhost:3000
+docker compose up -d --build
+
+# UAT — http://localhost:3001
+docker compose -f docker-compose.uat.yml up -d --build
+
+# Prod — http://localhost:3002
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-### UAT (User Acceptance Testing)
-- Production-like build
-- Environment variable mapping
-- Separate database and ports
-- Migration support
-
-```bash
-npm run docker:uat:start
-```
-
-### Production
-- Optimized standalone build
-- Resource limits (2GB RAM, 2 CPUs)
-- Health checks with auto-restart
-- Automatic backups
-- PostgreSQL performance tuning
-
-```bash
-npm run docker:prod:start
-```
+Or use the npm wrappers (`docker:dev:*`, `docker:uat:*`, `docker:prod:*`) which call the scripts under `scripts/`.
 
 ## 📊 Mock Data
 
@@ -218,9 +220,9 @@ pnpm lint               # Run linter
 ### Database
 ```bash
 pnpm db:generate        # Generate Prisma Client
-pnpm db:push            # Push schema to database
+pnpm db:push            # Push schema (non-destructive; refuses data-loss flags)
 pnpm db:migrate         # Create migration
-pnpm db:seed            # Seed database (smart - skips if data exists)
+pnpm db:seed            # Seed database (skips if data exists; never wipes)
 pnpm db:studio          # Open Prisma Studio
 pnpm db:status          # 🆕 Check database status
 pnpm db:backup          # 🆕 Create database backup
@@ -327,30 +329,28 @@ npm run docker:prod:backup-now        # Manual backup
 
 ## 🚀 Deployment
 
+Set up Docker secrets first (see [secrets/README.md](./secrets/README.md)).
+
 ### Development
 ```bash
-npm run docker:dev:start
+docker compose up -d --build
+# http://localhost:3000
 ```
 
 ### UAT
 ```bash
-# 1. Configure environment
 cp env.uat.example .env.uat
-
-# 2. Start UAT
-npm run docker:uat:start
-npm run docker:uat:init
+docker compose -f docker-compose.uat.yml up -d --build
+# http://localhost:3001
+# Schema push + seed run automatically via the migrations service
 ```
 
 ### Production
 ```bash
-# 1. Configure environment
-cp env.production.example .env.production
-
-# 2. Build and start
-npm run docker:prod:rebuild
-npm run docker:prod:start
-npm run docker:prod:init
+cp env.prod.example .env.production
+docker compose -f docker-compose.prod.yml up -d --build
+# http://localhost:3002
+# Schema push runs automatically via the migrations service
 ```
 
 ## 📦 Requirements

@@ -2,6 +2,7 @@
   "name": "project-management-system",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.34.5",
   "scripts": {
     "build": "next build",
     "dev": "next dev",
@@ -11,7 +12,7 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "db:push": "prisma db push",
+    "db:push": "sh scripts/db-push-safe.sh",
     "db:status": "bash scripts/db-manage.sh status",
     "db:reset": "bash scripts/db-manage.sh reset",
     "db:backup": "bash scripts/db-manage.sh backup",

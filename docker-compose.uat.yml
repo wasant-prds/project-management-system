@@ -1,29 +1,47 @@
 # Docker Compose for UAT (User Acceptance Testing) Environment
-# Features: Production-like build, environment variable mapping, PostgreSQL
+# Features: Production-like build, Docker secrets, PostgreSQL
 
-version: '3.8'
+name: project-management-system-uat
 
 services:
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
     container_name: pms-postgres-uat
-    restart: always
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-project_management_uat}
+    restart: unless-stopped
+    secrets:
+      - postgres_user
+      - postgres_password
+      - postgres_db
     ports:
       - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres_data_uat:/var/lib/postgresql/data
+      - ./scripts/init-postgres.sh:/init-postgres.sh:ro
+    environment:
+      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C
+      - POSTGRES_HOST_AUTH_METHOD=scram-sha-256
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/postgres_user) -d $$(cat /run/secrets/postgres_db)"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
     networks:
-      - pms-network-uat
+      - pms-network
+    entrypoint: ["/init-postgres.sh"]
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "max_connections=100"
+      - "-c"
+      - "work_mem=16MB"
+      - "-c"
+      - "maintenance_work_mem=64MB"
+      - "-c"
+      - "effective_cache_size=512MB"
 
   # Next.js Application (UAT)
   app:
@@ -32,53 +50,83 @@ services:
       dockerfile: Dockerfile
       target: uat
       args:
-        - NODE_ENV=production
+        NEXT_PUBLIC_ENV: uat
     container_name: pms-app-uat
-    restart: always
+    restart: unless-stopped
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_ENV=uat
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-project_management_uat}?schema=public
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3001}
-      - PORT=${APP_PORT:-3000}
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
     ports:
       - "${APP_PORT:-3001}:3000"
+    secrets:
+      - postgres_user
+      - postgres_password
+      - postgres_db
     depends_on:
       postgres:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     networks:
-      - pms-network-uat
+      - pms-network
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    # DATABASE_URL → scripts/docker-entrypoint-app.sh
 
-  # Database Migrations Runner
+  # Database schema sync + seed (runs before app on every up)
   migrations:
     build:
       context: .
       dockerfile: Dockerfile
-      target: builder
+      target: migrate
     container_name: pms-migrations-uat
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-project_management_uat}?schema=public
+    restart: "no"
+    secrets:
+      - postgres_user
+      - postgres_password
+      - postgres_db
     depends_on:
       postgres:
         condition: service_healthy
     networks:
-      - pms-network-uat
-    command: sh -c "pnpm db:push && pnpm db:seed"
-    profiles:
-      - init
+      - pms-network
+    command:
+      - sh
+      - -c
+      - |
+        export POSTGRES_USER=$$(tr -d '\n\r' < /run/secrets/postgres_user | xargs)
+        export POSTGRES_PASSWORD=$$(tr -d '\n\r' < /run/secrets/postgres_password | xargs)
+        export POSTGRES_DB=$$(tr -d '\n\r' < /run/secrets/postgres_db | xargs)
+        export DATABASE_URL="postgresql://$${POSTGRES_USER}:$${POSTGRES_PASSWORD}@postgres:5432/$${POSTGRES_DB}?schema=public"
+        # Non-destructive: aborts if schema change would delete data (see scripts/db-push-safe.sh)
+        pnpm db:push && pnpm db:seed
 
 networks:
-  pms-network-uat:
+  pms-network:
     driver: bridge
 
 volumes:
   postgres_data_uat:
+    name: pms-postgres-data-uat
     driver: local
+    labels:
+      - "com.dhas.project=project-management-system"
+      - "com.dhas.environment=uat"
+      - "com.dhas.volume.type=database"
+      - "com.dhas.description=PostgreSQL persistent data volume"
 
+secrets:
+  postgres_user:
+    file: ./secrets/postgres_user.txt
+  postgres_password:
+    file: ./secrets/postgres_password.txt
+  postgres_db:
+    file: ./secrets/postgres_db.txt

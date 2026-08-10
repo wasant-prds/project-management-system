@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   generator: "v0.app",
 }
 
+// DB-backed app: skip static prerender so build does not require DATABASE_URL
+export const dynamic = "force-dynamic"
+
 export default function RootLayout({
   children,
 }: Readonly<{

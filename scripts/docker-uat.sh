@@ -31,7 +31,7 @@ case "$1" in
     
   init)
     echo -e "${GREEN}Initializing UAT database...${NC}"
-    docker-compose -f docker-compose.uat.yml --env-file .env.uat --profile init up migrations
+    docker-compose -f docker-compose.uat.yml --env-file .env.uat up migrations
     echo -e "${GREEN}✅ UAT database initialized${NC}"
     ;;
     

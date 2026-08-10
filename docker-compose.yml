@@ -49,7 +49,7 @@ services:
       - "-c"
       - "full_page_writes=off"  # Dev only - improves performance
 
-  # Next.js Application (Development)
+  # Next.js Application (Development — hot reload)
   app:
     build:
       context: .
@@ -59,15 +59,17 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://$$(cat /run/secrets/postgres_user):$$(cat /run/secrets/postgres_password)@postgres:5432/$$(cat /run/secrets/postgres_db)?schema=public
+      - NEXT_PUBLIC_ENV=development
       - NEXTAUTH_SECRET=dev-secret-change-in-production
       - NEXTAUTH_URL=http://localhost:3000
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
     ports:
       - "3000:3000"
     volumes:
-      # Mount source code for hot reload
+      # Bind-mount source for live reload; keep container node_modules/.next
       - .:/app
       - /app/node_modules
       - /app/.next
@@ -80,7 +82,7 @@ services:
         condition: service_healthy
     networks:
       - pms-network
-    command: sh -c "export POSTGRES_USER=$$(cat /run/secrets/postgres_user) && export POSTGRES_PASSWORD=$$(cat /run/secrets/postgres_password) && export POSTGRES_DB=$$(cat /run/secrets/postgres_db) && export DATABASE_URL=postgresql://$${POSTGRES_USER}:$${POSTGRES_PASSWORD}@postgres:5432/$${POSTGRES_DB}?schema=public && pnpm db:push && pnpm db:seed && pnpm dev"
+    # DATABASE_URL + db:push/seed + pnpm dev → scripts/docker-entrypoint-dev.sh
 
 networks:
   pms-network:
