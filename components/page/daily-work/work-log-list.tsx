@@ -123,6 +123,14 @@ const formatWorkLogMarkdownBlock = (log: WorkLog): string => {
   return sections.join("\n\n")
 }
 
+const formatWorkLogMarkdownBlockGroupByProject = (log: WorkLog): string => {
+  const sections: string[] = []
+  if (log.description) sections.push(["**Description**", "", log.description].join("\n"))
+  if (log.remarks) sections.push(["**Remarks**", "", log.remarks].join("\n"))
+  if (!log.description && !log.remarks) sections.push("_No description or remarks._")
+  return sections.join("\n\n")
+}
+
 const generateMarkdownDocument = (
   grouped: Array<[string, WorkLog[]]>,
   titleLabel: string
@@ -130,7 +138,7 @@ const generateMarkdownDocument = (
   const exported = new Date().toISOString().split("T")[0]
   const header = [`# Work logs: ${titleLabel}`, "", `_Exported ${exported}._`, ""].join("\n")
   const projectChunks = grouped.map(([projectName, logs]) => {
-    const entries = logs.map(formatWorkLogMarkdownBlock).join("\n\n---\n\n")
+    const entries = logs.map(formatWorkLogMarkdownBlockGroupByProject).join("\n\n---\n\n")
     return [`## ${projectName}`, "", entries].join("\n")
   })
   return [header, ...projectChunks].join("\n\n") + "\n"
