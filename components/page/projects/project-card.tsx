@@ -56,9 +56,9 @@ export function ProjectCard({ project }: ProjectCardProps) {
       case "Review":
         return "bg-chart-4/10 text-chart-4 border-chart-4/20"
       case "Planning":
-        return "bg-chart-1/10 text-chart-1 border-chart-1/20"
+        return "bg-chart-3/10 text-chart-3 border-chart-3/20"
       case "Completed":
-        return "bg-chart-4/10 text-chart-4 border-chart-4/20"
+        return "bg-chart-1/10 text-chart-1 border-chart-1/20"
       default:
         return "bg-muted text-muted-foreground"
     }

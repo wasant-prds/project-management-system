@@ -21,11 +21,11 @@
   --border: oklch(0.8 0.01 247.86); /* #cbd5e1 - more visible border */
   --input: oklch(1 0 0); /* #ffffff - white input background */
   --ring: oklch(0.4 0.2 162.68 / 0.7); /* darker emerald focus ring with more opacity */
-  --chart-1: oklch(0.4 0.2 162.68); /* #065f46 - primary emerald */
-  --chart-2: oklch(0.5 0.2 162.68); /* #047857 - lighter emerald */
-  --chart-3: oklch(0.2 0.01 258.34); /* #1e293b - very dark gray */
-  --chart-4: oklch(0.55 0.18 70.67); /* #c2410c - darker orange */
-  --chart-5: oklch(0.5 0.25 27.33); /* #b91c1c - darker red */
+  --chart-1: oklch(0.68 0.15 162); /* emerald — completed / success */
+  --chart-2: oklch(0.68 0.14 245); /* blue — in progress / tasks */
+  --chart-3: oklch(0.78 0.15 70); /* amber — issues / planning */
+  --chart-4: oklch(0.70 0.12 195); /* teal — remaining / resolved */
+  --chart-5: oklch(0.68 0.16 300); /* violet — on hold / accent */
   --radius: 0.5rem;
   --sidebar: oklch(0.97 0.005 247.86); /* #f1f5f9 - distinct sidebar background */
   --sidebar-foreground: oklch(0.09 0.01 258.34); /* #0f172a - very dark sidebar text */
@@ -59,11 +59,11 @@
   --border: oklch(0.35 0.01 258.34); /* #64748b - more visible border for better card separation */
   --input: oklch(0.08 0.01 258.34); /* #0f172a - dark input */
   --ring: oklch(0.75 0.18 162.68 / 0.7); /* bright emerald focus ring with more opacity */
-  --chart-1: oklch(0.8 0.2 142.5); /* #10b981 - bright emerald green */
-  --chart-2: oklch(0.75 0.25 200); /* #3b82f6 - bright blue */
-  --chart-3: oklch(0.8 0.2 60); /* #f59e0b - bright amber */
-  --chart-4: oklch(0.75 0.25 320); /* #ef4444 - bright red */
-  --chart-5: oklch(0.8 0.2 280); /* #8b5cf6 - bright purple */
+  --chart-1: oklch(0.82 0.17 162); /* emerald — completed / success */
+  --chart-2: oklch(0.80 0.15 245); /* blue — in progress / tasks */
+  --chart-3: oklch(0.86 0.15 70); /* amber — issues / planning */
+  --chart-4: oklch(0.82 0.12 195); /* teal — remaining / resolved */
+  --chart-5: oklch(0.82 0.16 300); /* violet — on hold / accent */
   --sidebar: oklch(0.07 0.01 258.34); /* #0f172a - distinct dark sidebar */
   --sidebar-foreground: oklch(0.95 0.01 258.34); /* #f1f5f9 - very light sidebar text */
   --sidebar-primary: oklch(0.75 0.18 162.68); /* #22c55e - bright emerald */
@@ -94,11 +94,11 @@
   --border: oklch(0.35 0.01 258.34); /* #64748b - more visible border for better card separation */
   --input: oklch(0.08 0.01 258.34); /* #0f172a - dark input */
   --ring: oklch(0.75 0.18 162.68 / 0.7); /* bright emerald focus ring with more opacity */
-  --chart-1: oklch(0.8 0.2 142.5); /* #10b981 - bright emerald green */
-  --chart-2: oklch(0.75 0.25 200); /* #3b82f6 - bright blue */
-  --chart-3: oklch(0.8 0.2 60); /* #f59e0b - bright amber */
-  --chart-4: oklch(0.75 0.25 320); /* #ef4444 - bright red */
-  --chart-5: oklch(0.8 0.2 280); /* #8b5cf6 - bright purple */
+  --chart-1: oklch(0.82 0.17 162); /* emerald — completed / success */
+  --chart-2: oklch(0.80 0.15 245); /* blue — in progress / tasks */
+  --chart-3: oklch(0.86 0.15 70); /* amber — issues / planning */
+  --chart-4: oklch(0.82 0.12 195); /* teal — remaining / resolved */
+  --chart-5: oklch(0.82 0.16 300); /* violet — on hold / accent */
   --sidebar: oklch(0.07 0.01 258.34); /* #0f172a - distinct dark sidebar */
   --sidebar-foreground: oklch(0.95 0.01 258.34); /* #f1f5f9 - very light sidebar text */
   --sidebar-primary: oklch(0.75 0.18 162.68); /* #22c55e - bright emerald */
@@ -347,81 +347,87 @@
     font-weight: 500;
   }
 
-  /* Enhanced chart visibility in dark mode */
+  /* Chart visibility — CSS vars already include the color function (oklch) */
   .dark .recharts-cartesian-grid-horizontal line,
-  .dark .recharts-cartesian-grid-vertical line {
-    stroke: hsl(var(--border));
+  .dark .recharts-cartesian-grid-vertical line,
+  .special-dark .recharts-cartesian-grid-horizontal line,
+  .special-dark .recharts-cartesian-grid-vertical line {
+    stroke: var(--border);
     stroke-opacity: 0.6;
   }
 
   .dark .recharts-xAxis .recharts-text,
-  .dark .recharts-yAxis .recharts-text {
-    fill: hsl(var(--muted-foreground));
+  .dark .recharts-yAxis .recharts-text,
+  .special-dark .recharts-xAxis .recharts-text,
+  .special-dark .recharts-yAxis .recharts-text {
+    fill: var(--muted-foreground);
     font-weight: 500;
   }
 
-  .dark .recharts-legend-item-text {
-    color: hsl(var(--foreground));
+  .dark .recharts-legend-item-text,
+  .special-dark .recharts-legend-item-text {
+    color: var(--foreground);
     font-weight: 500;
   }
 
-  .dark .recharts-tooltip-wrapper {
-    background-color: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
+  .dark .recharts-tooltip-wrapper,
+  .special-dark .recharts-tooltip-wrapper {
+    background-color: var(--card);
+    border: 1px solid var(--border);
     border-radius: 6px;
     box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3);
   }
 
-  .dark .recharts-tooltip-label {
-    color: hsl(var(--card-foreground));
+  .dark .recharts-tooltip-label,
+  .special-dark .recharts-tooltip-label {
+    color: var(--card-foreground);
     font-weight: 600;
   }
 
-  .dark .recharts-tooltip-item {
-    color: hsl(var(--card-foreground));
+  .dark .recharts-tooltip-item,
+  .special-dark .recharts-tooltip-item {
+    color: var(--card-foreground);
   }
 
-  /* Enhanced chart area fills for better visibility */
-  .dark .recharts-area {
+  .dark .recharts-area,
+  .special-dark .recharts-area {
     opacity: 0.8;
   }
 
-  .dark .recharts-bar {
+  .dark .recharts-bar,
+  .special-dark .recharts-bar {
     opacity: 0.9;
   }
 
-  /* Better chart text contrast */
-  .dark .recharts-pie-label-text {
+  .dark .recharts-pie-label-text,
+  .special-dark .recharts-pie-label-text {
     font-weight: 600;
   }
 
-  .dark .recharts-radial-bar-label {
-    fill: hsl(var(--foreground));
+  .dark .recharts-radial-bar-label,
+  .special-dark .recharts-radial-bar-label {
+    fill: var(--foreground);
     font-weight: 600;
   }
 
-  /* Enhanced line chart dot visibility in dark mode */
-  .dark .recharts-line-dot {
-    fill: hsl(var(--chart-1));
-    stroke: hsl(var(--background));
+  .dark .recharts-line-dot,
+  .special-dark .recharts-line-dot {
+    stroke: var(--background);
     stroke-width: 2px;
     r: 4px;
-    color: hsl(var(--foreground));
   }
 
-  .dark .recharts-line-dot:hover {
-    fill: hsl(var(--chart-1));
-    stroke: hsl(var(--background));
+  .dark .recharts-line-dot:hover,
+  .special-dark .recharts-line-dot:hover {
+    stroke: var(--background);
     stroke-width: 3px;
     r: 6px;
-    color: hsl(var(--foreground));
   }
 
-  .dark .recharts-active-dot {
-    fill: hsl(var(--chart-1));
-    stroke: hsl(var(--background));
+  .dark .recharts-active-dot,
+  .special-dark .recharts-active-dot {
+    stroke: var(--background);
     stroke-width: 3px;
     r: 6px;
-    color: hsl(var(--foreground));
   }
 }

@@ -323,18 +323,18 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                           config={{
                             completed: {
                               label: "Completed",
-                              color: "hsl(var(--chart-1))",
+                              color: "var(--chart-1)",
                             },
                           }}
                           className="h-[250px]"
                         >
                           <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={weeklyProgress}>
-                              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                              <XAxis dataKey="week" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                              <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+                              <XAxis dataKey="week" stroke="var(--muted-foreground)" fontSize={12} />
+                              <YAxis stroke="var(--muted-foreground)" fontSize={12} />
                               <ChartTooltip content={<ChartTooltipContent />} />
-                              <Bar dataKey="completed" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                              <Bar dataKey="completed" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
                             </BarChart>
                           </ResponsiveContainer>
                         </ChartContainer>
@@ -395,7 +395,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                               className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-primary/30 transition-colors"
                             >
                               {task.completed ? (
-                                <CheckCircle2 className="h-5 w-5 text-chart-4 flex-shrink-0" />
+                                <CheckCircle2 className="h-5 w-5 text-chart-1 flex-shrink-0" />
                               ) : displayStatus === "in-progress" ? (
                                 <Clock className="h-5 w-5 text-chart-2 flex-shrink-0" />
                               ) : (
@@ -418,7 +418,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                 variant="outline"
                                 className={
                                   task.completed
-                                    ? "bg-chart-4/10 text-chart-4 border-chart-4/20"
+                                    ? "bg-chart-1/10 text-chart-1 border-chart-1/20"
                                     : displayStatus === "in-progress"
                                       ? "bg-chart-2/10 text-chart-2 border-chart-2/20"
                                       : "bg-muted text-muted-foreground"
@@ -485,13 +485,13 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                               <div className="flex flex-col items-center">
                                 <div
                                   className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${displayStatus === "completed"
-                                      ? "bg-chart-4/20 border-chart-4"
+                                      ? "bg-chart-1/20 border-chart-1"
                                       : displayStatus === "in-progress"
                                         ? "bg-chart-2/20 border-chart-2"
                                         : "bg-muted border-border"
                                     }`}
                                 >
-                                  {displayStatus === "completed" && <CheckCircle2 className="h-4 w-4 text-chart-4" />}
+                                  {displayStatus === "completed" && <CheckCircle2 className="h-4 w-4 text-chart-1" />}
                                   {displayStatus === "in-progress" && <Clock className="h-4 w-4 text-chart-2" />}
                                   {displayStatus === "pending" && <Circle className="h-4 w-4 text-muted-foreground" />}
                                 </div>

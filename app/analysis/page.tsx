@@ -26,10 +26,10 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 
 export default function AnalysisPage() {
   const projectStatusData = [
-    { name: "Completed", value: 42, color: "hsl(var(--chart-4))" },
-    { name: "In Progress", value: 28, color: "hsl(var(--chart-2))" },
-    { name: "Planning", value: 18, color: "hsl(var(--chart-1))" },
-    { name: "On Hold", value: 12, color: "hsl(var(--chart-3))" },
+    { name: "Completed", value: 42, color: "var(--chart-1)" },
+    { name: "In Progress", value: 28, color: "var(--chart-2)" },
+    { name: "Planning", value: 18, color: "var(--chart-3)" },
+    { name: "On Hold", value: 12, color: "var(--chart-5)" },
   ]
 
   const teamPerformanceData = [
@@ -178,46 +178,46 @@ export default function AnalysisPage() {
                         config={{
                           projects: {
                             label: "Projects",
-                            color: "hsl(var(--chart-1))",
+                            color: "var(--chart-1)",
                           },
                           tasks: {
                             label: "Tasks",
-                            color: "hsl(var(--chart-2))",
+                            color: "var(--chart-2)",
                           },
                           issues: {
                             label: "Issues",
-                            color: "hsl(var(--chart-3))",
+                            color: "var(--chart-3)",
                           },
                         }}
                         className="h-[300px]"
                       >
                         <ResponsiveContainer width="100%" height="100%">
                           <LineChart data={monthlyTrendsData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                            <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+                            <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={12} />
+                            <YAxis stroke="var(--muted-foreground)" fontSize={12} />
                             <ChartTooltip content={<ChartTooltipContent />} />
                             <Legend />
                             <Line
                               type="monotone"
                               dataKey="projects"
-                              stroke="hsl(var(--chart-1))"
+                              stroke="var(--chart-1)"
                               strokeWidth={2}
-                              dot={{ fill: "hsl(var(--chart-1))", r: 4 }}
+                              dot={{ fill: "var(--chart-1)", r: 4 }}
                             />
                             <Line
                               type="monotone"
                               dataKey="tasks"
-                              stroke="hsl(var(--chart-2))"
+                              stroke="var(--chart-2)"
                               strokeWidth={2}
-                              dot={{ fill: "hsl(var(--chart-2))", r: 4 }}
+                              dot={{ fill: "var(--chart-2)", r: 4 }}
                             />
                             <Line
                               type="monotone"
                               dataKey="issues"
-                              stroke="hsl(var(--chart-3))"
+                              stroke="var(--chart-3)"
                               strokeWidth={2}
-                              dot={{ fill: "hsl(var(--chart-3))", r: 4 }}
+                              dot={{ fill: "var(--chart-3)", r: 4 }}
                             />
                           </LineChart>
                         </ResponsiveContainer>
@@ -246,7 +246,9 @@ export default function AnalysisPage() {
                               cx="50%"
                               cy="50%"
                               labelLine={false}
-                              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                              label={({ name, percent }) =>
+                                `${name} ${(Number(percent ?? 0) * 100).toFixed(0)}%`
+                              }
                               outerRadius={100}
                               fill="#8884d8"
                               dataKey="value"
@@ -273,24 +275,24 @@ export default function AnalysisPage() {
                       config={{
                         completed: {
                           label: "Completed",
-                          color: "hsl(var(--chart-2))",
+                          color: "var(--chart-1)",
                         },
                         target: {
                           label: "Target",
-                          color: "hsl(var(--chart-1))",
+                          color: "var(--chart-3)",
                         },
                       }}
                       className="h-[300px]"
                     >
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={taskCompletionData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                          <XAxis dataKey="week" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                          <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+                          <XAxis dataKey="week" stroke="var(--muted-foreground)" fontSize={12} />
+                          <YAxis stroke="var(--muted-foreground)" fontSize={12} />
                           <ChartTooltip content={<ChartTooltipContent />} />
                           <Legend />
-                          <Bar dataKey="completed" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="target" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="completed" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="target" fill="var(--chart-3)" radius={[4, 4, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </ChartContainer>
@@ -309,30 +311,30 @@ export default function AnalysisPage() {
                       config={{
                         completed: {
                           label: "Completed",
-                          color: "hsl(var(--chart-4))",
+                          color: "var(--chart-1)",
                         },
                         inProgress: {
                           label: "In Progress",
-                          color: "hsl(var(--chart-2))",
+                          color: "var(--chart-2)",
                         },
                       }}
                       className="h-[400px]"
                     >
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={teamPerformanceData} layout="vertical">
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                          <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+                          <XAxis type="number" stroke="var(--muted-foreground)" fontSize={12} />
                           <YAxis
                             dataKey="name"
                             type="category"
-                            stroke="hsl(var(--muted-foreground))"
+                            stroke="var(--muted-foreground)"
                             fontSize={12}
                             width={100}
                           />
                           <ChartTooltip content={<ChartTooltipContent />} />
                           <Legend />
-                          <Bar dataKey="completed" fill="hsl(var(--chart-4))" radius={[0, 4, 4, 0]} />
-                          <Bar dataKey="inProgress" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} />
+                          <Bar dataKey="completed" fill="var(--chart-1)" radius={[0, 4, 4, 0]} />
+                          <Bar dataKey="inProgress" fill="var(--chart-2)" radius={[0, 4, 4, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </ChartContainer>
@@ -376,24 +378,24 @@ export default function AnalysisPage() {
                       config={{
                         spent: {
                           label: "Spent",
-                          color: "hsl(var(--chart-2))",
+                          color: "var(--chart-3)",
                         },
                         remaining: {
                           label: "Remaining",
-                          color: "hsl(var(--chart-1))",
+                          color: "var(--chart-4)",
                         },
                       }}
                       className="h-[300px]"
                     >
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={budgetAnalysisData}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                          <XAxis dataKey="project" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                          <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+                          <XAxis dataKey="project" stroke="var(--muted-foreground)" fontSize={12} />
+                          <YAxis stroke="var(--muted-foreground)" fontSize={12} />
                           <ChartTooltip content={<ChartTooltipContent />} />
                           <Legend />
-                          <Bar dataKey="spent" stackId="a" fill="hsl(var(--chart-2))" radius={[0, 0, 0, 0]} />
-                          <Bar dataKey="remaining" stackId="a" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="spent" stackId="a" fill="var(--chart-3)" radius={[0, 0, 0, 0]} />
+                          <Bar dataKey="remaining" stackId="a" fill="var(--chart-4)" radius={[4, 4, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </ChartContainer>
@@ -414,7 +416,7 @@ export default function AnalysisPage() {
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-muted-foreground">Spent</span>
-                          <span className="text-lg font-bold text-chart-2">${project.spent.toLocaleString()}</span>
+                          <span className="text-lg font-bold text-chart-3">${project.spent.toLocaleString()}</span>
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t border-border/50">
                           <span className="text-sm text-muted-foreground">Remaining</span>

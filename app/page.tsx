@@ -198,23 +198,23 @@ export default function DashboardPage() {
                     config={{
                       completed: {
                         label: "Completed",
-                        color: "hsl(var(--chart-1))",
+                        color: "var(--chart-1)",
                       },
                       inProgress: {
                         label: "In Progress",
-                        color: "hsl(var(--chart-2))",
+                        color: "var(--chart-2)",
                       },
                     }}
                     className="h-[250px]"
                   >
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={projectCompletionData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                        <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+                        <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={12} />
+                        <YAxis stroke="var(--muted-foreground)" fontSize={12} />
                         <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar dataKey="completed" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="inProgress" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="completed" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="inProgress" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </ChartContainer>
@@ -232,23 +232,23 @@ export default function DashboardPage() {
                     config={{
                       tasks: {
                         label: "Tasks",
-                        color: "hsl(var(--chart-2))",
+                        color: "var(--chart-2)",
                       },
                     }}
                     className="h-[250px]"
                   >
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={taskActivityData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                        <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" fontSize={12} />
-                        <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+                        <XAxis dataKey="day" stroke="var(--muted-foreground)" fontSize={12} />
+                        <YAxis stroke="var(--muted-foreground)" fontSize={12} />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <Line
                           type="monotone"
                           dataKey="tasks"
-                          stroke="hsl(var(--chart-2))"
+                          stroke="var(--chart-2)"
                           strokeWidth={2}
-                          dot={{ fill: "hsl(var(--chart-2))", r: 4 }}
+                          dot={{ fill: "var(--chart-2)", r: 4 }}
                         />
                       </LineChart>
                     </ResponsiveContainer>

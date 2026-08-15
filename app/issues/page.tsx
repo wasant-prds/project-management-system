@@ -106,7 +106,7 @@ export default async function IssuesPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Open":
-        return "bg-chart-1/10 text-chart-1 border-chart-1/20"
+        return "bg-chart-3/10 text-chart-3 border-chart-3/20"
       case "In Progress":
         return "bg-chart-2/10 text-chart-2 border-chart-2/20"
       case "Resolved":
@@ -165,7 +165,7 @@ export default async function IssuesPage() {
                   <CardTitle className="text-sm font-medium text-muted-foreground">Open</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-chart-1">{stats.open}</div>
+                  <div className="text-2xl font-bold text-chart-3">{stats.open}</div>
                 </CardContent>
               </Card>
               <Card className="card-shadow">

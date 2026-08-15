@@ -102,7 +102,7 @@ export default async function TasksPage() {
       case "To Do":
         return "bg-muted text-muted-foreground border-border"
       case "Completed":
-        return "bg-chart-4/10 text-chart-4 border-chart-4/20"
+        return "bg-chart-1/10 text-chart-1 border-chart-1/20"
       case "Blocked":
         return "bg-destructive/10 text-destructive border-destructive/20"
       default:
@@ -152,7 +152,7 @@ export default async function TasksPage() {
                   <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-chart-4">{stats.completed}</div>
+                  <div className="text-2xl font-bold text-chart-1">{stats.completed}</div>
                 </CardContent>
               </Card>
               <Card className="card-shadow">
