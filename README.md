@@ -49,11 +49,11 @@ pnpm install
 createdb project_management_dev
 
 # 3. Configure environment
-cp env.development.example .env
+cp env.dev.example .env
 
 # 4. Set up database
-pnpm db:push
-pnpm db:seed
+sh scripts/db-push-safe.sh
+pnpm prisma db seed
 
 # 5. Start development server
 pnpm dev
@@ -67,11 +67,11 @@ pnpm dev
 # Dev (live reload) — http://localhost:3000
 docker compose up -d --build
 
-# Or via npm scripts
-npm run docker:dev:start
+# Or via helper scripts (see document/process/docker.md)
+bash scripts/docker-dev.sh start
 
 # With Prisma Studio (database GUI)
-npm run docker:dev:start-studio
+bash scripts/docker-dev.sh start-studio
 # 🎨 Prisma Studio: http://localhost:5555
 ```
 
@@ -81,6 +81,8 @@ npm run docker:dev:start-studio
 
 - **[Database README](./database/README.md)** - Database setup and management
 - **[Secrets README](./secrets/README.md)** - Environment configuration guide
+- **[Database process](./document/process/db.md)** - Prisma and db helper commands
+- **[Docker process](./document/process/docker.md)** - Dev / UAT / production helper commands
 
 ## 🏗️ Architecture
 
@@ -191,7 +193,7 @@ docker compose -f docker-compose.uat.yml up -d --build
 docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Or use the npm wrappers (`docker:dev:*`, `docker:uat:*`, `docker:prod:*`) which call the scripts under `scripts/`.
+Or use the helper scripts under `scripts/` — see [Docker process](./document/process/docker.md).
 
 ## 📊 Mock Data
 
@@ -218,48 +220,12 @@ pnpm lint               # Run linter
 ```
 
 ### Database
-```bash
-pnpm db:generate        # Generate Prisma Client
-pnpm db:push            # Push schema (non-destructive; refuses data-loss flags)
-pnpm db:migrate         # Create migration
-pnpm db:seed            # Seed database (skips if data exists; never wipes)
-pnpm db:studio          # Open Prisma Studio
-pnpm db:status          # 🆕 Check database status
-pnpm db:backup          # 🆕 Create database backup
-pnpm db:connect         # 🆕 Connect to database (psql)
-pnpm db:logs            # 🆕 View PostgreSQL logs
-pnpm db:reset           # 🆕 Reset database (delete all data)
-pnpm db:force-seed      # 🆕 Force reseed (dangerous!)
-```
 
-> 💡 **New!** Database management tools with smart seeding, automatic backups, and performance optimizations. See [OPTIMIZATION_GUIDE.md](./OPTIMIZATION_GUIDE.md) for details.
+Prisma and helper scripts for generate, push, seed, backup, and reset. Full command list: [document/process/db.md](./document/process/db.md).
 
-### Docker - Development
-```bash
-npm run docker:dev:start              # Start dev environment
-npm run docker:dev:start-studio       # Start with Prisma Studio
-npm run docker:dev:stop               # Stop services
-npm run docker:dev:logs               # View logs
-npm run docker:dev:shell              # Open app shell
-npm run docker:dev:clean              # Clean volumes
-```
+### Docker
 
-### Docker - UAT
-```bash
-npm run docker:uat:start              # Start UAT
-npm run docker:uat:init               # Initialize database
-npm run docker:uat:stop               # Stop UAT
-npm run docker:uat:logs               # View logs
-```
-
-### Docker - Production
-```bash
-npm run docker:prod:start             # Start production
-npm run docker:prod:init              # Initialize database
-npm run docker:prod:stop              # Stop production
-npm run docker:prod:health            # Check health
-npm run docker:prod:backup-now        # Manual backup
-```
+Helper scripts for dev, UAT, and production live under `scripts/`. Full command list: [document/process/docker.md](./document/process/docker.md).
 
 ## 📡 API Endpoints
 
@@ -384,5 +350,5 @@ Built with:
 
 ---
 
-**Ready to start?** Run `npm run docker:dev:start` and you're good to go! 🚀
+**Ready to start?** Run `bash scripts/docker-dev.sh start` and you're good to go! 🚀
 

@@ -262,7 +262,7 @@ seed() {
     print_info "Running database seed..."
     echo ""
     
-    pnpm db:seed
+    pnpm prisma db seed
     
     echo ""
 }
@@ -296,8 +296,8 @@ GRANT ALL ON SCHEMA public TO public;
 EOF
     
     # Run migrations and seed
-    pnpm db:push
-    pnpm db:seed
+    sh scripts/db-push-safe.sh
+    pnpm prisma db seed
     
     print_success "Database reseeded successfully!"
     echo ""

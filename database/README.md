@@ -25,7 +25,7 @@ database/
 ### First Run
 When you first run `docker-compose up`, the database will be initialized automatically:
 1. PostgreSQL creates its data structure
-2. Prisma runs migrations (`pnpm db:push`)
+2. Prisma runs migrations (`sh scripts/db-push-safe.sh`)
 3. Seed script checks if data exists
 4. If empty, seeds initial data
 5. If data exists, **skips seeding to prevent data loss**
@@ -66,8 +66,8 @@ GRANT ALL ON SCHEMA public TO <username>;
 GRANT ALL ON SCHEMA public TO public;
 
 # Exit and run migrations + seed
-pnpm db:push
-pnpm db:seed
+sh scripts/db-push-safe.sh
+pnpm prisma db seed
 ```
 
 #### Option 3: Use Docker Volume

@@ -92,11 +92,11 @@ case "$1" in
     echo -e "${YELLOW}Rebuilding production containers...${NC}"
     docker-compose -f docker-compose.prod.yml --env-file .env.production build --no-cache
     echo -e "${GREEN}✅ Production containers rebuilt${NC}"
-    echo -e "${YELLOW}Run 'npm run docker:prod:start' to start the environment${NC}"
+    echo -e "${YELLOW}Run 'bash scripts/docker-prod.sh start' to start the environment${NC}"
     ;;
     
   *)
-    echo "Usage: npm run docker:prod:$1"
+    echo "Usage: bash scripts/docker-prod.sh $1"
     echo ""
     echo "Available commands:"
     echo "  start         - Start production environment"

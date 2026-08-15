@@ -76,7 +76,7 @@ case "$1" in
     ;;
     
   *)
-    echo "Usage: npm run docker:uat:$1"
+    echo "Usage: bash scripts/docker-uat.sh $1"
     echo ""
     echo "Available commands:"
     echo "  start      - Start UAT environment"

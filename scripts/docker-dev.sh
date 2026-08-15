@@ -21,7 +21,7 @@ case "$1" in
     echo "📱 Application: http://localhost:3000"
     echo "🗄️  PostgreSQL: localhost:5432"
     echo ""
-    echo "To view logs: npm run docker:dev:logs"
+    echo "To view logs: bash scripts/docker-dev.sh logs"
     ;;
     
   start-studio)
@@ -82,7 +82,7 @@ case "$1" in
     ;;
     
   *)
-    echo "Usage: npm run docker:dev:$1"
+    echo "Usage: bash scripts/docker-dev.sh $1"
     echo ""
     echo "Available commands:"
     echo "  start         - Start development environment"

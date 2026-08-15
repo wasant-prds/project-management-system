@@ -23,6 +23,7 @@ yarn-error.log*
 /secrets/*.txt
 
 # database
+/database/seeds/master/*
 /database/postgres/data/*
 !/database/postgres/data/.gitkeep
 

@@ -3,34 +3,11 @@
 
 name: project-management-system-production
 
+include:
+  - path: docker-compose.database.yml
+
 services:
-  # PostgreSQL Database
   postgres:
-    image: postgres:16-alpine
-    container_name: pms-postgres-prod
-    restart: always
-    secrets:
-      - postgres_user
-      - postgres_password
-      - postgres_db
-    ports:
-      - "${POSTGRES_PORT:-5434}:5432"
-    volumes:
-      - postgres_data_prod:/var/lib/postgresql/data
-      - ./scripts/init-postgres.sh:/init-postgres.sh:ro
-      - ./backups:/backups
-    environment:
-      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C
-      - POSTGRES_HOST_AUTH_METHOD=scram-sha-256
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/postgres_user) -d $$(cat /run/secrets/postgres_db)"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    networks:
-      - pms-network
-    entrypoint: ["/init-postgres.sh"]
     command:
       - "postgres"
       - "-c"
@@ -103,34 +80,7 @@ services:
           cpus: '0.5'
           memory: 512M
     # DATABASE_URL → scripts/docker-entrypoint-app.sh
-
-  # Database schema sync (runs before app on every up)
-  migrations:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: migrate
-    container_name: pms-migrations-prod
-    restart: "no"
-    secrets:
-      - postgres_user
-      - postgres_password
-      - postgres_db
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - pms-network
-    command:
-      - sh
-      - -c
-      - |
-        export POSTGRES_USER=$$(tr -d '\n\r' < /run/secrets/postgres_user | xargs)
-        export POSTGRES_PASSWORD=$$(tr -d '\n\r' < /run/secrets/postgres_password | xargs)
-        export POSTGRES_DB=$$(tr -d '\n\r' < /run/secrets/postgres_db | xargs)
-        export DATABASE_URL="postgresql://$${POSTGRES_USER}:$${POSTGRES_PASSWORD}@postgres:5432/$${POSTGRES_DB}?schema=public"
-        # Non-destructive: aborts if schema change would delete data (see scripts/db-push-safe.sh)
-        pnpm db:push
+    # postgres + schema push → docker-compose.database.yml; seed off in production
 
   # Database Backup Service (Optional)
   backup:
@@ -165,18 +115,6 @@ services:
 networks:
   pms-network:
     driver: bridge
-
-volumes:
-  postgres_data_prod:
-    name: pms-postgres-data-prod
-    driver: local
-    labels:
-      - "com.dhas.project=project-management-system"
-      - "com.dhas.environment=production"
-      - "com.dhas.volume.type=database"
-      - "com.dhas.backup.frequency=daily"
-      - "com.dhas.retention.days=30"
-      - "com.dhas.description=PostgreSQL persistent data volume"
 
 secrets:
   postgres_user:

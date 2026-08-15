@@ -287,7 +287,7 @@ function Seed-Database {
     Print-Info "Running database seed..."
     Write-Host ""
     
-    pnpm db:seed
+    pnpm prisma db seed
     
     Write-Host ""
 }
@@ -326,8 +326,8 @@ GRANT ALL ON SCHEMA public TO public;
     $sql | docker exec -i $CONTAINER_NAME psql -U $dbUser $dbName
     
     # Run migrations and seed
-    pnpm db:push
-    pnpm db:seed
+    sh scripts/db-push-safe.sh
+    pnpm prisma db seed
     
     Print-Success "Database reseeded successfully!"
     Write-Host ""

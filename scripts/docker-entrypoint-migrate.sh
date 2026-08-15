@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-# Dev startup: set DATABASE_URL, then hot-reload Next.js.
-# Schema push + seed run in the migrations service (docker-compose.database.yml).
+# Shared by dev / UAT / prod migrations service:
+# secrets → DATABASE_URL, safe schema push, optional seed from SEED_PATH.
 if [ -f /run/secrets/postgres_user ] \
   && [ -f /run/secrets/postgres_password ] \
   && [ -f /run/secrets/postgres_db ]; then
@@ -15,6 +15,15 @@ if [ -f /run/secrets/postgres_user ] \
   export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?schema=public"
 fi
 
-pnpm prisma generate
+export SEED_PATH="${SEED_PATH:-seeds/master}"
+export SEEDS_ROOT="${SEEDS_ROOT:-/app/database}"
 
-exec pnpm dev
+pnpm prisma generate
+sh scripts/db-push-safe.sh
+
+if [ "${RUN_SEED:-true}" = "true" ]; then
+  echo "🌱 RUN_SEED=true — loading seeds from ${SEEDS_ROOT}/${SEED_PATH}"
+  pnpm prisma db seed
+else
+  echo "⏭️  RUN_SEED=${RUN_SEED:-false} — skipping seed"
+fi

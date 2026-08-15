@@ -2,35 +2,13 @@
 
 name: project-management-system-development
 
+include:
+  - path: docker-compose.database.yml
+
 services:
-  # PostgreSQL Database
+  # Dev-only durability tradeoffs (do not use in UAT/prod)
   postgres:
-    image: postgres:16-alpine
-    container_name: pms-postgres-dev
-    restart: unless-stopped
-    secrets:
-      - postgres_user
-      - postgres_password
-      - postgres_db
-    ports:
-      - "5437:5432"
-    volumes:
-      - postgres_data_dev:/var/lib/postgresql/data
-      - ./scripts/init-postgres.sh:/init-postgres.sh:ro
-    environment:
-      # Performance optimizations for development
-      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C
-      - POSTGRES_HOST_AUTH_METHOD=scram-sha-256
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/postgres_user) -d $$(cat /run/secrets/postgres_db)"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    networks:
-      - pms-network
-    entrypoint: ["/init-postgres.sh"]
-    command: 
+    command:
       - "postgres"
       - "-c"
       - "shared_buffers=256MB"
@@ -43,11 +21,11 @@ services:
       - "-c"
       - "effective_cache_size=512MB"
       - "-c"
-      - "fsync=off"  # Dev only - improves performance
+      - "fsync=off"
       - "-c"
-      - "synchronous_commit=off"  # Dev only - improves performance
+      - "synchronous_commit=off"
       - "-c"
-      - "full_page_writes=off"  # Dev only - improves performance
+      - "full_page_writes=off"
 
   # Next.js Application (Development — hot reload)
   app:
@@ -80,29 +58,16 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     networks:
       - pms-network
-    # DATABASE_URL + db:push/seed + pnpm dev → scripts/docker-entrypoint-dev.sh
+    # DATABASE_URL + pnpm dev → scripts/docker-entrypoint-dev.sh
+    # postgres + schema push + seed → docker-compose.database.yml
 
 networks:
   pms-network:
     driver: bridge
-
-volumes:
-  postgres_data_dev:
-    name: pms-postgres-data-dev
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./database/postgres/data
-    labels:
-      - "com.dhas.project=project-management-system"
-      - "com.dhas.environment=development"
-      - "com.dhas.volume.type=database"
-      - "com.dhas.backup.frequency=daily"
-      - "com.dhas.retention.days=30"
-      - "com.dhas.description=PostgreSQL persistent data volume"
 
 secrets:
   postgres_user:

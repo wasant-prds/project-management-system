@@ -3,46 +3,10 @@
 
 name: project-management-system-uat
 
-services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:16-alpine
-    container_name: pms-postgres-uat
-    restart: unless-stopped
-    secrets:
-      - postgres_user
-      - postgres_password
-      - postgres_db
-    ports:
-      - "${POSTGRES_PORT:-5433}:5432"
-    volumes:
-      - postgres_data_uat:/var/lib/postgresql/data
-      - ./scripts/init-postgres.sh:/init-postgres.sh:ro
-    environment:
-      - POSTGRES_INITDB_ARGS=--encoding=UTF8 --locale=C
-      - POSTGRES_HOST_AUTH_METHOD=scram-sha-256
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/postgres_user) -d $$(cat /run/secrets/postgres_db)"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    networks:
-      - pms-network
-    entrypoint: ["/init-postgres.sh"]
-    command:
-      - "postgres"
-      - "-c"
-      - "shared_buffers=256MB"
-      - "-c"
-      - "max_connections=100"
-      - "-c"
-      - "work_mem=16MB"
-      - "-c"
-      - "maintenance_work_mem=64MB"
-      - "-c"
-      - "effective_cache_size=512MB"
+include:
+  - path: docker-compose.database.yml
 
+services:
   # Next.js Application (UAT)
   app:
     build:
@@ -80,48 +44,11 @@ services:
       retries: 3
       start_period: 40s
     # DATABASE_URL → scripts/docker-entrypoint-app.sh
-
-  # Database schema sync + seed (runs before app on every up)
-  migrations:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: migrate
-    container_name: pms-migrations-uat
-    restart: "no"
-    secrets:
-      - postgres_user
-      - postgres_password
-      - postgres_db
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - pms-network
-    command:
-      - sh
-      - -c
-      - |
-        export POSTGRES_USER=$$(tr -d '\n\r' < /run/secrets/postgres_user | xargs)
-        export POSTGRES_PASSWORD=$$(tr -d '\n\r' < /run/secrets/postgres_password | xargs)
-        export POSTGRES_DB=$$(tr -d '\n\r' < /run/secrets/postgres_db | xargs)
-        export DATABASE_URL="postgresql://$${POSTGRES_USER}:$${POSTGRES_PASSWORD}@postgres:5432/$${POSTGRES_DB}?schema=public"
-        # Non-destructive: aborts if schema change would delete data (see scripts/db-push-safe.sh)
-        pnpm db:push && pnpm db:seed
+    # postgres + schema push + seed → docker-compose.database.yml
 
 networks:
   pms-network:
     driver: bridge
-
-volumes:
-  postgres_data_uat:
-    name: pms-postgres-data-uat
-    driver: local
-    labels:
-      - "com.dhas.project=project-management-system"
-      - "com.dhas.environment=uat"
-      - "com.dhas.volume.type=database"
-      - "com.dhas.description=PostgreSQL persistent data volume"
 
 secrets:
   postgres_user:

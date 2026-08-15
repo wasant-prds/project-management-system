@@ -1,0 +1,89 @@
+# Shared database stack: postgres, schema/seed (migrations), and the data volume.
+# Included by docker-compose.yml, docker-compose.uat.yml, and docker-compose.prod.yml.
+# Interpolates APP_ENV and related vars from the including project's .env
+# (.env, .env.uat, or .env.production).
+#
+# SEED_PATH is relative to /app/database (see prisma/seed.ts).
+# Example: SEED_PATH=seeds/master → /app/database/seeds/master/config.json
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pms-postgres-${APP_ENV:-dev}
+    restart: ${POSTGRES_RESTART:-unless-stopped}
+    secrets:
+      - postgres_user
+      - postgres_password
+      - postgres_db
+    ports:
+      - "${POSTGRES_PORT:-5437}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-postgres.sh:/init-postgres.sh:ro
+      - ./backups:/backups
+    environment:
+      POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$(cat /run/secrets/postgres_user) -d $$(cat /run/secrets/postgres_db)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - pms-network
+    entrypoint: ["/init-postgres.sh"]
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "max_connections=100"
+      - "-c"
+      - "work_mem=16MB"
+      - "-c"
+      - "maintenance_work_mem=64MB"
+      - "-c"
+      - "effective_cache_size=512MB"
+
+  migrations:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrate
+    container_name: pms-migrations-${APP_ENV:-dev}
+    restart: "no"
+    secrets:
+      - postgres_user
+      - postgres_password
+      - postgres_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pms-network
+    environment:
+      SEED_PATH: ${SEED_PATH:-seeds/master}
+      SEEDS_ROOT: /app/database
+      RUN_SEED: ${RUN_SEED:-true}
+    volumes:
+      - ./prisma:/app/prisma
+      - ./database/seeds:/app/database/seeds:ro
+      - ./scripts:/app/scripts:ro
+    entrypoint: ["/usr/local/bin/docker-entrypoint-migrate.sh"]
+
+volumes:
+  postgres_data:
+    name: pms-postgres-data-${APP_ENV:-dev}
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${POSTGRES_DATA_DIR:-./database/postgres/data}
+    labels:
+      - "com.dhas.project=project-management-system"
+      - "com.dhas.environment=${APP_ENV:-dev}"
+      - "com.dhas.volume.type=database"
+      - "com.dhas.backup.frequency=daily"
+      - "com.dhas.retention.days=30"
+      - "com.dhas.description=PostgreSQL persistent data volume"

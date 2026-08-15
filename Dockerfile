@@ -70,10 +70,15 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json pnpm-lock.yaml* ./
 COPY prisma ./prisma
 COPY scripts ./scripts
+COPY database/seeds ./database/seeds
 
-RUN sed -i 's/\r$//' scripts/db-push-safe.sh && chmod +x scripts/db-push-safe.sh
+RUN sed -i 's/\r$//' scripts/db-push-safe.sh scripts/docker-entrypoint-migrate.sh && \
+    chmod +x scripts/db-push-safe.sh scripts/docker-entrypoint-migrate.sh && \
+    cp scripts/docker-entrypoint-migrate.sh /usr/local/bin/docker-entrypoint-migrate.sh
 
 RUN ./node_modules/.bin/prisma generate
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint-migrate.sh"]
 
 # ========================================
 # production — standalone Next.js (prod)
