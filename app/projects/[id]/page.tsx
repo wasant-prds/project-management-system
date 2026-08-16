@@ -46,9 +46,6 @@ interface ProjectData {
     email: string
     avatar: string | null
   } | null
-  department: {
-    name: string
-  } | null
   members: Array<{
     role: string
     user: {
@@ -58,13 +55,13 @@ interface ProjectData {
       avatar: string | null
     }
   }>
-  tasks: Array<{
+  workItems: Array<{
     id: string
     title: string
+    kind: string
     status: string
     priority: string
     dueDate: string | null
-    completed: boolean
     assignee: {
       name: string
       avatar: string | null
@@ -76,13 +73,6 @@ interface ProjectData {
     description: string | null
     dueDate: string
     status: string
-  }>
-  issues: Array<{
-    id: string
-    title: string
-    status: string
-    priority: string
-    type: string
   }>
 }
 
@@ -114,17 +104,17 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     fetchProject()
   }, [id])
 
-  // Calculate weekly progress from tasks
+  // Calculate weekly progress from work items
   const getWeeklyProgress = () => {
-    if (!project?.tasks.length) return []
+    if (!project?.workItems.length) return []
 
-    const completedTasks = project.tasks.filter(task => task.completed)
+    const completedItems = project.workItems.filter(item => item.status === 'completed')
     const weeks = 6
-    const tasksPerWeek = Math.ceil(completedTasks.length / weeks)
+    const itemsPerWeek = Math.ceil(completedItems.length / weeks)
 
     return Array.from({ length: weeks }, (_, i) => ({
       week: `Week ${i + 1}`,
-      completed: Math.min((i + 1) * tasksPerWeek, completedTasks.length)
+      completed: Math.min((i + 1) * itemsPerWeek, completedItems.length)
     }))
   }
 
@@ -157,16 +147,11 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     return statusMap[status] || status.toLowerCase()
   }
 
-  // Map task status to display format
-  const getTaskDisplayStatus = (status: string) => {
-    const statusMap: Record<string, string> = {
-      'To Do': 'pending',
-      'In Progress': 'in-progress',
-      'Completed': 'completed',
-      'Review': 'in-progress',
-      'Blocked': 'pending'
-    }
-    return statusMap[status] || status.toLowerCase().replace(' ', '-')
+  // Map work item status to display format
+  const getWorkItemDisplayStatus = (status: string) => {
+    if (status === 'completed') return 'completed'
+    if (status === 'in-progress' || status === 'sa-testing' || status === 'pm-testing') return 'in-progress'
+    return 'pending'
   }
 
   if (loading) {
@@ -305,7 +290,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <Tabs defaultValue="overview" className="space-y-4">
               <TabsList>
                 <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="tasks">Tasks</TabsTrigger>
+                <TabsTrigger value="work-items">Work Items</TabsTrigger>
                 <TabsTrigger value="team">Team</TabsTrigger>
                 <TabsTrigger value="milestones">Milestones</TabsTrigger>
               </TabsList>
@@ -315,7 +300,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   <Card className="card-shadow">
                     <CardHeader>
                       <CardTitle>Weekly Progress</CardTitle>
-                      <CardDescription>Tasks completed per week</CardDescription>
+                      <CardDescription>Work items completed per week</CardDescription>
                     </CardHeader>
                     <CardContent>
                       {weeklyProgress.length > 0 ? (
@@ -340,7 +325,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                         </ChartContainer>
                       ) : (
                         <div className="flex items-center justify-center h-[250px] text-muted-foreground">
-                          No completed tasks yet
+                          No completed work items yet
                         </div>
                       )}
                     </CardContent>
@@ -378,23 +363,24 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               </TabsContent>
 
-              <TabsContent value="tasks" className="space-y-4">
+              <TabsContent value="work-items" className="space-y-4">
                 <Card className="card-shadow">
                   <CardHeader>
-                    <CardTitle>Project Tasks</CardTitle>
-                    <CardDescription>All tasks associated with this project</CardDescription>
+                    <CardTitle>Project Work Items</CardTitle>
+                    <CardDescription>Incidents, issues, and tasks in this project</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {project.tasks.length > 0 ? (
-                        project.tasks.map((task) => {
-                          const displayStatus = getTaskDisplayStatus(task.status)
+                      {project.workItems.length > 0 ? (
+                        project.workItems.map((item) => {
+                          const displayStatus = getWorkItemDisplayStatus(item.status)
+                          const isCompleted = item.status === 'completed'
                           return (
                             <div
-                              key={task.id}
+                              key={item.id}
                               className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-primary/30 transition-colors"
                             >
-                              {task.completed ? (
+                              {isCompleted ? (
                                 <CheckCircle2 className="h-5 w-5 text-chart-1 flex-shrink-0" />
                               ) : displayStatus === "in-progress" ? (
                                 <Clock className="h-5 w-5 text-chart-2 flex-shrink-0" />
@@ -402,14 +388,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                                 <Circle className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                               )}
                               <div className="flex-1">
-                                <p className="text-sm font-medium">{task.title}</p>
+                                <p className="text-sm font-medium">{item.title}</p>
                                 <div className="flex items-center gap-3 mt-1">
                                   <span className="text-xs text-muted-foreground">
-                                    Assigned to {task.assignee?.name || 'Unassigned'}
+                                    {item.kind} · Assigned to {item.assignee?.name || 'Unassigned'}
                                   </span>
-                                  {task.dueDate && (
+                                  {item.dueDate && (
                                     <span className="text-xs text-muted-foreground">
-                                      Due {formatDate(task.dueDate)}
+                                      Due {formatDate(item.dueDate)}
                                     </span>
                                   )}
                                 </div>
@@ -417,21 +403,21 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                               <Badge
                                 variant="outline"
                                 className={
-                                  task.completed
+                                  isCompleted
                                     ? "bg-chart-1/10 text-chart-1 border-chart-1/20"
                                     : displayStatus === "in-progress"
                                       ? "bg-chart-2/10 text-chart-2 border-chart-2/20"
                                       : "bg-muted text-muted-foreground"
                                 }
                               >
-                                {task.status}
+                                {item.status}
                               </Badge>
                             </div>
                           )
                         })
                       ) : (
                         <p className="text-sm text-muted-foreground text-center py-8">
-                          No tasks available for this project
+                          No work items available for this project
                         </p>
                       )}
                     </div>

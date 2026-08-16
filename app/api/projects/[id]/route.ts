@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { serializeWorkItemStatus } from '@/lib/work-items'
 
 // GET /api/projects/[id] - Get a single project
 export async function GET(
@@ -18,11 +19,6 @@ export async function GET(
             avatar: true,
           },
         },
-        department: {
-          select: {
-            name: true,
-          },
-        },
         members: {
           include: {
             user: {
@@ -35,20 +31,7 @@ export async function GET(
             },
           },
         },
-        tasks: {
-          include: {
-            assignee: {
-              select: {
-                name: true,
-                avatar: true,
-              },
-            },
-          },
-          orderBy: {
-            createdAt: 'desc',
-          },
-        },
-        issues: {
+        workItems: {
           include: {
             assignee: {
               select: {
@@ -76,7 +59,15 @@ export async function GET(
       )
     }
 
-    return NextResponse.json({ project }, { status: 200 })
+    return NextResponse.json({
+      project: {
+        ...project,
+        workItems: project.workItems.map((item) => ({
+          ...item,
+          status: serializeWorkItemStatus(item.status),
+        })),
+      },
+    }, { status: 200 })
   } catch (error) {
     console.error('Error fetching project:', error)
     return NextResponse.json(
@@ -106,7 +97,7 @@ export async function PATCH(
       progress,
     } = body
 
-    const updateData: any = {}
+    const updateData: Record<string, unknown> = {}
     if (name !== undefined) updateData.name = name
     if (description !== undefined) updateData.description = description
     if (status !== undefined) updateData.status = status
@@ -163,4 +154,3 @@ export async function DELETE(
     )
   }
 }
-

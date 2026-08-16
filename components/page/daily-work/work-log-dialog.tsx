@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Check, ChevronsUpDown, Clock, Edit, Trash2, Eye } from "lucide-react"
 import { useState, useMemo } from "react"
 import { formatDate } from "@/lib/utils"
-import { Project, Task, WorkLogFormData, WorkLog, taskStatuses } from "./types"
+import { Project, WorkLogFormData, WorkLog, workLogStatuses } from "./types"
 
 // Helper function for null/empty styling
 const getNullStyle = (value: any) => {
@@ -32,7 +32,6 @@ type WorkLogDialogProps = {
   workLog?: WorkLog | null
   onFormDataChange?: (data: WorkLogFormData) => void
   projects?: Project[]
-  tasks?: Task[]
   onSubmit?: () => void
   onEdit?: (workLog: WorkLog) => void
   onDelete?: (id: string) => void
@@ -119,32 +118,20 @@ export function WorkLogDialog({
   workLog,
   onFormDataChange,
   projects = [],
-  tasks = [],
   onSubmit,
   onEdit,
   onDelete,
   onViewDetails,
 }: Readonly<WorkLogDialogProps>) {
   const [projectOpen, setProjectOpen] = useState(false)
-  const [taskOpen, setTaskOpen] = useState(false)
   const [projectSearch, setProjectSearch] = useState("")
-  const [taskSearch, setTaskSearch] = useState("")
 
   const isViewMode = mode === "view"
   const isEditMode = mode === "edit"
 
   // For view mode, derive data from workLog
-  const project = workLog?.project || workLog?.task?.project
+  const project = workLog?.project
 
-  // Filter tasks based on selected project
-  const filteredTasks = useMemo(() => {
-    if (formData?.projectId) {
-      return tasks.filter(task => task.projectId === formData.projectId)
-    }
-    return tasks
-  }, [formData?.projectId, tasks])
-
-  // Filter projects based on search
   const filteredProjects = useMemo(() => {
     if (!projectSearch.trim()) return projects
     return projects.filter(project =>
@@ -152,36 +139,12 @@ export function WorkLogDialog({
     )
   }, [projects, projectSearch])
 
-  // Filter tasks based on search
-  const searchFilteredTasks = useMemo(() => {
-    if (!taskSearch.trim()) return filteredTasks
-    return filteredTasks.filter(task =>
-      task.title.toLowerCase().includes(taskSearch.toLowerCase())
-    )
-  }, [filteredTasks, taskSearch])
-
   const handleProjectSelect = (projectId: string) => {
     if (onFormDataChange && formData) {
-      onFormDataChange({ ...formData, projectId, taskId: "" })
+      onFormDataChange({ ...formData, projectId })
     }
     setProjectOpen(false)
     setProjectSearch("")
-  }
-
-  const handleTaskSelect = (taskId: string) => {
-    if (onFormDataChange && formData) {
-      onFormDataChange({ ...formData, taskId })
-    }
-    setTaskOpen(false)
-    setTaskSearch("")
-  }
-
-  const handleTaskNone = () => {
-    if (onFormDataChange && formData) {
-      onFormDataChange({ ...formData, taskId: "" })
-    }
-    setTaskOpen(false)
-    setTaskSearch("")
   }
 
   if (isViewMode && !workLog) return null
@@ -352,98 +315,6 @@ export function WorkLogDialog({
                 )}
               </div>
 
-              {/* Task */}
-              <div className="space-y-2">
-                <Label htmlFor="task">Task</Label>
-                {isViewMode && workLog ? (
-                  <div className="p-3 rounded-lg bg-secondary/30 border border-border/50">
-                    {workLog.task ? (
-                      <div>
-                        <p className="text-sm font-medium">{workLog.task.title}</p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <p className="text-xs text-muted-foreground">{workLog.task.project.name}</p>
-                          <Badge variant="secondary" className="text-xs">
-                            {workLog.task.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className={`text-sm ${getNullStyle(null)}`}>
-                        {getDisplayValue(null, "No task")}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <Popover open={taskOpen} onOpenChange={setTaskOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        aria-expanded={taskOpen}
-                        className="w-full justify-between"
-                        disabled={!formData?.projectId || isLoading}
-                      >
-                        {formData?.taskId
-                          ? filteredTasks.find((task) => task.id === formData.taskId)?.title
-                          : "Select task or leave empty..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <div className="border-b p-3">
-                        <Input
-                          placeholder="Search tasks..."
-                          value={taskSearch}
-                          onChange={(e) => setTaskSearch(e.target.value)}
-                          className="h-8"
-                        />
-                      </div>
-                      <div
-                        className="max-h-[250px] overflow-y-auto"
-                        style={{
-                          scrollbarWidth: 'thin',
-                          scrollbarColor: '#cbd5e1 #f1f5f9'
-                        }}
-                        onWheel={(e) => {
-                          e.preventDefault()
-                          const container = e.currentTarget
-                          container.scrollTop += e.deltaY
-                        }}
-                      >
-                        <button
-                          className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer w-full text-left"
-                          onClick={handleTaskNone}
-                        >
-                          <Check
-                            className={`h-4 w-4 ${formData?.taskId === "" ? "opacity-100" : "opacity-0"
-                              }`}
-                          />
-                          None
-                        </button>
-                        {searchFilteredTasks.length === 0 ? (
-                          <div className="p-3 text-sm text-muted-foreground text-center">
-                            No task found.
-                          </div>
-                        ) : (
-                          searchFilteredTasks.map((task) => (
-                            <button
-                              key={task.id}
-                              className="flex items-center gap-2 p-2 hover:bg-accent cursor-pointer w-full text-left"
-                              onClick={() => handleTaskSelect(task.id)}
-                            >
-                              <Check
-                                className={`h-4 w-4 ${formData?.taskId === task.id ? "opacity-100" : "opacity-0"
-                                  }`}
-                              />
-                              {task.title}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                )}
-              </div>
-
               {/* Status */}
               <div className="space-y-2">
                 <Label htmlFor="status">Status <span className="text-destructive">*</span></Label>
@@ -465,7 +336,7 @@ export function WorkLogDialog({
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
-                      {taskStatuses.map((status) => (
+                      {workLogStatuses.map((status) => (
                         <SelectItem key={status} value={status}>
                           {status}
                         </SelectItem>
@@ -480,7 +351,7 @@ export function WorkLogDialog({
             <div className="space-y-4">
               {/* Description */}
               <div className="space-y-2">
-                <Label htmlFor="description">Tasks / Description <span className="text-destructive">*</span></Label>
+                <Label htmlFor="description">Description <span className="text-destructive">*</span></Label>
                 {isViewMode && workLog ? (
                   <div className="p-3 rounded-lg bg-secondary/30 border border-border/50 min-h-[120px]">
                     <p className={`text-sm whitespace-pre-wrap ${getNullStyle(workLog.description)}`}>

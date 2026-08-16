@@ -17,8 +17,7 @@ interface Project {
   startDate: string
   dueDate: string
   team: number
-  tasks: { total: number; completed: number }
-  issues: { open: number; closed: number }
+  workItems: { total: number; completed: number; open: number }
   budget: string | null
   spent: string | null
 }

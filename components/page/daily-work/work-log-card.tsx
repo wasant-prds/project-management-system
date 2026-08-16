@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Label } from "@/components/ui/label"
-import { Clock, FileText, Hash, MessageSquareText, X } from "lucide-react"
+import { Clock, FileText, MessageSquareText, X } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import { WorkLog } from "./types"
 import { useState } from "react"
@@ -13,7 +13,7 @@ type WorkLogCardProps = {
 }
 
 export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
-  const project = workLog.project || workLog.task?.project
+  const project = workLog.project
   const [showRemarks, setShowRemarks] = useState(false)
 
   const toggleRemarks = (e: React.MouseEvent) => {
@@ -72,19 +72,6 @@ export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {workLog.task && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-3 p-2 rounded-lg bg-secondary/30 border border-border/50">
-              <Hash className="h-4 w-4 flex-shrink-0 text-primary" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">{workLog.task.title}</p>
-              </div>
-              <Badge variant="secondary" className="text-xs">
-                {workLog.task.status}
-              </Badge>
-            </div>
-          </div>
-        )}
         {workLog.description && (
           <div className="space-y-2 description-card">
             <div className="flex items-center gap-3 p-2 rounded-lg bg-secondary/30 border border-border/50">

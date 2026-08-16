@@ -15,42 +15,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Plus, Search, MoreVertical, Users, Building2, Mail, Phone, Calendar, Briefcase } from "lucide-react"
+import { Plus, Search, MoreVertical, Mail, Phone, Calendar } from "lucide-react"
 import { prisma } from "@/lib/db"
 
 async function getCompanyData() {
   const company = await prisma.company.findFirst()
 
-  const departments = await prisma.department.findMany({
-    include: {
-      lead: {
-        select: {
-          name: true,
-          avatar: true,
-        },
-      },
-      _count: {
-        select: {
-          members: true,
-          projects: true,
-        },
-      },
-    },
-    orderBy: {
-      name: 'asc',
-    },
-  })
-
   const users = await prisma.user.findMany({
     include: {
-      department: {
-        select: {
-          name: true,
-        },
-      },
       _count: {
         select: {
-          assignedTasks: true,
+          assignedWorkItems: true,
           projectMemberships: true,
         },
       },
@@ -60,21 +35,18 @@ async function getCompanyData() {
     },
   })
 
-  // Get company statistics
-  const stats = {
-    totalEmployees: await prisma.user.count(),
-    totalDepartments: await prisma.department.count(),
-    activeProjects: await prisma.project.count({
+  const [totalEmployees, activeProjects, totalWorkItems, activeMembers] = await Promise.all([
+    prisma.user.count(),
+    prisma.project.count({
       where: {
         status: {
           in: ['In Progress', 'Review'],
         },
       },
     }),
-    avgTeamSize: Math.round(
-      (await prisma.user.count()) / Math.max(await prisma.department.count(), 1)
-    ),
-  }
+    prisma.workItem.count(),
+    prisma.user.count({ where: { status: 'Active' } }),
+  ])
 
   return {
     company: company || {
@@ -84,36 +56,28 @@ async function getCompanyData() {
       phone: '+1 (555) 000-0000',
       address: '123 Tech Street, San Francisco, CA 94105',
     },
-    departments: departments.map((dept) => ({
-      name: dept.name,
-      description: dept.description,
-      members: dept._count.members,
-      projects: dept._count.projects,
-      lead: dept.lead
-        ? {
-            name: dept.lead.name,
-            avatar: dept.lead.avatar || dept.lead.name.substring(0, 2).toUpperCase(),
-          }
-        : { name: 'No Lead', avatar: 'NL' },
-    })),
     teamMembers: users.map((user) => ({
       name: user.name,
       role: user.role,
-      department: user.department?.name || 'Unassigned',
       email: user.email,
       phone: user.phone,
       avatar: user.avatar || user.name.substring(0, 2).toUpperCase(),
       status: user.status,
       joinDate: user.joinDate.toISOString().split('T')[0],
       projects: user._count.projectMemberships,
-      tasks: user._count.assignedTasks,
+      workItems: user._count.assignedWorkItems,
     })),
-    stats,
+    stats: {
+      totalEmployees,
+      activeProjects,
+      totalWorkItems,
+      activeMembers,
+    },
   }
 }
 
 export default async function CompanyPage() {
-  const { company, departments, teamMembers, stats } = await getCompanyData()
+  const { company, teamMembers, stats } = await getCompanyData()
 
   return (
     <SidebarProvider>
@@ -146,10 +110,10 @@ export default async function CompanyPage() {
               </Card>
               <Card className="card-shadow">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Departments</CardTitle>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Work Items</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{stats.totalDepartments}</div>
+                  <div className="text-2xl font-bold">{stats.totalWorkItems}</div>
                 </CardContent>
               </Card>
               <Card className="card-shadow">
@@ -162,87 +126,20 @@ export default async function CompanyPage() {
               </Card>
               <Card className="card-shadow">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Avg. Team Size</CardTitle>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Active Members</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{stats.avgTeamSize}</div>
+                  <div className="text-2xl font-bold">{stats.activeMembers}</div>
                 </CardContent>
               </Card>
             </div>
 
             {/* Tabs */}
-            <Tabs defaultValue="departments" className="space-y-4">
+            <Tabs defaultValue="team" className="space-y-4">
               <TabsList>
-                <TabsTrigger value="departments">Departments</TabsTrigger>
                 <TabsTrigger value="team">Team Members</TabsTrigger>
                 <TabsTrigger value="settings">Settings</TabsTrigger>
               </TabsList>
-
-              <TabsContent value="departments" className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  {departments.map((dept) => (
-                    <Card key={dept.name} className="card-shadow hover:border-primary/30 transition-colors">
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-1 flex-1">
-                            <div className="flex items-center gap-2">
-                              <Building2 className="h-5 w-5 text-primary" />
-                              <CardTitle>{dept.name}</CardTitle>
-                            </div>
-                            <CardDescription>{dept.description}</CardDescription>
-                          </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem>View Details</DropdownMenuItem>
-                              <DropdownMenuItem>Edit Department</DropdownMenuItem>
-                              <DropdownMenuItem>Manage Members</DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-destructive">Delete Department</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10 border-2 border-primary/20">
-                            <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                              {dept.lead.avatar}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="text-sm font-medium">{dept.lead.name}</p>
-                            <p className="text-xs text-muted-foreground">Department Lead</p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-border/50">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Users className="h-3 w-3" />
-                              <span>Members</span>
-                            </div>
-                            <p className="text-sm font-medium">{dept.members}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Briefcase className="h-3 w-3" />
-                              <span>Projects</span>
-                            </div>
-                            <p className="text-sm font-medium">{dept.projects}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </TabsContent>
 
               <TabsContent value="team" className="space-y-4">
                 <div className="flex items-center gap-4">
@@ -293,10 +190,6 @@ export default async function CompanyPage() {
 
                         <div className="space-y-2 text-sm">
                           <div className="flex items-center gap-2 text-muted-foreground">
-                            <Building2 className="h-3 w-3" />
-                            <span>{member.department}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-muted-foreground">
                             <Mail className="h-3 w-3" />
                             <span className="truncate">{member.email}</span>
                           </div>
@@ -318,8 +211,8 @@ export default async function CompanyPage() {
                             <p className="text-xs text-muted-foreground">Projects</p>
                           </div>
                           <div className="text-center">
-                            <p className="text-lg font-bold">{member.tasks}</p>
-                            <p className="text-xs text-muted-foreground">Tasks</p>
+                            <p className="text-lg font-bold">{member.workItems}</p>
+                            <p className="text-xs text-muted-foreground">Work Items</p>
                           </div>
                         </div>
                       </CardContent>

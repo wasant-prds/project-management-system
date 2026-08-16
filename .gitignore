@@ -26,6 +26,8 @@ yarn-error.log*
 /database/seeds/master/*
 /database/postgres/data/*
 !/database/postgres/data/.gitkeep
+/database/backups/
+/backups/
 
 # vercel
 .vercel
@@ -33,3 +35,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# design files
+/design/*

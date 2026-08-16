@@ -51,6 +51,10 @@ services:
       - .:/app
       - /app/node_modules
       - /app/.next
+      # Host postgres data is bind-mounted at repo root; hide it from Next's watcher
+      - /app/database/postgres
+      # Use the current entrypoint even if the image was built before db:* scripts were removed
+      - ./scripts/docker-entrypoint-dev.sh:/usr/local/bin/docker-entrypoint-dev.sh:ro
     secrets:
       - postgres_user
       - postgres_password

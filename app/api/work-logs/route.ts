@@ -58,20 +58,6 @@ export async function GET(request: Request) {
                         colorProject: true,
                     },
                 },
-                task: {
-                    select: {
-                        id: true,
-                        title: true,
-                        status: true,
-                        project: {
-                            select: {
-                                id: true,
-                                name: true,
-                                colorProject: true,
-                            },
-                        },
-                    },
-                },
             },
             orderBy: {
                 date: 'desc',
@@ -98,12 +84,11 @@ export async function POST(request: Request) {
             hours,
             date,
             userId,
-            taskId,
             projectId,
             status,
         } = body
 
-        console.log('Received work log data:', { description, remarks, hours, date, userId, taskId, projectId, status })
+        console.log('Received work log data:', { description, remarks, hours, date, userId, projectId, status })
 
         // Validate required fields
         if (!hours || !userId || !projectId) {
@@ -128,20 +113,6 @@ export async function POST(request: Request) {
             )
         }
 
-        // Check if task exists (if taskId is provided)
-        if (taskId) {
-            const task = await prisma.task.findUnique({
-                where: { id: taskId },
-            })
-
-            if (!task) {
-                return NextResponse.json(
-                    { error: 'Task not found' },
-                    { status: 404 }
-                )
-            }
-        }
-
         const workLog = await prisma.timeEntry.create({
             data: {
                 description,
@@ -149,7 +120,6 @@ export async function POST(request: Request) {
                 hours: Number.parseFloat(hours),
                 date: date ? new Date(date) : new Date(),
                 userId,
-                taskId: taskId || null,
                 projectId,
                 status,
             },
@@ -167,20 +137,6 @@ export async function POST(request: Request) {
                         id: true,
                         name: true,
                         colorProject: true,
-                    },
-                },
-                task: {
-                    select: {
-                        id: true,
-                        title: true,
-                        status: true,
-                        project: {
-                            select: {
-                                id: true,
-                                name: true,
-                                colorProject: true,
-                            },
-                        },
                     },
                 },
             },

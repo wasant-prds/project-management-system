@@ -12,6 +12,37 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum WorkItemKind {
+  Incident
+  Issue
+  Task
+}
+
+enum WorkItemPriority {
+  none
+  low
+  medium
+  high
+  urgent
+}
+
+enum WorkItemRole {
+  Developer
+  infra
+  SA
+}
+
+enum WorkItemStatus {
+  backlog
+  todo
+  in_progress @map("in-progress")
+  blocked
+  sa_testing  @map("sa-testing")
+  pm_testing  @map("pm-testing")
+  completed
+  cancelled
+}
+
 // User and Authentication
 model User {
   id        String   @id @default(cuid())
@@ -26,29 +57,21 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
-  departmentId       String?
-  department         Department?         @relation(fields: [departmentId], references: [id])
-  assignedTasks      Task[]              @relation("TaskAssignee")
-  reportedIssues     Issue[]             @relation("IssueReporter")
-  assignedIssues     Issue[]             @relation("IssueAssignee")
+  assignedWorkItems  WorkItem[]          @relation("WorkItemAssignee")
   projectMemberships ProjectMember[]
   comments           Comment[]
   activityLogs       ActivityLog[]
   notifications      Notification[]
   timeEntries        TimeEntry[]
   createdProjects    Project[]           @relation("ProjectCreator")
-  ledDepartment      Department?         @relation("DepartmentLead")
-  createdTasks       Task[]              @relation("TaskCreator")
   documents          Document[]
 
   @@index([email])
-  @@index([departmentId])
 }
 
 // Company Information
 model Company {
-  id          String       @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
   industry    String?
   email       String?
@@ -57,56 +80,30 @@ model Company {
   website     String?
   logo        String?
   description String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-
-  // Relations
-  departments Department[]
-}
-
-// Department
-model Department {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  // Relations
-  companyId String?
-  company   Company? @relation(fields: [companyId], references: [id])
-  leadId    String?  @unique
-  lead      User?    @relation("DepartmentLead", fields: [leadId], references: [id])
-  members   User[]
-  projects  Project[]
-
-  @@index([companyId])
 }
 
 // Project
 model Project {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  status      String   @default("Planning") // Planning, In Progress, Review, Completed, On Hold
-  priority    String   @default("Medium") // Low, Medium, High, Critical
-  startDate   DateTime
-  dueDate     DateTime
-  budget      Decimal?
-  spent       Decimal?  @default(0)
-  progress    Int       @default(0) // 0-100
-  colorProject String?  // Project color for visual identification
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  status       String   @default("Planning") // Planning, In Progress, Review, Completed, On Hold
+  priority     String   @default("Medium") // Low, Medium, High, Critical
+  startDate    DateTime
+  dueDate      DateTime
+  budget       Decimal?
+  spent        Decimal? @default(0)
+  progress     Int      @default(0) // 0-100
+  colorProject String? // Project color for visual identification
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  // Relations
   creatorId    String?
   creator      User?           @relation("ProjectCreator", fields: [creatorId], references: [id])
-  departmentId String?
-  department   Department?     @relation(fields: [departmentId], references: [id])
   members      ProjectMember[]
-  tasks        Task[]
-  issues       Issue[]
+  workItems    WorkItem[]
   documents    Document[]
   milestones   Milestone[]
   activityLogs ActivityLog[]
@@ -115,16 +112,14 @@ model Project {
   @@index([status])
   @@index([priority])
   @@index([creatorId])
-  @@index([departmentId])
 }
 
 // Project Members
 model ProjectMember {
-  id        String   @id @default(cuid())
-  role      String   @default("member") // member, lead, manager
-  joinedAt  DateTime @default(now())
+  id       String   @id @default(cuid())
+  role     String   @default("member") // member, lead, manager
+  joinedAt DateTime @default(now())
 
-  // Relations
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   userId    String
@@ -135,80 +130,32 @@ model ProjectMember {
   @@index([userId])
 }
 
-// Task
-model Task {
-  id          String   @id @default(cuid())
+model WorkItem {
+  id          String           @id @default(cuid())
   title       String
   description String?
-  status      String   @default("To Do") // To Do, In Progress, Review, Completed, Blocked
-  priority    String   @default("Medium") // Low, Medium, High, Critical
+  kind        WorkItemKind
+  priority    WorkItemPriority @default(none)
+  role        WorkItemRole?
+  status      WorkItemStatus   @default(backlog)
+  types       String[]         @default([]) @map("labels_types")
+  workDate    DateTime?
   dueDate     DateTime?
-  estimatedHours Int?
-  actualHours    Int?
-  completed   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  submittedAt DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
-  // Relations
-  projectId   String
-  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  assigneeId  String?
-  assignee    User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  creatorId   String?
-  creator     User?        @relation("TaskCreator", fields: [creatorId], references: [id])
-  milestoneId String?
-  milestone   Milestone?   @relation(fields: [milestoneId], references: [id])
-  comments    Comment[]
-  timeEntries TimeEntry[]
-  dependencies TaskDependency[] @relation("DependentTask")
-  dependedBy   TaskDependency[] @relation("DependencyTask")
+  projectId  String
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assigneeId String
+  assignee   User    @relation("WorkItemAssignee", fields: [assigneeId], references: [id])
 
   @@index([projectId])
   @@index([assigneeId])
+  @@index([kind])
   @@index([status])
   @@index([priority])
-}
-
-// Task Dependencies
-model TaskDependency {
-  id        String   @id @default(cuid())
-  type      String   @default("blocks") // blocks, blocked_by, related
-  createdAt DateTime @default(now())
-
-  // Relations
-  taskId       String
-  task         Task   @relation("DependentTask", fields: [taskId], references: [id], onDelete: Cascade)
-  dependencyId String
-  dependency   Task   @relation("DependencyTask", fields: [dependencyId], references: [id], onDelete: Cascade)
-
-  @@unique([taskId, dependencyId])
-}
-
-// Issue
-model Issue {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  status      String   @default("Open") // Open, In Progress, Resolved, Closed
-  priority    String   @default("Medium") // Low, Medium, High, Critical
-  type        String   @default("Bug") // Bug, Feature, Enhancement, Question
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  resolvedAt  DateTime?
-
-  // Relations
-  projectId  String
-  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  reporterId String?
-  reporter   User?     @relation("IssueReporter", fields: [reporterId], references: [id])
-  assigneeId String?
-  assignee   User?     @relation("IssueAssignee", fields: [assigneeId], references: [id])
-  comments   Comment[]
-
-  @@index([projectId])
-  @@index([status])
-  @@index([priority])
-  @@index([type])
+  @@map("work_items")
 }
 
 // Comment
@@ -218,17 +165,10 @@ model Comment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
   authorId String
-  author   User    @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  taskId   String?
-  task     Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  issueId  String?
-  issue    Issue?  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([authorId])
-  @@index([taskId])
-  @@index([issueId])
 }
 
 // Milestone
@@ -241,10 +181,8 @@ model Milestone {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relations
   projectId String
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  tasks     Task[]
 
   @@index([projectId])
 }
@@ -260,9 +198,8 @@ model Document {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relations
-  projectId String?
-  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId  String?
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
   uploaderId String?
   uploader   User?    @relation(fields: [uploaderId], references: [id])
 
@@ -277,20 +214,16 @@ model TimeEntry {
   remarks     String?
   hours       Decimal
   date        DateTime @default(now())
-  status      String?  // To Do, In Progress, Review, Completed, Blocked
+  status      String? // To Do, In Progress, Review, Completed, Blocked
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relations
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  taskId    String?
-  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
   projectId String?
   project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([taskId])
   @@index([projectId])
   @@index([date])
 }
@@ -299,13 +232,12 @@ model TimeEntry {
 model ActivityLog {
   id          String   @id @default(cuid())
   action      String // created, updated, deleted, commented, assigned, etc.
-  entity      String // project, task, issue, etc.
+  entity      String // project, work_item, etc.
   entityId    String
   description String?
   metadata    Json? // Additional data about the action
   createdAt   DateTime @default(now())
 
-  // Relations
   userId    String?
   user      User?    @relation(fields: [userId], references: [id])
   projectId String?
@@ -327,7 +259,6 @@ model Notification {
   link      String?
   createdAt DateTime @default(now())
 
-  // Relations
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -335,4 +266,3 @@ model Notification {
   @@index([read])
   @@index([createdAt])
 }
-

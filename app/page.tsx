@@ -33,7 +33,7 @@ export default function DashboardPage() {
       color: "text-chart-1",
     },
     {
-      title: "Total Tasks",
+      title: "Work Items",
       value: "248",
       change: "+18",
       trend: "up",
@@ -41,7 +41,7 @@ export default function DashboardPage() {
       color: "text-chart-2",
     },
     {
-      title: "Open Issues",
+      title: "Open Work Items",
       value: "23",
       change: "-5",
       trend: "down",

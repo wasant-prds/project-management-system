@@ -11,16 +11,16 @@ import { useState, useMemo, useCallback } from "react"
 
 // Constants
 const DEFAULT_PROJECT_COLOR = "#3b82f6"
-const CSV_HEADER = "Project,Task,User,User Email,Hours,Date,Description,Remarks,Status"
+const CSV_HEADER = "Project,User,User Email,Hours,Date,Description,Remarks,Status"
 
 // Utility functions
 const getProjectName = (log: WorkLog): string => log.project?.name || "No Project"
-const getTaskTitle = (log: WorkLog): string => log.task?.title || "No Task"
+const getWorkTitle = (log: WorkLog): string => log.description || "No description"
 
-const sortLogsByTaskUserDate = (a: WorkLog, b: WorkLog, dateOrder: "asc" | "desc" = "asc"): number => {
-  const taskA = getTaskTitle(a)
-  const taskB = getTaskTitle(b)
-  if (taskA !== taskB) return taskA.localeCompare(taskB)
+const sortLogsByWorkUserDate = (a: WorkLog, b: WorkLog, dateOrder: "asc" | "desc" = "asc"): number => {
+  const titleA = getWorkTitle(a)
+  const titleB = getWorkTitle(b)
+  if (titleA !== titleB) return titleA.localeCompare(titleB)
 
   const userA = a.user.name
   const userB = b.user.name
@@ -36,7 +36,7 @@ const sortLogsByProjectTaskUserDate = (a: WorkLog, b: WorkLog, dateOrder: "asc" 
   const projectB = getProjectName(b)
   if (projectA !== projectB) return projectA.localeCompare(projectB)
 
-  return sortLogsByTaskUserDate(a, b, dateOrder)
+  return sortLogsByWorkUserDate(a, b, dateOrder)
 }
 
 /** Smallest #N in description or remarks; null if none (used for ordering). */
@@ -65,7 +65,7 @@ const sortLogsByTagOrDate = (a: WorkLog, b: WorkLog): number => {
   const dateA = new Date(a.date).getTime()
   const dateB = new Date(b.date).getTime()
   if (dateA !== dateB) return dateA - dateB
-  return getTaskTitle(a).localeCompare(getTaskTitle(b))
+  return getWorkTitle(a).localeCompare(getWorkTitle(b))
 }
 
 const groupWorkLogsByProject = (logs: WorkLog[]): Array<[string, WorkLog[]]> => {
@@ -93,7 +93,6 @@ const escapeCSVField = (field: string): string => {
 const generateCSVRow = (log: WorkLog): string => {
   const fields = [
     getProjectName(log),
-    getTaskTitle(log),
     log.user.name,
     log.user.email,
     log.hours.toString(),
@@ -107,7 +106,7 @@ const generateCSVRow = (log: WorkLog): string => {
 
 const formatWorkLogMarkdownBlock = (log: WorkLog): string => {
   const metaLines = [
-    `### ${getTaskTitle(log)}`,
+    `### ${getWorkTitle(log)}`,
     "",
     `- **User:** ${log.user.name} (${log.user.email})`,
     `- **Hours:** ${log.hours}`,
@@ -348,9 +347,9 @@ export function WorkLogList({
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1 space-y-1">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-semibold text-sm text-muted-foreground">Task:</span>
+                                <span className="font-semibold text-sm text-muted-foreground">Work:</span>
                                 <Badge variant="outline" className="font-normal">
-                                  {log.task?.title || "No Task"}
+                                  {log.description || "No description"}
                                 </Badge>
                               </div>
                               <div className="flex items-center gap-2 flex-wrap">

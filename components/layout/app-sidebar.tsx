@@ -7,7 +7,6 @@ import {
   Settings,
   FolderKanban,
   CheckSquare,
-  AlertCircle,
   Users,
   BarChart3,
   Kanban,
@@ -33,8 +32,7 @@ const navigationItems = [
     items: [
       { title: 'Dashboard', url: '/', icon: Home },
       { title: 'Projects', url: '/projects', icon: FolderKanban },
-      { title: 'Tasks', url: '/tasks', icon: CheckSquare },
-      { title: 'Issues', url: '/issues', icon: AlertCircle },
+      { title: 'Work Items', url: '/work-items', icon: CheckSquare },
     ],
   },
   {

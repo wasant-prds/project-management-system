@@ -107,8 +107,8 @@ export default function SettingsPage() {
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <Label>Task Assignments</Label>
-                          <p className="text-sm text-muted-foreground">Get notified when assigned to tasks</p>
+                          <Label>Work Item Assignments</Label>
+                          <p className="text-sm text-muted-foreground">Get notified when assigned to work items</p>
                         </div>
                         <Switch defaultChecked />
                       </div>
@@ -121,8 +121,8 @@ export default function SettingsPage() {
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
-                          <Label>Issue Mentions</Label>
-                          <p className="text-sm text-muted-foreground">Get notified when mentioned in issues</p>
+                          <Label>Work Item Mentions</Label>
+                          <p className="text-sm text-muted-foreground">Get notified when mentioned in work items</p>
                         </div>
                         <Switch defaultChecked />
                       </div>

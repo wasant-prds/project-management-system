@@ -16,28 +16,11 @@ export type WorkLog = {
     name: string
     colorProject: string | null
   } | null
-  task: {
-    id: string
-    title: string
-    status: string
-    project: {
-      id: string
-      name: string
-      colorProject: string | null
-    }
-  } | null
 }
 
 export type Project = {
   id: string
   name: string
-}
-
-export type Task = {
-  id: string
-  title: string
-  status: string
-  projectId: string
 }
 
 export type User = {
@@ -53,9 +36,7 @@ export type WorkLogFormData = {
   hours: string
   date: string
   projectId: string
-  taskId: string
   status: string
 }
 
-export const taskStatuses = ["To Do", "In Progress", "Review", "Completed", "Blocked"]
-
+export const workLogStatuses = ["To Do", "In Progress", "Review", "Completed", "Blocked"]

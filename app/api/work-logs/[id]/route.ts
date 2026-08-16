@@ -26,20 +26,6 @@ export async function GET(
                         colorProject: true,
                     },
                 },
-                task: {
-                    select: {
-                        id: true,
-                        title: true,
-                        status: true,
-                        project: {
-                            select: {
-                                id: true,
-                                name: true,
-                                colorProject: true,
-                            },
-                        },
-                    },
-                },
             },
         })
 
@@ -73,17 +59,15 @@ export async function PATCH(
             remarks,
             hours,
             date,
-            taskId,
             projectId,
             status,
         } = body
 
-        const updateData: any = {}
+        const updateData: Record<string, unknown> = {}
         if (description !== undefined) updateData.description = description
         if (remarks !== undefined) updateData.remarks = remarks
         if (hours !== undefined) updateData.hours = Number.parseFloat(hours)
         if (date !== undefined) updateData.date = new Date(date)
-        if (taskId !== undefined) updateData.taskId = taskId
         if (projectId !== undefined) updateData.projectId = projectId
         if (status !== undefined) updateData.status = status
 
@@ -104,20 +88,6 @@ export async function PATCH(
                         id: true,
                         name: true,
                         colorProject: true,
-                    },
-                },
-                task: {
-                    select: {
-                        id: true,
-                        title: true,
-                        status: true,
-                        project: {
-                            select: {
-                                id: true,
-                                name: true,
-                                colorProject: true,
-                            },
-                        },
                     },
                 },
             },

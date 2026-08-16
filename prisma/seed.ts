@@ -52,12 +52,32 @@ function prismaDelegate(table: string): string {
   return table.charAt(0).toLowerCase() + table.slice(1)
 }
 
+const DATE_KEY = /(?:At|Date)$|^date$/i
+const NAIVE_ISO_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/
+
+function coerceSeedValue(key: string, value: unknown): unknown {
+  if (typeof value === 'string' && DATE_KEY.test(key) && NAIVE_ISO_DATETIME.test(value)) {
+    return `${value}Z`
+  }
+  return value
+}
+
 function loadRows(filePath: string): Record<string, unknown>[] {
   const parsed: unknown = JSON.parse(readFileSync(filePath, 'utf8'))
   if (!Array.isArray(parsed)) {
     throw new TypeError(`Seed file must be a JSON array: ${filePath}`)
   }
-  return parsed as Record<string, unknown>[]
+  return parsed.map((row) => {
+    if (typeof row !== 'object' || row === null || Array.isArray(row)) {
+      throw new TypeError(`Seed row must be an object: ${filePath}`)
+    }
+    return Object.fromEntries(
+      Object.entries(row as Record<string, unknown>).map(([key, value]) => [
+        key,
+        coerceSeedValue(key, value),
+      ]),
+    )
+  })
 }
 
 async function main() {

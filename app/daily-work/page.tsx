@@ -11,7 +11,7 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { toast } from "@/hooks/use-toast"
 import { formatDate } from "@/lib/utils"
-import { WorkLog, Project, Task, User, WorkLogFormData } from "@/components/page/daily-work/types"
+import { WorkLog, Project, User, WorkLogFormData } from "@/components/page/daily-work/types"
 import { WorkLogList } from "@/components/page/daily-work/work-log-list"
 import { WorkLogDialog } from "@/components/page/daily-work/work-log-dialog"
 import { StatsCard } from "@/components/page/daily-work/stats-card"
@@ -20,7 +20,6 @@ export default function DailyWorkPage() {
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [workLogs, setWorkLogs] = useState<WorkLog[]>([])
   const [projects, setProjects] = useState<Project[]>([])
-  const [tasks, setTasks] = useState<Task[]>([])
   const [users, setUsers] = useState<User[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
@@ -36,7 +35,6 @@ export default function DailyWorkPage() {
     hours: "8",
     date: formatDate(new Date()),
     projectId: "",
-    taskId: "",
     status: "To Do",
   })
 
@@ -45,10 +43,9 @@ export default function DailyWorkPage() {
     fetchWorkLogs()
   }, [date, viewPeriod])
 
-  // Fetch projects, tasks, and users on mount
+  // Fetch projects and users on mount
   useEffect(() => {
     fetchProjects()
-    fetchTasks()
     fetchUsers()
   }, [])
 
@@ -110,18 +107,6 @@ export default function DailyWorkPage() {
     }
   }
 
-  const fetchTasks = async () => {
-    try {
-      const response = await fetch("/api/tasks")
-      const data = await response.json()
-      if (response.ok) {
-        setTasks(data.tasks)
-      }
-    } catch (error) {
-      console.error("Error fetching tasks:", error)
-    }
-  }
-
   const fetchUsers = async () => {
     try {
       const response = await fetch("/api/users")
@@ -143,7 +128,6 @@ export default function DailyWorkPage() {
         hours: workLog.hours.toString(),
         date: formatDate(workLog.date),
         projectId: workLog.project?.id || "",
-        taskId: workLog.task?.id || "",
         status: workLog.status || "To Do",
       })
     } else {
@@ -154,7 +138,6 @@ export default function DailyWorkPage() {
         hours: "8",
         date: date ? formatDate(date) : formatDate(new Date()),
         projectId: "",
-        taskId: "",
         status: "To Do",
       })
     }
@@ -200,7 +183,7 @@ export default function DailyWorkPage() {
         return
       }
 
-      console.log('Submitting work log:', { description: formData.description, hours: formData.hours, date: formData.date, taskId: formData.taskId || null, projectId: formData.projectId, status: formData.status, userId })
+      console.log('Submitting work log:', { description: formData.description, hours: formData.hours, date: formData.date, projectId: formData.projectId, status: formData.status, userId })
 
       const response = await fetch(url, {
         method,
@@ -210,7 +193,6 @@ export default function DailyWorkPage() {
           remarks: formData.remarks,
           hours: formData.hours,
           date: formData.date,
-          taskId: formData.taskId || null,
           projectId: formData.projectId,
           status: formData.status,
           userId,
@@ -284,11 +266,10 @@ export default function DailyWorkPage() {
     return workLogs.filter((log) => {
       const matchesDescription = log.description?.toLowerCase().includes(query)
       const matchesUserName = log.user.name.toLowerCase().includes(query)
-      const matchesTaskTitle = log.task?.title.toLowerCase().includes(query)
-      const matchesProjectName = log.task?.project.name.toLowerCase().includes(query)
-      const matchesStatus = log.task?.status.toLowerCase().includes(query)
+      const matchesProjectName = log.project?.name.toLowerCase().includes(query)
+      const matchesStatus = log.status?.toLowerCase().includes(query)
 
-      return matchesDescription || matchesUserName || matchesTaskTitle || matchesProjectName || matchesStatus
+      return matchesDescription || matchesUserName || matchesProjectName || matchesStatus
     })
   }, [workLogs, searchQuery])
 
@@ -400,7 +381,6 @@ export default function DailyWorkPage() {
           formData={formData}
           onFormDataChange={setFormData}
           projects={projects}
-          tasks={tasks}
           onSubmit={handleSubmit}
           onViewDetails={() => {
             setIsDialogOpen(false)

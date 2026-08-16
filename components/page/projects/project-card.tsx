@@ -41,8 +41,7 @@ interface ProjectCardProps {
     readonly startDate: string
     readonly dueDate: string
     readonly team: number
-    readonly tasks: { readonly total: number; readonly completed: number }
-    readonly issues: { readonly open: number; readonly closed: number }
+    readonly workItems: { readonly total: number; readonly completed: number; readonly open: number }
     readonly budget: string | null
     readonly spent: string | null
   }
@@ -201,18 +200,18 @@ export function ProjectCard({ project }: ProjectCardProps) {
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Target className="h-3 w-3" />
-                <span>Tasks</span>
+                <span>Work Items</span>
               </div>
               <p className="text-sm font-medium">
-                {project.tasks.completed}/{project.tasks.total}
+                {project.workItems.completed}/{project.workItems.total}
               </p>
             </div>
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <AlertCircle className="h-3 w-3" />
-                <span>Issues</span>
+                <span>Open</span>
               </div>
-              <p className="text-sm font-medium">{project.issues.open} open</p>
+              <p className="text-sm font-medium">{project.workItems.open} open</p>
             </div>
           </div>
 

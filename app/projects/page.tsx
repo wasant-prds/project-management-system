@@ -10,17 +10,11 @@ async function getProjects() {
     include: {
       _count: {
         select: {
-          tasks: true,
-          issues: true,
+          workItems: true,
           members: true,
         },
       },
-      tasks: {
-        select: {
-          completed: true,
-        },
-      },
-      issues: {
+      workItems: {
         select: {
           status: true,
         },
@@ -32,10 +26,11 @@ async function getProjects() {
   })
 
   return projects.map((project: (typeof projects)[number]) => {
-    const totalTasks = project._count.tasks
-    const completedTasks = project.tasks.filter((t: { completed: boolean }) => t.completed).length
-    const openIssues = project.issues.filter((i: { status: string }) => i.status === 'Open' || i.status === 'In Progress').length
-    const closedIssues = project.issues.filter((i: { status: string }) => i.status === 'Resolved' || i.status === 'Closed').length
+    const totalWorkItems = project._count.workItems
+    const completedWorkItems = project.workItems.filter((item) => item.status === 'completed').length
+    const openWorkItems = project.workItems.filter(
+      (item) => item.status !== 'completed' && item.status !== 'cancelled',
+    ).length
 
     return {
       id: project.id,
@@ -47,8 +42,7 @@ async function getProjects() {
       startDate: project.startDate.toISOString().split('T')[0],
       dueDate: project.dueDate.toISOString().split('T')[0],
       team: project._count.members,
-      tasks: { total: totalTasks, completed: completedTasks },
-      issues: { open: openIssues, closed: closedIssues },
+      workItems: { total: totalWorkItems, completed: completedWorkItems, open: openWorkItems },
       budget: project.budget ? `$${Number(project.budget).toLocaleString()}` : null,
       spent: project.spent ? `$${Number(project.spent).toLocaleString()}` : null,
     }

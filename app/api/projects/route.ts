@@ -14,8 +14,7 @@ export async function GET(request: Request) {
       include: {
         _count: {
           select: {
-            tasks: true,
-            issues: true,
+            workItems: true,
             members: true,
           },
         },
@@ -23,11 +22,6 @@ export async function GET(request: Request) {
           select: {
             name: true,
             email: true,
-          },
-        },
-        department: {
-          select: {
-            name: true,
           },
         },
       },
@@ -59,7 +53,6 @@ export async function POST(request: Request) {
       dueDate,
       budget,
       creatorId,
-      departmentId,
     } = body
 
     // Validate required fields
@@ -80,7 +73,6 @@ export async function POST(request: Request) {
         dueDate: new Date(dueDate),
         budget: budget ? parseFloat(budget) : null,
         creatorId,
-        departmentId,
       },
       include: {
         creator: {
@@ -101,4 +93,3 @@ export async function POST(request: Request) {
     )
   }
 }
-
