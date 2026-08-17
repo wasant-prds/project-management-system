@@ -1,82 +1,38 @@
-# Docker Compose for Development Environment
-
 name: project-management-system-development
 
 include:
-  - path: docker-compose.database.yml
+  - docker-compose.database.yml
 
 services:
-  # Dev-only durability tradeoffs (do not use in UAT/prod)
+  # Dev-only: skip fsync (do not use in UAT/prod)
   postgres:
-    command:
-      - "postgres"
-      - "-c"
-      - "shared_buffers=256MB"
-      - "-c"
-      - "max_connections=100"
-      - "-c"
-      - "work_mem=16MB"
-      - "-c"
-      - "maintenance_work_mem=64MB"
-      - "-c"
-      - "effective_cache_size=512MB"
-      - "-c"
-      - "fsync=off"
-      - "-c"
-      - "synchronous_commit=off"
-      - "-c"
-      - "full_page_writes=off"
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c max_connections=100
+      -c work_mem=16MB
+      -c maintenance_work_mem=64MB
+      -c effective_cache_size=512MB
+      -c fsync=off
+      -c synchronous_commit=off
+      -c full_page_writes=off
 
-  # Next.js Application (Development — hot reload)
   app:
     build:
       context: .
-      dockerfile: Dockerfile
       target: development
     container_name: pms-app-dev
     restart: unless-stopped
     environment:
-      - NODE_ENV=development
-      - NEXT_PUBLIC_ENV=development
-      - NEXTAUTH_SECRET=dev-secret-change-in-production
-      - NEXTAUTH_URL=http://localhost:3000
-      - CHOKIDAR_USEPOLLING=true
-      - WATCHPACK_POLLING=true
-      - PORT=3000
-      - HOSTNAME=0.0.0.0
+      NODE_ENV: development
+      NEXT_PUBLIC_ENV: development
+      NEXTAUTH_SECRET: dev-secret-change-in-production
+      NEXTAUTH_URL: http://localhost:3000
     ports:
       - "3777:3000"
     volumes:
-      # Bind-mount source for live reload; keep container node_modules/.next
       - .:/app
       - /app/node_modules
       - /app/.next
-      # Host postgres data is bind-mounted at repo root; hide it from Next's watcher
       - /app/database/postgres
-      # Use the current entrypoint even if the image was built before db:* scripts were removed
       - ./scripts/docker-entrypoint-dev.sh:/usr/local/bin/docker-entrypoint-dev.sh:ro
-    secrets:
-      - postgres_user
-      - postgres_password
-      - postgres_db
-    depends_on:
-      postgres:
-        condition: service_healthy
-      migrations:
-        condition: service_completed_successfully
-    networks:
-      - pms-network
-    # DATABASE_URL + pnpm dev → scripts/docker-entrypoint-dev.sh
-    # postgres + schema push + seed → docker-compose.database.yml
-
-networks:
-  pms-network:
-    driver: bridge
-
-secrets:
-  postgres_user:
-    file: ./secrets/postgres_user.txt
-  postgres_password:
-    file: ./secrets/postgres_password.txt
-  postgres_db:
-    file: ./secrets/postgres_db.txt

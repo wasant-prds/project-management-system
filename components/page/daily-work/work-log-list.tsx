@@ -11,11 +11,11 @@ import { useState, useMemo, useCallback } from "react"
 
 // Constants
 const DEFAULT_PROJECT_COLOR = "#3b82f6"
-const CSV_HEADER = "Project,User,User Email,Hours,Date,Description,Remarks,Status"
+const CSV_HEADER = "Project,Work Item,User,User Email,Hours,Date,Description,Remarks,Status"
 
 // Utility functions
 const getProjectName = (log: WorkLog): string => log.project?.name || "No Project"
-const getWorkTitle = (log: WorkLog): string => log.description || "No description"
+const getWorkTitle = (log: WorkLog): string => log.workItem?.title || log.description || "No description"
 
 const sortLogsByWorkUserDate = (a: WorkLog, b: WorkLog, dateOrder: "asc" | "desc" = "asc"): number => {
   const titleA = getWorkTitle(a)
@@ -93,6 +93,7 @@ const escapeCSVField = (field: string): string => {
 const generateCSVRow = (log: WorkLog): string => {
   const fields = [
     getProjectName(log),
+    log.workItem?.title || "",
     log.user.name,
     log.user.email,
     log.hours.toString(),
@@ -112,6 +113,7 @@ const formatWorkLogMarkdownBlock = (log: WorkLog): string => {
     `- **Hours:** ${log.hours}`,
     `- **Date:** ${new Date(log.date).toLocaleDateString()}`,
   ]
+  if (log.workItem) metaLines.push(`- **Work item:** ${log.workItem.title} (${log.workItem.kind})`)
   if (log.status) metaLines.push(`- **Status:** ${log.status}`)
   metaLines.push("")
 
@@ -288,7 +290,7 @@ export function WorkLogList({
       )}
 
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-        <DialogContent className="!max-w-[80vw] w-full max-h-[90vh] flex flex-col">
+        <DialogContent className="flex max-h-[90vh] w-full flex-col sm:max-w-[min(104vw,calc(100%-2rem))]">
           <DialogHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 space-y-0">
             <div className="space-y-1.5 text-left min-w-0">
               <DialogTitle className="text-2xl font-bold">
@@ -347,10 +349,15 @@ export function WorkLogList({
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1 space-y-1">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-semibold text-sm text-muted-foreground">Work:</span>
+                                <span className="font-semibold text-sm text-muted-foreground">Work item:</span>
                                 <Badge variant="outline" className="font-normal">
-                                  {log.description || "No description"}
+                                  {log.workItem?.title || "No work item"}
                                 </Badge>
+                                {log.workItem?.kind && (
+                                  <Badge variant="secondary" className="font-normal">
+                                    {log.workItem.kind}
+                                  </Badge>
+                                )}
                               </div>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-semibold text-sm text-muted-foreground">User:</span>

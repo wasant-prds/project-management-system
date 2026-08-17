@@ -11,7 +11,7 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { toast } from "@/hooks/use-toast"
 import { formatDate } from "@/lib/utils"
-import { WorkLog, Project, User, WorkLogFormData } from "@/components/page/daily-work/types"
+import { WorkLog, Project, User, WorkLogFormData, emptyWorkLogForm } from "@/components/page/daily-work/types"
 import { WorkLogList } from "@/components/page/daily-work/work-log-list"
 import { WorkLogDialog } from "@/components/page/daily-work/work-log-dialog"
 import { StatsCard } from "@/components/page/daily-work/stats-card"
@@ -29,14 +29,7 @@ export default function DailyWorkPage() {
   const [viewPeriod, setViewPeriod] = useState<"day" | "week" | "month" | "year">("day")
 
   // Form state
-  const [formData, setFormData] = useState<WorkLogFormData>({
-    description: "",
-    remarks: "",
-    hours: "8",
-    date: formatDate(new Date()),
-    projectId: "",
-    status: "To Do",
-  })
+  const [formData, setFormData] = useState<WorkLogFormData>(emptyWorkLogForm(formatDate(new Date())))
 
   // Fetch work logs based on selected date and view period
   useEffect(() => {
@@ -128,27 +121,21 @@ export default function DailyWorkPage() {
         hours: workLog.hours.toString(),
         date: formatDate(workLog.date),
         projectId: workLog.project?.id || "",
+        workItemId: workLog.workItem?.id || "",
         status: workLog.status || "To Do",
       })
     } else {
       setSelectedWorkLog(null)
-      setFormData({
-        description: "",
-        remarks: "",
-        hours: "8",
-        date: date ? formatDate(date) : formatDate(new Date()),
-        projectId: "",
-        status: "To Do",
-      })
+      setFormData(emptyWorkLogForm(date ? formatDate(date) : formatDate(new Date())))
     }
     setIsDialogOpen(true)
   }, [date])
 
   const handleSubmit = useCallback(async () => {
-    if (!formData.hours || !formData.description) {
+    if (!formData.hours || !formData.description || !formData.projectId || !formData.workItemId) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields",
+        description: "Please fill in date, hours, project, work item, and description",
         variant: "destructive",
       })
       return
@@ -194,6 +181,7 @@ export default function DailyWorkPage() {
           hours: formData.hours,
           date: formData.date,
           projectId: formData.projectId,
+          workItemId: formData.workItemId,
           status: formData.status,
           userId,
         }),
@@ -269,7 +257,9 @@ export default function DailyWorkPage() {
       const matchesProjectName = log.project?.name.toLowerCase().includes(query)
       const matchesStatus = log.status?.toLowerCase().includes(query)
 
-      return matchesDescription || matchesUserName || matchesProjectName || matchesStatus
+      const matchesWorkItem = log.workItem?.title.toLowerCase().includes(query)
+
+      return matchesDescription || matchesUserName || matchesProjectName || matchesStatus || matchesWorkItem
     })
   }, [workLogs, searchQuery])
 

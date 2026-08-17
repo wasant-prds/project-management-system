@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Label } from "@/components/ui/label"
-import { Clock, FileText, MessageSquareText, X } from "lucide-react"
+import { CheckSquare, Clock, FileText, MessageSquareText, X } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import { WorkLog } from "./types"
 import { useState } from "react"
@@ -51,14 +51,23 @@ export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
                 {project?.name.substring(0, 3).toUpperCase() || 'N/A'}
               </AvatarFallback>
             </Avatar>
-            <div>
+            <div className="min-w-0">
               <CardTitle className="text-base">{project?.name || 'No Project'}</CardTitle>
+              {workLog.workItem?.title && (
+                <p className="truncate text-xs font-medium text-foreground/80">{workLog.workItem.title}</p>
+              )}
               <CardDescription className="text-xs">
                 {formatDate(workLog.date)}
               </CardDescription>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {workLog.workItem && (
+              <Badge variant="outline" className="gap-1 text-xs">
+                <CheckSquare className="h-3 w-3" />
+                {workLog.workItem.kind}
+              </Badge>
+            )}
             {workLog.status && (
               <Badge variant="secondary" className="text-xs">
                 {workLog.status}

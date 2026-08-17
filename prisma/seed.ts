@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { PrismaClient } from '@prisma/client'
 
@@ -80,6 +80,17 @@ function loadRows(filePath: string): Record<string, unknown>[] {
   })
 }
 
+function loadTableRows(filePath: string): Record<string, unknown>[] {
+  if (statSync(filePath).isDirectory()) {
+    const files = readdirSync(filePath)
+      .filter((name) => name.endsWith('.json'))
+      .sort((left, right) => left.localeCompare(right))
+    return files.flatMap((name) => loadRows(join(filePath, name)))
+  }
+
+  return loadRows(filePath)
+}
+
 async function main() {
   console.log('🌱 Seeding database...')
 
@@ -120,7 +131,7 @@ async function main() {
           throw new Error(`Seed file not found for ${table}: ${filePath}`)
         }
 
-        const rows = loadRows(filePath)
+        const rows = loadTableRows(filePath)
         const delegate = prismaDelegate(table)
         const model = tx[delegate as keyof typeof tx]
 

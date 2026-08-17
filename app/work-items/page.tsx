@@ -7,100 +7,32 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Plus, Search, MoreVertical, Calendar, Flag } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
+import { DEFAULT_ASSIGNEE_ID } from '@/lib/work-items'
+import { WorkItemCard } from '@/components/page/work-items/work-item-card'
+import { WorkItemViewDialog } from '@/components/page/work-items/work-item-view-dialog'
 import {
-  DEFAULT_ASSIGNEE_ID,
-  WORK_ITEM_PRIORITY_LABELS,
-  WORK_ITEM_ROLE_LABELS,
-  WORK_ITEM_STATUS_LABELS,
-  type WorkItemKindValue,
-  type WorkItemPriorityValue,
-  type WorkItemRoleValue,
-  type WorkItemStatusValue,
-} from '@/lib/work-items'
+  MONTH_OPTIONS,
+  workItemDateParts,
+} from '@/components/page/work-items/work-item-presentation'
+import type { ProjectOption, WorkItem } from '@/components/page/work-items/types'
 import {
   emptyWorkItemForm,
   WorkItemDialog,
   type WorkItemFormValues,
 } from '@/components/page/work-items/work-item-dialog'
 
-type WorkItem = {
-  id: string
-  title: string
-  description: string | null
-  kind: WorkItemKindValue
-  priority: WorkItemPriorityValue
-  role: WorkItemRoleValue | null
-  status: WorkItemStatusValue
-  types: string[]
-  workDate: string | null
-  dueDate: string | null
-  submittedAt: string | null
-  project: { id: string; name: string }
-  assignee: { id: string; name: string; avatar: string | null }
-}
-
 function toDateInput(value: string | null) {
   return value ? value.slice(0, 10) : ''
-}
-
-function formatDisplayDate(value: string | null) {
-  return value ? value.slice(0, 10) : '—'
-}
-
-function priorityClass(priority: WorkItemPriorityValue) {
-  switch (priority) {
-    case 'urgent':
-      return 'bg-destructive text-destructive-foreground'
-    case 'high':
-      return 'bg-destructive/10 text-destructive border-destructive/20'
-    case 'medium':
-      return 'bg-chart-5/10 text-chart-5 border-chart-5/20'
-    case 'low':
-      return 'bg-chart-1/10 text-chart-1 border-chart-1/20'
-    default:
-      return 'bg-muted text-muted-foreground'
-  }
-}
-
-function statusClass(status: WorkItemStatusValue) {
-  switch (status) {
-    case 'in-progress':
-      return 'bg-chart-2/10 text-chart-2 border-chart-2/20'
-    case 'sa-testing':
-    case 'pm-testing':
-      return 'bg-chart-4/10 text-chart-4 border-chart-4/20'
-    case 'completed':
-      return 'bg-chart-1/10 text-chart-1 border-chart-1/20'
-    case 'blocked':
-    case 'cancelled':
-      return 'bg-destructive/10 text-destructive border-destructive/20'
-    default:
-      return 'bg-muted text-muted-foreground border-border'
-  }
-}
-
-function kindClass(kind: WorkItemKindValue) {
-  switch (kind) {
-    case 'Incident':
-      return 'bg-destructive/10 text-destructive border-destructive/20'
-    case 'Issue':
-      return 'bg-chart-5/10 text-chart-5 border-chart-5/20'
-    default:
-      return 'bg-chart-2/10 text-chart-2 border-chart-2/20'
-  }
 }
 
 function toFormValues(item: WorkItem): WorkItemFormValues {
@@ -120,14 +52,27 @@ function toFormValues(item: WorkItem): WorkItemFormValues {
   }
 }
 
+function matchesYearMonth(item: WorkItem, year: string, month: string) {
+  if (year === 'all' && month === 'all') return true
+  const parts = workItemDateParts(item)
+  if (!parts) return false
+  if (year !== 'all' && parts.year !== year) return false
+  if (month !== 'all' && parts.month !== month) return false
+  return true
+}
+
 export default function WorkItemsPage() {
   const [workItems, setWorkItems] = useState<WorkItem[]>([])
-  const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([])
+  const [projects, setProjects] = useState<ProjectOption[]>([])
   const [users, setUsers] = useState<Array<{ id: string; name: string }>>([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [yearFilter, setYearFilter] = useState('all')
+  const [monthFilter, setMonthFilter] = useState('all')
+  const [projectFilter, setProjectFilter] = useState('all')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create')
   const [formValues, setFormValues] = useState<WorkItemFormValues>(emptyWorkItemForm())
+  const [viewItem, setViewItem] = useState<WorkItem | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -156,33 +101,50 @@ export default function WorkItemsPage() {
     load()
   }, [load])
 
+  const yearOptions = useMemo(() => {
+    const years = new Set<string>()
+    for (const item of workItems) {
+      const parts = workItemDateParts(item)
+      if (parts) years.add(parts.year)
+    }
+    return [...years].sort((left, right) => Number(right) - Number(left))
+  }, [workItems])
+
   const filtered = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
-    if (!query) return workItems
-    return workItems.filter((item) =>
-      [item.title, item.description, item.project.name, item.assignee.name, item.kind, item.status]
+    return workItems.filter((item) => {
+      if (projectFilter !== 'all' && item.project.id !== projectFilter) return false
+      if (!matchesYearMonth(item, yearFilter, monthFilter)) return false
+      if (!query) return true
+      return [item.title, item.description, item.project.name, item.assignee.name, item.kind, item.status]
         .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query)),
-    )
-  }, [workItems, searchQuery])
+        .some((value) => String(value).toLowerCase().includes(query))
+    })
+  }, [workItems, searchQuery, yearFilter, monthFilter, projectFilter])
 
   const stats = {
-    total: workItems.length,
-    inProgress: workItems.filter((item) => item.status === 'in-progress').length,
-    completed: workItems.filter((item) => item.status === 'completed').length,
-    overdue: workItems.filter((item) => {
+    total: filtered.length,
+    inProgress: filtered.filter((item) => item.status === 'in-progress').length,
+    completed: filtered.filter((item) => item.status === 'completed').length,
+    overdue: filtered.filter((item) => {
       if (!item.dueDate || item.status === 'completed' || item.status === 'cancelled') return false
       return new Date(item.dueDate) < new Date()
     }).length,
   }
 
   const openCreate = () => {
+    setViewItem(null)
     setDialogMode('create')
     setFormValues(emptyWorkItemForm())
     setDialogOpen(true)
   }
 
+  const openView = (item: WorkItem) => {
+    setViewItem(item)
+  }
+
   const openEdit = (item: WorkItem) => {
+    setViewItem(null)
     setDialogMode('edit')
     setFormValues(toFormValues(item))
     setDialogOpen(true)
@@ -195,6 +157,7 @@ export default function WorkItemsPage() {
       toast({ title: 'Error', description: 'Failed to delete work item', variant: 'destructive' })
       return
     }
+    setViewItem(null)
     toast({ title: 'Deleted', description: 'Work item removed' })
     load()
   }
@@ -204,7 +167,7 @@ export default function WorkItemsPage() {
       return (
         <Card className="card-shadow">
           <CardContent className="py-12 text-center text-muted-foreground">
-            No work items yet. Create one to get started.
+            No work items match the current filters.
           </CardContent>
         </Card>
       )
@@ -213,70 +176,13 @@ export default function WorkItemsPage() {
     return (
       <div className="space-y-3">
         {items.map((item) => (
-          <Card key={item.id} className="card-shadow hover:border-primary/30 transition-colors">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-2 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-medium leading-none">{item.title}</h3>
-                    <Badge variant="outline" className={kindClass(item.kind)}>{item.kind}</Badge>
-                  </div>
-                  {item.description && (
-                    <p className="text-sm text-muted-foreground">{item.description}</p>
-                  )}
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <Badge variant="outline" className={statusClass(item.status)}>
-                      {WORK_ITEM_STATUS_LABELS[item.status]}
-                    </Badge>
-                    <Badge variant="outline" className={priorityClass(item.priority)}>
-                      <Flag className="h-3 w-3 mr-1" />
-                      {WORK_ITEM_PRIORITY_LABELS[item.priority]}
-                    </Badge>
-                    {item.role && (
-                      <Badge variant="outline">{WORK_ITEM_ROLE_LABELS[item.role]}</Badge>
-                    )}
-                    {item.types.map((type) => (
-                      <Badge key={type} variant="secondary">{type}</Badge>
-                    ))}
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Calendar className="h-3 w-3" />
-                      <span>Due {formatDisplayDate(item.dueDate)}</span>
-                    </div>
-                    {item.submittedAt && (
-                      <span className="text-sm text-muted-foreground">
-                        Submitted {formatDisplayDate(item.submittedAt)}
-                      </span>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6 border border-primary/20">
-                        <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                          {(item.assignee.avatar || item.assignee.name).slice(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm text-muted-foreground">{item.assignee.name}</span>
-                    </div>
-                    <span className="text-sm text-muted-foreground">{item.project.name}</span>
-                  </div>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => openEdit(item)}>Edit</DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(item)}>
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </CardContent>
-          </Card>
+          <WorkItemCard
+            key={item.id}
+            item={item}
+            onView={openView}
+            onEdit={openEdit}
+            onDelete={handleDelete}
+          />
         ))}
       </div>
     )
@@ -335,15 +241,52 @@ export default function WorkItemsPage() {
               </Card>
             </div>
 
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search work items..."
-                className="pl-10 bg-secondary/50"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-              />
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+              <div className="relative max-w-md flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search work items..."
+                  className="bg-secondary/50 pl-10"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Select value={yearFilter} onValueChange={setYearFilter}>
+                  <SelectTrigger className="w-[130px] bg-secondary/50">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All years</SelectItem>
+                    {yearOptions.map((year) => (
+                      <SelectItem key={year} value={year}>{year}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={monthFilter} onValueChange={setMonthFilter}>
+                  <SelectTrigger className="w-[150px] bg-secondary/50">
+                    <SelectValue placeholder="Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All months</SelectItem>
+                    {MONTH_OPTIONS.map((month) => (
+                      <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={projectFilter} onValueChange={setProjectFilter}>
+                  <SelectTrigger className="w-[220px] bg-secondary/50">
+                    <SelectValue placeholder="Project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All projects</SelectItem>
+                    {projects.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <Tabs defaultValue="all" className="space-y-4">
@@ -372,6 +315,15 @@ export default function WorkItemsPage() {
             </Tabs>
           </div>
         </main>
+
+        <WorkItemViewDialog
+          open={Boolean(viewItem)}
+          item={viewItem}
+          onOpenChange={(open) => {
+            if (!open) setViewItem(null)
+          }}
+          onEdit={openEdit}
+        />
 
         <WorkItemDialog
           open={dialogOpen}

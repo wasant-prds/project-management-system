@@ -166,7 +166,7 @@ export function WorkItemDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[54.6rem]">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>{mode === 'edit' ? 'Edit Work Item' : 'New Work Item'}</DialogTitle>
@@ -193,8 +193,8 @@ export function WorkItemDialog({
                 id="description"
                 value={form.description}
                 onChange={(event) => setForm({ ...form, description: event.target.value })}
-                placeholder="Optional details"
-                className="min-h-[90px]"
+                placeholder="Optional details. Markdown is supported (headings, lists, **bold**, `code`)."
+                className="min-h-[160px] whitespace-pre-wrap"
                 disabled={isLoading}
               />
             </div>

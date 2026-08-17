@@ -1,154 +1,91 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { serializeWorkLog, workLogInclude, resolveWorkItemId } from '@/lib/work-logs'
+import type { Prisma } from '@prisma/client'
 
-// GET /api/work-logs - Get all work logs or filter by date/user
+function dateRangeFromParam(date: string) {
+  const [year, month, day] = date.split('-').map(Number)
+  return {
+    start: new Date(year, month - 1, day, 0, 0, 0, 0),
+    end: new Date(year, month - 1, day, 23, 59, 59, 999),
+  }
+}
+
 export async function GET(request: Request) {
-    try {
-        const { searchParams } = new URL(request.url)
-        const date = searchParams.get('date')
-        const startDateParam = searchParams.get('startDate')
-        const endDateParam = searchParams.get('endDate')
-        const userId = searchParams.get('userId')
+  try {
+    const { searchParams } = new URL(request.url)
+    const date = searchParams.get('date')
+    const startDateParam = searchParams.get('startDate')
+    const endDateParam = searchParams.get('endDate')
+    const userId = searchParams.get('userId')
 
-        const where: any = {}
+    const where: Prisma.TimeEntryWhereInput = {}
 
-        if (date) {
-            // Parse date string (yyyy-mm-dd) as local date to avoid timezone issues
-            const [year, month, day] = date.split('-').map(Number)
-            const startDate = new Date(year, month - 1, day, 0, 0, 0, 0)
-            const endDate = new Date(year, month - 1, day, 23, 59, 59, 999)
-
-            where.date = {
-                gte: startDate,
-                lte: endDate,
-            }
-        } else if (startDateParam && endDateParam) {
-            // Handle date range queries
-            const [startYear, startMonth, startDay] = startDateParam.split('-').map(Number)
-            const [endYear, endMonth, endDay] = endDateParam.split('-').map(Number)
-            
-            const startDate = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0)
-            const endDate = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999)
-
-            where.date = {
-                gte: startDate,
-                lte: endDate,
-            }
-        }
-
-        if (userId) {
-            where.userId = userId
-        }
-
-        const workLogs = await prisma.timeEntry.findMany({
-            where,
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        avatar: true,
-                    },
-                },
-                project: {
-                    select: {
-                        id: true,
-                        name: true,
-                        colorProject: true,
-                    },
-                },
-            },
-            orderBy: {
-                date: 'desc',
-            },
-        })
-
-        return NextResponse.json({ workLogs }, { status: 200 })
-    } catch (error) {
-        console.error('Error fetching work logs:', error)
-        return NextResponse.json(
-            { error: 'Failed to fetch work logs' },
-            { status: 500 }
-        )
+    if (date) {
+      const range = dateRangeFromParam(date)
+      where.date = { gte: range.start, lte: range.end }
+    } else if (startDateParam && endDateParam) {
+      const start = dateRangeFromParam(startDateParam).start
+      const end = dateRangeFromParam(endDateParam).end
+      where.date = { gte: start, lte: end }
     }
+
+    if (userId) where.userId = userId
+
+    const workLogs = await prisma.timeEntry.findMany({
+      where,
+      include: workLogInclude,
+      orderBy: { date: 'desc' },
+    })
+
+    return NextResponse.json(
+      { workLogs: workLogs.map(serializeWorkLog) },
+      { status: 200 },
+    )
+  } catch (error) {
+    console.error('Error fetching work logs:', error)
+    return NextResponse.json({ error: 'Failed to fetch work logs' }, { status: 500 })
+  }
 }
 
-// POST /api/work-logs - Create a new work log
 export async function POST(request: Request) {
-    try {
-        const body = await request.json()
-        const {
-            description,
-            remarks,
-            hours,
-            date,
-            userId,
-            projectId,
-            status,
-        } = body
+  try {
+    const body = await request.json()
+    const { description, remarks, hours, date, userId, projectId, workItemId, status } = body
 
-        console.log('Received work log data:', { description, remarks, hours, date, userId, projectId, status })
-
-        // Validate required fields
-        if (!hours || !userId || !projectId) {
-            console.error('Missing required fields:', { hours, userId, projectId })
-            return NextResponse.json(
-                { error: 'Hours, user ID, and project ID are required' },
-                { status: 400 }
-            )
-        }
-
-        // Check if user exists
-        const user = await prisma.user.findUnique({
-            where: { id: userId },
-        })
-
-        console.log('User lookup result:', user ? `Found: ${user.name}` : 'Not found')
-
-        if (!user) {
-            return NextResponse.json(
-                { error: `User not found with ID: ${userId}` },
-                { status: 404 }
-            )
-        }
-
-        const workLog = await prisma.timeEntry.create({
-            data: {
-                description,
-                remarks,
-                hours: Number.parseFloat(hours),
-                date: date ? new Date(date) : new Date(),
-                userId,
-                projectId,
-                status,
-            },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        avatar: true,
-                    },
-                },
-                project: {
-                    select: {
-                        id: true,
-                        name: true,
-                        colorProject: true,
-                    },
-                },
-            },
-        })
-
-        return NextResponse.json({ workLog }, { status: 201 })
-    } catch (error) {
-        console.error('Error creating work log:', error)
-        return NextResponse.json(
-            { error: 'Failed to create work log' },
-            { status: 500 }
-        )
+    if (!hours || !userId || !projectId || !workItemId) {
+      return NextResponse.json(
+        { error: 'Hours, user ID, project, and work item are required' },
+        { status: 400 },
+      )
     }
-}
 
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } })
+    if (!user) {
+      return NextResponse.json({ error: `User not found with ID: ${userId}` }, { status: 404 })
+    }
+
+    const resolvedWorkItemId = await resolveWorkItemId(projectId, workItemId)
+
+    const workLog = await prisma.timeEntry.create({
+      data: {
+        description,
+        remarks,
+        hours: Number.parseFloat(hours),
+        date: date ? new Date(date) : new Date(),
+        userId,
+        projectId,
+        workItemId: resolvedWorkItemId ?? null,
+        status,
+      },
+      include: workLogInclude,
+    })
+
+    return NextResponse.json({ workLog: serializeWorkLog(workLog) }, { status: 201 })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to create work log'
+    console.error('Error creating work log:', error)
+    const status = message.includes('Work item') || message.includes('project is required') ? 400 : 500
+    return NextResponse.json({ error: message }, { status })
+  }
+}

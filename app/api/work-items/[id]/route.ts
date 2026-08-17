@@ -24,6 +24,7 @@ const workItemInclude = {
     select: {
       id: true,
       name: true,
+      colorProject: true,
     },
   },
 } as const

@@ -145,10 +145,11 @@ model WorkItem {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
-  projectId  String
-  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  assigneeId String
-  assignee   User    @relation("WorkItemAssignee", fields: [assigneeId], references: [id])
+  projectId   String
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assigneeId  String
+  assignee    User    @relation("WorkItemAssignee", fields: [assigneeId], references: [id])
+  timeEntries TimeEntry[]
 
   @@index([projectId])
   @@index([assigneeId])
@@ -218,13 +219,16 @@ model TimeEntry {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  projectId String?
-  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId  String?
+  project    Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workItemId String?
+  workItem   WorkItem? @relation(fields: [workItemId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([projectId])
+  @@index([workItemId])
   @@index([date])
 }
 
