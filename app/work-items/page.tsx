@@ -15,21 +15,36 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Plus, Search } from 'lucide-react'
+import { ArrowUpDown, Download, FileText, Plus, Search } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-import { DEFAULT_ASSIGNEE_ID } from '@/lib/work-items'
+import { DEFAULT_ASSIGNEE_ID, type WorkItemKindValue } from '@/lib/work-items'
 import { WorkItemCard } from '@/components/page/work-items/work-item-card'
 import { WorkItemViewDialog } from '@/components/page/work-items/work-item-view-dialog'
 import {
   MONTH_OPTIONS,
   workItemDateParts,
 } from '@/components/page/work-items/work-item-presentation'
+import {
+  downloadTextFile,
+  generateWorkItemsCsv,
+  generateWorkItemsMarkdown,
+  nextWorkItemSortMode,
+  sortWorkItems,
+  WORK_ITEM_SORT_LABELS,
+  type WorkItemSortMode,
+} from '@/components/page/work-items/work-item-export'
 import type { ProjectOption, WorkItem } from '@/components/page/work-items/types'
 import {
   emptyWorkItemForm,
   WorkItemDialog,
   type WorkItemFormValues,
 } from '@/components/page/work-items/work-item-dialog'
+
+type KindTab = 'all' | WorkItemKindValue
+
+function isKindTab(value: string): value is KindTab {
+  return value === 'all' || value === 'Incident' || value === 'Issue' || value === 'Task'
+}
 
 function toDateInput(value: string | null) {
   return value ? value.slice(0, 10) : ''
@@ -69,6 +84,8 @@ export default function WorkItemsPage() {
   const [yearFilter, setYearFilter] = useState('all')
   const [monthFilter, setMonthFilter] = useState('all')
   const [projectFilter, setProjectFilter] = useState('all')
+  const [kindTab, setKindTab] = useState<KindTab>('all')
+  const [sortMode, setSortMode] = useState<WorkItemSortMode>('project-title')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create')
   const [formValues, setFormValues] = useState<WorkItemFormValues>(emptyWorkItemForm())
@@ -122,6 +139,11 @@ export default function WorkItemsPage() {
     })
   }, [workItems, searchQuery, yearFilter, monthFilter, projectFilter])
 
+  const visibleItems = useMemo(() => {
+    const scoped = kindTab === 'all' ? filtered : filtered.filter((item) => item.kind === kindTab)
+    return sortWorkItems(scoped, sortMode)
+  }, [filtered, kindTab, sortMode])
+
   const stats = {
     total: filtered.length,
     inProgress: filtered.filter((item) => item.status === 'in-progress').length,
@@ -162,6 +184,30 @@ export default function WorkItemsPage() {
     load()
   }
 
+  const exportFilename = (extension: 'csv' | 'md') => {
+    const date = new Date().toISOString().slice(0, 10)
+    const kind = kindTab === 'all' ? 'all' : kindTab.toLowerCase()
+    return `work_items_${kind}_${date}.${extension}`
+  }
+
+  const exportCsv = () => {
+    if (visibleItems.length === 0) return
+    downloadTextFile(
+      generateWorkItemsCsv(visibleItems),
+      exportFilename('csv'),
+      'text/csv;charset=utf-8;',
+    )
+  }
+
+  const exportMarkdown = () => {
+    if (visibleItems.length === 0) return
+    downloadTextFile(
+      generateWorkItemsMarkdown(visibleItems, sortMode),
+      exportFilename('md'),
+      'text/markdown;charset=utf-8;',
+    )
+  }
+
   const renderList = (items: WorkItem[]) => {
     if (items.length === 0) {
       return (
@@ -195,15 +241,35 @@ export default function WorkItemsPage() {
         <AppHeader />
         <main className="flex-1 overflow-y-auto p-6">
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight text-balance">Work Items</h1>
                 <p className="text-muted-foreground mt-1">Incidents, issues, and tasks in one place</p>
               </div>
-              <Button className="gap-2" onClick={openCreate}>
-                <Plus className="h-4 w-4" />
-                New Work Item
-              </Button>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Button
+                  variant="default"
+                  className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
+                  onClick={exportCsv}
+                  disabled={visibleItems.length === 0}
+                >
+                  <Download className="h-4 w-4" />
+                  Export CSV
+                </Button>
+                <Button
+                  variant="default"
+                  className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+                  onClick={exportMarkdown}
+                  disabled={visibleItems.length === 0}
+                >
+                  <FileText className="h-4 w-4" />
+                  Export Markdown
+                </Button>
+                <Button className="gap-2" onClick={openCreate}>
+                  <Plus className="h-4 w-4" />
+                  New Work Item
+                </Button>
+              </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-4">
@@ -286,10 +352,25 @@ export default function WorkItemsPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2 bg-secondary/50"
+                  onClick={() => setSortMode((mode) => nextWorkItemSortMode(mode))}
+                >
+                  <ArrowUpDown className="h-4 w-4" />
+                  {WORK_ITEM_SORT_LABELS[sortMode]}
+                </Button>
               </div>
             </div>
 
-            <Tabs defaultValue="all" className="space-y-4">
+            <Tabs
+              value={kindTab}
+              onValueChange={(value) => {
+                if (isKindTab(value)) setKindTab(value)
+              }}
+              className="space-y-4"
+            >
               <TabsList>
                 <TabsTrigger value="all">All ({filtered.length})</TabsTrigger>
                 <TabsTrigger value="Incident">
@@ -302,16 +383,7 @@ export default function WorkItemsPage() {
                   Tasks ({filtered.filter((item) => item.kind === 'Task').length})
                 </TabsTrigger>
               </TabsList>
-              <TabsContent value="all">{renderList(filtered)}</TabsContent>
-              <TabsContent value="Incident">
-                {renderList(filtered.filter((item) => item.kind === 'Incident'))}
-              </TabsContent>
-              <TabsContent value="Issue">
-                {renderList(filtered.filter((item) => item.kind === 'Issue'))}
-              </TabsContent>
-              <TabsContent value="Task">
-                {renderList(filtered.filter((item) => item.kind === 'Task'))}
-              </TabsContent>
+              <TabsContent value={kindTab}>{renderList(visibleItems)}</TabsContent>
             </Tabs>
           </div>
         </main>
