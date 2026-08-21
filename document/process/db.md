@@ -13,7 +13,7 @@ Run these from the repository root. They replace the former `package.json` scrip
 | `pnpm prisma db seed` | Seed database (skips if data exists; never wipes) |
 | `pnpm prisma studio` | Open Prisma Studio |
 | `sh scripts/db-push-safe.sh` | Push schema (non-destructive; refuses data-loss flags) |
-| `sh scripts/dump-master-seeds.sh` | Export running DB into `database/seeds/master/*.json` |
+| `sh scripts/dump-master-seeds.sh` | Zip `database/seeds/master` to `./backups`, then snapshot the current `APP_ENV` Postgres into `config.json` tables (`WorkItem/` by year; leftover JSON removed) |
 
 ## Management helper
 
