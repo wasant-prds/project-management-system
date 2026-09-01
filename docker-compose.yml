@@ -4,15 +4,20 @@ include:
   - docker-compose.database.yml
 
 services:
-  # Dev-only: skip fsync (do not use in UAT/prod)
+  # Dev-only: skip fsync (do not use in UAT/prod). Memory matches the
+  # shared 1 vCPU / 2 GB host budget (two projects).
   postgres:
     command: >
       postgres
-      -c shared_buffers=256MB
-      -c max_connections=100
-      -c work_mem=16MB
-      -c maintenance_work_mem=64MB
-      -c effective_cache_size=512MB
+      -c max_connections=20
+      -c shared_buffers=64MB
+      -c effective_cache_size=192MB
+      -c maintenance_work_mem=32MB
+      -c work_mem=2MB
+      -c wal_buffers=4MB
+      -c min_wal_size=64MB
+      -c max_wal_size=256MB
+      -c huge_pages=off
       -c fsync=off
       -c synchronous_commit=off
       -c full_page_writes=off
@@ -28,6 +33,7 @@ services:
       NEXT_PUBLIC_ENV: development
       NEXTAUTH_SECRET: dev-secret-change-in-production
       NEXTAUTH_URL: http://localhost:3000
+      NODE_OPTIONS: --max-old-space-size=256
     ports:
       - "3777:3000"
     volumes:

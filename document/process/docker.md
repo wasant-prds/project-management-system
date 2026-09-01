@@ -2,6 +2,18 @@
 
 Run these from the repository root. They replace the former `package.json` scripts (`docker:dev:*`, `docker:uat:*`, `docker:prod:*`).
 
+## Host sizing (1 vCPU / 2 GB / 50 GB, two projects)
+
+Compose is tuned so **this stack uses about half the machine**, leaving room for a second project plus the OS/Docker daemon (~400 MB).
+
+| Resource | This project | Leave for OS + other project |
+| --- | --- | --- |
+| CPU | ~0.50 (`postgres` 0.20 + `app` 0.30) | ~0.50 |
+| RAM | ~768 MB (`postgres` 384 MB + `app` 384 MB) | ~1.2 GB |
+| Disk | WAL capped at 256 MB; container logs 10 MB × 3; backups 3 days | rest of 50 GB |
+
+PostgreSQL uses `max_connections=20`, `shared_buffers=64MB`, and a Prisma `connection_limit=5`. Node heap is capped with `NODE_OPTIONS=--max-old-space-size=256`. Do not run two heavy `pnpm dev` stacks on this host; use UAT/production images.
+
 ```bash
 bash scripts/docker-dev.sh <command>
 bash scripts/docker-uat.sh <command>

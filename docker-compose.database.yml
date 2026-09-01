@@ -1,5 +1,15 @@
 # Shared postgres + migrations. Included by the env compose files.
 # SEED_PATH is relative to /app/database (prisma/seed.ts).
+#
+# Sized for a Basic VPS (1 vCPU / 2 GB RAM / 50 GB disk) running two
+# projects at once. This stack budgets ~0.5 CPU and ~768 MB so the
+# other project can take a similar share; leave ~400 MB for the OS.
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
   postgres:
@@ -13,6 +23,12 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-postgres.sh:/init-postgres.sh:ro
       - ./backups:/backups
+    shm_size: 128mb
+    logging: *logging
+    deploy:
+      resources:
+        limits: { cpus: "0.20", memory: 384M }
+        reservations: { cpus: "0.05", memory: 96M }
     environment:
       POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C
       POSTGRES_HOST_AUTH_METHOD: scram-sha-256
@@ -26,11 +42,17 @@ services:
     entrypoint: ["/init-postgres.sh"]
     command: >
       postgres
-      -c shared_buffers=256MB
-      -c max_connections=100
-      -c work_mem=16MB
-      -c maintenance_work_mem=64MB
-      -c effective_cache_size=512MB
+      -c max_connections=20
+      -c shared_buffers=64MB
+      -c effective_cache_size=192MB
+      -c maintenance_work_mem=32MB
+      -c work_mem=2MB
+      -c wal_buffers=4MB
+      -c min_wal_size=64MB
+      -c max_wal_size=256MB
+      -c checkpoint_completion_target=0.9
+      -c huge_pages=off
+      -c random_page_cost=1.1
 
   migrations:
     build:
@@ -42,10 +64,16 @@ services:
       postgres:
         condition: service_healthy
     networks: [pms-network]
+    logging: *logging
+    deploy:
+      resources:
+        limits: { cpus: "0.40", memory: 256M }
+        reservations: { cpus: "0.05", memory: 64M }
     environment:
       SEED_PATH: ${SEED_PATH:-seeds/master}
       SEEDS_ROOT: /app/database
       RUN_SEED: ${RUN_SEED:-true}
+      NODE_OPTIONS: --max-old-space-size=192
     volumes:
       - ./prisma:/app/prisma
       - ./database/seeds:/app/database/seeds:ro
@@ -59,6 +87,13 @@ services:
       migrations:
         condition: service_completed_successfully
     networks: [pms-network]
+    logging: *logging
+    deploy:
+      resources:
+        limits: { cpus: "0.30", memory: 384M }
+        reservations: { cpus: "0.10", memory: 128M }
+    environment:
+      NODE_OPTIONS: --max-old-space-size=256
 
 volumes:
   postgres_data:
@@ -73,7 +108,7 @@ volumes:
       com.dhas.environment: ${APP_ENV:-dev}
       com.dhas.volume.type: database
       com.dhas.backup.frequency: daily
-      com.dhas.retention.days: "30"
+      com.dhas.retention.days: "3"
 
 networks:
   pms-network:

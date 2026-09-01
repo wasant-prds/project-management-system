@@ -12,7 +12,7 @@ if [ -f /run/secrets/postgres_user ] \
   POSTGRES_HOST="${POSTGRES_HOST:-postgres}"
   POSTGRES_PORT="${POSTGRES_PORT:-5432}"
 
-  export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?schema=public"
+  export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?schema=public&connection_limit=5&pool_timeout=20"
 fi
 
 pnpm prisma generate

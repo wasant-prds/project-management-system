@@ -2,6 +2,8 @@
 
 Run these from the repository root. They replace the former `package.json` scripts (`db:*`).
 
+Use `bash` for `.sh` scripts (Git Bash on Windows). PowerShell does not provide `sh`.
+
 `postinstall` still runs `prisma generate`. Prisma seed is still configured as `tsx prisma/seed.ts` in `package.json`.
 
 ## Prisma
@@ -12,8 +14,8 @@ Run these from the repository root. They replace the former `package.json` scrip
 | `pnpm prisma migrate dev` | Create and apply a migration |
 | `pnpm prisma db seed` | Seed database (skips if data exists; never wipes) |
 | `pnpm prisma studio` | Open Prisma Studio |
-| `sh scripts/db-push-safe.sh` | Push schema (non-destructive; refuses data-loss flags) |
-| `sh scripts/dump-master-seeds.sh` | Zip `database/seeds/master` to `./backups`, then snapshot the current `APP_ENV` Postgres into `config.json` tables (`WorkItem/` by year; leftover JSON removed) |
+| `bash scripts/db-push-safe.sh` | Push schema (non-destructive; refuses data-loss flags) |
+| `bash scripts/dump-master-seeds.sh` | Zip `database/seeds/master` to `./backups`, then snapshot the current `APP_ENV` Postgres into `config.json` tables (`WorkItem/` by year; leftover JSON removed) |
 
 ## Management helper
 

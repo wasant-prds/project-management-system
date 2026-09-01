@@ -84,10 +84,12 @@ docker-compose up -d
 The development PostgreSQL configuration includes:
 
 ### Memory Settings
-- `shared_buffers`: 256MB - Memory for caching data
-- `work_mem`: 16MB - Memory for query operations
-- `maintenance_work_mem`: 64MB - Memory for maintenance tasks
-- `effective_cache_size`: 512MB - Estimated OS cache size
+Sized for a 1 vCPU / 2 GB host running two projects (this stack ~384 MB for Postgres):
+- `shared_buffers`: 64MB - Memory for caching data
+- `work_mem`: 2MB - Memory for query operations
+- `maintenance_work_mem`: 32MB - Memory for maintenance tasks
+- `effective_cache_size`: 192MB - Estimated OS cache size
+- `max_connections`: 20 - Fits the small shared_buffers / work_mem budget
 
 ### Development-Only Optimizations
 ⚠️ **These settings are for DEVELOPMENT ONLY** - They trade data safety for speed:
