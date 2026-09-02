@@ -18,6 +18,7 @@ import {
   WORK_ITEM_ROLE_LABELS,
   WORK_ITEM_STATUS_LABELS,
 } from '@/lib/work-items'
+import { cn } from '@/lib/utils'
 import type { WorkItem } from './types'
 import { ProjectIdentity } from './project-identity'
 import {
@@ -34,11 +35,21 @@ type WorkItemCardProps = {
   onView: (item: WorkItem) => void
   onEdit: (item: WorkItem) => void
   onDelete: (item: WorkItem) => void
+  showProjectIdentity?: boolean
+  compact?: boolean
 }
 
-export function WorkItemCard({ item, onView, onEdit, onDelete }: Readonly<WorkItemCardProps>) {
+export function WorkItemCard({
+  item,
+  onView,
+  onEdit,
+  onDelete,
+  showProjectIdentity = true,
+  compact = false,
+}: Readonly<WorkItemCardProps>) {
   const accent = projectAccentStyle(item.project.colorProject)
-  const preview = item.description ? descriptionPreview(item.description) : ''
+  const previewMaxLength = compact ? 120 : 180
+  const preview = item.description ? descriptionPreview(item.description, previewMaxLength) : ''
 
   return (
     <Card
@@ -50,18 +61,25 @@ export function WorkItemCard({ item, onView, onEdit, onDelete }: Readonly<WorkIt
         className="absolute inset-y-0 left-0 w-[3px]"
         style={{ backgroundColor: accent.color }}
       />
-      <ProjectIdentity
-        name={item.project.name}
-        color={item.project.colorProject}
-        showRail={false}
-        className="pl-5"
-      />
+      {showProjectIdentity && (
+        <ProjectIdentity
+          name={item.project.name}
+          color={item.project.colorProject}
+          showRail={false}
+          className="pl-5"
+        />
+      )}
 
-      <CardContent className="space-y-3 p-4 pl-5">
+      <CardContent className={cn(compact ? 'space-y-2 p-3 pl-4' : 'space-y-3 p-4 pl-5')}>
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1 space-y-2.5">
+          <div className={cn('min-w-0 flex-1', compact ? 'space-y-1.5' : 'space-y-2.5')}>
             <div className="flex items-start gap-2">
-              <h3 className="min-w-0 flex-1 text-[15px] font-semibold leading-snug text-foreground">
+              <h3
+                className={cn(
+                  'min-w-0 flex-1 font-semibold leading-snug text-foreground',
+                  compact ? 'text-sm' : 'text-[15px]',
+                )}
+              >
                 {item.title}
               </h3>
               <Badge variant="outline" className={`shrink-0 ${kindClass(item.kind)}`}>
@@ -70,7 +88,14 @@ export function WorkItemCard({ item, onView, onEdit, onDelete }: Readonly<WorkIt
             </div>
 
             {preview && (
-              <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">{preview}</p>
+              <p
+                className={cn(
+                  'leading-relaxed text-muted-foreground',
+                  compact ? 'line-clamp-1 text-xs' : 'line-clamp-2 text-sm',
+                )}
+              >
+                {preview}
+              </p>
             )}
 
             <div className="flex flex-wrap items-center gap-2">
@@ -108,7 +133,7 @@ export function WorkItemCard({ item, onView, onEdit, onDelete }: Readonly<WorkIt
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 shrink-0"
+                className={compact ? 'h-7 w-7 shrink-0' : 'h-8 w-8 shrink-0'}
                 onClick={(event) => event.stopPropagation()}
               >
                 <MoreVertical className="h-4 w-4" />

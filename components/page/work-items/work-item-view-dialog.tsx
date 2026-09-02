@@ -38,7 +38,7 @@ type WorkItemViewDialogProps = {
 
 function Detail({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
   return (
-    <div className="space-y-1">
+    <div className="min-w-[8rem] flex-1 space-y-1">
       <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
       <div className="text-sm font-medium text-foreground">{children}</div>
     </div>
@@ -105,7 +105,7 @@ export function WorkItemViewDialog({
           </ScrollablePanel>
         </section>
 
-        <div className="grid shrink-0 gap-4 border-t border-border/60 bg-muted/20 px-6 py-4 sm:grid-cols-2">
+        <div className="flex shrink-0 flex-wrap gap-x-6 gap-y-3 border-t border-border/60 bg-muted/20 px-6 py-3">
           <Detail label="Assignee">
             <div className="flex items-center gap-2">
               <Avatar className="h-6 w-6 border border-primary/20">

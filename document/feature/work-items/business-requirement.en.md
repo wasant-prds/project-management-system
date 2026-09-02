@@ -6,8 +6,8 @@
 | Document | Business requirement (EN) |
 | Thai version | [business-requirement.th.md](./business-requirement.th.md) |
 | Related | [scope.en.md](./scope.en.md) |
-| **Status** | **waiting — start code** |
-| Date | 2026-09-01 |
+| **Status** | **done** |
+| Date | 2026-09-02 |
 
 This document describes **what the product must do**. Technical boundaries are in the [scope](./scope.en.md).
 
@@ -100,6 +100,19 @@ Create and edit modals are unchanged (see scope).
 
 ---
 
+## Case 7 — Expandable groups with a file-tree path
+
+Project headers and urgency subgroups (Case 4 and Case 5) can **expand and collapse** (click and keyboard). Cards do not collapse.
+
+- **Default:** the **first** project in the current visible list is expanded. Only that project’s **first visible** subgroup is expanded (first in Case 5 order among subgroups that have cards). Every other project starts collapsed. Other subgroups start collapsed.
+- Nested levels use the **same** expand control (chevron on the header). Subgroups and cards are **slightly smaller** than the project header (indent + type/card size), not a CSS zoom.
+- A CSS **tree** (vertical spine + T/L connectors) shows the path: project → subgroup → card, like the README Project Structure `├──` / `│` / `└──` diagram. Cards are **leaves**; click still opens the view modal.
+- Changing year, month, project, search, kind tab, or sort **resets** expand state to the default above. Export still uses the full visible list, not only expanded rows.
+
+**Example:** Three projects Alpha, Beta, Gamma (in that list order). Alpha is open. If Alpha has Overdue and On track, only **Overdue** is open. Beta and Gamma show the project header only until the user expands them. Expanding Beta then opens Beta’s first visible subgroup.
+
+---
+
 ## Acceptance criteria
 
 | Case | Done when |
@@ -110,3 +123,4 @@ Create and edit modals are unchanged (see scope).
 | 4 | Cards sit under project headers. |
 | 5 | Under each project: Overdue → Near due → On track → Complete; empty subgroups hidden; bar colors match the table. |
 | 6 | View modal metadata is one row; Details has more height. |
+| 7 | Project and subgroup headers expand/collapse; first project + first visible subgroup open by default; tree connectors; nested size is slightly smaller; filter/sort/tab reset expand state; cards stay leaves. |

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
@@ -15,21 +15,34 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { ArrowUpDown, Download, FileText, Plus, Search } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { DEFAULT_ASSIGNEE_ID, type WorkItemKindValue } from '@/lib/work-items'
-import { WorkItemCard } from '@/components/page/work-items/work-item-card'
 import { WorkItemViewDialog } from '@/components/page/work-items/work-item-view-dialog'
+import { WorkItemGroupedList } from '@/components/page/work-items/work-item-grouped-list'
 import {
   MONTH_OPTIONS,
   workItemDateParts,
 } from '@/components/page/work-items/work-item-presentation'
 import {
+  DEFAULT_WORK_ITEM_SORT_MODE,
   downloadTextFile,
+  flattenProjectGroups,
   generateWorkItemsCsv,
   generateWorkItemsMarkdown,
-  nextWorkItemSortMode,
-  sortWorkItems,
+  groupWorkItems,
+  isWorkItemSortMode,
+  urgencySubgroup,
+  WORK_ITEM_HOVER_SORT_MODES,
   WORK_ITEM_SORT_LABELS,
   type WorkItemSortMode,
 } from '@/components/page/work-items/work-item-export'
@@ -39,6 +52,8 @@ import {
   WorkItemDialog,
   type WorkItemFormValues,
 } from '@/components/page/work-items/work-item-dialog'
+
+const SORT_MENU_CLOSE_DELAY_MS = 150
 
 type KindTab = 'all' | WorkItemKindValue
 
@@ -76,16 +91,95 @@ function matchesYearMonth(item: WorkItem, year: string, month: string) {
   return true
 }
 
+function WorkItemSortMenu({
+  value,
+  onChange,
+}: Readonly<{ value: WorkItemSortMode; onChange: (mode: WorkItemSortMode) => void }>) {
+  const [open, setOpen] = useState(false)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const cancelClose = () => {
+    if (closeTimer.current === null) return
+    clearTimeout(closeTimer.current)
+    closeTimer.current = null
+  }
+
+  const openMenu = () => {
+    cancelClose()
+    setOpen(true)
+  }
+
+  const scheduleClose = () => {
+    cancelClose()
+    closeTimer.current = setTimeout(() => setOpen(false), SORT_MENU_CLOSE_DELAY_MS)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (closeTimer.current !== null) clearTimeout(closeTimer.current)
+    }
+  }, [])
+
+  const handleOpenChange = (next: boolean) => {
+    cancelClose()
+    setOpen(next)
+  }
+
+  return (
+    <DropdownMenu open={open} onOpenChange={handleOpenChange}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className="gap-2 bg-secondary/50"
+          aria-label="Sort work items"
+          onMouseEnter={openMenu}
+          onMouseLeave={scheduleClose}
+        >
+          <ArrowUpDown className="h-4 w-4" />
+          {WORK_ITEM_SORT_LABELS[value]}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        onMouseEnter={openMenu}
+        onMouseLeave={scheduleClose}
+      >
+        <DropdownMenuRadioGroup
+          value={value === DEFAULT_WORK_ITEM_SORT_MODE ? '' : value}
+          onValueChange={(next) => {
+            if (isWorkItemSortMode(next)) onChange(next)
+          }}
+        >
+          {WORK_ITEM_HOVER_SORT_MODES.map((mode) => (
+            <DropdownMenuRadioItem
+              key={mode}
+              value={mode}
+              aria-label={WORK_ITEM_SORT_LABELS[mode]}
+            >
+              {WORK_ITEM_SORT_LABELS[mode]}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => onChange(DEFAULT_WORK_ITEM_SORT_MODE)}>
+          Reset to default
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 export default function WorkItemsPage() {
   const [workItems, setWorkItems] = useState<WorkItem[]>([])
   const [projects, setProjects] = useState<ProjectOption[]>([])
   const [users, setUsers] = useState<Array<{ id: string; name: string }>>([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [yearFilter, setYearFilter] = useState('all')
+  const [yearFilter, setYearFilter] = useState(() => String(new Date().getFullYear()))
   const [monthFilter, setMonthFilter] = useState('all')
   const [projectFilter, setProjectFilter] = useState('all')
   const [kindTab, setKindTab] = useState<KindTab>('all')
-  const [sortMode, setSortMode] = useState<WorkItemSortMode>('project-title')
+  const [sortMode, setSortMode] = useState<WorkItemSortMode>(DEFAULT_WORK_ITEM_SORT_MODE)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create')
   const [formValues, setFormValues] = useState<WorkItemFormValues>(emptyWorkItemForm())
@@ -119,7 +213,7 @@ export default function WorkItemsPage() {
   }, [load])
 
   const yearOptions = useMemo(() => {
-    const years = new Set<string>()
+    const years = new Set<string>([String(new Date().getFullYear())])
     for (const item of workItems) {
       const parts = workItemDateParts(item)
       if (parts) years.add(parts.year)
@@ -139,19 +233,27 @@ export default function WorkItemsPage() {
     })
   }, [workItems, searchQuery, yearFilter, monthFilter, projectFilter])
 
-  const visibleItems = useMemo(() => {
+  const visibleGroups = useMemo(() => {
     const scoped = kindTab === 'all' ? filtered : filtered.filter((item) => item.kind === kindTab)
-    return sortWorkItems(scoped, sortMode)
+    return groupWorkItems(scoped, sortMode)
   }, [filtered, kindTab, sortMode])
+
+  const visibleItems = useMemo(() => flattenProjectGroups(visibleGroups), [visibleGroups])
+
+  const expandResetKey = [
+    yearFilter,
+    monthFilter,
+    projectFilter,
+    searchQuery.trim(),
+    kindTab,
+    sortMode,
+  ].join('|')
 
   const stats = {
     total: filtered.length,
     inProgress: filtered.filter((item) => item.status === 'in-progress').length,
     completed: filtered.filter((item) => item.status === 'completed').length,
-    overdue: filtered.filter((item) => {
-      if (!item.dueDate || item.status === 'completed' || item.status === 'cancelled') return false
-      return new Date(item.dueDate) < new Date()
-    }).length,
+    overdue: filtered.filter((item) => urgencySubgroup(item) === 'overdue').length,
   }
 
   const openCreate = () => {
@@ -205,32 +307,6 @@ export default function WorkItemsPage() {
       generateWorkItemsMarkdown(visibleItems, sortMode),
       exportFilename('md'),
       'text/markdown;charset=utf-8;',
-    )
-  }
-
-  const renderList = (items: WorkItem[]) => {
-    if (items.length === 0) {
-      return (
-        <Card className="card-shadow">
-          <CardContent className="py-12 text-center text-muted-foreground">
-            No work items match the current filters.
-          </CardContent>
-        </Card>
-      )
-    }
-
-    return (
-      <div className="space-y-3">
-        {items.map((item) => (
-          <WorkItemCard
-            key={item.id}
-            item={item}
-            onView={openView}
-            onEdit={openEdit}
-            onDelete={handleDelete}
-          />
-        ))}
-      </div>
     )
   }
 
@@ -352,15 +428,7 @@ export default function WorkItemsPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="gap-2 bg-secondary/50"
-                  onClick={() => setSortMode((mode) => nextWorkItemSortMode(mode))}
-                >
-                  <ArrowUpDown className="h-4 w-4" />
-                  {WORK_ITEM_SORT_LABELS[sortMode]}
-                </Button>
+                <WorkItemSortMenu value={sortMode} onChange={setSortMode} />
               </div>
             </div>
 
@@ -383,7 +451,15 @@ export default function WorkItemsPage() {
                   Tasks ({filtered.filter((item) => item.kind === 'Task').length})
                 </TabsTrigger>
               </TabsList>
-              <TabsContent value={kindTab}>{renderList(visibleItems)}</TabsContent>
+              <TabsContent value={kindTab}>
+                <WorkItemGroupedList
+                  groups={visibleGroups}
+                  resetKey={expandResetKey}
+                  onView={openView}
+                  onEdit={openEdit}
+                  onDelete={handleDelete}
+                />
+              </TabsContent>
             </Tabs>
           </div>
         </main>

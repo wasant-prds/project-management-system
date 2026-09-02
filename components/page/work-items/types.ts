@@ -24,6 +24,7 @@ export type WorkItem = {
   dueDate: string | null
   submittedAt: string | null
   createdAt: string
+  updatedAt?: string
   project: WorkItemProject
   assignee: { id: string; name: string; avatar: string | null }
 }

@@ -6,8 +6,8 @@
 | Document | Scope (EN) |
 | Thai version | [scope.th.md](./scope.th.md) |
 | Related | [business-requirement.en.md](./business-requirement.en.md) |
-| **Status** | **waiting — start code** |
-| Date | 2026-09-01 |
+| **Status** | **done** |
+| Date | 2026-09-02 |
 
 This document describes **what is in or out of this work** and which service implements it. Product behavior is in the [business requirement](./business-requirement.en.md).
 
@@ -20,7 +20,7 @@ This document describes **what is in or out of this work** and which service imp
 | Runtime | Next.js **`app`** only (`pms-app-dev`). No new microservice. |
 | Data | Existing `GET /api/work-items` (Prisma → Postgres). |
 | Recency | Work item **`updatedAt`** (already on the model). Expose/use it on the client type if missing. |
-| Grouping, year default, hover sort | Client-side on `/work-items`. |
+| Grouping, year default, hover sort, expand/collapse tree | Client-side on `/work-items`. |
 | New API / Docker service / migration | **No.** |
 
 ---
@@ -35,6 +35,7 @@ This document describes **what is in or out of this work** and which service imp
 | Case 4 — Project headers | Group the visible list by project. |
 | Case 5 — Urgency subgroups | Overdue / Near due / On track / Complete under every project, all sort modes; hide empty subgroups; colored header bars. |
 | Case 6 — View modal row | View dialog only: Assignee, Work date, Due date, Submitted on one row. |
+| Case 7 — Expandable tree | Collapsible project + urgency headers; default first project / first subgroup; CSS tree connectors; nested size; reset expand on filter/sort/tab. |
 
 ---
 
@@ -49,6 +50,8 @@ Treat each row as a **non-goal** for this delivery.
 | Case 3 vs filters | Reset to default is a **sort** reset only. It must not clear year, month, project, or search. |
 | Case 6 | Create/Edit modal (Description form) is unchanged. |
 | Export | No new CSV/Markdown grouping UX. Export the currently visible items as today. |
+| Case 7 persist | Do not store expand state in `localStorage`. Reset when year, month, project, search, kind tab, or sort changes. |
+| Case 7 cards | Cards are not collapsible. No compact one-line-only row mode. |
 | Platform | No new REST resource, no Prisma schema change, no new Docker service. |
 
 ---
@@ -77,6 +80,14 @@ Treat each row as a **non-goal** for this delivery.
 
 - Change `components/page/work-items/work-item-view-dialog.tsx` only for the metadata row.
 
+### Case 7 — Expand / tree
+
+- Reuse `components/ui/collapsible.tsx` (Radix). No new service.
+- First visible subgroup = first non-empty Case 5 bucket on that project.
+- Opening a collapsed project also opens that project’s first visible subgroup.
+- Tree lines are CSS (`border` spine + elbow), not monospace `├──` characters.
+- Nested scale = smaller type/padding/indent, not `transform: scale` / CSS `zoom`.
+
 ---
 
 ## 5. Files expected to change
@@ -88,6 +99,9 @@ Treat each row as a **non-goal** for this delivery.
 | Types (`updatedAt`) | `components/page/work-items/types.ts` |
 | View modal | `components/page/work-items/work-item-view-dialog.tsx` |
 | Hover menu (reuse) | `components/ui/dropdown-menu.tsx` / `components/ui/tooltip.tsx` |
+| Expand / tree | `components/page/work-items/work-item-grouped-list.tsx` |
+| Compact nested cards | `components/page/work-items/work-item-card.tsx` |
+| Collapsible (reuse) | `components/ui/collapsible.tsx` |
 
 No new API route if Prisma already serializes `updatedAt` on `WorkItem`.
 
@@ -107,3 +121,9 @@ No new API route if Prisma already serializes `updatedAt` on `WorkItem`.
 | 8d / 9a | Subgroups Overdue → Near due → On track → Complete; cancelled in Complete. |
 | 10c | Near due = remainder of this calendar month (including today). |
 | 11a | Subgroups in every sort mode. |
+| 12b | Project and urgency subgroups collapsible. |
+| 13c | First project expanded; only first visible subgroup expanded. |
+| 14b | Nested levels slightly smaller; same chevron pattern. |
+| 15a | CSS file-tree spine and T/L connectors. |
+| 16a | Reset expand state when filters, kind tab, or sort change. |
+| 17a | Cards are tree leaves; not collapsible. |
