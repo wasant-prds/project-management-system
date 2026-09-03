@@ -311,12 +311,12 @@ export default function WorkItemsPage() {
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-svh min-h-0 overflow-hidden">
       <AppSidebar />
-      <SidebarInset>
+      <SidebarInset className="min-h-0 overflow-hidden">
         <AppHeader />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-6">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          <div className="space-y-6 p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h1 className="text-3xl font-bold tracking-tight text-balance">Work Items</h1>
@@ -462,7 +462,7 @@ export default function WorkItemsPage() {
               </TabsContent>
             </Tabs>
           </div>
-        </main>
+        </div>
 
         <WorkItemViewDialog
           open={Boolean(viewItem)}

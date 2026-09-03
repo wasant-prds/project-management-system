@@ -7,7 +7,7 @@
 | Thai version | [business-requirement.th.md](./business-requirement.th.md) |
 | Related | [scope.en.md](./scope.en.md) |
 | **Status** | **done** |
-| Date | 2026-09-02 |
+| Date | 2026-09-03 |
 
 This document describes **what the product must do**. Technical boundaries are in the [scope](./scope.en.md).
 
@@ -113,6 +113,18 @@ Project headers and urgency subgroups (Case 4 and Case 5) can **expand and colla
 
 ---
 
+## Case 8 — Sticky group and subgroup headers while scrolling
+
+While scrolling the work-items list, the **project header** and the **current subgroup header** stay on screen so the reader still knows which group they are in.
+
+- They stick **just under the app top bar** (search / theme / profile). They must not cover that bar. Page title, stats, filters, and kind tabs are **not** pinned.
+- Two stacked rows: project on top; subgroup **directly under it**, indented and slightly smaller (same chevron / tree look). The subgroup must not cover the project row.
+- The current project stays pinned **until its last card has scrolled away**, then the next project takes the slot.
+- Sticky applies only while that project or subgroup is **expanded** and its cards are scrolling. Collapsed headers scroll away normally.
+- While stuck, the bars use a solid (or light blur) background plus a bottom border/shadow so cards do not show through.
+
+---
+
 ## Acceptance criteria
 
 | Case | Done when |
@@ -124,3 +136,4 @@ Project headers and urgency subgroups (Case 4 and Case 5) can **expand and colla
 | 5 | Under each project: Overdue → Near due → On track → Complete; empty subgroups hidden; bar colors match the table. |
 | 6 | View modal metadata is one row; Details has more height. |
 | 7 | Project and subgroup headers expand/collapse; first project + first visible subgroup open by default; tree connectors; nested size is slightly smaller; filter/sort/tab reset expand state; cards stay leaves. |
+| 8 | While scrolling an expanded section, project then subgroup stay stacked under the app bar without overlapping; they unpin after the last card; stuck bars stay opaque and readable. |

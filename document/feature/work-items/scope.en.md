@@ -7,7 +7,7 @@
 | Thai version | [scope.th.md](./scope.th.md) |
 | Related | [business-requirement.en.md](./business-requirement.en.md) |
 | **Status** | **done** |
-| Date | 2026-09-02 |
+| Date | 2026-09-03 |
 
 This document describes **what is in or out of this work** and which service implements it. Product behavior is in the [business requirement](./business-requirement.en.md).
 
@@ -36,6 +36,7 @@ This document describes **what is in or out of this work** and which service imp
 | Case 5 — Urgency subgroups | Overdue / Near due / On track / Complete under every project, all sort modes; hide empty subgroups; colored header bars. |
 | Case 6 — View modal row | View dialog only: Assignee, Work date, Due date, Submitted on one row. |
 | Case 7 — Expandable tree | Collapsible project + urgency headers; default first project / first subgroup; CSS tree connectors; nested size; reset expand on filter/sort/tab. |
+| Case 8 — Sticky headers | Expanded project + subgroup stick under the app bar as two rows; unpin after last card; opaque while stuck. |
 
 ---
 
@@ -52,6 +53,8 @@ Treat each row as a **non-goal** for this delivery.
 | Export | No new CSV/Markdown grouping UX. Export the currently visible items as today. |
 | Case 7 persist | Do not store expand state in `localStorage`. Reset when year, month, project, search, kind tab, or sort changes. |
 | Case 7 cards | Cards are not collapsible. No compact one-line-only row mode. |
+| Case 8 chrome | Do not pin page title, stats, filters, or kind tabs. Do not cover the app top bar. |
+| Case 8 combined bar | Do not merge project and subgroup into one breadcrumb row. |
 | Platform | No new REST resource, no Prisma schema change, no new Docker service. |
 
 ---
@@ -87,6 +90,13 @@ Treat each row as a **non-goal** for this delivery.
 - Opening a collapsed project also opens that project’s first visible subgroup.
 - Tree lines are CSS (`border` spine + elbow), not monospace `├──` characters.
 - Nested scale = smaller type/padding/indent, not `transform: scale` / CSS `zoom`.
+
+### Case 8 — Sticky headers
+
+- CSS `position: sticky` inside the scrolling `main` (`top: 0` for project, `top: <project header height>` for subgroup). App header stays a sibling, so bars sit under it.
+- Do not wrap sticky headers in `overflow: hidden` (avoid Radix `CollapsibleContent` clipping).
+- Stuck background/shadow only when the bar has reached its sticky offset (scroll listener on `main`).
+- Sticky only when that collapsible is open.
 
 ---
 
@@ -127,3 +137,8 @@ No new API route if Prisma already serializes `updatedAt` on `WorkItem`.
 | 15a | CSS file-tree spine and T/L connectors. |
 | 16a | Reset expand state when filters, kind tab, or sort change. |
 | 17a | Cards are tree leaves; not collapsible. |
+| 18a | Stick under the app top bar only. |
+| 19a | Two stacked rows: project, then indented subgroup. |
+| 20c | Project stays until its last card is gone, then the next project takes over. |
+| 21a | Sticky only while the section is expanded. |
+| 22a | Opaque/blur background and shadow only while stuck. |
