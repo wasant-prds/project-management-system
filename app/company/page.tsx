@@ -1,5 +1,16 @@
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { AppHeader } from "@/components/layout/app-header"
+import {
+  PAGE_HEADING,
+  PAGE_INNER,
+  PAGE_LEAD,
+  PAGE_MAIN,
+  PAGE_TOOLBAR,
+  STAT_GRID,
+  TAB_SCROLL_CLASS,
+  TAB_TRIGGER_CLASS,
+} from "@/components/layout/page-layout"
+import { SummaryStatCard } from "@/components/layout/summary-stat-card"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -84,66 +95,39 @@ export default async function CompanyPage() {
       <AppSidebar />
       <SidebarInset>
         <AppHeader />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight text-balance">Company</h1>
-                <p className="text-muted-foreground mt-1">Manage your organization and team members</p>
+        <main className={PAGE_MAIN}>
+          <div className={PAGE_INNER}>
+            <div className={PAGE_TOOLBAR}>
+              <div className="min-w-0">
+                <h1 className={PAGE_HEADING}>Company</h1>
+                <p className={PAGE_LEAD}>Manage your organization and team members</p>
               </div>
-              <Button className="gap-2">
+              <Button>
                 <Plus className="h-4 w-4" />
-                Add Member
+                <span className="sm:hidden">Add</span>
+                <span className="hidden sm:inline">Add Member</span>
               </Button>
             </div>
 
-            {/* Company Overview */}
-            <div className="grid gap-4 md:grid-cols-4">
-              <Card className="card-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Employees</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.totalEmployees}</div>
-                </CardContent>
-              </Card>
-              <Card className="card-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Work Items</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.totalWorkItems}</div>
-                </CardContent>
-              </Card>
-              <Card className="card-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Active Projects</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.activeProjects}</div>
-                </CardContent>
-              </Card>
-              <Card className="card-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Active Members</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.activeMembers}</div>
-                </CardContent>
-              </Card>
+            <div className={STAT_GRID}>
+              <SummaryStatCard label="Total Employees" value={stats.totalEmployees} />
+              <SummaryStatCard label="Work Items" value={stats.totalWorkItems} />
+              <SummaryStatCard label="Active Projects" value={stats.activeProjects} />
+              <SummaryStatCard label="Active Members" value={stats.activeMembers} />
             </div>
 
             {/* Tabs */}
             <Tabs defaultValue="team" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="team">Team Members</TabsTrigger>
-                <TabsTrigger value="settings">Settings</TabsTrigger>
-              </TabsList>
+              <div className={TAB_SCROLL_CLASS}>
+                <TabsList>
+                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="team">Team Members</TabsTrigger>
+                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="settings">Settings</TabsTrigger>
+                </TabsList>
+              </div>
 
               <TabsContent value="team" className="space-y-4">
                 <div className="flex items-center gap-4">
-                  <div className="relative flex-1 max-w-md">
+                  <div className="relative w-full max-w-none flex-1 sm:max-w-md">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input type="search" placeholder="Search team members..." className="pl-10 bg-secondary/50" />
                   </div>
@@ -251,7 +235,7 @@ export default async function CompanyPage() {
                       </div>
                     </div>
                     <div className="flex justify-end gap-2 pt-4">
-                      <Button variant="outline" className="bg-transparent">
+                      <Button variant="outline">
                         Cancel
                       </Button>
                       <Button>Save Changes</Button>

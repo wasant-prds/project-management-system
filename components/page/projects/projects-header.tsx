@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
+import { PAGE_HEADING, PAGE_LEAD, PAGE_TOOLBAR } from '@/components/layout/page-layout'
 import { ProjectCreateModal } from './project-create-modal'
 
 export function ProjectsHeader() {
@@ -10,14 +11,15 @@ export function ProjectsHeader() {
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-balance">Projects</h1>
-          <p className="text-muted-foreground mt-1">Manage and track all your projects in one place</p>
+      <div className={PAGE_TOOLBAR}>
+        <div className="min-w-0">
+          <h1 className={PAGE_HEADING}>Projects</h1>
+          <p className={PAGE_LEAD}>Manage and track all your projects in one place</p>
         </div>
-        <Button className="gap-2" onClick={() => setIsModalOpen(true)}>
+        <Button onClick={() => setIsModalOpen(true)}>
           <Plus className="h-4 w-4" />
-          New Project
+          <span className="sm:hidden">New</span>
+          <span className="hidden sm:inline">New Project</span>
         </Button>
       </div>
 

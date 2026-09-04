@@ -2,6 +2,18 @@
 
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { AppHeader } from "@/components/layout/app-header"
+import {
+  ACTION_LABEL_CLASS,
+  PAGE_HEADING,
+  PAGE_INNER,
+  PAGE_LEAD,
+  PAGE_MAIN,
+  PAGE_TOOLBAR,
+  STAT_GRID,
+  TAB_SCROLL_CLASS,
+  TAB_TRIGGER_CLASS,
+} from "@/components/layout/page-layout"
+import { SummaryStatCard } from "@/components/layout/summary-stat-card"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -70,17 +82,16 @@ export default function AnalysisPage() {
       <AppSidebar />
       <SidebarInset>
         <AppHeader />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight text-balance">Data Analysis</h1>
-                <p className="text-muted-foreground mt-1">Comprehensive insights and analytics</p>
+        <main className={PAGE_MAIN}>
+          <div className={PAGE_INNER}>
+            <div className={PAGE_TOOLBAR}>
+              <div className="min-w-0">
+                <h1 className={PAGE_HEADING}>Data Analysis</h1>
+                <p className={PAGE_LEAD}>Comprehensive insights and analytics</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex w-full flex-wrap justify-end gap-2 sm:w-auto">
                 <Select defaultValue="last-30-days">
-                  <SelectTrigger className="w-40 bg-transparent">
+                  <SelectTrigger className="w-full bg-background sm:w-40">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -90,81 +101,61 @@ export default function AnalysisPage() {
                     <SelectItem value="last-year">Last year</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" className="gap-2 bg-transparent">
+                <Button variant="outline">
                   <Download className="h-4 w-4" />
-                  Export
+                  <span className={ACTION_LABEL_CLASS}>Export</span>
                 </Button>
               </div>
             </div>
 
-            {/* Key Metrics */}
-            <div className="grid gap-4 md:grid-cols-4">
-              <Card className="card-shadow">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Completion Rate</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-baseline gap-2">
-                    <div className="text-3xl font-bold">87%</div>
-                    <div className="flex items-center text-sm font-medium text-chart-4">
-                      <TrendingUp className="h-4 w-4" />
-                      +5%
-                    </div>
+            <div className={STAT_GRID}>
+              <SummaryStatCard
+                label="Completion Rate"
+                value="87%"
+                hint={
+                  <div className="mt-1 flex items-center text-sm font-medium text-chart-4">
+                    <TrendingUp className="h-4 w-4" />
+                    +5%
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card className="card-shadow">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Avg. Project Duration</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-baseline gap-2">
-                    <div className="text-3xl font-bold">3.2</div>
-                    <span className="text-sm text-muted-foreground">months</span>
+                }
+              />
+              <SummaryStatCard
+                label="Avg. Project Duration"
+                value="3.2"
+                hint={<span className="text-sm text-muted-foreground">months</span>}
+              />
+              <SummaryStatCard
+                label="Team Efficiency"
+                value="92%"
+                hint={
+                  <div className="mt-1 flex items-center text-sm font-medium text-chart-4">
+                    <TrendingUp className="h-4 w-4" />
+                    +3%
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card className="card-shadow">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Team Efficiency</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-baseline gap-2">
-                    <div className="text-3xl font-bold">92%</div>
-                    <div className="flex items-center text-sm font-medium text-chart-4">
-                      <TrendingUp className="h-4 w-4" />
-                      +3%
-                    </div>
+                }
+              />
+              <SummaryStatCard
+                label="Budget Utilization"
+                value="68%"
+                hint={
+                  <div className="mt-1 flex items-center text-sm font-medium text-destructive">
+                    <TrendingDown className="h-4 w-4" />
+                    -2%
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card className="card-shadow">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Budget Utilization</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-baseline gap-2">
-                    <div className="text-3xl font-bold">68%</div>
-                    <div className="flex items-center text-sm font-medium text-destructive">
-                      <TrendingDown className="h-4 w-4" />
-                      -2%
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                }
+              />
             </div>
 
             {/* Tabs */}
             <Tabs defaultValue="overview" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="projects">Projects</TabsTrigger>
-                <TabsTrigger value="team">Team Performance</TabsTrigger>
-                <TabsTrigger value="budget">Budget</TabsTrigger>
-              </TabsList>
+              <div className={TAB_SCROLL_CLASS}>
+                <TabsList>
+                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="overview">Overview</TabsTrigger>
+                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="projects">Projects</TabsTrigger>
+                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="team">Team Performance</TabsTrigger>
+                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="budget">Budget</TabsTrigger>
+                </TabsList>
+              </div>
 
               <TabsContent value="overview" className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">

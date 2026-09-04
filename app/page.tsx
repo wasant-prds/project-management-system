@@ -2,6 +2,16 @@
 
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { AppHeader } from "@/components/layout/app-header"
+import {
+  ACTION_LABEL_CLASS,
+  PAGE_HEADING,
+  PAGE_INNER,
+  PAGE_LEAD,
+  PAGE_MAIN,
+  PAGE_TOOLBAR,
+  STAT_GRID,
+} from "@/components/layout/page-layout"
+import { SummaryStatCard } from "@/components/layout/summary-stat-card"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -137,52 +147,48 @@ export default function DashboardPage() {
       <AppSidebar />
       <SidebarInset>
         <AppHeader />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight text-balance">Dashboard</h1>
-                <p className="text-muted-foreground mt-1">Welcome back! Here's what's happening with your projects.</p>
+        <main className={PAGE_MAIN}>
+          <div className={PAGE_INNER}>
+            <div className={PAGE_TOOLBAR}>
+              <div className="min-w-0">
+                <h1 className={PAGE_HEADING}>Dashboard</h1>
+                <p className={PAGE_LEAD}>Welcome back! Here's what's happening with your projects.</p>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" className="gap-2 bg-transparent">
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button variant="outline">
                   <Activity className="h-4 w-4" />
-                  Activity
+                  <span className={ACTION_LABEL_CLASS}>Activity</span>
                 </Button>
-                <Button className="gap-2">
+                <Button>
                   <Plus className="h-4 w-4" />
-                  New Project
+                  <span className="sm:hidden">New</span>
+                  <span className="hidden sm:inline">New Project</span>
                 </Button>
               </div>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className={STAT_GRID}>
               {stats.map((stat) => (
-                <Card key={stat.title} className="card-shadow">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">{stat.title}</CardTitle>
-                    <stat.icon className={`h-4 w-4 ${stat.color}`} />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-baseline gap-2">
-                      <div className="text-3xl font-bold">{stat.value}</div>
-                      <div
-                        className={`flex items-center text-sm font-medium ${
-                          stat.trend === "up" ? "text-chart-4" : "text-chart-3"
-                        }`}
-                      >
-                        {stat.trend === "up" ? (
-                          <ArrowUpRight className="h-4 w-4" />
-                        ) : (
-                          <ArrowDownRight className="h-4 w-4" />
-                        )}
-                        {stat.change}
-                      </div>
+                <SummaryStatCard
+                  key={stat.title}
+                  label={stat.title}
+                  value={stat.value}
+                  icon={<stat.icon className={`h-4 w-4 ${stat.color}`} />}
+                  hint={
+                    <div
+                      className={`mt-1 flex items-center text-sm font-medium ${
+                        stat.trend === "up" ? "text-chart-4" : "text-chart-3"
+                      }`}
+                    >
+                      {stat.trend === "up" ? (
+                        <ArrowUpRight className="h-4 w-4" />
+                      ) : (
+                        <ArrowDownRight className="h-4 w-4" />
+                      )}
+                      {stat.change}
                     </div>
-                  </CardContent>
-                </Card>
+                  }
+                />
               ))}
             </div>
 

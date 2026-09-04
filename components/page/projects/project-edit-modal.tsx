@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { DIALOG_SHELL_SCROLL_CLASS } from "@/components/ui/responsive-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -130,7 +131,7 @@ export function ProjectEditModal({ open, onOpenChange, projectId }: ProjectEditM
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className={DIALOG_SHELL_SCROLL_CLASS}>
         <DialogHeader>
           <DialogTitle>Edit Project</DialogTitle>
           <DialogDescription>

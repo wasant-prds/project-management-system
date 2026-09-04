@@ -53,7 +53,7 @@ export function WorkItemCard({
 
   return (
     <Card
-      className="card-shadow relative cursor-pointer gap-0 overflow-hidden py-0 transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+      className="card-shadow relative min-w-0 cursor-pointer gap-0 overflow-hidden py-0 transition-all duration-200 hover:-translate-y-px hover:shadow-md"
       onClick={() => onView(item)}
     >
       <span
@@ -73,10 +73,10 @@ export function WorkItemCard({
       <CardContent className={cn(compact ? 'space-y-2 p-3 pl-4' : 'space-y-3 p-4 pl-5')}>
         <div className="flex items-start justify-between gap-3">
           <div className={cn('min-w-0 flex-1', compact ? 'space-y-1.5' : 'space-y-2.5')}>
-            <div className="flex items-start gap-2">
+            <div className="flex min-w-0 items-start gap-2">
               <h3
                 className={cn(
-                  'min-w-0 flex-1 font-semibold leading-snug text-foreground',
+                  'min-w-0 flex-1 break-words font-semibold leading-snug text-foreground line-clamp-2',
                   compact ? 'text-sm' : 'text-[15px]',
                 )}
               >
@@ -98,7 +98,7 @@ export function WorkItemCard({
               </p>
             )}
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <Badge variant="outline" className={statusClass(item.status)}>
                 {WORK_ITEM_STATUS_LABELS[item.status]}
               </Badge>
@@ -117,13 +117,13 @@ export function WorkItemCard({
                 <Calendar className="h-3 w-3" />
                 <span>Due {formatDisplayDate(item.dueDate)}</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Avatar className="h-5 w-5 border border-primary/20">
+              <div className="flex min-w-0 max-w-full items-center gap-1.5">
+                <Avatar className="h-5 w-5 shrink-0 border border-primary/20">
                   <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
                     {(item.assignee.avatar || item.assignee.name).slice(0, 2)}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-xs text-muted-foreground">{item.assignee.name}</span>
+                <span className="min-w-0 truncate text-xs text-muted-foreground">{item.assignee.name}</span>
               </div>
             </div>
           </div>

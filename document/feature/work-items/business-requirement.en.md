@@ -7,7 +7,7 @@
 | Thai version | [business-requirement.th.md](./business-requirement.th.md) |
 | Related | [scope.en.md](./scope.en.md) |
 | **Status** | **done** |
-| Date | 2026-09-03 |
+| Date | 2026-09-04 |
 
 This document describes **what the product must do**. Technical boundaries are in the [scope](./scope.en.md).
 
@@ -93,10 +93,10 @@ These four subgroups stay in place for **every** sort mode (Case 3).
 
 When the user **views** a work item (not create/edit):
 
-- **Assignee**, **Work date**, **Due date**, and **Submitted** sit on **one row** (they may wrap on a narrow screen).
-- The **Details** box uses the vertical space this frees.
+- **Assignee**, **Work date**, **Due date**, and **Submitted** sit on **one row** on tablet and desktop (they wrap to a compact 2×2 grid on a phone).
+- The **Details** box uses the vertical space this frees. Markdown in Details (headings, lists, **bold**, `code`, and **GFM tables**) renders like a `.md` preview.
 
-Create and edit modals are unchanged (see scope).
+Create and edit **fields** are unchanged. The dialog **shell** (size, scroll, close control) follows Case 9.
 
 ---
 
@@ -125,6 +125,26 @@ While scrolling the work-items list, the **project header** and the **current su
 
 ---
 
+## Case 9 — Responsive layout (phone, tablet, notebook)
+
+`/work-items` must work as a responsive web app on phone, tablet, and notebook.
+
+| Device | Width |
+| --- | --- |
+| Phone | below 640px |
+| Tablet | 640px through 1023px |
+| Desktop / notebook | 1024px and up |
+
+**Summary cards.** Four separate cards remain (Total, In Progress, Completed, Overdue). Padding is compact. Phone is a **2×2** grid. Tablet and desktop are **four across**.
+
+**Page chrome.** On the phone, Export CSV and Export Markdown are **icon-only** (full labels from tablet). “New Work Item” may shorten to “New”. Search and filters are full-width on the phone (year/month share a row; project and sort use the full row). Kind tabs keep their labels and **scroll horizontally** instead of clipping.
+
+**Modals (view, create, and edit).** On phone and tablet the dialog is **near-full-screen**: height follows `100dvh` with a small edge margin, content scrolls **inside** the dialog, and the overlay must not overflow the viewport. On desktop the dialog is centered with a max width that still fits the viewport (about `54.6rem`). The close (X) control must not cover the project name. View metadata still follows Case 6.
+
+**Cards.** The same fields stay on each work-item card. Titles and assignee names truncate or wrap so the project tree does not overflow the screen.
+
+---
+
 ## Acceptance criteria
 
 | Case | Done when |
@@ -134,6 +154,7 @@ While scrolling the work-items list, the **project header** and the **current su
 | 3 | Hover (or equivalent) shows due date ↑/↓, project title A–Z/Z–A, and Reset to default. Reset restores Case 2 without clearing filters. |
 | 4 | Cards sit under project headers. |
 | 5 | Under each project: Overdue → Near due → On track → Complete; empty subgroups hidden; bar colors match the table. |
-| 6 | View modal metadata is one row; Details has more height. |
+| 6 | View modal metadata is one row on tablet/desktop and a compact 2×2 wrap on phone; Details has more height. |
 | 7 | Project and subgroup headers expand/collapse; first project + first visible subgroup open by default; tree connectors; nested size is slightly smaller; filter/sort/tab reset expand state; cards stay leaves. |
 | 8 | While scrolling an expanded section, project then subgroup stay stacked under the app bar without overlapping; they unpin after the last card; stuck bars stay opaque and readable. |
+| 9 | Phone/tablet/desktop layouts match Case 9: compact 2×2 then 4-across stats; icon export on phone; full-width filters; scrollable tabs; near-full-screen dialogs without overflow; cards do not overflow. |

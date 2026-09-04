@@ -21,6 +21,7 @@ import {
 import { WorkItemDescription } from './work-item-description'
 import { ProjectIdentity } from './project-identity'
 import { ScrollablePanel } from '@/components/ui/scrollable-panel'
+import { WORK_ITEM_DIALOG_SHELL_CLASS } from './work-item-dialog-shell'
 import type { WorkItem } from './types'
 import {
   formatDisplayDate,
@@ -38,9 +39,9 @@ type WorkItemViewDialogProps = {
 
 function Detail({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
   return (
-    <div className="min-w-[8rem] flex-1 space-y-1">
+    <div className="min-w-0 flex-1 space-y-1 sm:min-w-[8rem]">
       <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
-      <div className="text-sm font-medium text-foreground">{children}</div>
+      <div className="min-w-0 text-sm font-medium text-foreground">{children}</div>
     </div>
   )
 }
@@ -55,15 +56,20 @@ export function WorkItemViewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[90vh] max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-[54.6rem]">
+      <DialogContent className={WORK_ITEM_DIALOG_SHELL_CLASS}>
         <div className="shrink-0">
-          <ProjectIdentity name={item.project.name} color={item.project.colorProject} size="md" />
+          <ProjectIdentity
+            name={item.project.name}
+            color={item.project.colorProject}
+            size="md"
+            className="px-4 py-3 pr-12 sm:px-6 sm:py-3.5"
+          />
         </div>
 
-        <div className="shrink-0 space-y-3 px-6 pt-5">
+        <div className="shrink-0 space-y-3 px-4 pt-4 sm:px-6 sm:pt-5">
           <DialogHeader className="space-y-2">
-            <div className="flex flex-wrap items-start gap-2">
-              <DialogTitle className="text-left text-xl leading-snug tracking-tight">
+            <div className="flex min-w-0 flex-wrap items-start gap-2">
+              <DialogTitle className="min-w-0 text-left text-lg leading-snug tracking-tight sm:text-xl">
                 {item.title}
               </DialogTitle>
               <Badge variant="outline" className={kindClass(item.kind)}>{item.kind}</Badge>
@@ -88,7 +94,7 @@ export function WorkItemViewDialog({
           </div>
         </div>
 
-        <section className="flex min-h-0 flex-1 flex-col overflow-hidden px-6 py-4">
+        <section className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-3 sm:px-6 sm:py-4">
           <div className="mb-2 flex shrink-0 items-center gap-2 text-muted-foreground">
             <FileText className="h-3.5 w-3.5" />
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em]">Details</p>
@@ -97,7 +103,7 @@ export function WorkItemViewDialog({
             {item.description ? (
               <WorkItemDescription
                 text={item.description}
-                className="rounded-none border-0 bg-transparent px-4 py-3"
+                className="rounded-none border-0 bg-transparent px-4 py-3 break-words"
               />
             ) : (
               <p className="px-4 py-6 text-sm italic text-muted-foreground">No description</p>
@@ -105,28 +111,28 @@ export function WorkItemViewDialog({
           </ScrollablePanel>
         </section>
 
-        <div className="flex shrink-0 flex-wrap gap-x-6 gap-y-3 border-t border-border/60 bg-muted/20 px-6 py-3">
+        <div className="grid shrink-0 grid-cols-2 gap-x-4 gap-y-3 border-t border-border/60 bg-muted/20 px-4 py-3 sm:flex sm:flex-wrap sm:gap-x-6 sm:px-6">
           <Detail label="Assignee">
-            <div className="flex items-center gap-2">
-              <Avatar className="h-6 w-6 border border-primary/20">
+            <div className="flex min-w-0 items-center gap-2">
+              <Avatar className="h-6 w-6 shrink-0 border border-primary/20">
                 <AvatarFallback className="bg-primary/10 text-xs text-primary">
                   {(item.assignee.avatar || item.assignee.name).slice(0, 2)}
                 </AvatarFallback>
               </Avatar>
-              <span>{item.assignee.name}</span>
+              <span className="min-w-0 truncate">{item.assignee.name}</span>
             </div>
           </Detail>
           <Detail label="Work date">{formatDisplayDate(item.workDate)}</Detail>
           <Detail label="Due date">
             <span className="inline-flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+              <Calendar className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               {formatDisplayDate(item.dueDate)}
             </span>
           </Detail>
           <Detail label="Submitted">{formatDisplayDate(item.submittedAt)}</Detail>
         </div>
 
-        <DialogFooter className="shrink-0 border-t border-border/60 px-6 py-4">
+        <DialogFooter className="shrink-0 flex-row justify-end border-t border-border/60 px-4 py-3 sm:px-6 sm:py-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
           <Button onClick={() => onEdit(item)}>Edit</Button>
         </DialogFooter>

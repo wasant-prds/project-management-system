@@ -1,5 +1,6 @@
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { AppHeader } from "@/components/layout/app-header"
+import { PAGE_INNER, PAGE_MAIN } from "@/components/layout/page-layout"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { prisma } from "@/lib/db"
 import { ProjectsHeader } from "@/components/page/projects/projects-header"
@@ -57,8 +58,8 @@ export default async function ProjectsPage() {
       <AppSidebar />
       <SidebarInset>
         <AppHeader />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-6">
+        <main className={PAGE_MAIN}>
+          <div className={PAGE_INNER}>
             {/* Header */}
             <ProjectsHeader />
 

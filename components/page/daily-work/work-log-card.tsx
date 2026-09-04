@@ -1,3 +1,6 @@
+'use client'
+
+import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -5,7 +8,6 @@ import { Label } from "@/components/ui/label"
 import { CheckSquare, Clock, FileText, MessageSquareText, X } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import { WorkLog } from "./types"
-import { useState } from "react"
 
 type WorkLogCardProps = {
   workLog: WorkLog

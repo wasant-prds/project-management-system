@@ -7,7 +7,7 @@
 | Thai version | [scope.th.md](./scope.th.md) |
 | Related | [business-requirement.en.md](./business-requirement.en.md) |
 | **Status** | **done** |
-| Date | 2026-09-03 |
+| Date | 2026-09-04 |
 
 This document describes **what is in or out of this work** and which service implements it. Product behavior is in the [business requirement](./business-requirement.en.md).
 
@@ -34,9 +34,10 @@ This document describes **what is in or out of this work** and which service imp
 | Case 3 — Hover sort + reset | Hover/click/keyboard menu: due date ↑/↓, project title A–Z/Z–A, **Reset to default**. Reset does not clear filters. |
 | Case 4 — Project headers | Group the visible list by project. |
 | Case 5 — Urgency subgroups | Overdue / Near due / On track / Complete under every project, all sort modes; hide empty subgroups; colored header bars. |
-| Case 6 — View modal row | View dialog only: Assignee, Work date, Due date, Submitted on one row. |
+| Case 6 — View modal row | View dialog only: Assignee, Work date, Due date, Submitted on one row (2×2 wrap on phone). |
 | Case 7 — Expandable tree | Collapsible project + urgency headers; default first project / first subgroup; CSS tree connectors; nested size; reset expand on filter/sort/tab. |
 | Case 8 — Sticky headers | Expanded project + subgroup stick under the app bar as two rows; unpin after last card; opaque while stuck. |
+| Case 9 — Responsive layout | Phone / tablet / notebook breakpoints; compact stats; toolbar and tabs; near-full-screen view/create/edit shells; card overflow only. |
 
 ---
 
@@ -49,12 +50,13 @@ Treat each row as a **non-goal** for this delivery.
 | Recency | Daily-work logs and time-entry dates are not “most recent action”. |
 | Kind / tabs | Do not default the tab to Issues. Do not force Kind = Issue above Incident/Task. |
 | Case 3 vs filters | Reset to default is a **sort** reset only. It must not clear year, month, project, or search. |
-| Case 6 | Create/Edit modal (Description form) is unchanged. |
+| Case 6 | Create/Edit **fields** (Description form) are unchanged. Dialog **chrome** follows Case 9. |
 | Export | No new CSV/Markdown grouping UX. Export the currently visible items as today. |
 | Case 7 persist | Do not store expand state in `localStorage`. Reset when year, month, project, search, kind tab, or sort changes. |
-| Case 7 cards | Cards are not collapsible. No compact one-line-only row mode. |
+| Case 7 cards | Cards are not collapsible. No compact one-line-only row mode. Same fields; truncate/wrap only. |
 | Case 8 chrome | Do not pin page title, stats, filters, or kind tabs. Do not cover the app top bar. |
 | Case 8 combined bar | Do not merge project and subgroup into one breadcrumb row. |
+| Case 9 other pages | Do not restyle company / analysis / project summary cards in this work. |
 | Platform | No new REST resource, no Prisma schema change, no new Docker service. |
 
 ---
@@ -81,7 +83,17 @@ Treat each row as a **non-goal** for this delivery.
 
 ### Case 6 — File
 
-- Change `components/page/work-items/work-item-view-dialog.tsx` only for the metadata row.
+- Change `components/page/work-items/work-item-view-dialog.tsx` for the metadata row and the shared dialog shell.
+- Markdown tables: `components/page/work-items/work-item-description.tsx` (GFM `| col |` / `| --- |`, same preview on `/daily-work`).
+
+### Case 9 — Responsive layout
+
+- Breakpoints: phone `< sm` (640px), tablet `sm`–`lg` (640–1023px), desktop `lg+` (1024px).
+- Stats: `grid-cols-2 sm:grid-cols-4` with compact card padding (`gap-1 py-3`, not the default `gap-6 py-6`).
+- Export buttons: icon + `aria-label` on phone; visible label from `sm`.
+- Filters: `w-full` on phone; fixed widths from `sm`. Kind tabs sit in a horizontal scroll row; triggers are `flex-none`.
+- Dialog shell: `components/page/work-items/work-item-dialog-shell.ts`. Height `calc(100dvh − inset)` on phone/tablet; `lg:max-w-[54.6rem]`. `overflow-hidden` on the shell; inner region scrolls. Do not use `sm:max-w-[54.6rem]` (that overflows tablet viewports).
+- Cards: `min-w-0`, `line-clamp-2` on titles, truncate assignee; do not remove fields.
 
 ### Case 7 — Expand / tree
 
@@ -107,7 +119,8 @@ Treat each row as a **non-goal** for this delivery.
 | Page (year, groups, hover sort) | `app/work-items/page.tsx` |
 | Sort helpers | `components/page/work-items/work-item-export.ts` |
 | Types (`updatedAt`) | `components/page/work-items/types.ts` |
-| View modal | `components/page/work-items/work-item-view-dialog.tsx` |
+| View / create / edit modal shell | `components/page/work-items/work-item-dialog-shell.ts`, `work-item-view-dialog.tsx`, `work-item-dialog.tsx` |
+| Markdown preview (incl. tables) | `components/page/work-items/work-item-description.tsx` |
 | Hover menu (reuse) | `components/ui/dropdown-menu.tsx` / `components/ui/tooltip.tsx` |
 | Expand / tree | `components/page/work-items/work-item-grouped-list.tsx` |
 | Compact nested cards | `components/page/work-items/work-item-card.tsx` |
@@ -142,3 +155,8 @@ No new API route if Prisma already serializes `updatedAt` on `WorkItem`.
 | 20c | Project stays until its last card is gone, then the next project takes over. |
 | 21a | Sticky only while the section is expanded. |
 | 22a | Opaque/blur background and shadow only while stuck. |
+| 23a | Stats stay four cards; 2×2 on phone, four across from tablet. |
+| 24a | View/create/edit use a near-full-screen `100dvh` shell on phone/tablet. |
+| 25a | Icon (or short) export actions on phone; full-width filters; horizontally scrollable tabs. |
+| 26a | Cards keep the same fields; overflow only (truncate/wrap). |
+| 27a | Phone &lt; 640px, tablet 640–1023px, desktop 1024px+ (`sm` / `lg`). |

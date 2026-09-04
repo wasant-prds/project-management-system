@@ -11,6 +11,7 @@ type Block =
   | { type: 'ul'; items: string[] }
   | { type: 'ol'; items: string[] }
   | { type: 'paragraph'; text: string }
+  | { type: 'table'; headers: string[]; rows: string[][]; aligns: Array<'left' | 'center' | 'right'> }
 
 type LineKind =
   | { kind: 'empty' }
@@ -101,20 +102,94 @@ function pushList(blocks: Block[], type: 'ul' | 'ol', items: string[] | null) {
   if (items?.length) blocks.push({ type, items })
 }
 
+function splitTableCells(line: string): string[] {
+  let trimmed = line.trim()
+  if (trimmed.startsWith('|')) trimmed = trimmed.slice(1)
+  if (trimmed.endsWith('|')) trimmed = trimmed.slice(0, -1)
+  return trimmed.split('|').map((cell) => cell.trim())
+}
+
+function isSeparatorCell(cell: string): boolean {
+  return /^:?-{3,}:?$/.test(cell.trim())
+}
+
+function isSeparatorLine(line: string): boolean {
+  const cells = splitTableCells(line)
+  return cells.length > 0 && cells.every(isSeparatorCell)
+}
+
+function isTableRowLine(line: string): boolean {
+  const trimmed = line.trim()
+  if (!trimmed.includes('|')) return false
+  if (isAtHeading(trimmed, 0)) return false
+  if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) return false
+  return !isAtNumbered(trimmed, 0)
+}
+
+function parseAlign(cell: string | undefined): 'left' | 'center' | 'right' {
+  const trimmed = cell?.trim() ?? ''
+  const left = trimmed.startsWith(':')
+  const right = trimmed.endsWith(':')
+  if (left && right) return 'center'
+  if (right) return 'right'
+  return 'left'
+}
+
+function consumeTable(
+  lines: string[],
+  start: number,
+): { block: Extract<Block, { type: 'table' }>; end: number } | null {
+  const headerLine = lines[start]
+  const separatorLine = lines[start + 1]
+  if (!headerLine || !separatorLine) return null
+  if (!isTableRowLine(headerLine) || !isSeparatorLine(separatorLine)) return null
+
+  const headers = splitTableCells(headerLine)
+  if (headers.length === 0) return null
+
+  const separatorCells = splitTableCells(separatorLine)
+  const aligns = headers.map((_, index) => parseAlign(separatorCells[index]))
+  const rows: string[][] = []
+  let cursor = start + 2
+
+  while (cursor < lines.length && isTableRowLine(lines[cursor]) && !isSeparatorLine(lines[cursor])) {
+    const cells = splitTableCells(lines[cursor])
+    rows.push(headers.map((_, index) => cells[index] ?? ''))
+    cursor += 1
+  }
+
+  return { block: { type: 'table', headers, rows, aligns }, end: cursor }
+}
+
 function parseBlocks(markdown: string): Block[] {
+  const lines = normalizeMarkdown(markdown).split('\n')
   const blocks: Block[] = []
   const paragraph: string[] = []
   const lists: { ul: string[] | null; ol: string[] | null } = { ul: null, ol: null }
 
-  for (const raw of normalizeMarkdown(markdown).split('\n')) {
-    const line = classifyLine(raw)
+  const flush = () => {
+    pushParagraph(blocks, paragraph)
+    pushList(blocks, 'ul', lists.ul)
+    pushList(blocks, 'ol', lists.ol)
+    lists.ul = null
+    lists.ol = null
+  }
+
+  let index = 0
+  while (index < lines.length) {
+    const table = consumeTable(lines, index)
+    if (table) {
+      flush()
+      blocks.push(table.block)
+      index = table.end
+      continue
+    }
+
+    const line = classifyLine(lines[index])
+    index += 1
 
     if (line.kind === 'empty' || line.kind === 'heading') {
-      pushParagraph(blocks, paragraph)
-      pushList(blocks, 'ul', lists.ul)
-      pushList(blocks, 'ol', lists.ol)
-      lists.ul = null
-      lists.ol = null
+      flush()
       if (line.kind === 'heading') blocks.push({ type: 'heading', text: line.text })
       continue
     }
@@ -146,9 +221,7 @@ function parseBlocks(markdown: string): Block[] {
     paragraph.push(line.text)
   }
 
-  pushParagraph(blocks, paragraph)
-  pushList(blocks, 'ul', lists.ul)
-  pushList(blocks, 'ol', lists.ol)
+  flush()
   return blocks
 }
 
@@ -193,6 +266,12 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
   return nodes
 }
 
+const TABLE_ALIGN = {
+  left: 'text-left',
+  center: 'text-center',
+  right: 'text-right',
+} as const
+
 export function WorkItemDescription({ text, className }: Readonly<WorkItemDescriptionProps>) {
   const blocks = parseBlocks(text)
   if (blocks.length === 0) return null
@@ -232,6 +311,47 @@ export function WorkItemDescription({ text, className }: Readonly<WorkItemDescri
                 <li key={`${key}-${itemIndex}`}>{renderInline(item, `${key}-${itemIndex}`)}</li>
               ))}
             </ol>
+          )
+        }
+
+        if (block.type === 'table') {
+          return (
+            <div key={key} className="max-w-full overflow-x-auto">
+              <table className="w-max min-w-full border-collapse text-sm text-foreground">
+                <thead>
+                  <tr>
+                    {block.headers.map((header, headerIndex) => (
+                      <th
+                        key={`${key}-h${headerIndex}`}
+                        className={cn(
+                          'border border-border bg-muted px-2.5 py-1.5 font-semibold',
+                          TABLE_ALIGN[block.aligns[headerIndex] ?? 'left'],
+                        )}
+                      >
+                        {renderInline(header, `${key}-h${headerIndex}`)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {block.rows.map((row, rowIndex) => (
+                    <tr key={`${key}-r${rowIndex}`}>
+                      {row.map((cell, cellIndex) => (
+                        <td
+                          key={`${key}-r${rowIndex}-c${cellIndex}`}
+                          className={cn(
+                            'border border-border px-2.5 py-1.5 align-top',
+                            TABLE_ALIGN[block.aligns[cellIndex] ?? 'left'],
+                          )}
+                        >
+                          {renderInline(cell, `${key}-r${rowIndex}-c${cellIndex}`)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )
         }
 

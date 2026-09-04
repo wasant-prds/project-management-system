@@ -9,7 +9,7 @@
   --popover: oklch(1 0 0); /* #ffffff - white popovers */
   --popover-foreground: oklch(0.09 0.01 258.34); /* #0f172a - very dark popover text */
   --primary: oklch(0.4 0.2 162.68); /* #065f46 - darker emerald for better contrast */
-  --primary-foreground: oklch(1 0 0); /*rgb(12, 10, 10) - white text on primary */
+  --primary-foreground: oklch(1 0 0); /* #ffffff - white text on primary */
   --secondary: oklch(0.94 0.01 247.86); /* #e2e8f0 - more distinct secondary background */
   --secondary-foreground: oklch(0.09 0.01 258.34); /* #0f172a - very dark secondary text */
   --muted: oklch(0.92 0.01 247.86); /* #e2e8f0 - more distinct muted background */
@@ -46,8 +46,8 @@
   --card-foreground: oklch(0.98 0.01 258.34); /* #fafafa - very light card text */
   --popover: oklch(0.08 0.01 258.34); /* #0f172a - dark popover */
   --popover-foreground: oklch(0.98 0.01 258.34); /* #fafafa - very light popover text */
-  --primary: oklch(0.75 0.18 162.68); /* #22c55e - bright emerald for dark mode */
-  --primary-foreground: oklch(0.05 0.01 258.34); /* #0a0f1a - very dark text on primary */
+  --primary: oklch(0.58 0.16 162.68); /* darker emerald so white label text stays readable */
+  --primary-foreground: oklch(0.99 0.005 162); /* near-white text on primary */
   --secondary: oklch(0.18 0.01 258.34); /* #334155 - much more distinct secondary background */
   --secondary-foreground: oklch(0.95 0.01 258.34); /* #f1f5f9 - very light secondary text */
   --muted: oklch(0.18 0.01 258.34); /* #334155 - much more distinct muted background */
@@ -66,8 +66,8 @@
   --chart-5: oklch(0.82 0.16 300); /* violet — on hold / accent */
   --sidebar: oklch(0.07 0.01 258.34); /* #0f172a - distinct dark sidebar */
   --sidebar-foreground: oklch(0.95 0.01 258.34); /* #f1f5f9 - very light sidebar text */
-  --sidebar-primary: oklch(0.75 0.18 162.68); /* #22c55e - bright emerald */
-  --sidebar-primary-foreground: oklch(0.05 0.01 258.34); /* #0a0f1a - very dark text */
+  --sidebar-primary: oklch(0.58 0.16 162.68); /* darker emerald so white label text stays readable */
+  --sidebar-primary-foreground: oklch(0.99 0.005 162); /* near-white text on primary */
   --sidebar-accent: oklch(0.18 0.01 258.34); /* #334155 - much more distinct accent */
   --sidebar-accent-foreground: oklch(0.95 0.01 258.34); /* #f1f5f9 - very light accent text */
   --sidebar-border: oklch(0.35 0.01 258.34); /* #64748b - more visible border for better separation */
@@ -81,8 +81,8 @@
   --card-foreground: oklch(0.98 0.01 258.34); /* #fafafa - very light card text */
   --popover: oklch(0.08 0.01 258.34); /* #0f172a - dark popover */
   --popover-foreground: oklch(0.98 0.01 258.34); /* #fafafa - very light popover text */
-  --primary: oklch(0.75 0.18 162.68); /* #22c55e - bright emerald for dark mode */
-  --primary-foreground: oklch(0.05 0.01 258.34); /* #0a0f1a - very dark text on primary */
+  --primary: oklch(0.58 0.16 162.68); /* darker emerald so white label text stays readable */
+  --primary-foreground: oklch(0.99 0.005 162); /* near-white text on primary */
   --secondary: oklch(0.18 0.01 258.34); /* #334155 - much more distinct secondary background */
   --secondary-foreground: oklch(0.95 0.01 258.34); /* #f1f5f9 - very light secondary text */
   --muted: oklch(0.18 0.01 258.34); /* #334155 - much more distinct muted background */
@@ -101,8 +101,8 @@
   --chart-5: oklch(0.82 0.16 300); /* violet — on hold / accent */
   --sidebar: oklch(0.07 0.01 258.34); /* #0f172a - distinct dark sidebar */
   --sidebar-foreground: oklch(0.95 0.01 258.34); /* #f1f5f9 - very light sidebar text */
-  --sidebar-primary: oklch(0.75 0.18 162.68); /* #22c55e - bright emerald */
-  --sidebar-primary-foreground: oklch(0.05 0.01 258.34); /* #0a0f1a - very dark text */
+  --sidebar-primary: oklch(0.58 0.16 162.68); /* darker emerald so white label text stays readable */
+  --sidebar-primary-foreground: oklch(0.99 0.005 162); /* near-white text on primary */
   --sidebar-accent: oklch(0.18 0.01 258.34); /* #334155 - much more distinct accent */
   --sidebar-accent-foreground: oklch(0.95 0.01 258.34); /* #f1f5f9 - very light accent text */
   --sidebar-border: oklch(0.35 0.01 258.34); /* #64748b - more visible border for better separation */
@@ -154,6 +154,13 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+
+  html,
+  body {
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
   }
   
   body {
@@ -209,28 +216,21 @@
     letter-spacing: -0.005em;
   }
   
-  p, span, div {
-    @apply text-foreground;
-    line-height: 1.7;
-    font-weight: 400;
-  }
+  /* Color comes from components (e.g. buttons). Do not paint every span/div. */
   
-  /* Much better contrast for small text */
+  /* Small text: keep size/weight, do not override fill color (that made labels black on green). */
   .text-sm {
-    @apply text-foreground font-medium;
     line-height: 1.6;
     font-weight: 500;
   }
   
   .text-xs {
-    @apply text-foreground font-medium;
     line-height: 1.5;
     font-weight: 500;
   }
   
-  /* Enhanced button text readability */
-  button, .btn {
-    @apply text-foreground font-semibold;
+  /* Do not force button text color here — variants set white on dark fills and dark on light fills. */
+  .btn {
     font-weight: 600;
     letter-spacing: 0.01em;
   }
@@ -275,13 +275,11 @@
   
   /* Enhanced visual separation for different sections */
   .bg-muted {
-    background-color: hsl(var(--muted));
-    border: 1px solid hsl(var(--border) / 0.5);
+    background-color: var(--muted);
   }
   
   .bg-card {
-    background-color: hsl(var(--card));
-    border: 1px solid hsl(var(--border) / 0.3);
+    background-color: var(--card);
   }
   
   /* Improved focus states with better visibility */

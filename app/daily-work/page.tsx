@@ -2,6 +2,13 @@
 
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { AppHeader } from "@/components/layout/app-header"
+import {
+  PAGE_HEADING,
+  PAGE_INNER,
+  PAGE_LEAD,
+  PAGE_MAIN,
+  PAGE_TOOLBAR,
+} from "@/components/layout/page-layout"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -296,39 +303,34 @@ export default function DailyWorkPage() {
       <AppSidebar />
       <SidebarInset>
         <AppHeader />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <div className="space-y-4">
-                <h1 className="text-3xl font-bold tracking-tight text-balance">Daily Work</h1>
-                <p className="text-muted-foreground mt-1">Track your daily activities and work logs</p>
+        <main className={PAGE_MAIN}>
+          <div className={PAGE_INNER}>
+            <div className={PAGE_TOOLBAR}>
+              <div className="min-w-0">
+                <h1 className={PAGE_HEADING}>Daily Work</h1>
+                <p className={PAGE_LEAD}>Track your daily activities and work logs</p>
               </div>
-              <div className="space-y-2">
-                <ToggleGroup type="single" value={viewPeriod} onValueChange={(value) => value && setViewPeriod(value as "day" | "week" | "month" | "year")}>
-                  <ToggleGroupItem value="day" aria-label="Day view">
-                    Day
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="week" aria-label="Week view">
-                    Week
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="month" aria-label="Month view">
-                    Month
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="year" aria-label="Year view">
-                    Year
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
-              <div className="space-y-4">
-                <Button className="gap-2" onClick={() => handleOpenDialog()}>
-                  <Plus className="h-4 w-4" />
-                  Add Work Log : {date ? formatDate(date) : buttonLabel}
-                </Button>
-              </div>
+              <ToggleGroup
+                type="single"
+                value={viewPeriod}
+                onValueChange={(value) => value && setViewPeriod(value as "day" | "week" | "month" | "year")}
+                className="w-full justify-start overflow-x-auto sm:w-auto"
+              >
+                <ToggleGroupItem value="day" aria-label="Day view">Day</ToggleGroupItem>
+                <ToggleGroupItem value="week" aria-label="Week view">Week</ToggleGroupItem>
+                <ToggleGroupItem value="month" aria-label="Month view">Month</ToggleGroupItem>
+                <ToggleGroupItem value="year" aria-label="Year view">Year</ToggleGroupItem>
+              </ToggleGroup>
+              <Button className="w-full sm:w-auto" onClick={() => handleOpenDialog()}>
+                <Plus className="h-4 w-4" />
+                <span className="truncate">
+                  <span className="sm:hidden">Add</span>
+                  <span className="hidden sm:inline">Add Work Log : {date ? formatDate(date) : buttonLabel}</span>
+                </span>
+              </Button>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className="grid gap-6 lg:grid-cols-3">
               {/* Calendar and Stats */}
               <div className="space-y-4">
                 <Card className="card-shadow">
@@ -347,7 +349,7 @@ export default function DailyWorkPage() {
               </div>
 
               {/* Work Logs */}
-              <div className="md:col-span-2 space-y-4">
+              <div className="space-y-4 lg:col-span-2">
                 <WorkLogList
                   workLogs={filteredWorkLogs}
                   date={date}

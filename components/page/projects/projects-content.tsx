@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Search, Filter } from "lucide-react"
 import { ProjectCard } from "@/components/page/projects/project-card"
+import { ACTION_LABEL_CLASS, TAB_SCROLL_CLASS, TAB_TRIGGER_CLASS } from "@/components/layout/page-layout"
 
 interface Project {
   id: string
@@ -47,10 +48,9 @@ export function ProjectsContent({ projects }: Readonly<ProjectsContentProps>) {
   }, [projects, searchQuery])
 
   return (
-    <div className="space-y-6">
-      {/* Filters and Search */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative w-full max-w-none flex-1 sm:max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
@@ -60,26 +60,27 @@ export function ProjectsContent({ projects }: Readonly<ProjectsContentProps>) {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Button variant="outline" className="gap-2 bg-transparent">
+        <Button variant="outline" className="w-full sm:w-auto">
           <Filter className="h-4 w-4" />
-          Filter
+          <span className={ACTION_LABEL_CLASS}>Filter</span>
         </Button>
       </div>
 
-      {/* Tabs */}
       <Tabs defaultValue="all" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="all">All Projects ({filteredProjects.length})</TabsTrigger>
-          <TabsTrigger value="active">
-            Active ({filteredProjects.filter((p) => p.status === "In Progress").length})
-          </TabsTrigger>
-          <TabsTrigger value="review">
-            In Review ({filteredProjects.filter((p) => p.status === "Review").length})
-          </TabsTrigger>
-          <TabsTrigger value="completed">
-            Completed ({filteredProjects.filter((p) => p.status === "Completed").length})
-          </TabsTrigger>
-        </TabsList>
+        <div className={TAB_SCROLL_CLASS}>
+          <TabsList>
+            <TabsTrigger className={TAB_TRIGGER_CLASS} value="all">All Projects ({filteredProjects.length})</TabsTrigger>
+            <TabsTrigger className={TAB_TRIGGER_CLASS} value="active">
+              Active ({filteredProjects.filter((p) => p.status === "In Progress").length})
+            </TabsTrigger>
+            <TabsTrigger className={TAB_TRIGGER_CLASS} value="review">
+              In Review ({filteredProjects.filter((p) => p.status === "Review").length})
+            </TabsTrigger>
+            <TabsTrigger className={TAB_TRIGGER_CLASS} value="completed">
+              Completed ({filteredProjects.filter((p) => p.status === "Completed").length})
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="all" className="space-y-4">
           {filteredProjects.length === 0 ? (

@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select'
 import { toast } from '@/hooks/use-toast'
 import { Loader2 } from 'lucide-react'
+import { WORK_ITEM_DIALOG_SHELL_CLASS } from './work-item-dialog-shell'
 import {
   DEFAULT_ASSIGNEE_ID,
   WORK_ITEM_KINDS,
@@ -166,17 +167,18 @@ export function WorkItemDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[54.6rem]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
+      <DialogContent className={WORK_ITEM_DIALOG_SHELL_CLASS}>
+        <form className="flex h-full min-h-0 flex-1 flex-col overflow-hidden" onSubmit={handleSubmit}>
+          <DialogHeader className="shrink-0 space-y-1 px-4 pt-5 pr-12 sm:px-6">
             <DialogTitle>{mode === 'edit' ? 'Edit Work Item' : 'New Work Item'}</DialogTitle>
             <DialogDescription>
               Incident, Issue, or Task in a project. Assignee defaults to Wasant Pep.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4 md:grid-cols-2">
-            <div className="space-y-2 md:col-span-2">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="title">Title <span className="text-destructive">*</span></Label>
               <Input
                 id="title"
@@ -187,14 +189,14 @@ export function WorkItemDialog({
               />
             </div>
 
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
                 value={form.description}
                 onChange={(event) => setForm({ ...form, description: event.target.value })}
                 placeholder="Optional details. Markdown is supported (headings, lists, **bold**, `code`)."
-                className="min-h-[160px] whitespace-pre-wrap"
+                className="min-h-[120px] whitespace-pre-wrap sm:min-h-[160px]"
                 disabled={isLoading}
               />
             </div>
@@ -336,7 +338,7 @@ export function WorkItemDialog({
               />
             </div>
 
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2 sm:col-span-2">
               <Label>Types</Label>
               <div className="flex flex-wrap gap-2">
                 {WORK_ITEM_TYPES.map((type) => {
@@ -356,9 +358,10 @@ export function WorkItemDialog({
                 })}
               </div>
             </div>
+            </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0 flex-row justify-end border-t border-border/60 px-4 py-3 sm:px-6 sm:py-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
               Cancel
             </Button>

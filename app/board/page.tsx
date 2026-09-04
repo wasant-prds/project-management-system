@@ -2,12 +2,18 @@
 
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { AppHeader } from "@/components/layout/app-header"
+import {
+  ACTION_LABEL_CLASS,
+  PAGE_HEADING,
+  PAGE_INNER,
+  PAGE_LEAD,
+  PAGE_TOOLBAR,
+} from "@/components/layout/page-layout"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -158,29 +164,29 @@ export default function BoardPage() {
       <AppSidebar />
       <SidebarInset>
         <AppHeader />
-        <main className="flex-1 overflow-hidden p-6">
-          <div className="space-y-6 h-full flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between flex-shrink-0">
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight text-balance">Kanban Board</h1>
-                <p className="text-muted-foreground mt-1">Visualize and manage your workflow</p>
+        <main className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+          <div className={`${PAGE_INNER} flex h-full min-h-0 min-w-0 w-full flex-col overflow-hidden`}>
+            <div className={`${PAGE_TOOLBAR} shrink-0`}>
+              <div className="min-w-0">
+                <h1 className={PAGE_HEADING}>Kanban Board</h1>
+                <p className={PAGE_LEAD}>Visualize and manage your workflow</p>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" className="gap-2 bg-transparent">
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button variant="outline">
                   <MoreVertical className="h-4 w-4" />
-                  Options
+                  <span className={ACTION_LABEL_CLASS}>Options</span>
                 </Button>
-                <Button className="gap-2">
+                <Button>
                   <Plus className="h-4 w-4" />
-                  Add Column
+                  <span className="sm:hidden">Add</span>
+                  <span className="hidden sm:inline">Add Column</span>
                 </Button>
               </div>
             </div>
 
             {/* Board */}
-            <ScrollArea className="flex-1">
-              <div className="flex gap-4 pb-4 min-h-full">
+            <div className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain">
+              <div className="flex min-h-full gap-4 pb-4">
                 {columns.map((column) => (
                   <div key={column.id} className="flex-shrink-0 w-80">
                     <Card className="card-shadow h-full flex flex-col">
@@ -282,7 +288,7 @@ export default function BoardPage() {
                   </div>
                 ))}
               </div>
-            </ScrollArea>
+            </div>
           </div>
         </main>
       </SidebarInset>

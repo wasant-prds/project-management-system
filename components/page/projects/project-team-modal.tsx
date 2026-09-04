@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { DIALOG_SHELL_SCROLL_CLASS } from "@/components/ui/responsive-dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/hooks/use-toast"
@@ -88,7 +89,7 @@ export function ProjectTeamModal({ open, onOpenChange, projectId }: ProjectTeamM
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className={DIALOG_SHELL_SCROLL_CLASS}>
         <DialogHeader>
           <DialogTitle>Manage Team</DialogTitle>
           <DialogDescription>

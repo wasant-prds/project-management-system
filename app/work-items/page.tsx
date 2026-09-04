@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -52,6 +51,19 @@ import {
   WorkItemDialog,
   type WorkItemFormValues,
 } from '@/components/page/work-items/work-item-dialog'
+import { SummaryStatCard } from '@/components/layout/summary-stat-card'
+import {
+  ACTION_LABEL_CLASS,
+  FILTER_ROW,
+  PAGE_HEADING,
+  PAGE_INNER,
+  PAGE_LEAD,
+  PAGE_MAIN,
+  PAGE_TOOLBAR,
+  STAT_GRID,
+  TAB_SCROLL_CLASS,
+  TAB_TRIGGER_CLASS,
+} from '@/components/layout/page-layout'
 
 const SORT_MENU_CLOSE_DELAY_MS = 150
 
@@ -131,13 +143,13 @@ function WorkItemSortMenu({
         <Button
           type="button"
           variant="outline"
-          className="gap-2 bg-secondary/50"
-          aria-label="Sort work items"
+          className="w-full sm:w-auto"
+          aria-label={`Sort work items: ${WORK_ITEM_SORT_LABELS[value]}`}
           onMouseEnter={openMenu}
           onMouseLeave={scheduleClose}
         >
-          <ArrowUpDown className="h-4 w-4" />
-          {WORK_ITEM_SORT_LABELS[value]}
+          <ArrowUpDown className="h-4 w-4 shrink-0" />
+          <span className="hidden truncate sm:inline">{WORK_ITEM_SORT_LABELS[value]}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -311,80 +323,67 @@ export default function WorkItemsPage() {
   }
 
   return (
-    <SidebarProvider className="h-svh min-h-0 overflow-hidden">
+    <SidebarProvider>
       <AppSidebar />
-      <SidebarInset className="min-h-0 overflow-hidden">
+      <SidebarInset>
         <AppHeader />
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          <div className="space-y-6 p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight text-balance">Work Items</h1>
-                <p className="text-muted-foreground mt-1">Incidents, issues, and tasks in one place</p>
+        <div className={PAGE_MAIN}>
+          <div className={PAGE_INNER}>
+            <div className={PAGE_TOOLBAR}>
+              <div className="min-w-0">
+                <h1 className={PAGE_HEADING}>Work Items</h1>
+                <p className={PAGE_LEAD}>
+                  Incidents, issues, and tasks in one place
+                </p>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <Button
-                  variant="default"
-                  className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
+                  variant="info"
                   onClick={exportCsv}
                   disabled={visibleItems.length === 0}
+                  aria-label="Export CSV"
                 >
                   <Download className="h-4 w-4" />
-                  Export CSV
+                  <span className={ACTION_LABEL_CLASS}>Export CSV</span>
                 </Button>
                 <Button
-                  variant="default"
-                  className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+                  variant="success"
                   onClick={exportMarkdown}
                   disabled={visibleItems.length === 0}
+                  aria-label="Export Markdown"
                 >
                   <FileText className="h-4 w-4" />
-                  Export Markdown
+                  <span className={ACTION_LABEL_CLASS}>Export Markdown</span>
                 </Button>
-                <Button className="gap-2" onClick={openCreate}>
+                <Button onClick={openCreate}>
                   <Plus className="h-4 w-4" />
-                  New Work Item
+                  <span className="sm:hidden">New</span>
+                  <span className="hidden sm:inline">New Work Item</span>
                 </Button>
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-4">
-              <Card className="card-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.total}</div>
-                </CardContent>
-              </Card>
-              <Card className="card-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">In Progress</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-chart-2">{stats.inProgress}</div>
-                </CardContent>
-              </Card>
-              <Card className="card-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-chart-1">{stats.completed}</div>
-                </CardContent>
-              </Card>
-              <Card className="card-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Overdue</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-destructive">{stats.overdue}</div>
-                </CardContent>
-              </Card>
+            <div className={STAT_GRID}>
+              <SummaryStatCard label="Total" value={stats.total} />
+              <SummaryStatCard
+                label="In Progress"
+                value={stats.inProgress}
+                valueClassName="text-chart-2"
+              />
+              <SummaryStatCard
+                label="Completed"
+                value={stats.completed}
+                valueClassName="text-chart-1"
+              />
+              <SummaryStatCard
+                label="Overdue"
+                value={stats.overdue}
+                valueClassName="text-destructive"
+              />
             </div>
 
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-              <div className="relative max-w-md flex-1">
+            <div className={FILTER_ROW}>
+              <div className="relative w-full max-w-none flex-1 sm:max-w-md">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="search"
@@ -394,9 +393,9 @@ export default function WorkItemsPage() {
                   onChange={(event) => setSearchQuery(event.target.value)}
                 />
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
                 <Select value={yearFilter} onValueChange={setYearFilter}>
-                  <SelectTrigger className="w-[130px] bg-secondary/50">
+                  <SelectTrigger className="w-full bg-secondary/50 sm:w-[130px]">
                     <SelectValue placeholder="Year" />
                   </SelectTrigger>
                   <SelectContent>
@@ -407,7 +406,7 @@ export default function WorkItemsPage() {
                   </SelectContent>
                 </Select>
                 <Select value={monthFilter} onValueChange={setMonthFilter}>
-                  <SelectTrigger className="w-[150px] bg-secondary/50">
+                  <SelectTrigger className="w-full bg-secondary/50 sm:w-[150px]">
                     <SelectValue placeholder="Month" />
                   </SelectTrigger>
                   <SelectContent>
@@ -417,18 +416,22 @@ export default function WorkItemsPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={projectFilter} onValueChange={setProjectFilter}>
-                  <SelectTrigger className="w-[220px] bg-secondary/50">
-                    <SelectValue placeholder="Project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All projects</SelectItem>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <WorkItemSortMenu value={sortMode} onChange={setSortMode} />
+                <div className="col-span-2 sm:col-auto">
+                  <Select value={projectFilter} onValueChange={setProjectFilter}>
+                    <SelectTrigger className="w-full bg-secondary/50 sm:w-[220px]">
+                      <SelectValue placeholder="Project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All projects</SelectItem>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2 sm:col-auto">
+                  <WorkItemSortMenu value={sortMode} onChange={setSortMode} />
+                </div>
               </div>
             </div>
 
@@ -439,18 +442,22 @@ export default function WorkItemsPage() {
               }}
               className="space-y-4"
             >
-              <TabsList>
-                <TabsTrigger value="all">All ({filtered.length})</TabsTrigger>
-                <TabsTrigger value="Incident">
-                  Incidents ({filtered.filter((item) => item.kind === 'Incident').length})
-                </TabsTrigger>
-                <TabsTrigger value="Issue">
-                  Issues ({filtered.filter((item) => item.kind === 'Issue').length})
-                </TabsTrigger>
-                <TabsTrigger value="Task">
-                  Tasks ({filtered.filter((item) => item.kind === 'Task').length})
-                </TabsTrigger>
-              </TabsList>
+              <div className={TAB_SCROLL_CLASS}>
+                <TabsList>
+                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="all">
+                    All ({filtered.length})
+                  </TabsTrigger>
+                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="Incident">
+                    Incidents ({filtered.filter((item) => item.kind === 'Incident').length})
+                  </TabsTrigger>
+                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="Issue">
+                    Issues ({filtered.filter((item) => item.kind === 'Issue').length})
+                  </TabsTrigger>
+                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="Task">
+                    Tasks ({filtered.filter((item) => item.kind === 'Task').length})
+                  </TabsTrigger>
+                </TabsList>
+              </div>
               <TabsContent value={kindTab}>
                 <WorkItemGroupedList
                   groups={visibleGroups}

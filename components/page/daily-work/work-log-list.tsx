@@ -1,3 +1,6 @@
+'use client'
+
+import { useCallback, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -7,7 +10,9 @@ import { WorkLogCard } from "./work-log-card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { useState, useMemo, useCallback } from "react"
+import { ACTION_LABEL_CLASS } from "@/components/layout/page-layout"
+import { DIALOG_SHELL_WIDE_CLASS } from "@/components/ui/responsive-dialog"
+import { WorkItemDescription } from "@/components/page/work-items/work-item-description"
 
 // Constants
 const DEFAULT_PROJECT_COLOR = "#3b82f6"
@@ -223,38 +228,38 @@ export function WorkLogList({
     <div className="space-y-3">
       <Card className="card-shadow">
         <CardHeader className="pb-0">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-base">
-              Work Logs for : <span className="font-bold text-blue-500">{buttonLabel}</span>
+              Work Logs for : <span className="font-bold text-blue-700 dark:text-blue-300">{buttonLabel}</span>
             </CardTitle>
             {workLogs.length > 0 && (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   onClick={handleOpenModal}
-                  variant="default"
+                  variant="neutral"
                   size="sm"
-                  className="gap-2 bg-gray-500 text-white"
+                  aria-label="View work logs"
                 >
-                  <Eye className="h-4 w-4 text-white" />
-                  View
+                  <Eye className="h-4 w-4" />
+                  <span className={ACTION_LABEL_CLASS}>View</span>
                 </Button>
                 <Button
                   onClick={exportToCSV}
-                  variant="default"
+                  variant="info"
                   size="sm"
-                  className="gap-2 bg-blue-500 text-white"
+                  aria-label="Export CSV"
                 >
                   <Download className="h-4 w-4" />
-                  Export CSV
+                  <span className={ACTION_LABEL_CLASS}>Export CSV</span>
                 </Button>
                 <Button
                   onClick={exportToMarkdown}
-                  variant="default"
+                  variant="success"
                   size="sm"
-                  className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+                  aria-label="Export Markdown"
                 >
                   <FileText className="h-4 w-4" />
-                  Export Markdown
+                  <span className={ACTION_LABEL_CLASS}>Export Markdown</span>
                 </Button>
               </div>
             )}
@@ -290,33 +295,38 @@ export function WorkLogList({
       )}
 
       <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-        <DialogContent className="flex max-h-[90vh] w-full flex-col sm:max-w-[min(104vw,calc(100%-2rem))]">
-          <DialogHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 space-y-0">
-            <div className="space-y-1.5 text-left min-w-0">
-              <DialogTitle className="text-2xl font-bold">
-                Work Logs for: <span className="text-blue-500">{buttonLabel}</span>
-              </DialogTitle>
-              <DialogDescription>
-                View all work logs grouped by project ( <span className="font-bold text-blue-500">{groupedByProject.length}</span> projects ). Within each project, entries are ordered by # tags in description or remarks, otherwise by date.
-              </DialogDescription>
-            </div>
-            <Button
-              type="button"
-              onClick={exportToMarkdown}
-              variant="default"
-              size="sm"
-              className="gap-2 shrink-0 bg-emerald-600 text-white hover:bg-emerald-700 self-start sm:self-auto"
-            >
-              <FileText className="h-4 w-4" />
-              Export Markdown
-            </Button>
-          </DialogHeader>
+        <DialogContent className={DIALOG_SHELL_WIDE_CLASS}>
+          <div className="shrink-0 space-y-3 px-4 pt-4 pr-12 sm:px-6 sm:pt-5">
+            <DialogHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+              <div className="min-w-0 space-y-1.5 text-left">
+                <DialogTitle className="text-xl font-bold sm:text-2xl">
+                  Work Logs for: <span className="text-blue-700 dark:text-blue-300">{buttonLabel}</span>
+                </DialogTitle>
+                <DialogDescription>
+                  View all work logs grouped by project ({' '}
+                  <span className="font-bold text-blue-700 dark:text-blue-300">{groupedByProject.length}</span> projects
+                  ). Within each project, entries are ordered by # tags in description or remarks, otherwise by date.
+                </DialogDescription>
+              </div>
+              <Button
+                type="button"
+                onClick={exportToMarkdown}
+                variant="success"
+                size="sm"
+                className="shrink-0 self-start sm:self-auto"
+              >
+                <FileText className="h-4 w-4" />
+                <span className="hidden sm:inline">Export Markdown</span>
+                <span className="sm:hidden">Export</span>
+              </Button>
+            </DialogHeader>
+          </div>
 
-          <div className="flex-1 overflow-y-auto pr-2 space-y-6 mt-4">
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-5">
             {groupedByProject.map(([projectName, logs], projectIndex, allProjects) => (
               <div key={projectName} className="space-y-4">
                 {/* Project Header */}
-                <div className="sticky top-0 bg-background z-10 pb-2 border-b-2 border-blue-500">
+                <div className="sticky top-0 z-10 border-b-2 border-blue-500 bg-card pb-2">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xl font-bold text-blue-600 dark:text-blue-400 flex items-center gap-2">
                       <div
@@ -390,23 +400,23 @@ export function WorkLogList({
 
                           <Separator />
 
-                          {/* Description */}
                           {log.description && (
                             <div className="space-y-1">
-                              <div className="font-semibold text-sm text-muted-foreground">Description:</div>
-                              <div className="text-sm bg-muted/50 p-3 rounded-md border border-border/50 whitespace-pre-wrap">
-                                {log.description}
-                              </div>
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Details</div>
+                              <WorkItemDescription
+                                text={log.description}
+                                className="text-foreground"
+                              />
                             </div>
                           )}
 
-                          {/* Remarks */}
                           {log.remarks && (
                             <div className="space-y-1">
-                              <div className="font-semibold text-sm text-muted-foreground">Remarks:</div>
-                              <div className="text-sm bg-muted/50 p-3 rounded-md border border-border/50 italic whitespace-pre-wrap">
-                                {log.remarks}
-                              </div>
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Remarks</div>
+                              <WorkItemDescription
+                                text={log.remarks}
+                                className="text-foreground"
+                              />
                             </div>
                           )}
 

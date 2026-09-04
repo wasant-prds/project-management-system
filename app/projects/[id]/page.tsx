@@ -3,6 +3,17 @@
 import { use, useEffect, useState } from "react"
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { AppHeader } from "@/components/layout/app-header"
+import {
+  PAGE_HEADING,
+  PAGE_INNER,
+  PAGE_LEAD,
+  PAGE_MAIN,
+  PAGE_TOOLBAR,
+  STAT_GRID,
+  TAB_SCROLL_CLASS,
+  TAB_TRIGGER_CLASS,
+} from "@/components/layout/page-layout"
+import { SummaryStatCard } from "@/components/layout/summary-stat-card"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -160,14 +171,14 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         <AppSidebar />
         <SidebarInset>
           <AppHeader />
-          <main className="flex-1 overflow-y-auto p-6">
-            <div className="space-y-6">
+          <main className={PAGE_MAIN}>
+            <div className={PAGE_INNER}>
               <Skeleton className="h-20 w-full" />
-              <div className="grid gap-4 md:grid-cols-4">
-                <Skeleton className="h-32 w-full" />
-                <Skeleton className="h-32 w-full" />
-                <Skeleton className="h-32 w-full" />
-                <Skeleton className="h-32 w-full" />
+              <div className={STAT_GRID}>
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-20 w-full" />
               </div>
               <Skeleton className="h-96 w-full" />
             </div>
@@ -183,7 +194,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         <AppSidebar />
         <SidebarInset>
           <AppHeader />
-          <main className="flex-1 overflow-y-auto p-6">
+          <main className={PAGE_MAIN}>
+            <div className={PAGE_INNER}>
             <Card className="card-shadow">
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <AlertCircle className="h-12 w-12 text-destructive mb-4" />
@@ -199,6 +211,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                 </Link>
               </CardContent>
             </Card>
+            </div>
           </main>
         </SidebarInset>
       </SidebarProvider>
@@ -212,88 +225,69 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       <AppSidebar />
       <SidebarInset>
         <AppHeader />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center gap-4">
-              <Link href="/projects">
-                <Button variant="ghost" size="icon">
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              </Link>
-              <div className="flex-1">
-                <h1 className="text-3xl font-bold tracking-tight text-balance">{project.name}</h1>
-                <p className="text-muted-foreground mt-1">{project.description || 'No description available'}</p>
+        <main className={PAGE_MAIN}>
+          <div className={PAGE_INNER}>
+            <div className={PAGE_TOOLBAR}>
+              <div className="flex min-w-0 items-start gap-3">
+                <Link href="/projects">
+                  <Button variant="ghost" size="icon" aria-label="Back to projects">
+                    <ArrowLeft className="h-4 w-4" />
+                  </Button>
+                </Link>
+                <div className="min-w-0 flex-1">
+                  <h1 className={PAGE_HEADING}>{project.name}</h1>
+                  <p className={PAGE_LEAD}>{project.description || 'No description available'}</p>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="icon">
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="icon" aria-label="Share project">
                   <Share2 className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="icon">
+                <Button variant="outline" size="icon" aria-label="Edit project">
                   <Edit className="h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="icon">
+                <Button variant="outline" size="icon" aria-label="More project actions">
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </div>
             </div>
 
-            {/* Overview Cards */}
-            <div className="grid gap-4 md:grid-cols-4">
-              <Card className="card-shadow">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Progress</CardTitle>
-                  <Target className="h-4 w-4 text-chart-1" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{project.progress}%</div>
-                  <Progress value={project.progress} className="mt-2 h-2" />
-                </CardContent>
-              </Card>
+            <div className={STAT_GRID}>
+              <SummaryStatCard
+                label="Progress"
+                value={`${project.progress}%`}
+                icon={<Target className="h-4 w-4 text-chart-1" />}
+                hint={<Progress value={project.progress} className="mt-2 h-2" />}
+              />
 
-              <Card className="card-shadow">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Budget</CardTitle>
-                  <DollarSign className="h-4 w-4 text-chart-2" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(project.spent)}</div>
-                  <p className="text-xs text-muted-foreground mt-1">of {formatCurrency(project.budget)}</p>
-                </CardContent>
-              </Card>
-
-              <Card className="card-shadow">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Team Size</CardTitle>
-                  <Users className="h-4 w-4 text-chart-3" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{project.members.length}</div>
-                  <p className="text-xs text-muted-foreground mt-1">members</p>
-                </CardContent>
-              </Card>
-
-              <Card className="card-shadow">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Due Date</CardTitle>
-                  <Calendar className="h-4 w-4 text-chart-4" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {formatDate(project.dueDate)}
-                  </div>
-                </CardContent>
-              </Card>
+              <SummaryStatCard
+                label="Budget"
+                value={formatCurrency(project.spent)}
+                icon={<DollarSign className="h-4 w-4 text-chart-2" />}
+                hint={<p className="mt-1 text-xs text-muted-foreground">of {formatCurrency(project.budget)}</p>}
+              />
+              <SummaryStatCard
+                label="Team Size"
+                value={project.members.length}
+                icon={<Users className="h-4 w-4 text-chart-3" />}
+                hint={<p className="mt-1 text-xs text-muted-foreground">members</p>}
+              />
+              <SummaryStatCard
+                label="Due Date"
+                value={formatDate(project.dueDate)}
+                icon={<Calendar className="h-4 w-4 text-chart-4" />}
+              />
             </div>
 
-            {/* Main Content */}
             <Tabs defaultValue="overview" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="work-items">Work Items</TabsTrigger>
-                <TabsTrigger value="team">Team</TabsTrigger>
-                <TabsTrigger value="milestones">Milestones</TabsTrigger>
-              </TabsList>
+              <div className={TAB_SCROLL_CLASS}>
+                <TabsList>
+                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="overview">Overview</TabsTrigger>
+                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="work-items">Work Items</TabsTrigger>
+                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="team">Team</TabsTrigger>
+                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="milestones">Milestones</TabsTrigger>
+                </TabsList>
+              </div>
 
               <TabsContent value="overview" className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">

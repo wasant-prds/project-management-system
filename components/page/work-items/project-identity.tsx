@@ -21,11 +21,11 @@ export function ProjectIdentity({
 
   return (
     <div
-      className={cn(
-        'relative flex items-center gap-2.5 overflow-hidden border-b border-border/50',
-        compact ? 'px-4 py-2.5' : 'px-6 py-3.5 pr-12',
-        className,
-      )}
+          className={cn(
+            'relative flex items-center gap-2.5 overflow-hidden border-b border-border/50',
+            compact ? 'px-4 py-2.5' : 'px-6 py-3.5 pr-12',
+            className,
+          )}
       style={{
         background: `linear-gradient(90deg, ${accent.backgroundColor} 0%, ${accent.softBackground} 42%, transparent 100%)`,
       }}

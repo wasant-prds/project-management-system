@@ -2,6 +2,14 @@
 
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { AppHeader } from "@/components/layout/app-header"
+import {
+  PAGE_HEADING,
+  PAGE_INNER,
+  PAGE_LEAD,
+  PAGE_MAIN,
+  TAB_SCROLL_CLASS,
+  TAB_TRIGGER_CLASS,
+} from "@/components/layout/page-layout"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -17,21 +25,22 @@ export default function SettingsPage() {
       <AppSidebar />
       <SidebarInset>
         <AppHeader />
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-6">
-            {/* Header */}
+        <main className={PAGE_MAIN}>
+          <div className={PAGE_INNER}>
             <div>
-              <h1 className="text-3xl font-bold tracking-tight text-balance">Settings</h1>
-              <p className="text-muted-foreground mt-1">Manage your account and application preferences</p>
+              <h1 className={PAGE_HEADING}>Settings</h1>
+              <p className={PAGE_LEAD}>Manage your account and application preferences</p>
             </div>
 
             <Tabs defaultValue="profile" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="profile">Profile</TabsTrigger>
-                <TabsTrigger value="notifications">Notifications</TabsTrigger>
-                <TabsTrigger value="security">Security</TabsTrigger>
-                <TabsTrigger value="appearance">Appearance</TabsTrigger>
-              </TabsList>
+              <div className={TAB_SCROLL_CLASS}>
+                <TabsList>
+                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="profile">Profile</TabsTrigger>
+                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="notifications">Notifications</TabsTrigger>
+                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="security">Security</TabsTrigger>
+                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="appearance">Appearance</TabsTrigger>
+                </TabsList>
+              </div>
 
               <TabsContent value="profile" className="space-y-4">
                 <Card className="card-shadow">
@@ -45,7 +54,7 @@ export default function SettingsPage() {
                         <AvatarFallback className="bg-primary/10 text-primary text-xl font-semibold">AD</AvatarFallback>
                       </Avatar>
                       <div className="space-y-2">
-                        <Button variant="outline" className="bg-transparent">
+                        <Button variant="outline">
                           Change Avatar
                         </Button>
                         <p className="text-xs text-muted-foreground">JPG, PNG or GIF. Max size 2MB.</p>
@@ -81,7 +90,7 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="flex justify-end gap-2">
-                      <Button variant="outline" className="bg-transparent">
+                      <Button variant="outline">
                         Cancel
                       </Button>
                       <Button>Save Changes</Button>
@@ -136,7 +145,7 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="flex justify-end gap-2 pt-4">
-                      <Button variant="outline" className="bg-transparent">
+                      <Button variant="outline">
                         Cancel
                       </Button>
                       <Button>Save Preferences</Button>
@@ -178,7 +187,7 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="flex justify-end gap-2 pt-4">
-                      <Button variant="outline" className="bg-transparent">
+                      <Button variant="outline">
                         Cancel
                       </Button>
                       <Button>Update Password</Button>
@@ -219,7 +228,7 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="flex justify-end gap-2 pt-4">
-                      <Button variant="outline" className="bg-transparent">
+                      <Button variant="outline">
                         Cancel
                       </Button>
                       <Button>Save Preferences</Button>

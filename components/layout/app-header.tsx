@@ -18,20 +18,20 @@ import { ThemeToggle } from '@/components/ui/theme-toggle'
 // Memoized header component to prevent unnecessary re-renders
 export const AppHeader = memo(function AppHeader() {
   return (
-    <header className="flex shadow-md top-0 sticky z-50 h-16 shrink-0 items-center gap-2 border-b px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex items-center gap-2 flex-1">
+    <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-3 shadow-md backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:h-16 sm:px-4 sticky top-0 z-50">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
         <SidebarTrigger />
-        <div className="relative w-full max-w-md">
+        <div className="relative hidden min-w-0 flex-1 max-w-md sm:block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
             placeholder="Search projects, tasks, issues..."
-            className="pl-10 bg-secondary/50"
+            className="bg-secondary/50 pl-10 text-foreground"
           />
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
         <ThemeToggle />
         
         <DropdownMenu>

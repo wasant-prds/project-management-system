@@ -236,7 +236,7 @@ function ProjectBranch({
           )}
         >
           <CollapsibleTrigger asChild>
-            <button type="button" className="flex w-full items-stretch text-left">
+            <button type="button" className="flex w-full min-w-0 items-stretch text-left">
               <span className="flex w-9 shrink-0 items-center justify-center text-muted-foreground">
                 <ChevronRight
                   className={cn('h-4 w-4 transition-transform', open && 'rotate-90')}
@@ -341,7 +341,7 @@ export function WorkItemGroupedList({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       {groups.map((group) => (
         <ProjectBranch
           key={group.projectId}

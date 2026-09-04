@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { DIALOG_SHELL_SCROLL_CLASS } from '@/components/ui/responsive-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -113,7 +114,7 @@ export function ProjectCreateModal({ open, onOpenChange }: ProjectCreateModalPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className={DIALOG_SHELL_SCROLL_CLASS}>
         <DialogHeader>
           <DialogTitle>Create New Project</DialogTitle>
           <DialogDescription>
