@@ -56,9 +56,84 @@ db_compose_file() {
   esac
 }
 
+db_running_in_wsl() {
+  [ -n "${WSL_INTEROP:-}" ] || {
+    [ -r /proc/sys/kernel/osrelease ] && grep -qiE 'microsoft|wsl' /proc/sys/kernel/osrelease
+  }
+}
+
+db_running_on_windows() {
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+  esac
+  db_running_in_wsl
+}
+
+db_windows_docker_cli() {
+  local candidate
+  if [ -n "${DOCKER_WINDOWS_CLI:-}" ] && [ -x "$DOCKER_WINDOWS_CLI" ]; then
+    printf '%s' "$DOCKER_WINDOWS_CLI"
+    return 0
+  fi
+
+  for candidate in \
+    '/mnt/c/Program Files/Docker/Docker/resources/bin/docker.exe' \
+    '/mnt/c/Program Files (x86)/Docker/Docker/resources/bin/docker.exe'; do
+    if [ -x "$candidate" ]; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  done
+
+  if command -v docker.exe >/dev/null 2>&1; then
+    command -v docker.exe
+    return 0
+  fi
+  return 1
+}
+
+db_docker() {
+  local windows_docker
+  if db_running_in_wsl; then
+    if command -v docker >/dev/null 2>&1 && command docker info >/dev/null 2>&1; then
+      command docker "$@"
+      return $?
+    fi
+
+    windows_docker=$(db_windows_docker_cli) || windows_docker=''
+    if [ -n "$windows_docker" ]; then
+      "$windows_docker" "$@"
+      return $?
+    fi
+  fi
+
+  command docker "$@"
+}
+
 db_compose() {
-  if docker compose version >/dev/null 2>&1; then
-    docker compose "$@"
+  local windows_docker
+  if db_running_in_wsl && ! { command -v docker >/dev/null 2>&1 && command docker info >/dev/null 2>&1; }; then
+    windows_docker=$(db_windows_docker_cli) || windows_docker=''
+    if [ -n "$windows_docker" ]; then
+      local -a compose_args=("$@")
+      local i
+      for ((i = 0; i < ${#compose_args[@]}; i++)); do
+        case "${compose_args[$i]}" in
+          --env-file|-f)
+            if [ $((i + 1)) -lt ${#compose_args[@]} ]; then
+              compose_args[$((i + 1))]=$(wslpath -w "${compose_args[$((i + 1))]}") || return 1
+              i=$((i + 1))
+            fi
+            ;;
+        esac
+      done
+      "$windows_docker" compose "${compose_args[@]}"
+      return $?
+    fi
+  fi
+
+  if db_docker compose version >/dev/null 2>&1; then
+    db_docker compose "$@"
   elif command -v docker-compose >/dev/null 2>&1; then
     docker-compose "$@"
   else

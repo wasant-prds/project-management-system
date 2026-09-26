@@ -45,7 +45,8 @@ export async function GET(request: Request) {
     const statusParam = searchParams.get('status')
     const priority = searchParams.get('priority')
 
-    const where: Prisma.WorkItemWhereInput = {}
+    // Ignore legacy seed rows whose required Project record is missing.
+    const where: Prisma.WorkItemWhereInput = { project: { is: {} } }
     if (projectId) where.projectId = projectId
     if (assigneeId) where.assigneeId = assigneeId
     if (kind) {

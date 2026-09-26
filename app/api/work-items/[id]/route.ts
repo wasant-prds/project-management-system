@@ -148,8 +148,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const workItem = await prisma.workItem.findUnique({
-      where: { id },
+    const workItem = await prisma.workItem.findFirst({
+      where: { id, project: { is: {} } },
       include: workItemInclude,
     })
 

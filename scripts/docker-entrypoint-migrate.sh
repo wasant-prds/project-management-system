@@ -15,8 +15,24 @@ if [ -f /run/secrets/postgres_user ] \
   export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?schema=public"
 fi
 
-export SEED_PATH="${SEED_PATH:-seeds/master}"
-export SEEDS_ROOT="${SEEDS_ROOT:-/app/database}"
+export SEED_PATH="${SEED_PATH:-database/seeds/master}"
+export SEEDS_ROOT="${SEEDS_ROOT:-/app}"
+
+case "${DB_MANAGE_MODE:-}" in
+  seed)
+    echo "🌱 Running database seed only (${SEEDS_ROOT}/${SEED_PATH})"
+    pnpm prisma generate
+    pnpm prisma db seed
+    exit 0
+    ;;
+  force-seed)
+    echo "🌱 Pushing schema and reseeding database (${SEEDS_ROOT}/${SEED_PATH})"
+    pnpm prisma generate
+    sh scripts/db-push-safe.sh
+    pnpm prisma db seed
+    exit 0
+    ;;
+esac
 
 pnpm prisma generate
 sh scripts/db-push-safe.sh

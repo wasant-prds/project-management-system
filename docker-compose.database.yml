@@ -1,5 +1,5 @@
 # Shared postgres + migrations. Included by the env compose files.
-# SEED_PATH is relative to /app/database (prisma/seed.ts).
+# SEED_PATH is relative to /app (prisma/seed.ts).
 #
 # Sized for a Basic VPS (1 vCPU / 2 GB RAM / 50 GB disk) running two
 # projects at once. This stack budgets ~0.5 CPU and ~768 MB so the
@@ -72,8 +72,8 @@ services:
         limits: { cpus: "0.40", memory: 256M }
         reservations: { cpus: "0.05", memory: 64M }
     environment:
-      SEED_PATH: ${SEED_PATH:-seeds/master}
-      SEEDS_ROOT: /app/database
+      SEED_PATH: ${SEED_PATH:-database/seeds/master}
+      SEEDS_ROOT: /app
       RUN_SEED: ${RUN_SEED:-true}
       NODE_OPTIONS: --max-old-space-size=192
     volumes:

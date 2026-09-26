@@ -17,6 +17,7 @@ type SeedConfig = {
 
 type SeedModel = {
   createMany: (args: { data: unknown[] }) => Promise<unknown>
+  count: () => Promise<number>
 }
 
 function isSeedModel(value: unknown): value is SeedModel {
@@ -24,13 +25,15 @@ function isSeedModel(value: unknown): value is SeedModel {
     typeof value === 'object' &&
     value !== null &&
     'createMany' in value &&
-    typeof value.createMany === 'function'
+    typeof value.createMany === 'function' &&
+    'count' in value &&
+    typeof value.count === 'function'
   )
 }
 
 function resolveSeedDir(): string {
-  const seedsRoot = process.env.SEEDS_ROOT ?? join(process.cwd(), 'database')
-  const seedPath = process.env.SEED_PATH ?? 'seeds/master'
+  const seedsRoot = process.env.SEEDS_ROOT ?? process.cwd()
+  const seedPath = process.env.SEED_PATH ?? 'database/seeds/master'
   return resolve(seedsRoot, seedPath)
 }
 
@@ -103,15 +106,22 @@ async function main() {
   }
 
   console.log('🔍 Checking for existing data...')
-  const existingCompanyCount = await prisma.company.count()
-  const existingUserCount = await prisma.user.count()
-  const existingProjectCount = await prisma.project.count()
+  const existingData: { table: string; rows: number }[] = []
+  for (const { table } of config.tables) {
+    const model = prisma[prismaDelegate(table) as keyof typeof prisma]
+    if (!isSeedModel(model)) {
+      throw new Error(`No Prisma model matching table ${table} (${prismaDelegate(table)})`)
+    }
 
-  if (existingCompanyCount > 0 || existingUserCount > 0 || existingProjectCount > 0) {
-    console.log('⚠️  Database already contains data:')
-    console.log(`   - ${existingCompanyCount} Companies`)
-    console.log(`   - ${existingUserCount} Users`)
-    console.log(`   - ${existingProjectCount} Projects`)
+    const rows = await model.count()
+    if (rows > 0) existingData.push({ table, rows })
+  }
+
+  if (existingData.length > 0) {
+    console.log('⚠️  Database already contains data in seed tables:')
+    for (const { table, rows } of existingData) {
+      console.log(`   - ${table}: ${rows} rows`)
+    }
     console.log('⏭️  Skipping seed to prevent data loss.')
     console.log('💡 If you want to re-seed, please manually delete the data first or drop the database.')
     return
@@ -119,19 +129,37 @@ async function main() {
 
   console.log('✅ Database is empty. Starting seed process...')
 
+  const rowsByTable = new Map<string, Record<string, unknown>[]>()
+  for (const { table, file } of config.tables) {
+    const filePath = join(seedDir, file)
+    if (!existsSync(filePath)) {
+      throw new Error(`Seed file not found for ${table}: ${filePath}`)
+    }
+    rowsByTable.set(table, loadTableRows(filePath))
+  }
+
+  const projectIds = new Set((rowsByTable.get('Project') ?? []).map((row) => row.id))
+  const userIds = new Set((rowsByTable.get('User') ?? []).map((row) => row.id))
+  const workItems = rowsByTable.get('WorkItem')
+  if (workItems) {
+    const validWorkItems = workItems.filter(
+      (row) => projectIds.has(row.projectId) && userIds.has(row.assigneeId),
+    )
+    const skippedWorkItems = workItems.length - validWorkItems.length
+    if (skippedWorkItems > 0) {
+      console.warn(
+        `⚠️  Skipping ${skippedWorkItems} WorkItem rows with a missing Project or User reference.`,
+      )
+      rowsByTable.set('WorkItem', validWorkItems)
+    }
+  }
+
   const loaded: { table: string; rows: number }[] = []
 
   await prisma.$transaction(
     async (tx) => {
-      await tx.$executeRawUnsafe(`SET LOCAL session_replication_role = 'replica'`)
-
       for (const { table, file } of config.tables) {
-        const filePath = join(seedDir, file)
-        if (!existsSync(filePath)) {
-          throw new Error(`Seed file not found for ${table}: ${filePath}`)
-        }
-
-        const rows = loadTableRows(filePath)
+        const rows = rowsByTable.get(table) ?? []
         const delegate = prismaDelegate(table)
         const model = tx[delegate as keyof typeof tx]
 

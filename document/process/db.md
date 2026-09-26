@@ -6,7 +6,7 @@
 
 `postinstall` ยังคงรัน `prisma generate` ส่วน Prisma seed ยังคงตั้งค่าเป็น `tsx prisma/seed.ts` ใน `package.json`
 
-ตั้ง `APP_ENV` ใน `.env` ที่ root ของ repository เพื่อเลือก site เป้าหมาย โดยใช้ `.env` เพียงไฟล์เดียว: `local` หรือ `dev` สำหรับ development, `uat` สำหรับ UAT และ `prod` สำหรับ production สคริปต์จัดการฐานข้อมูลจะเลือก Compose file, container และ volume ตามค่านี้
+ตั้ง `APP_ENV` ใน `.env` ที่ root ของ repository เพื่อเลือก site เป้าหมาย โดยใช้ `.env` เพียงไฟล์เดียว: `local` หรือ `dev` สำหรับ development, `uat` สำหรับ UAT และ `prod` สำหรับ production สคริปต์จัดการฐานข้อมูลจะเลือก Compose file, container และ volume ตามค่านี้ หากกำหนด `SEED_PATH` ใน `.env` ให้ใช้ `database/seeds/master` ซึ่งเป็น path ที่อ้างอิงจาก root ของ `/app` ใน container
 
 ตัวอย่างเมื่อจะจัดการ UAT ให้ตั้ง `APP_ENV=uat` ใน `.env` ก่อนรันสคริปต์ เมื่อทำงานกับ production ให้เปลี่ยนเป็น `APP_ENV=prod`
 
@@ -18,7 +18,7 @@
 bash scripts/dump-master-seeds.sh
 ```
 
-ชื่อไฟล์ backup จะมี site และ timestamp เช่น `master-seeds_uat_20260926_120000.zip` ต้องเปิด PostgreSQL container ของ site นั้นอยู่ก่อนรัน
+ชื่อไฟล์ backup จะมี site และ timestamp เช่น `master-seeds_uat_20260926_120000.zip` ต้องเปิด PostgreSQL container ของ site นั้นอยู่ก่อนรัน หาก host ไม่มี Node.js ให้เปิด app container ของ site นั้นด้วย
 
 ## Prisma
 
@@ -43,11 +43,11 @@ bash scripts/db-manage.sh <command>
 | --- | --- |
 | `bash scripts/db-manage.sh status` | แสดงสถานะฐานข้อมูล |
 | `bash scripts/db-manage.sh reset` | reset ฐานข้อมูล (ลบข้อมูลทั้งหมด) |
-| `bash scripts/db-manage.sh backup` | สร้าง backup ของฐานข้อมูล |
+| `bash scripts/db-manage.sh backup` | สร้าง backup ของฐานข้อมูลตาม `APP_ENV`; ถ้า PostgreSQL หยุดอยู่แต่พบไฟล์ฐานข้อมูล จะเปิดเฉพาะ PostgreSQL ชั่วคราวแล้วหยุดหลัง backup |
 | `bash scripts/db-manage.sh restore <file>` | กู้คืนฐานข้อมูลจาก backup |
 | `bash scripts/db-manage.sh connect` | เชื่อมต่อฐานข้อมูลด้วย `psql` |
 | `bash scripts/db-manage.sh logs` | แสดง logs ของ PostgreSQL |
-| `bash scripts/db-manage.sh seed` | รัน seed ฐานข้อมูล (ข้ามหากมีข้อมูลอยู่แล้ว) |
+| `bash scripts/db-manage.sh seed` | รัน seed ใน Linux migrations container ของ site ที่เลือก (ข้ามหากตารางใน seed config มีข้อมูลอยู่แล้ว; ถ้า container หยุดแต่พบไฟล์ฐานข้อมูล จะข้ามอย่างปลอดภัย) |
 | `bash scripts/db-manage.sh force-seed` | บังคับ seed ใหม่ (ลบข้อมูลเดิม) |
 
 คำสั่ง `status`, `backup`, `restore`, `connect`, `logs`, `reset` และ `force-seed` จะทำงานกับ site ที่ระบุใน `.env` เท่านั้น ตัวอย่าง:
