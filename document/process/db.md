@@ -1,37 +1,61 @@
-# Database process commands
+# คำสั่งสำหรับจัดการฐานข้อมูล
 
-Run these from the repository root. They replace the former `package.json` scripts (`db:*`).
+เรียกใช้คำสั่งเหล่านี้จาก root ของ repository โดยใช้แทน scripts เดิม (`db:*`) ใน `package.json`
 
-Use `bash` for `.sh` scripts (Git Bash on Windows). PowerShell does not provide `sh`.
+ใช้ `bash` เรียกไฟล์ `.sh` (บน Windows ให้ใช้ Git Bash) เนื่องจาก PowerShell ไม่มีคำสั่ง `sh`
 
-`postinstall` still runs `prisma generate`. Prisma seed is still configured as `tsx prisma/seed.ts` in `package.json`.
+`postinstall` ยังคงรัน `prisma generate` ส่วน Prisma seed ยังคงตั้งค่าเป็น `tsx prisma/seed.ts` ใน `package.json`
+
+ตั้ง `APP_ENV` ใน `.env` ที่ root ของ repository เพื่อเลือก site เป้าหมาย โดยใช้ `.env` เพียงไฟล์เดียว: `local` หรือ `dev` สำหรับ development, `uat` สำหรับ UAT และ `prod` สำหรับ production สคริปต์จัดการฐานข้อมูลจะเลือก Compose file, container และ volume ตามค่านี้
+
+ตัวอย่างเมื่อจะจัดการ UAT ให้ตั้ง `APP_ENV=uat` ใน `.env` ก่อนรันสคริปต์ เมื่อทำงานกับ production ให้เปลี่ยนเป็น `APP_ENV=prod`
+
+## งานที่ทำบ่อย: export และ backup seeds
+
+รันคำสั่งนี้เพื่อ export ข้อมูลจากฐานข้อมูลของ site ที่เลือกใน `APP_ENV` เป็นไฟล์ JSON ใน `database/seeds/master` แล้วสร้าง ZIP backup ของ seeds ชุดใหม่ไว้ใน `./backups`:
+
+```bash
+bash scripts/dump-master-seeds.sh
+```
+
+ชื่อไฟล์ backup จะมี site และ timestamp เช่น `master-seeds_uat_20260926_120000.zip` ต้องเปิด PostgreSQL container ของ site นั้นอยู่ก่อนรัน
 
 ## Prisma
 
-| Command | Description |
+| คำสั่ง | คำอธิบาย |
 | --- | --- |
-| `pnpm prisma generate` | Generate Prisma Client |
-| `pnpm prisma migrate dev` | Create and apply a migration |
-| `pnpm prisma db seed` | Seed database (skips if data exists; never wipes) |
-| `pnpm prisma studio` | Open Prisma Studio |
-| `bash scripts/db-push-safe.sh` | Push schema (non-destructive; refuses data-loss flags) |
-| `bash scripts/dump-master-seeds.sh` | Zip `database/seeds/master` to `./backups`, then snapshot the current `APP_ENV` Postgres into `config.json` tables (`WorkItem/` by year; leftover JSON removed) |
+| `pnpm prisma generate` | สร้าง Prisma Client |
+| `pnpm prisma migrate dev` | สร้างและ apply migration |
+| `pnpm prisma db seed` | seed ข้อมูลลงฐานข้อมูล (ข้ามหากมีข้อมูลอยู่แล้ว และไม่ลบข้อมูลเดิม) |
+| `pnpm prisma studio` | เปิด Prisma Studio |
+| `bash scripts/db-push-safe.sh` | push schema แบบไม่ทำลายข้อมูล (ปฏิเสธ flags ที่อาจทำให้ข้อมูลสูญหาย) |
+| `bash scripts/dump-master-seeds.sh` | export ข้อมูลจาก PostgreSQL ของ site ที่เลือกเป็น JSON ใน `database/seeds/master` (แยก `WorkItem/` ตามปีและลบ JSON ที่ไม่อยู่ใน config) แล้ว zip seeds ชุดใหม่ไว้ใน `./backups` |
 
-## Management helper
+## สคริปต์ช่วยจัดการ
 
-Script: `scripts/db-manage.sh` (PowerShell: `scripts/db-manage.ps1`)
+สคริปต์: `scripts/db-manage.sh` (PowerShell: `scripts/db-manage.ps1`)
 
 ```bash
 bash scripts/db-manage.sh <command>
 ```
 
-| Command | Description |
+| คำสั่ง | คำอธิบาย |
 | --- | --- |
-| `bash scripts/db-manage.sh status` | Show database status |
-| `bash scripts/db-manage.sh reset` | Reset database (delete all data) |
-| `bash scripts/db-manage.sh backup` | Create a backup of the database |
-| `bash scripts/db-manage.sh restore <file>` | Restore database from backup |
-| `bash scripts/db-manage.sh connect` | Connect to database (psql) |
-| `bash scripts/db-manage.sh logs` | Show PostgreSQL logs |
-| `bash scripts/db-manage.sh seed` | Run database seed (skips if data exists) |
-| `bash scripts/db-manage.sh force-seed` | Force reseed (deletes existing data) |
+| `bash scripts/db-manage.sh status` | แสดงสถานะฐานข้อมูล |
+| `bash scripts/db-manage.sh reset` | reset ฐานข้อมูล (ลบข้อมูลทั้งหมด) |
+| `bash scripts/db-manage.sh backup` | สร้าง backup ของฐานข้อมูล |
+| `bash scripts/db-manage.sh restore <file>` | กู้คืนฐานข้อมูลจาก backup |
+| `bash scripts/db-manage.sh connect` | เชื่อมต่อฐานข้อมูลด้วย `psql` |
+| `bash scripts/db-manage.sh logs` | แสดง logs ของ PostgreSQL |
+| `bash scripts/db-manage.sh seed` | รัน seed ฐานข้อมูล (ข้ามหากมีข้อมูลอยู่แล้ว) |
+| `bash scripts/db-manage.sh force-seed` | บังคับ seed ใหม่ (ลบข้อมูลเดิม) |
+
+คำสั่ง `status`, `backup`, `restore`, `connect`, `logs`, `reset` และ `force-seed` จะทำงานกับ site ที่ระบุใน `.env` เท่านั้น ตัวอย่าง:
+
+```bash
+# ตั้ง APP_ENV=prod ใน .env ก่อน
+bash scripts/db-manage.sh status
+bash scripts/db-manage.sh backup
+```
+
+`backup` จะบันทึก SQL backup ไว้ใน `database/backups` โดยใส่ชื่อ site ในชื่อไฟล์

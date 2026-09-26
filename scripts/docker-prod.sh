@@ -3,6 +3,28 @@
 
 set -e
 
+ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
+DB_ROOT="$ROOT"
+. "$ROOT/scripts/db-env.sh"
+
+if [ ! -f "$ROOT/.env" ]; then
+    echo "Error: root .env file not found. Copy .env.example to .env and set APP_ENV=prod." >&2
+    exit 1
+fi
+DB_SITE="$(db_resolve_env)"
+if [ "$DB_SITE" != "prod" ]; then
+    echo "This is the production helper; set APP_ENV=prod in the root .env file." >&2
+    exit 1
+fi
+APP_ENV="$DB_SITE"
+export APP_ENV
+COMPOSE_FILE="$(db_compose_file "$DB_SITE")"
+cd "$ROOT"
+
+compose() {
+    db_compose --env-file "$ROOT/.env" -f "$COMPOSE_FILE" "$@"
+}
+
 echo "🏭 Production Environment Manager..."
 echo ""
 
@@ -10,13 +32,6 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
-
-# Check if .env.production exists
-if [ ! -f .env.production ]; then
-    echo -e "${RED}❌ Error: .env.production file not found${NC}"
-    echo "Please create .env.production from env.prod.example"
-    exit 1
-fi
 
 # Warning for production operations
 warning_prompt() {
@@ -32,7 +47,7 @@ case "$1" in
   start)
     warning_prompt
     echo -e "${GREEN}Starting production environment...${NC}"
-    docker-compose -f docker-compose.prod.yml --env-file .env.production up -d
+    compose up -d
     echo ""
     echo -e "${GREEN}✅ Production environment is running!${NC}"
     echo ""
@@ -43,54 +58,52 @@ case "$1" in
   start-backup)
     warning_prompt
     echo -e "${GREEN}Starting production with backup service...${NC}"
-    docker-compose -f docker-compose.prod.yml --env-file .env.production --profile backup up -d
+    compose --profile backup up -d
     echo -e "${GREEN}✅ Production with backup service is running!${NC}"
     ;;
     
   init)
     warning_prompt
     echo -e "${GREEN}Initializing production database...${NC}"
-    docker-compose -f docker-compose.prod.yml --env-file .env.production up migrations
+    compose up migrations
     echo -e "${GREEN}✅ Production database initialized${NC}"
     ;;
     
   stop)
     warning_prompt
     echo -e "${YELLOW}Stopping production services...${NC}"
-    docker-compose -f docker-compose.prod.yml --env-file .env.production down
+    compose down
     echo -e "${GREEN}✅ Production environment stopped${NC}"
     ;;
     
   restart)
     warning_prompt
     echo -e "${YELLOW}Restarting production services...${NC}"
-    docker-compose -f docker-compose.prod.yml --env-file .env.production restart app
+    compose restart app
     echo -e "${GREEN}✅ Production application restarted${NC}"
     ;;
     
   logs)
-    docker-compose -f docker-compose.prod.yml --env-file .env.production logs -f "$2"
+    compose logs -f "${2:-}"
     ;;
     
   status)
-    docker-compose -f docker-compose.prod.yml --env-file .env.production ps
+    compose ps
     ;;
     
   health)
     echo "Checking production health..."
-    docker-compose -f docker-compose.prod.yml --env-file .env.production exec app node -e "require('http').get('http://localhost:3000/api/health', (r) => {console.log('Status:', r.statusCode)})"
+    compose exec app node -e "require('http').get('http://localhost:3000/api/health', (r) => {console.log('Status:', r.statusCode)})"
     ;;
     
   backup-now)
-    echo -e "${GREEN}Creating manual backup...${NC}"
-    docker-compose -f docker-compose.prod.yml --env-file .env.production exec postgres pg_dump -U postgres -d project_management_prod > "backup_$(date +%Y%m%d_%H%M%S).sql"
-    echo -e "${GREEN}✅ Backup created${NC}"
+    bash "$ROOT/scripts/db-manage.sh" backup
     ;;
     
   rebuild)
     warning_prompt
     echo -e "${YELLOW}Rebuilding production containers...${NC}"
-    docker-compose -f docker-compose.prod.yml --env-file .env.production build --no-cache
+    compose build --no-cache
     echo -e "${GREEN}✅ Production containers rebuilt${NC}"
     echo -e "${YELLOW}Run 'bash scripts/docker-prod.sh start' to start the environment${NC}"
     ;;
@@ -112,4 +125,3 @@ case "$1" in
     exit 1
     ;;
 esac
-

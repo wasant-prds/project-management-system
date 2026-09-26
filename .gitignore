@@ -17,13 +17,15 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files
-.env*
+.env
 
 # secrets
 /secrets/*.txt
 
 # database
 /database/seeds/master/*
+!/database/seeds/master/WorkItem/
+/database/seeds/master/WorkItem/*
 /database/postgres/data/*
 !/database/postgres/data/.gitkeep
 /database/backups/

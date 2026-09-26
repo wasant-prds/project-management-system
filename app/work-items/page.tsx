@@ -23,7 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { ArrowUpDown, Download, FileText, Plus, Search } from 'lucide-react'
+import { ArrowUpDown, Download, FileText, Plus, Search, Upload } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { DEFAULT_ASSIGNEE_ID, type WorkItemKindValue } from '@/lib/work-items'
 import { WorkItemViewDialog } from '@/components/page/work-items/work-item-view-dialog'
@@ -196,6 +196,8 @@ export default function WorkItemsPage() {
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create')
   const [formValues, setFormValues] = useState<WorkItemFormValues>(emptyWorkItemForm())
   const [viewItem, setViewItem] = useState<WorkItem | null>(null)
+  const [isImporting, setIsImporting] = useState(false)
+  const importInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
     try {
@@ -322,6 +324,54 @@ export default function WorkItemsPage() {
     )
   }
 
+  const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    let rows: unknown
+    try {
+      rows = JSON.parse(await file.text())
+    } catch {
+      toast({ title: 'Invalid JSON', description: 'Choose a valid JSON file.', variant: 'destructive' })
+      return
+    }
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      toast({
+        title: 'Invalid file',
+        description: 'The JSON file must contain a non-empty array of work items.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsImporting(true)
+    try {
+      const response = await fetch('/api/work-items/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rows),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to import work items')
+
+      toast({
+        title: 'Import complete',
+        description: `${data.imported} work items imported from ${file.name}.`,
+      })
+      await load()
+    } catch (error) {
+      toast({
+        title: 'Import failed',
+        description: error instanceof Error ? error.message : 'Failed to import work items',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -337,6 +387,23 @@ export default function WorkItemsPage() {
                 </p>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept=".json,application/json"
+                  className="hidden"
+                  onChange={handleImportFile}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => importInputRef.current?.click()}
+                  disabled={isImporting}
+                  aria-label="Import work items from JSON"
+                >
+                  <Upload className="h-4 w-4" />
+                  <span className={ACTION_LABEL_CLASS}>{isImporting ? 'Importing…' : 'Import JSON'}</span>
+                </Button>
                 <Button
                   variant="info"
                   onClick={exportCsv}

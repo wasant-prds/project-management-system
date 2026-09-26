@@ -90,12 +90,6 @@ services:
         condition: service_completed_successfully
     networks: [pms-network]
     logging: *logging
-    deploy:
-      resources:
-        limits: { cpus: "0.30", memory: 384M }
-        reservations: { cpus: "0.10", memory: 128M }
-    environment:
-      NODE_OPTIONS: --max-old-space-size=256
 
 volumes:
   postgres_data:

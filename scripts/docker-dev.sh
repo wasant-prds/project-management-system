@@ -3,6 +3,28 @@
 
 set -e
 
+ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
+DB_ROOT="$ROOT"
+. "$ROOT/scripts/db-env.sh"
+
+if [ ! -f "$ROOT/.env" ]; then
+  echo "Error: root .env file not found. Copy .env.example to .env and set APP_ENV." >&2
+  exit 1
+fi
+DB_SITE="$(db_resolve_env)"
+case "$DB_SITE" in
+  local|dev) ;;
+  *) echo "This is the development helper; set APP_ENV=local or APP_ENV=dev in .env." >&2; exit 1 ;;
+esac
+APP_ENV="$DB_SITE"
+export APP_ENV
+COMPOSE_FILE="$(db_compose_file "$DB_SITE")"
+cd "$ROOT"
+
+compose() {
+  db_compose --env-file "$ROOT/.env" -f "$COMPOSE_FILE" "$@"
+}
+
 echo "🚀 Starting Development Environment..."
 echo ""
 
@@ -14,7 +36,7 @@ NC='\033[0m' # No Color
 case "$1" in
   start)
     echo -e "${GREEN}Starting all development services...${NC}"
-    docker-compose up -d
+    compose up -d
     echo ""
     echo -e "${GREEN}✅ Development environment is running!${NC}"
     echo ""
@@ -26,7 +48,7 @@ case "$1" in
     
   start-studio)
     echo -e "${GREEN}Starting development with Prisma Studio...${NC}"
-    docker-compose --profile studio up -d
+    compose --profile studio up -d
     echo ""
     echo -e "${GREEN}✅ Development environment with Prisma Studio is running!${NC}"
     echo ""
@@ -37,47 +59,47 @@ case "$1" in
     
   stop)
     echo -e "${YELLOW}Stopping development services...${NC}"
-    docker-compose down
+    compose down
     echo -e "${GREEN}✅ Development environment stopped${NC}"
     ;;
     
   restart)
     echo -e "${YELLOW}Restarting development services...${NC}"
-    docker-compose restart
+    compose restart
     echo -e "${GREEN}✅ Development environment restarted${NC}"
     ;;
     
   logs)
-    docker-compose logs -f
+    compose logs -f
     ;;
     
   logs-app)
-    docker-compose logs -f app
+    compose logs -f app
     ;;
     
   logs-db)
-    docker-compose logs -f postgres
+    compose logs -f postgres
     ;;
     
   shell)
-    docker-compose exec app sh
+    compose exec app sh
     ;;
     
   db-shell)
-    docker-compose exec postgres psql -U postgres -d project_management_dev
+    compose exec postgres psql -U postgres -d project_management_dev
     ;;
     
   clean)
     echo -e "${YELLOW}Cleaning development environment...${NC}"
-    docker-compose down -v
+    compose down -v
     echo -e "${GREEN}✅ Development environment cleaned (volumes removed)${NC}"
     ;;
     
   rebuild)
     echo -e "${YELLOW}Rebuilding development containers...${NC}"
-    docker-compose down
-    docker-compose build --no-cache
-    docker-compose up -d
+    compose down
+    compose build --no-cache
+    compose up -d
     echo -e "${GREEN}✅ Development environment rebuilt${NC}"
     ;;
     
@@ -99,4 +121,3 @@ case "$1" in
     exit 1
     ;;
 esac
-

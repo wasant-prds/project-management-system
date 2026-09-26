@@ -3,6 +3,28 @@
 
 set -e
 
+ROOT="$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)"
+DB_ROOT="$ROOT"
+. "$ROOT/scripts/db-env.sh"
+
+if [ ! -f "$ROOT/.env" ]; then
+    echo "Error: root .env file not found. Copy .env.example to .env and set APP_ENV=uat." >&2
+    exit 1
+fi
+DB_SITE="$(db_resolve_env)"
+if [ "$DB_SITE" != "uat" ]; then
+    echo "This is the UAT helper; set APP_ENV=uat in the root .env file." >&2
+    exit 1
+fi
+APP_ENV="$DB_SITE"
+export APP_ENV
+COMPOSE_FILE="$(db_compose_file "$DB_SITE")"
+cd "$ROOT"
+
+compose() {
+    db_compose --env-file "$ROOT/.env" -f "$COMPOSE_FILE" "$@"
+}
+
 echo "🧪 UAT Environment Manager..."
 echo ""
 
@@ -11,17 +33,10 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-# Check if .env.uat exists
-if [ ! -f .env.uat ]; then
-    echo -e "${RED}❌ Error: .env.uat file not found${NC}"
-    echo "Please create .env.uat from env.uat.example"
-    exit 1
-fi
-
 case "$1" in
   start)
     echo -e "${GREEN}Starting UAT environment...${NC}"
-    docker-compose -f docker-compose.uat.yml --env-file .env.uat up -d
+    compose up -d
     echo ""
     echo -e "${GREEN}✅ UAT environment is running!${NC}"
     echo ""
@@ -31,47 +46,47 @@ case "$1" in
     
   init)
     echo -e "${GREEN}Initializing UAT database...${NC}"
-    docker-compose -f docker-compose.uat.yml --env-file .env.uat up migrations
+    compose up migrations
     echo -e "${GREEN}✅ UAT database initialized${NC}"
     ;;
     
   stop)
     echo -e "${YELLOW}Stopping UAT services...${NC}"
-    docker-compose -f docker-compose.uat.yml --env-file .env.uat down
+    compose down
     echo -e "${GREEN}✅ UAT environment stopped${NC}"
     ;;
     
   restart)
     echo -e "${YELLOW}Restarting UAT services...${NC}"
-    docker-compose -f docker-compose.uat.yml --env-file .env.uat restart
+    compose restart
     echo -e "${GREEN}✅ UAT environment restarted${NC}"
     ;;
     
   logs)
-    docker-compose -f docker-compose.uat.yml --env-file .env.uat logs -f
+    compose logs -f
     ;;
     
   logs-app)
-    docker-compose -f docker-compose.uat.yml --env-file .env.uat logs -f app
+    compose logs -f app
     ;;
     
   status)
-    docker-compose -f docker-compose.uat.yml --env-file .env.uat ps
+    compose ps
     ;;
     
   shell)
-    docker-compose -f docker-compose.uat.yml --env-file .env.uat exec app sh
+    compose exec app sh
     ;;
     
   db-shell)
-    docker-compose -f docker-compose.uat.yml --env-file .env.uat exec postgres psql -U postgres -d project_management_uat
+    compose exec postgres psql -U postgres -d project_management_uat
     ;;
     
   rebuild)
     echo -e "${YELLOW}Rebuilding UAT containers...${NC}"
-    docker-compose -f docker-compose.uat.yml --env-file .env.uat down
-    docker-compose -f docker-compose.uat.yml --env-file .env.uat build --no-cache
-    docker-compose -f docker-compose.uat.yml --env-file .env.uat up -d
+    compose down
+    compose build --no-cache
+    compose up -d
     echo -e "${GREEN}✅ UAT environment rebuilt${NC}"
     ;;
     
@@ -92,4 +107,3 @@ case "$1" in
     exit 1
     ;;
 esac
-

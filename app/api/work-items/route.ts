@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import {
-  DEFAULT_ASSIGNEE_ID,
   isWorkItemKind,
   isWorkItemPriority,
-  isWorkItemRole,
   parseWorkItemStatus,
-  parseWorkItemTypes,
   serializeWorkItemStatus,
   shouldStampSubmittedAt,
 } from '@/lib/work-items'
+import { parseWorkItemInput } from '@/lib/work-item-input'
 import type { Prisma, WorkItemStatus } from '@prisma/client'
 
 const workItemInclude = {
@@ -92,62 +90,17 @@ export async function GET(request: Request) {
 // POST /api/work-items
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const {
-      title,
-      description,
-      kind,
-      priority,
-      role,
-      status: statusParam,
-      types,
-      workDate,
-      dueDate,
-      projectId,
-      assigneeId,
-    } = body
-
-    if (!title || !projectId) {
-      return NextResponse.json(
-        { error: 'Title and project ID are required' },
-        { status: 400 },
-      )
+    const result = parseWorkItemInput(await request.json())
+    if ('error' in result) {
+      return NextResponse.json({ error: result.error }, { status: 400 })
     }
 
-    if (!isWorkItemKind(kind)) {
-      return NextResponse.json(
-        { error: 'kind must be Incident, Issue, or Task' },
-        { status: 400 },
-      )
-    }
-
-    const status = statusParam === undefined || statusParam === null
-      ? 'backlog'
-      : parseWorkItemStatus(statusParam)
-    if (!status) {
-      return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
-    }
-
-    const parsedPriority = priority ?? 'none'
-    if (!isWorkItemPriority(parsedPriority)) {
-      return NextResponse.json({ error: 'Invalid priority' }, { status: 400 })
-    }
-
-    let parsedRole = role === undefined || role === null || role === '' ? null : role
-    if (parsedRole !== null && !isWorkItemRole(parsedRole)) {
-      return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
-    }
-
-    const parsedTypes = parseWorkItemTypes(types)
-    if (parsedTypes === null) {
-      return NextResponse.json({ error: 'Invalid types' }, { status: 400 })
-    }
-
-    const resolvedAssigneeId = assigneeId || DEFAULT_ASSIGNEE_ID
+    const { id, ...input } = result.data
+    void id
 
     const [project, assignee] = await Promise.all([
-      prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }),
-      prisma.user.findUnique({ where: { id: resolvedAssigneeId }, select: { id: true } }),
+      prisma.project.findUnique({ where: { id: input.projectId }, select: { id: true } }),
+      prisma.user.findUnique({ where: { id: input.assigneeId }, select: { id: true } }),
     ])
 
     if (!project) {
@@ -159,18 +112,8 @@ export async function POST(request: Request) {
 
     const workItem = await prisma.workItem.create({
       data: {
-        title,
-        description: description || null,
-        kind,
-        priority: parsedPriority,
-        role: parsedRole,
-        status,
-        types: parsedTypes,
-        workDate: workDate ? new Date(workDate) : null,
-        dueDate: dueDate ? new Date(dueDate) : null,
-        submittedAt: shouldStampSubmittedAt(status) ? new Date() : null,
-        projectId,
-        assigneeId: resolvedAssigneeId,
+        ...input,
+        submittedAt: shouldStampSubmittedAt(input.status) ? new Date() : null,
       },
       include: workItemInclude,
     })

@@ -4,8 +4,7 @@ include:
   - docker-compose.database.yml
 
 services:
-  # Dev-only: skip fsync (do not use in UAT/prod). Memory matches the
-  # shared 1 vCPU / 2 GB host budget (two projects).
+  # Dev-only: skip fsync (do not use in UAT/prod).
   postgres:
     command: >
       postgres
@@ -33,7 +32,6 @@ services:
       NEXT_PUBLIC_ENV: development
       NEXTAUTH_SECRET: dev-secret-change-in-production
       NEXTAUTH_URL: http://localhost:3000
-      NODE_OPTIONS: --max-old-space-size=256
     ports:
       - "3777:3000"
     volumes:

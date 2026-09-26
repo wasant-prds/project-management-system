@@ -1,6 +1,6 @@
 # Docker process commands
 
-Run these from the repository root. They replace the former `package.json` scripts (`docker:dev:*`, `docker:uat:*`, `docker:prod:*`).
+เรียกใช้จาก root ของ repository โดยใช้แทน scripts เดิมใน `package.json` (`docker:dev:*`, `docker:uat:*`, `docker:prod:*`) ทุก site ใช้ `.env` ที่ root ร่วมกัน ให้ตั้ง `APP_ENV=local` หรือ `APP_ENV=dev` สำหรับ development, `APP_ENV=uat` สำหรับ UAT และ `APP_ENV=prod` สำหรับ production ก่อนเรียก helper ของ site นั้น
 
 ## Host sizing (1 vCPU / 2 GB / 50 GB, two projects)
 
@@ -20,7 +20,7 @@ bash scripts/docker-uat.sh <command>
 bash scripts/docker-prod.sh <command>
 ```
 
-UAT requires `.env.uat`. Production requires `.env.production`. Production start/stop/init/restart/rebuild prompt for confirmation.
+คัดลอก `.env.example` เป็น `.env` แล้วตั้งค่าตาม site ที่ใช้งาน UAT helper กำหนดให้ใช้ `APP_ENV=uat` และ production helper กำหนดให้ใช้ `APP_ENV=prod` ไม่ต้องสร้าง `.env.uat` หรือ `.env.production` แยกต่างหาก คำสั่ง start/stop/init/restart/rebuild ของ production จะถามยืนยันก่อนทำงาน
 
 ## Development
 
