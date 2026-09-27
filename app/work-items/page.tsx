@@ -185,8 +185,10 @@ function WorkItemSortMenu({
 export default function WorkItemsPage() {
   const [workItems, setWorkItems] = useState<WorkItem[]>([])
   const [projects, setProjects] = useState<ProjectOption[]>([])
+  const [availableYears, setAvailableYears] = useState<string[]>([])
   const [users, setUsers] = useState<Array<{ id: string; name: string }>>([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
   const [yearFilter, setYearFilter] = useState(() => String(new Date().getFullYear()))
   const [monthFilter, setMonthFilter] = useState('all')
   const [projectFilter, setProjectFilter] = useState('all')
@@ -198,45 +200,130 @@ export default function WorkItemsPage() {
   const [viewItem, setViewItem] = useState<WorkItem | null>(null)
   const [isImporting, setIsImporting] = useState(false)
   const importInputRef = useRef<HTMLInputElement>(null)
+  const yearOptionsLoadedRef = useRef(false)
+  const projectsLoadedRef = useRef(false)
+  const projectsRequestRef = useRef<Promise<ProjectOption[]> | null>(null)
+  const usersLoadedRef = useRef(false)
+  const usersRequestRef = useRef<Promise<Array<{ id: string; name: string }>> | null>(null)
+  const loadGenerationRef = useRef(0)
+  const loadControllerRef = useRef<AbortController | null>(null)
+  const [loadedFilterKey, setLoadedFilterKey] = useState<string | null>(null)
+  const [loadingFilterKey, setLoadingFilterKey] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 250)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
   const load = useCallback(async () => {
+    const generation = ++loadGenerationRef.current
+    const filterKey = [yearFilter, monthFilter, projectFilter, debouncedSearchQuery.trim()].join('|')
+    loadControllerRef.current?.abort()
+    const controller = new AbortController()
+    loadControllerRef.current = controller
+    setLoadingFilterKey(filterKey)
+    setLoadedFilterKey(null)
+    setWorkItems([])
+    setLoadError(null)
+
+    const params = new URLSearchParams({ year: yearFilter, month: monthFilter })
+    if (projectFilter !== 'all') params.set('projectId', projectFilter)
+    if (debouncedSearchQuery.trim()) params.set('search', debouncedSearchQuery.trim())
+    if (!yearOptionsLoadedRef.current) params.set('includeYears', 'true')
+
     try {
-      const [itemsRes, projectsRes, usersRes] = await Promise.all([
-        fetch('/api/work-items'),
-        fetch('/api/projects'),
-        fetch('/api/users'),
-      ])
-      const itemsData = await itemsRes.json()
-      const projectsData = await projectsRes.json()
-      const usersData = await usersRes.json()
-      if (itemsRes.ok) setWorkItems(itemsData.workItems || [])
-      if (projectsRes.ok) setProjects(projectsData.projects || [])
-      if (usersRes.ok) setUsers(usersData.users || [])
+      const response = await fetch(`/api/work-items?${params.toString()}`, { signal: controller.signal })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to load work items')
+      if (generation !== loadGenerationRef.current) return
+
+      setWorkItems(data.workItems || [])
+      if (Array.isArray(data.years)) {
+        setAvailableYears(data.years)
+        yearOptionsLoadedRef.current = true
+      }
+      setLoadedFilterKey(filterKey)
     } catch (error) {
+      if (controller.signal.aborted || generation !== loadGenerationRef.current) return
       console.error(error)
+      setLoadError('Failed to load work items. Please try again.')
       toast({
         title: 'Error',
         description: 'Failed to load work items',
         variant: 'destructive',
       })
+    } finally {
+      if (generation === loadGenerationRef.current) setLoadingFilterKey(null)
+    }
+  }, [yearFilter, monthFilter, projectFilter, debouncedSearchQuery])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const ensureProjectsLoaded = useCallback(async () => {
+    if (projectsLoadedRef.current) return true
+
+    try {
+      if (!projectsRequestRef.current) {
+        projectsRequestRef.current = fetch('/api/projects?options=work-items').then(async (response) => {
+          const data = await response.json()
+          if (!response.ok) throw new Error(data.error || 'Failed to load projects')
+          return (data.projects || []) as ProjectOption[]
+        })
+      }
+      const nextProjects = await projectsRequestRef.current
+      setProjects(nextProjects)
+      projectsLoadedRef.current = true
+      return true
+    } catch (error) {
+      console.error(error)
+      toast({ title: 'Error', description: 'Failed to load projects', variant: 'destructive' })
+      return false
+    } finally {
+      projectsRequestRef.current = null
     }
   }, [])
 
   useEffect(() => {
-    load()
-  }, [load])
+    void ensureProjectsLoaded()
+  }, [ensureProjectsLoaded])
+
+  const ensureUsersLoaded = useCallback(async () => {
+    if (usersLoadedRef.current) return true
+
+    try {
+      if (!usersRequestRef.current) {
+        usersRequestRef.current = fetch('/api/users').then(async (response) => {
+          const data = await response.json()
+          if (!response.ok) throw new Error(data.error || 'Failed to load users')
+          return (data.users || []).map((user: { id: string; name: string }) => ({
+            id: user.id,
+            name: user.name,
+          }))
+        })
+      }
+      const nextUsers = await usersRequestRef.current
+      setUsers(nextUsers)
+      usersLoadedRef.current = true
+      return true
+    } catch (error) {
+      console.error(error)
+      toast({ title: 'Error', description: 'Failed to load users', variant: 'destructive' })
+      return false
+    } finally {
+      usersRequestRef.current = null
+    }
+  }, [])
 
   const yearOptions = useMemo(() => {
-    const years = new Set<string>([String(new Date().getFullYear())])
-    for (const item of workItems) {
-      const parts = workItemDateParts(item)
-      if (parts) years.add(parts.year)
-    }
+    const years = new Set<string>([String(new Date().getFullYear()), ...availableYears])
     return [...years].sort((left, right) => Number(right) - Number(left))
-  }, [workItems])
+  }, [availableYears])
 
   const filtered = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase()
+    const query = debouncedSearchQuery.trim().toLowerCase()
     return workItems.filter((item) => {
       if (projectFilter !== 'all' && item.project.id !== projectFilter) return false
       if (!matchesYearMonth(item, yearFilter, monthFilter)) return false
@@ -245,7 +332,7 @@ export default function WorkItemsPage() {
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query))
     })
-  }, [workItems, searchQuery, yearFilter, monthFilter, projectFilter])
+  }, [workItems, debouncedSearchQuery, yearFilter, monthFilter, projectFilter])
 
   const visibleGroups = useMemo(() => {
     const scoped = kindTab === 'all' ? filtered : filtered.filter((item) => item.kind === kindTab)
@@ -270,7 +357,9 @@ export default function WorkItemsPage() {
     overdue: filtered.filter((item) => urgencySubgroup(item) === 'overdue').length,
   }
 
-  const openCreate = () => {
+  const openCreate = async () => {
+    const [usersReady, projectsReady] = await Promise.all([ensureUsersLoaded(), ensureProjectsLoaded()])
+    if (!usersReady || !projectsReady) return
     setViewItem(null)
     setDialogMode('create')
     setFormValues(emptyWorkItemForm())
@@ -281,7 +370,9 @@ export default function WorkItemsPage() {
     setViewItem(item)
   }
 
-  const openEdit = (item: WorkItem) => {
+  const openEdit = async (item: WorkItem) => {
+    const [usersReady, projectsReady] = await Promise.all([ensureUsersLoaded(), ensureProjectsLoaded()])
+    if (!usersReady || !projectsReady) return
     setViewItem(null)
     setDialogMode('edit')
     setFormValues(toFormValues(item))
@@ -371,6 +462,10 @@ export default function WorkItemsPage() {
       setIsImporting(false)
     }
   }
+
+  const filterKey = [yearFilter, monthFilter, projectFilter, debouncedSearchQuery.trim()].join('|')
+  const resultsAreCurrent = loadedFilterKey === filterKey
+  const isListLoading = loadingFilterKey === filterKey || (!resultsAreCurrent && !loadError)
 
   return (
     <SidebarProvider>
@@ -526,13 +621,23 @@ export default function WorkItemsPage() {
                 </TabsList>
               </div>
               <TabsContent value={kindTab}>
-                <WorkItemGroupedList
-                  groups={visibleGroups}
-                  resetKey={expandResetKey}
-                  onView={openView}
-                  onEdit={openEdit}
-                  onDelete={handleDelete}
-                />
+                {isListLoading ? (
+                  <div className="rounded-lg border bg-card py-12 text-center text-muted-foreground" role="status">
+                    Loading work items…
+                  </div>
+                ) : loadError && !resultsAreCurrent ? (
+                  <div className="rounded-lg border bg-card py-12 text-center text-destructive" role="alert">
+                    {loadError}
+                  </div>
+                ) : (
+                  <WorkItemGroupedList
+                    groups={visibleGroups}
+                    resetKey={expandResetKey}
+                    onView={openView}
+                    onEdit={openEdit}
+                    onDelete={handleDelete}
+                  />
+                )}
               </TabsContent>
             </Tabs>
           </div>

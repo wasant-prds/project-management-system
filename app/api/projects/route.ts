@@ -7,6 +7,21 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
 
+    if (searchParams.get('options') === 'work-items') {
+      const projects = await prisma.project.findMany({
+        select: {
+          id: true,
+          name: true,
+          colorProject: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      })
+
+      return NextResponse.json({ projects }, { status: 200 })
+    }
+
     const where = status ? { status } : {}
 
     const projects = await prisma.project.findMany({

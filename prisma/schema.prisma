@@ -156,6 +156,9 @@ model WorkItem {
   @@index([kind])
   @@index([status])
   @@index([priority])
+  @@index([workDate])
+  @@index([dueDate])
+  @@index([createdAt])
   @@map("work_items")
 }
 
