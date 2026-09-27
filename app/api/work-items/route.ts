@@ -160,7 +160,7 @@ export async function GET(request: Request) {
       { status: 200 },
     )
   } catch (error) {
-    console.error('Error fetching work items:', error)
+    console.error('Error fetching work items:')
     return NextResponse.json(
       { error: 'Failed to fetch work items' },
       { status: 500 },
@@ -204,7 +204,7 @@ export async function POST(request: Request) {
       { status: 201 },
     )
   } catch (error) {
-    console.error('Error creating work item:', error)
+    console.error('Error creating work item:')
     return NextResponse.json(
       { error: 'Failed to create work item' },
       { status: 500 },

@@ -69,7 +69,7 @@ export async function GET(
       },
     }, { status: 200 })
   } catch (error) {
-    console.error('Error fetching project:', error)
+    console.error('Error fetching project:')
     return NextResponse.json(
       { error: 'Failed to fetch project' },
       { status: 500 }
@@ -123,7 +123,7 @@ export async function PATCH(
 
     return NextResponse.json({ project }, { status: 200 })
   } catch (error) {
-    console.error('Error updating project:', error)
+    console.error('Error updating project:')
     return NextResponse.json(
       { error: 'Failed to update project' },
       { status: 500 }
@@ -147,7 +147,7 @@ export async function DELETE(
       { status: 200 }
     )
   } catch (error) {
-    console.error('Error deleting project:', error)
+    console.error('Error deleting project:')
     return NextResponse.json(
       { error: 'Failed to delete project' },
       { status: 500 }

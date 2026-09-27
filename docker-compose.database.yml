@@ -11,14 +11,23 @@ x-logging: &logging
     max-size: "10m"
     max-file: "3"
 
+x-database-env: &database-env
+  POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in root .env}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in root .env}
+  POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in root .env}
+  POSTGRES_HOST: postgres
+  POSTGRES_PORT: "5432"
+  TZ: Asia/Bangkok
+  PGTZ: Asia/Bangkok
+  PGOPTIONS: -c timezone=Asia/Bangkok
+
 services:
   postgres:
     image: postgres:16-alpine
     container_name: pms-postgres-${APP_ENV:-dev}
     restart: ${POSTGRES_RESTART:-unless-stopped}
-    secrets: [postgres_user, postgres_password, postgres_db]
     ports:
-      - "${POSTGRES_PORT:-5437}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5437}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-postgres.sh:/init-postgres.sh:ro
@@ -30,10 +39,11 @@ services:
         limits: { cpus: "0.20", memory: 384M }
         reservations: { cpus: "0.05", memory: 96M }
     environment:
+      <<: *database-env
       POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C
       POSTGRES_HOST_AUTH_METHOD: scram-sha-256
     healthcheck:
-      test: pg_isready -U $$(cat /run/secrets/postgres_user) -d $$(cat /run/secrets/postgres_db)
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -44,6 +54,7 @@ services:
     entrypoint: ["sh", "/init-postgres.sh"]
     command: >
       postgres
+      -c timezone=Asia/Bangkok
       -c max_connections=20
       -c shared_buffers=64MB
       -c effective_cache_size=192MB
@@ -61,7 +72,6 @@ services:
       context: .
       target: migrate
     container_name: pms-migrations-${APP_ENV:-dev}
-    secrets: [postgres_user, postgres_password, postgres_db]
     depends_on:
       postgres:
         condition: service_healthy
@@ -72,10 +82,10 @@ services:
         limits: { cpus: "0.40", memory: 256M }
         reservations: { cpus: "0.05", memory: 64M }
     environment:
+      <<: *database-env
       SEED_PATH: ${SEED_PATH:-database/seeds/master}
       SEEDS_ROOT: /app
-      RUN_SEED: ${RUN_SEED:-true}
-      MIGRATION_REQUIRE_SECRETS: "true"
+      RUN_SEED: ${RUN_SEED:-false}
       MIGRATION_MAX_ATTEMPTS: ${MIGRATION_MAX_ATTEMPTS:-3}
       NODE_OPTIONS: --max-old-space-size=192
     volumes:
@@ -84,7 +94,14 @@ services:
       - ./scripts:/app/scripts:ro
 
   app:
-    secrets: [postgres_user, postgres_password, postgres_db]
+    environment:
+      RUNTIME_DOCKER: "true"
+      <<: *database-env
+      APP_ORIGIN: ${APP_ORIGIN:?Set APP_ORIGIN in root .env}
+      OWNER_GATE_USERNAME: ${OWNER_GATE_USERNAME:?Set OWNER_GATE_USERNAME in root .env}
+      OWNER_GATE_PASSWORD: ${OWNER_GATE_PASSWORD:?Set OWNER_GATE_PASSWORD in root .env}
+      GITLAB_BASE_URL: ${GITLAB_BASE_URL:-}
+      GITLAB_TOKEN: ${GITLAB_TOKEN:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -111,11 +128,3 @@ volumes:
 networks:
   pms-network:
     driver: bridge
-
-secrets:
-  postgres_user:
-    file: ./secrets/postgres_user.txt
-  postgres_password:
-    file: ./secrets/postgres_password.txt
-  postgres_db:
-    file: ./secrets/postgres_db.txt

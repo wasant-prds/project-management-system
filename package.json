@@ -5,15 +5,21 @@
   "packageManager": "pnpm@10.34.5",
   "scripts": {
     "build": "next build",
-    "dev": "next dev",
+    "dev": "node scripts/runtime-launch.mjs --dev",
     "lint": "next lint",
     "test": "node tests/run.mjs",
+    "test:seed": "node tests/run.mjs seed",
+    "test:seed-docker": "node tests/run.mjs seed-docker",
     "test:contracts": "node tests/run.mjs contracts",
     "test:api-contracts": "node tests/run.mjs api-contracts",
     "test:migration-contracts": "node tests/run.mjs migration-contracts",
     "test:gitlab-contracts": "node tests/run.mjs gitlab-contracts",
-    "start": "next start",
-    "postinstall": "prisma generate"
+    "start": "node scripts/runtime-launch.mjs --start",
+    "postinstall": "prisma generate",
+    "test:runtime-security": "node tests/run.mjs runtime-security",
+    "runtime:check": "node scripts/runtime-launch.mjs --check",
+    "test:runtime-docker": "node tests/run.mjs runtime-docker",
+    "test:runtime-container": "node tests/run.mjs runtime-container"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -43,7 +43,7 @@ export async function GET(request: Request) {
       { status: 200 },
     )
   } catch (error) {
-    console.error('Error fetching work logs:', error)
+    console.error('Error fetching work logs:')
     return NextResponse.json({ error: 'Failed to fetch work logs' }, { status: 500 })
   }
 }
@@ -84,8 +84,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ workLog: serializeWorkLog(workLog) }, { status: 201 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to create work log'
-    console.error('Error creating work log:', error)
-    const status = message.includes('Work item') || message.includes('project is required') ? 400 : 500
-    return NextResponse.json({ error: message }, { status })
+    console.error('Error creating work log:')
+    const status = ['Work item does not belong to the selected project', 'A project is required before assigning a work item'].includes(message) ? 400 : 500
+    return NextResponse.json({ error: status === 400 ? message : 'Failed to save Daily Work' }, { status })
   }
 }

@@ -162,7 +162,7 @@ export async function GET(
       { status: 200 },
     )
   } catch (error) {
-    console.error('Error fetching work item:', error)
+    console.error('Error fetching work item:')
     return NextResponse.json(
       { error: 'Failed to fetch work item' },
       { status: 500 },
@@ -203,7 +203,7 @@ export async function PATCH(
       { status: 200 },
     )
   } catch (error) {
-    console.error('Error updating work item:', error)
+    console.error('Error updating work item:')
     return NextResponse.json(
       { error: 'Failed to update work item' },
       { status: 500 },
@@ -224,7 +224,7 @@ export async function DELETE(
       { status: 200 },
     )
   } catch (error) {
-    console.error('Error deleting work item:', error)
+    console.error('Error deleting work item:')
     return NextResponse.json(
       { error: 'Failed to delete work item' },
       { status: 500 },

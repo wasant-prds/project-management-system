@@ -4,12 +4,20 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const testRoot = resolve(dirname(fileURLToPath(import.meta.url)));
 const suites = {
+  seed: { files: [join(testRoot, "seed", "seed.test.mjs")] },
+  "seed-docker": { files: [join(testRoot, "seed", "docker.test.mjs")] },
+  "runtime-docker": { files: [join(testRoot, "runtime", "docker.test.mjs")] },
+  "runtime-security": { files: [join(testRoot, "runtime", "security.test.mjs"), join(testRoot, "runtime", "launcher.test.mjs")] },
+  "runtime-container": { files: [join(testRoot, "runtime", "container.test.mjs")] },
   contracts: { directory: join(testRoot, "contracts") },
   "api-contracts": { files: [join(testRoot, "contracts", "menu-api-validation.test.mjs")] },
   "migration-contracts": { files: [join(testRoot, "contracts", "customer-project-migration.test.mjs")] },
   "gitlab-contracts": { files: [join(testRoot, "contracts", "gitlab-issue-import.test.mjs")] },
 };
 const requestedSuite = process.argv[2];
+if (requestedSuite === "runtime-container") process.env.PMS_RUN_CONTAINER_TESTS = "1";
+if (requestedSuite === "runtime-docker") process.env.PMS_RUN_DOCKER_TESTS = "1";
+if (requestedSuite === "seed-docker") process.env.PMS_RUN_SEED_DOCKER_TESTS = "1";
 if (requestedSuite && !Object.hasOwn(suites, requestedSuite)) {
   throw new Error(`Unknown test suite: ${requestedSuite}. Available suites: ${Object.keys(suites).join(", ")}`);
 }

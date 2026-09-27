@@ -38,13 +38,13 @@ Database host port defaults to 5437 ใน shared compose; helper/env settings �
 
 - Docker Engine/Desktop และ Docker Compose plugin
 - `.env` ที่ root ตั้ง `APP_ENV` ให้ตรง environment (`dev`/`local`, `uat`, `prod`) ตาม scripts
-- สร้าง secret files ตาม [secrets/README.md](../secrets/README.md): `postgres_user`, `postgres_password`, `postgres_db`; ใส่ค่าจริงเฉพาะในเครื่อง/secret store ห้าม commit
-- ตั้ง `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `APP_PORT` และ DB/backup overrides ตาม environment; secret name ยังอยู่ใน config แม้ repository ปัจจุบันยังไม่มี auth feature
-- เมื่อเปิด GitLab sync ให้ owner ยืนยัน instance/base path, Project และ label mappings กับ first-sync policy ตาม [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md); กำหนด base URL จาก server config/allowlist และ access token ใน secret store/environment ของ server ตาม least privilege; ห้ามใช้ `NEXT_PUBLIC_*`, commit secret หรือพิมพ์ token ลง log. ชื่อ variable จริงกำหนดพร้อม connector implementation.
+- ตั้ง `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `OWNER_GATE_USERNAME`, `OWNER_GATE_PASSWORD` และ GitLab configuration ใน root `.env` ตาม [Runtime Security](./RUNTIME_SECURITY.md); ไม่มี secret files/mounts แล้ว และห้าม commit credentials
+- ตั้ง `APP_ORIGIN`, `APP_PORT` และ DB/backup overrides ตาม environment; Compose ไม่ใช้ NextAuth placeholder secret แล้ว
+- เมื่อเปิด GitLab sync ให้ owner ยืนยัน instance/base path, Project และ label mappings กับ first-sync policy ตาม [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md); กำหนด base URL จาก server config/allowlist และ access token ใน secret store/environment ของ server ตาม least privilege; ห้ามใช้ `NEXT_PUBLIC_*`, commit secret หรือพิมพ์ token ลง log. ชื่อ configuration ปัจจุบันคือ `GITLAB_BASE_URL` และ `GITLAB_TOKEN` ใน root `.env` ตาม Runtime Security.
 - `POSTGRES_DATA_DIR` เลือก host path สำหรับ DB volume; default จาก shared compose คือ `./database/postgres/data`
 - `SEED_PATH` default `database/seeds/master`; `RUN_SEED` ควบคุม seed ใน migrations service
 
-Compose สร้าง `DATABASE_URL` ใน entrypoint จาก Docker secrets. อย่าใส่ secret จริงใน docs, command history, source control หรือ support request. `.env.example` เป็น template ที่มี placeholder และไม่ใช่ค่าใช้งานจริง
+Compose สร้าง `DATABASE_URL` ใน entrypoint จาก `POSTGRES_*` ที่ Compose inject จาก root `.env`. อย่าใส่ secret จริงใน docs, command history, source control หรือ support request. `.env.example` เป็น template ที่มี placeholder และไม่ใช่ค่าใช้งานจริง
 
 ## 4. Build และ start
 
@@ -54,7 +54,7 @@ Compose สร้าง `DATABASE_URL` ใน entrypoint จาก Docker secret
 docker compose up -d --build
 ```
 
-App: `http://localhost:3777`; health: `http://localhost:3777/api/health`. Dev entrypoint generate Prisma Client แล้วเรียก `pnpm dev`; shared migrations service ทำ schema sync และ seed ตาม `RUN_SEED`.
+App: `http://localhost:3777`; health: `http://localhost:3777/api/health`. Dev entrypoint generate Prisma Client แล้วเรียก `pnpm dev` ผ่าน owner gate; shared migrations service ทำ schema sync และ seed ตาม `RUN_SEED`.
 
 ### UAT
 
@@ -82,7 +82,7 @@ Repository มี `scripts/docker-dev.sh`, `scripts/docker-uat.sh`, `scripts/doc
 2. `migrations` one-shot service สร้าง Prisma Client และเรียก `scripts/db-push-safe.sh`
 3. `db-push-safe.sh` ปฏิเสธ flags ที่อาจทำ data loss ตาม implementation
 4. หาก `RUN_SEED=true` จะรัน Prisma seed จาก `SEED_PATH`; ตรวจ `prisma/seed.ts` และ seed guard ก่อนใช้งานจริง
-5. App รอ migrations service สำเร็จ แล้ว entrypoint สร้าง `DATABASE_URL` จาก secrets และเริ่ม server
+5. App รอ migrations service สำเร็จ แล้ว entrypoint สร้าง `DATABASE_URL` จาก environment ของ root `.env` และเริ่ม server
 
 ปัจจุบัน flow ใช้ `prisma db push` ไม่ได้ maintain migration history แบบ versioned migrations ใน repository ที่ตรวจพบ. Customer migration/backfill ต้องทำ per-environment staged nullable → approved mapping → validate → required rollout ตาม [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md), พร้อม backup และ isolated restore rehearsal ก่อน apply. อย่าใช้ force seed/reset กับข้อมูล production.
 
@@ -107,7 +107,7 @@ Repository มี `scripts/docker-dev.sh`, `scripts/docker-uat.sh`, `scripts/doc
 - Production ต้องใช้ secret ที่ไม่ใช่ค่า development, จำกัดสิทธิ์ filesystem ของ secret และไม่ publish PostgreSQL port สู่ public network โดยไม่จำเป็น
 - ตั้ง HTTPS/reverse proxy, domain, firewall, backup destination และ retention ตาม infrastructure จริง (Compose files ไม่ได้กำหนด TLS/reverse proxy)
 - จำกัดการเข้าถึง Docker socket/host, ใช้ non-root user สำหรับ production app image และเก็บ logs โดยไม่เผยข้อมูลส่วนบุคคลหรือ credentials
-- API ปัจจุบันยังไม่มี owner authentication ที่พบ; แม้มีผู้ใช้คนเดียว ต้องไม่เปิด instance สู่อินเทอร์เน็ตจนกว่าจะปกป้อง account เจ้าของด้วย authentication หรือ private access gate ที่เหมาะสม
+- API ผ่าน private owner access gate ใน runtime launcher แล้ว; owner User/session ยังเป็น #17. Host ports เป็น loopback; remote access ต้องใช้ HTTPS proxy/private tunnel ตาม Runtime Security.
 - มี rollback image/config และ DB recovery plan; schema downgrade อัตโนมัติไม่ควรถูกสมมติ
 - GitLab sync ใช้ credential ฝั่ง server เท่านั้น; จำกัด token ให้เข้าถึงเฉพาะ Projects ที่ต้อง sync และ rotate/revoke ได้โดยไม่แก้ข้อมูล WorkItem ที่นำเข้าแล้ว; ทำตาม [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) และห้ามเปิด sync ก่อนผ่าน owner-access gate
 
@@ -122,3 +122,15 @@ Repository มี `scripts/docker-dev.sh`, `scripts/docker-uat.sh`, `scripts/doc
 | Seed ไม่เข้า | `RUN_SEED`, `SEED_PATH`, seed guard และข้อมูลเดิม; อย่า force-seed production เพื่อทดลอง |
 | Disk โต | PostgreSQL data, `backups`, Docker logs และ backup retention; ตรวจ backup ก่อน cleanup |
 
+
+## Runtime security ที่ implement ใน #15
+
+สถานะเพิ่มเติม ณ 2026-09-28: มี private owner access gate หน้า Next.js, server-only environment injection จาก root `.env` ของ Dev/UAT/Production, loopback host ports และ `Asia/Bangkok` สำหรับ app/PostgreSQL session แล้ว. รายละเอียดปัจจุบันและคำสั่งตรวจที่ไม่พิมพ์ secrets อยู่ใน [Runtime Security](./RUNTIME_SECURITY.md). Baseline เดิมที่กล่าวว่าไม่มี auth/session ยังใช้กับ owner User/session (#17); gate นี้ไม่ resolve User หรือเพิ่ม GitLab connector (#20), ไม่เปลี่ยน schema/records และไม่ยืนยันว่า installation จริง deploy แล้ว.
+
+### Migrations stops at seed
+
+If schema sync succeeds but seed fails and `database/seeds/master/config.json` is absent, set `RUN_SEED=false` in root `.env`. Seeding is opt-in (default false); use `RUN_SEED=true` only with an approved dataset at `SEED_PATH`. Do not reset the database or fabricate seed records. After reviewing production changes, rerun `docker compose -f docker-compose.prod.yml up -d` to recreate migrations with the updated environment. Changing `.env` requires recreation; restarting the old container keeps its old values.
+
+### RUN_SEED=true with per-table guards
+
+With an approved dataset at `database/seeds/master`, set `RUN_SEED=true` in root `.env`. Each configured table is checked independently: any existing row causes that table to be skipped; empty tables receive the configured seed rows. Parent references must resolve against existing or newly inserted records. Invalid data rolls back all seed inserts. Rebuild the migration image after changing the seed runner: `docker compose -f docker-compose.prod.yml build migrations`, then (after deployment authorization) `docker compose -f docker-compose.prod.yml up -d`. No reset or volume deletion is needed.

@@ -1,19 +1,13 @@
 #!/bin/sh
 set -eu
 
-# Dev startup: set DATABASE_URL, then hot-reload Next.js.
-# Schema push + seed run in the migrations service (docker-compose.database.yml).
-if [ -f /run/secrets/postgres_user ] \
-  && [ -f /run/secrets/postgres_password ] \
-  && [ -f /run/secrets/postgres_db ]; then
-  POSTGRES_USER=$(tr -d '\n\r' < /run/secrets/postgres_user | xargs)
-  POSTGRES_PASSWORD=$(tr -d '\n\r' < /run/secrets/postgres_password | xargs)
-  POSTGRES_DB=$(tr -d '\n\r' < /run/secrets/postgres_db | xargs)
-  POSTGRES_HOST="${POSTGRES_HOST:-postgres}"
-  POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+export TZ=Asia/Bangkok
+export PGTZ=Asia/Bangkok
+export PGOPTIONS="-c timezone=Asia/Bangkok"
 
-  export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?schema=public&connection_limit=5&pool_timeout=20"
-fi
+# Build an encoded container URL from environment injected from root .env.
+DATABASE_URL="$(node /app/scripts/database-url.mjs)"
+export DATABASE_URL
 
 pnpm prisma generate
 

@@ -88,7 +88,7 @@ bash scripts/docker-dev.sh start-studio
 - **[API](./document/API.md)** - Current endpoint inventory and target API gaps
 - **[Deployment](./document/DEPLOYMENT.md)** - Docker environments, database initialization, and operations
 - **[Database README](./database/README.md)** - Database setup and management
-- **[Secrets README](./secrets/README.md)** - Environment configuration guide
+- **[Runtime Security](./document/RUNTIME_SECURITY.md)** - Root .env configuration guide
 - **[Database process](./document/process/db.md)** - Prisma and db helper commands
 - **[Docker process](./document/process/docker.md)** - Dev / UAT / production helper commands
 - **[Testing commands](./document/process/testing.md)** - Reusable pnpm test runner commands
@@ -292,7 +292,7 @@ Helper scripts for dev, UAT, and production live under `scripts/`. Full command 
 
 ## 🚀 Deployment
 
-Set up Docker secrets first (see [secrets/README.md](./secrets/README.md)).
+ตั้งค่าทั้งหมดใน root `.env` ก่อนเริ่มบริการ (ดู [Runtime Security](./document/RUNTIME_SECURITY.md)); ไม่ใช้ Docker secrets แล้ว.
 
 ### Development
 ```bash
@@ -349,3 +349,7 @@ Built with:
 
 **Ready to start?** Run `bash scripts/docker-dev.sh start` and you're good to go! 🚀
 
+
+## Runtime owner gate (#15)
+
+การเริ่มแอปผ่าน `pnpm dev`, `pnpm start` หรือ Docker ต้อง provision owner gate credential และ `APP_ORIGIN` ก่อน. Host ports ของแอปและ PostgreSQL จำกัด loopback; GitLab secrets เป็น server-only. ดู [Runtime Security](document/RUNTIME_SECURITY.md) สำหรับ provisioning, safe verification และ rotate/revoke. ทดสอบซ้ำได้ด้วย `pnpm test:runtime-security` และ `pnpm test:runtime-docker`. Owner User/session และ GitLab connector เป็นงาน #17/#20.

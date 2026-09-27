@@ -18,9 +18,11 @@ yarn-error.log*
 
 # env files
 .env
+.env.*
+!.env.example
 
 # secrets
-/secrets/*.txt
+/secrets/**/*.txt
 
 # database
 /database/seeds/*
@@ -38,3 +40,6 @@ next-env.d.ts
 
 # design files
 /design/*
+
+# design projects
+/design/projects/*

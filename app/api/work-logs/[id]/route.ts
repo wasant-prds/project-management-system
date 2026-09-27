@@ -19,7 +19,7 @@ export async function GET(
 
     return NextResponse.json({ workLog: serializeWorkLog(workLog) }, { status: 200 })
   } catch (error) {
-    console.error('Error fetching work log:', error)
+    console.error('Error fetching work log:')
     return NextResponse.json({ error: 'Failed to fetch work log' }, { status: 500 })
   }
 }
@@ -62,9 +62,9 @@ export async function PATCH(
     return NextResponse.json({ workLog: serializeWorkLog(workLog) }, { status: 200 })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to update work log'
-    console.error('Error updating work log:', error)
-    const status = message.includes('Work item') || message.includes('project is required') ? 400 : 500
-    return NextResponse.json({ error: message }, { status })
+    console.error('Error updating work log:')
+    const status = ['Work item does not belong to the selected project', 'A project is required before assigning a work item'].includes(message) ? 400 : 500
+    return NextResponse.json({ error: status === 400 ? message : 'Failed to save Daily Work' }, { status })
   }
 }
 
@@ -77,7 +77,7 @@ export async function DELETE(
     await prisma.timeEntry.delete({ where: { id } })
     return NextResponse.json({ message: 'Work log deleted successfully' }, { status: 200 })
   } catch (error) {
-    console.error('Error deleting work log:', error)
+    console.error('Error deleting work log:')
     return NextResponse.json({ error: 'Failed to delete work log' }, { status: 500 })
   }
 }

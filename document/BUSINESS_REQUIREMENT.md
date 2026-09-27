@@ -220,3 +220,7 @@ Metric ที่เป็นแนวโน้มตามเวลาไม่�
 
 รายละเอียด UI/responsive ที่มีอยู่ใน `document/feature/<menu>/business-requirement.th.md` และ `scope.th.md` ยังคงใช้เป็น reference เฉพาะเมื่อตรงกับข้อกำหนดฉบับรวมนี้ เอกสารฉบับเดิมบางส่วนระบุ status ว่าเสร็จจากงาน UI และไม่ครอบคลุมการเชื่อมข้อมูล/API ตามเป้าหมาย EV; ให้ใช้เอกสารฉบับนี้เป็น business source of truth ระหว่างวางแผน
 
+
+## Runtime security ที่ implement ใน #15
+
+สถานะเพิ่มเติม ณ 2026-09-28: มี private owner access gate หน้า Next.js, server-only environment injection จาก root `.env` ของ Dev/UAT/Production, loopback host ports และ `Asia/Bangkok` สำหรับ app/PostgreSQL session แล้ว. รายละเอียดปัจจุบันและคำสั่งตรวจที่ไม่พิมพ์ secrets อยู่ใน [Runtime Security](./RUNTIME_SECURITY.md). Baseline เดิมที่กล่าวว่าไม่มี auth/session ยังใช้กับ owner User/session (#17); gate นี้ไม่ resolve User หรือเพิ่ม GitLab connector (#20), ไม่เปลี่ยน schema/records และไม่ยืนยันว่า installation จริง deploy แล้ว.

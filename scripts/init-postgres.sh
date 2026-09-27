@@ -1,11 +1,9 @@
 #!/bin/sh
-set -e
-
-# Read secrets and export as environment variables (trimming whitespace)
-export POSTGRES_USER=$(cat /run/secrets/postgres_user | tr -d '\n\r' | xargs)
-export POSTGRES_PASSWORD=$(cat /run/secrets/postgres_password | tr -d '\n\r' | xargs)
-export POSTGRES_DB=$(cat /run/secrets/postgres_db | tr -d '\n\r' | xargs)
-
-# Call the original entrypoint
+set -eu
+# PostgreSQL credentials are injected from the root .env by Compose.
+: "${POSTGRES_USER:?POSTGRES_USER is required}"
+: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
+: "${POSTGRES_DB:?POSTGRES_DB is required}"
+export TZ=Asia/Bangkok
+export PGTZ=Asia/Bangkok
 exec /usr/local/bin/docker-entrypoint.sh "$@"
-

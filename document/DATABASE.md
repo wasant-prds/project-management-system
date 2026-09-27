@@ -12,7 +12,7 @@
 
 ## 1. Database conventions
 
-- Prisma datasource ใช้ PostgreSQL ผ่าน `DATABASE_URL`; local/Docker environment สร้าง URL จาก environment หรือ Docker secrets
+- Prisma datasource ใช้ PostgreSQL ผ่าน `DATABASE_URL`; local/Docker environment สร้าง URL จาก root `.env` ผ่าน environment injection
 - `id` ส่วนใหญ่เป็น String ใช้ `cuid()`; เวลาใช้ `DateTime` และ default `now()`; `updatedAt` ใช้ `@updatedAt`
 - Target convention: วันที่และเวลาทุกค่าที่บันทึกลง PostgreSQL ใช้ `Asia/Bangkok`. Date-only fields แทนวันปฏิทิน Bangkok; timestamp fields แทน Bangkok local wall-clock date/time และห้าม normalize เป็น UTC. กำหนด timezone ของ application, PostgreSQL session และ database defaults เป็น `Asia/Bangkok`; application ต้อง parse/format ด้วย timezone นี้อย่างชัดเจน
 - Target mapping: calendar-only fields ใช้ PostgreSQL `DATE` และ Prisma `@db.Date`; timestamps ใช้ `TIMESTAMP(3) WITHOUT TIME ZONE` และ Prisma `@db.Timestamp(3)` โดยค่าที่เขียนเป็น Bangkok local wall-clock. `DateTime` ที่ไม่มี native annotation ใน Prisma ปัจจุบัน default-map เป็น `timestamp(3)`; ให้ระบุ native type ชัดเจนใน target schema เพื่อป้องกันความหมายเปลี่ยน
@@ -218,3 +218,7 @@ ExternalWorkItemReference
 
 ขั้นตอนใช้งาน Compose/DB ที่มีอยู่ดูใน [DEPLOYMENT.md](./DEPLOYMENT.md) และ [document/process/db.md](./process/db.md)
 
+
+## Runtime security ที่ implement ใน #15
+
+สถานะเพิ่มเติม ณ 2026-09-28: มี private owner access gate หน้า Next.js, server-only environment injection จาก root `.env` ของ Dev/UAT/Production, loopback host ports และ `Asia/Bangkok` สำหรับ app/PostgreSQL session แล้ว. รายละเอียดปัจจุบันและคำสั่งตรวจที่ไม่พิมพ์ secrets อยู่ใน [Runtime Security](./RUNTIME_SECURITY.md). Baseline เดิมที่กล่าวว่าไม่มี auth/session ยังใช้กับ owner User/session (#17); gate นี้ไม่ resolve User หรือเพิ่ม GitLab connector (#20), ไม่เปลี่ยน schema/records และไม่ยืนยันว่า installation จริง deploy แล้ว.

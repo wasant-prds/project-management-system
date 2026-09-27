@@ -26,7 +26,7 @@ bash scripts/docker-prod.sh <command>
 
 Script: `scripts/docker-dev.sh`  
 Compose file: `docker-compose.yml`  
-App: http://localhost:3000 · Prisma Studio: http://localhost:5555 · PostgreSQL: localhost:5432
+App: http://localhost:3777 · PostgreSQL: localhost:5437 (loopback เท่านั้น; Studio ต้องอ่าน effective config ก่อนเปิด)
 
 | Command | Description |
 | --- | --- |
@@ -46,7 +46,7 @@ App: http://localhost:3000 · Prisma Studio: http://localhost:5555 · PostgreSQL
 
 Script: `scripts/docker-uat.sh`  
 Compose file: `docker-compose.uat.yml`  
-App: http://localhost:3001 · PostgreSQL: localhost:5433
+App: http://localhost:3001 · PostgreSQL: localhost:5437 (ตรวจ POSTGRES_PORT ของ installation)
 
 | Command | Description |
 | --- | --- |
@@ -78,3 +78,7 @@ App: http://localhost:3002 · PostgreSQL: localhost:5434
 | `bash scripts/docker-prod.sh health` | Check application health |
 | `bash scripts/docker-prod.sh backup-now` | Create manual backup |
 | `bash scripts/docker-prod.sh rebuild` | Rebuild containers |
+
+## Owner gate และ secrets (#15)
+
+ก่อน start ให้ provision credential และ `APP_ORIGIN` และค่าทั้งหมดใน root `.env` ตาม [Runtime Security](../RUNTIME_SECURITY.md). แอปกับ DB publish loopback เท่านั้น. ตรวจ instance ที่กำลังรันด้วย `node scripts/runtime-verify.mjs docker-compose.yml` (UAT/Production เลือก Compose file ที่ตรงกัน); output ไม่มี secret. Rotation ต้อง recreate app only และ production ยังต้อง operator confirmation. ห้ามพิมพ์ raw Compose config/environment ใน logs.

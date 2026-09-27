@@ -16,6 +16,8 @@ FROM node:24-alpine AS base
 RUN apk add --no-cache libc6-compat openssl
 
 WORKDIR /app
+ENV TZ=Asia/Bangkok
+ENV PGTZ=Asia/Bangkok
 
 RUN corepack enable && corepack prepare pnpm@10.34.5 --activate
 
@@ -111,6 +113,7 @@ RUN rm -rf node_modules/.prisma node_modules/@prisma && \
     cp -a /tmp/prisma-export/@prisma node_modules/ && \
     rm -rf /tmp/prisma-export
 
+COPY scripts/runtime-*.mjs scripts/owner-gate.mjs scripts/database-url.mjs ./scripts/
 COPY scripts/docker-entrypoint-app.sh /usr/local/bin/docker-entrypoint-app.sh
 RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint-app.sh && \
     chmod +x /usr/local/bin/docker-entrypoint-app.sh && \

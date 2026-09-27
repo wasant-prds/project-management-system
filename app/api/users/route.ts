@@ -23,7 +23,7 @@ export async function GET() {
 
         return NextResponse.json({ users }, { status: 200 })
     } catch (error) {
-        console.error('Error fetching users:', error)
+        console.error('Error fetching users:')
         return NextResponse.json(
             { error: 'Failed to fetch users' },
             { status: 500 }

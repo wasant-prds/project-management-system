@@ -13,14 +13,13 @@ services:
     container_name: pms-app-uat
     restart: unless-stopped
     environment:
+      APP_ENV: uat
       NODE_ENV: production
       NEXT_PUBLIC_ENV: uat
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3001}
       NODE_OPTIONS: --max-old-space-size=256
     deploy:
       resources:
         limits: { cpus: "0.30", memory: 384M }
         reservations: { cpus: "0.10", memory: 128M }
     ports:
-      - "${APP_PORT:-3001}:3000"
+      - "127.0.0.1:${APP_PORT:-3001}:3000"

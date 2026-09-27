@@ -5,17 +5,8 @@ set -eu
 OUT="${OUT_DIR:-/tmp/seeds-master}"
 TABLES="${TABLES_FILE:-/tmp/seed-tables.tsv}"
 
-DB_USER=""
-DB_NAME=""
-if [ -f /run/secrets/postgres_user ]; then
-  DB_USER="$(tr -d '\n\r' < /run/secrets/postgres_user | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-fi
-if [ -f /run/secrets/postgres_db ]; then
-  DB_NAME="$(tr -d '\n\r' < /run/secrets/postgres_db | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-fi
-
-DB_USER="${DB_USER:-${POSTGRES_USER:-}}"
-DB_NAME="${DB_NAME:-${POSTGRES_DB:-}}"
+DB_USER="${POSTGRES_USER:-}"
+DB_NAME="${POSTGRES_DB:-}"
 
 if [ -z "$DB_USER" ] || [ -z "$DB_NAME" ]; then
   echo "POSTGRES_USER / POSTGRES_DB could not be resolved" >&2

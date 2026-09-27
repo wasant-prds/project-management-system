@@ -31,12 +31,8 @@ When you first run `docker-compose up`, the database will be initialized automat
 5. If data exists, **skips seeding to prevent data loss**
 
 ### Checking Data Existence
-The seed script (`prisma/seed.ts`) automatically checks for existing data by counting:
-- Companies
-- Users
-- Projects
 
-If any of these exist, seeding is skipped with a friendly message.
+Set `RUN_SEED=true` in root `.env`. The seed runner checks each table listed in `database/seeds/master/config.json`, in dependency order. Empty tables receive seed rows; tables with any existing rows are skipped without updating or deleting those rows. A skipped table does not require its seed file. Foreign keys must resolve against existing or newly seeded parent records. Invalid files or constraints roll back inserts from the entire seed transaction; never reset production to work around a seed error.
 
 ### Resetting the Database
 
@@ -156,12 +152,7 @@ docker exec -it pms-postgres-dev pg_isready
 
 ## Environment Variables
 
-Database configuration is managed through Docker secrets:
-- `postgres_user.txt` - Database username
-- `postgres_password.txt` - Database password
-- `postgres_db.txt` - Database name
-
-See `./secrets/README.md` for more information.
+Database configuration is read from root `.env`: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`. Do not commit `.env`. See `document/RUNTIME_SECURITY.md`.
 
 ## Security Notes
 

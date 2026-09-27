@@ -26,7 +26,7 @@ bash scripts/dump-master-seeds.sh
 | --- | --- |
 | `pnpm prisma generate` | สร้าง Prisma Client |
 | `pnpm prisma migrate dev` | สร้างและ apply migration |
-| `pnpm prisma db seed` | seed ข้อมูลลงฐานข้อมูล (ข้ามหากมีข้อมูลอยู่แล้ว และไม่ลบข้อมูลเดิม) |
+| `pnpm prisma db seed` | seed ข้อมูลลงฐานข้อมูล (ตรวจแต่ละตาราง: insert จาก seed เฉพาะตารางว่าง ข้ามตารางที่มีข้อมูล และไม่แก้ข้อมูลเดิม) |
 | `pnpm prisma studio` | เปิด Prisma Studio |
 | `bash scripts/db-push-safe.sh` | push schema แบบไม่ทำลายข้อมูล (ปฏิเสธ flags ที่อาจทำให้ข้อมูลสูญหาย) |
 | `bash scripts/dump-master-seeds.sh` | export ข้อมูลจาก PostgreSQL ของ site ที่เลือกเป็น JSON ใน `database/seeds/master` (แยก `WorkItem/` ตามปีและลบ JSON ที่ไม่อยู่ใน config) แล้ว zip seeds ชุดใหม่ไว้ใน `./backups` |
@@ -47,7 +47,7 @@ bash scripts/db-manage.sh <command>
 | `bash scripts/db-manage.sh restore <file>` | กู้คืนฐานข้อมูลจาก backup |
 | `bash scripts/db-manage.sh connect` | เชื่อมต่อฐานข้อมูลด้วย `psql` |
 | `bash scripts/db-manage.sh logs` | แสดง logs ของ PostgreSQL |
-| `bash scripts/db-manage.sh seed` | รัน seed ใน Linux migrations container ของ site ที่เลือก (ข้ามหากตารางใน seed config มีข้อมูลอยู่แล้ว; ถ้า container หยุดแต่พบไฟล์ฐานข้อมูล จะข้ามอย่างปลอดภัย) |
+| `bash scripts/db-manage.sh seed` | รัน seed ใน Linux migrations container ของ site ที่เลือก (ข้ามเฉพาะตารางใน seed config ที่มีข้อมูลอยู่แล้ว; ถ้า container หยุดแต่พบไฟล์ฐานข้อมูล จะข้ามอย่างปลอดภัย) |
 | `bash scripts/db-manage.sh force-seed` | บังคับ seed ใหม่ (ลบข้อมูลเดิม) |
 
 คำสั่ง `status`, `backup`, `restore`, `connect`, `logs`, `reset` และ `force-seed` จะทำงานกับ site ที่ระบุใน `.env` เท่านั้น ตัวอย่าง:
@@ -59,3 +59,9 @@ bash scripts/db-manage.sh backup
 ```
 
 `backup` จะบันทึก SQL backup ไว้ใน `database/backups` โดยใส่ชื่อ site ในชื่อไฟล์
+
+## Per-table seed
+
+ตั้ง `RUN_SEED=true` ใน root `.env` เพื่อให้ migrations รัน seed หลัง schema sync. `config.json` กำหนดตารางและลำดับ parent ก่อน child; ตรวจแต่ละตารางใน serializable transaction และข้ามตารางที่มีอย่างน้อยหนึ่งแถว โดยไม่อ่านไฟล์ seed ของตารางที่ข้าม. ตารางว่างใช้ seed JSON หรือโฟลเดอร์ JSON ตาม config. ไม่มี update/delete/upsert ข้อมูลเดิม. Foreign keys อ้างได้ทั้งข้อมูลเดิมและข้อมูลที่เพิ่ง seed; constraint หรือไฟล์ที่ไม่ถูกต้องทำให้ rollback ทุก insert ในรอบนั้น. Log แสดงเฉพาะ table/status/count และ Prisma code ที่ปลอดภัย.
+
+ตรวจซ้ำได้ด้วย `pnpm test:seed` และ `docker build --target migrate -t pms-seed-validation .` ตามด้วย `pnpm test:seed-docker`; Docker test ใช้ฐานข้อมูลชั่วคราว ไม่ใช้ production volume.

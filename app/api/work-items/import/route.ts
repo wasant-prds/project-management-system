@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       )
     }
 
-    console.error('Error importing work items:', error)
+    console.error('Error importing work items:')
     return NextResponse.json(
       { error: 'Failed to import work items' },
       { status: 500 },

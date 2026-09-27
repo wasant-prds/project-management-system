@@ -58,3 +58,10 @@ azure-pipelines.yml
 # OS
 Thumbs.db
 
+
+# Never copy runtime credentials or persisted data into image layers
+secrets
+backups
+database/postgres
+database/backups
+.env*

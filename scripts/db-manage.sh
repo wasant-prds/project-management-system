@@ -49,13 +49,14 @@ check_container() {
   db_docker ps --format '{{.Names}}' 2>/dev/null | grep -Fqx "$CONTAINER_NAME"
 }
 
-read_secret() {
-  local secret_file="$ROOT/secrets/$1.txt"
-  if [ ! -f "$secret_file" ]; then
-    print_error "Missing secret file: $secret_file"
+read_database_setting() {
+  local value
+  value=$(db_read_env_value "$ROOT/.env" "$1")
+  if [ -z "$value" ]; then
+    print_error "Missing database setting in root .env: $1" >&2
     return 1
   fi
-  tr -d '\r\n' < "$secret_file"
+  printf '%s' "$value"
 }
 
 compose() {
@@ -189,8 +190,8 @@ backup() {
   fi
 
   local timestamp backup_file db_user db_name
-  db_user=$(read_secret postgres_user)
-  db_name=$(read_secret postgres_db)
+  db_user=$(read_database_setting POSTGRES_USER)
+  db_name=$(read_database_setting POSTGRES_DB)
   mkdir -p "$BACKUP_DIR"
 
   local started_for_backup=false
@@ -262,8 +263,8 @@ restore() {
     return 0
   fi
 
-  db_user=$(read_secret postgres_user)
-  db_name=$(read_secret postgres_db)
+  db_user=$(read_database_setting POSTGRES_USER)
+  db_name=$(read_database_setting POSTGRES_DB)
   print_info "Restoring $DB_SITE database from: $backup_file"
   if [[ "$backup_file" == *.gz ]]; then
     gunzip -c "$backup_file" | db_docker exec -i "$CONTAINER_NAME" psql -U "$db_user" "$db_name"
@@ -287,8 +288,8 @@ connect() {
   echo
   require_container
   local db_user db_name
-  db_user=$(read_secret postgres_user)
-  db_name=$(read_secret postgres_db)
+  db_user=$(read_database_setting POSTGRES_USER)
+  db_name=$(read_database_setting POSTGRES_DB)
   print_info "Connecting to the $DB_SITE database as '$db_user'..."
   db_docker exec -it "$CONTAINER_NAME" psql -U "$db_user" "$db_name"
 }
@@ -330,8 +331,8 @@ force_seed() {
   fi
 
   local db_user db_name
-  db_user=$(read_secret postgres_user)
-  db_name=$(read_secret postgres_db)
+  db_user=$(read_database_setting POSTGRES_USER)
+  db_name=$(read_database_setting POSTGRES_DB)
   print_info "Resetting and reseeding the $DB_SITE database..."
   db_docker exec -i "$CONTAINER_NAME" psql -U "$db_user" "$db_name" <<EOF
 DROP SCHEMA public CASCADE;

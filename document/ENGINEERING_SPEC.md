@@ -145,3 +145,7 @@ Target contract, exact mappings, manual sync flow, per-Issue transactions, respo
 7. ก่อนเปิดใช้ GitLab จริง ให้ owner อนุมัติ instance, Project/label mappings และ first-sync policy ตาม [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md); ห้าม fuzzy-match WorkItem เดิม
 8. ยืนยันว่าจะนำเข้า GitLab time tracking เป็น Daily Work หรือไม่; ระยะแรก `TimeEntry` ที่เจ้าของบันทึกใน PMS ยังคงเป็นแหล่งจริง
 
+
+## Runtime security ที่ implement ใน #15
+
+สถานะเพิ่มเติม ณ 2026-09-28: มี private owner access gate หน้า Next.js, server-only environment injection จาก root `.env` ของ Dev/UAT/Production, loopback host ports และ `Asia/Bangkok` สำหรับ app/PostgreSQL session แล้ว. รายละเอียดปัจจุบันและคำสั่งตรวจที่ไม่พิมพ์ secrets อยู่ใน [Runtime Security](./RUNTIME_SECURITY.md). Baseline เดิมที่กล่าวว่าไม่มี auth/session ยังใช้กับ owner User/session (#17); gate นี้ไม่ resolve User หรือเพิ่ม GitLab connector (#20), ไม่เปลี่ยน schema/records และไม่ยืนยันว่า installation จริง deploy แล้ว.
