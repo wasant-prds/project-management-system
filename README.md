@@ -79,6 +79,14 @@ bash scripts/docker-dev.sh start-studio
 
 ## 📚 Documentation
 
+- **[Engineering Spec (EV)](./document/ENGINEERING_SPEC.md)** - Shared data rules and engineering acceptance criteria
+- **[Architecture (EV)](./document/ARCHITECTURE.md)** - Current and target application architecture
+- **[Business Requirement](./document/BUSINESS_REQUIREMENT.md)** - Requirements organized by menu
+- **[Scope](./document/SCOPE.md)** - Step 1 boundary and menu-by-menu delivery scope
+- **[Database](./document/DATABASE.md)** - Current Prisma schema and proposed Customer/data-integrity changes
+- **[Database Mapping](./document/DATABASE_MAPPING.md)** - Mapping between menus, APIs, and database records
+- **[API](./document/API.md)** - Current endpoint inventory and target API gaps
+- **[Deployment](./document/DEPLOYMENT.md)** - Docker environments, database initialization, and operations
 - **[Database README](./database/README.md)** - Database setup and management
 - **[Secrets README](./secrets/README.md)** - Environment configuration guide
 - **[Database process](./document/process/db.md)** - Prisma and db helper commands

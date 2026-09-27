@@ -2,14 +2,14 @@
 
 | รายการ | ค่า |
 | --- | --- |
-| ฟีเจอร์ | องค์กรและทีม `/company` |
+| ฟีเจอร์ | ข้อมูลบริษัทและ Customer registry `/company` |
 | เอกสาร | ขอบเขตงาน (TH) |
 | English version | [scope.en.md](./scope.en.md) |
 | เอกสารที่เกี่ยวข้อง | [business-requirement.th.md](./business-requirement.th.md) |
 | **สถานะ** | **เสร็จ** |
 | วันที่ | 2026-09-04 |
 
-เอกสารนี้บอก **สิ่งที่อยู่ใน/นอกงานนี้** และบริการใดที่ทำ ลักษณะผลิตภัณฑ์อยู่ใน [ข้อกำหนดทางธุรกิจ](./business-requirement.th.md)
+เอกสารนี้เก็บขอบเขต UI เดิม; ข้อกำหนด Company/Customer และ single-owner ฉบับปัจจุบันอยู่ใน [Business Requirement รวม](../../BUSINESS_REQUIREMENT.md) และ [Scope รวม](../../SCOPE.md) ซึ่งมีผลเหนือข้อความที่ขัดกันในเอกสารนี้
 
 ---
 
@@ -27,20 +27,20 @@
 
 | กรณีธุรกิจ | ในขอบเขต |
 | --- | --- |
-| กรณีที่ 1 — ดู | สถิติ การ์ดทีม และแท็บตั้งค่าที่มีอยู่ |
+| กรณีที่ 1 — ดู | company profile, ทะเบียน Customers และ summary Projects/Work Items/ชั่วโมง |
 | กรณีที่ 2 — เลื่อน | โครงแถบข้างร่วม + `PAGE_MAIN` |
 | กรณีที่ 3 — คอนทราสต์ | โทเค็นปุ่ม/แบดจ์ร่วม |
 | กรณีที่ 4 — ตอบสนอง | `STAT_GRID` แท็บเลื่อน แถบเครื่องมือร่วม |
 
 ---
 
-## 3. นอกขอบเขต
+## 3. แยกจากงาน UI เดิมและข้อกำหนดเป้าหมาย
 
 | รายการ | นอกขอบเขต |
 | --- | --- |
-| บันทึก Add Member | ปุ่มหัวหน้าอาจยังเป็น UI จนกว่าจะมี API เฉพาะ |
+| Team management | ไม่มีสมาชิกหลายคน, Add Member, invites หรือ Project team permissions ใน single-owner scope |
 | งาน HR | ไม่มีออนบอร์ด เงินเดือน หรือซิงก์ไดเรกทอรี |
-| แพลตฟอร์ม | ไม่มี REST ใหม่ ไม่เปลี่ยนสคีมา Prisma ไม่มีบริการ Docker ใหม่ |
+| แพลตฟอร์ม | งาน UI เดิมไม่เปลี่ยน REST/Prisma/Docker; Customer registry และ company persistence ต้องเพิ่มตาม requirement รวม |
 
 ---
 

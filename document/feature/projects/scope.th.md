@@ -9,7 +9,7 @@
 | **สถานะ** | **เสร็จ** |
 | วันที่ | 2026-09-04 |
 
-เอกสารนี้บอก **สิ่งที่อยู่ใน/นอกงานนี้** และบริการใดที่ทำ ลักษณะผลิตภัณฑ์อยู่ใน [ข้อกำหนดทางธุรกิจ](./business-requirement.th.md)
+เอกสารนี้เก็บขอบเขตงาน UI เดิม; ข้อกำหนด Project-Customer และข้อมูลร่วมฉบับปัจจุบันอยู่ใน [Business Requirement รวม](../../BUSINESS_REQUIREMENT.md) และ [Scope รวม](../../SCOPE.md) ซึ่งมีผลเหนือข้อความที่ขัดกันในเอกสารนี้
 
 ---
 
@@ -27,21 +27,21 @@
 
 | กรณีธุรกิจ | ในขอบเขต |
 | --- | --- |
-| กรณีที่ 1 — เรียกดู | โฟลว์รายการ รายละเอียด สร้าง แก้ไข ทีมที่มีอยู่ |
+| กรณีที่ 1 — เรียกดู | โฟลว์รายการ รายละเอียด สร้าง/แก้ไขและเชื่อม Customer; ไม่มี team management ใน target |
 | กรณีที่ 2 — เลื่อน | โครงแถบข้างร่วม + `PAGE_MAIN` บนรายการและรายละเอียด |
 | กรณีที่ 3 — คอนทราสต์ | โทเค็นปุ่ม/แบดจ์/ไดอะล็อกร่วม |
-| กรณีที่ 4 — โมดัล | `DIALOG_SHELL_SCROLL_CLASS` บนไดอะล็อกสร้าง แก้ไข และทีม พื้น `bg-card` ทึบ |
+| กรณีที่ 4 — โมดัล | `DIALOG_SHELL_SCROLL_CLASS` บนไดอะล็อกสร้าง/แก้ไขและ Customer selector, พื้น `bg-card` ทึบ |
 | กรณีที่ 5 — ตอบสนอง | โทเค็นโครงหน้าร่วม |
 
 ---
 
-## 3. นอกขอบเขต
+## 3. แยกจากงาน UI เดิมและข้อกำหนดเป้าหมาย
 
 | รายการ | นอกขอบเขต |
 | --- | --- |
-| ฟิลด์โครงการใหม่ | ไม่เพิ่มฟิลด์สคีมาในรอบนี้ |
+| Customer relation | ไม่รวมในงาน responsive UI เดิม แต่เป็น requirement เป้าหมาย; ต้องเพิ่ม schema/API และ backfill ตามเอกสาร Scope รวม |
 | คัมบังบนเส้นทางนี้ | บอร์ดอยู่ที่ `/board` |
-| แพลตฟอร์ม | ไม่มี REST ใหม่ ไม่เปลี่ยนสคีมา Prisma ไม่มีบริการ Docker ใหม่ |
+| แพลตฟอร์ม | งาน UI เดิมไม่เปลี่ยน REST/Prisma/Docker; การเชื่อม Customer ต้องทำ API/schema เพิ่มตาม requirement รวม |
 
 ---
 
@@ -58,5 +58,5 @@
 | พื้นที่ | พาธ |
 | --- | --- |
 | หน้า | `app/projects/page.tsx`, `app/projects/[id]/page.tsx` |
-| ไดอะล็อก | `components/page/projects/project-create-modal.tsx`, `project-edit-modal.tsx`, `project-team-modal.tsx` |
+| ไดอะล็อก | `components/page/projects/project-create-modal.tsx`, `project-edit-modal.tsx`; ปรับ/แทน `project-team-modal.tsx` ด้วย Customer workflow หากยังใช้ใน implementation |
 | โครง / คอนทราสต์ | `components/ui/sidebar.tsx`, `components/ui/dialog.tsx`, `components/ui/alert-dialog.tsx`, `app/globals.css` |
