@@ -1,0 +1,15 @@
+---
+description: Owner profile and preferences persistence
+globs: app/settings/**,app/api/settings/**
+alwaysApply: false
+---
+
+# Settings `/settings`
+
+- Single owner profile and preferences. No user switcher and no sample profile.
+- Persist only settings the app consumes: theme, locale/timezone, and supported notifications. Theme key: `project-management-theme`.
+- Security tab: only controls backed by a real authentication provider or API. Do not accept password or 2FA input and discard it.
+- Save and validation feedback. Cancel restores the last persisted values. No role-specific or multi-user settings.
+- Target: `GET/PATCH /api/settings/me`. Hide or disable save controls that do not persist.
+- Shared sidebar + `PAGE_MAIN`. Scrollable tabs and stacked forms on phone. Light/dark/special-dark share solid-button contrast.
+- Out until a provider is chosen: custom password/2FA implementation, org-wide policy console, unintegrated notification channels.

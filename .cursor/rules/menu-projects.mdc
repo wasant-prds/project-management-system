@@ -1,0 +1,17 @@
+---
+description: Project CRUD, required Customer, and shared progress/hours
+globs: app/projects/**,app/api/projects/**,components/page/projects/**
+alwaysApply: false
+---
+
+# Projects `/projects`
+
+- Project CRUD and detail. Required: name, startDate, dueDate, and (target) `customerId`. One Customer per Project.
+- Counts from `WorkItem`. Hours = SUM(`TimeEntry.hours`) without duplicated joins. Progress = completed ÷ (total − cancelled); do not treat stored `progress` as independent truth unless kept in sync.
+- Summarize `WorkItem.role` (Developer / Infra / SA). Do not present `_count.members` or `project-team-modal` as a product feature.
+- Filters: Customer, status, text. Detail lists Work Items, roles, and hours with real foreign keys.
+- Delete/archive must warn about WorkItems/TimeEntries. Schema currently cascades — block accidental history loss. Confirm-delete is an alert dialog.
+- Customer rollout: nullable FK → backfill every Project → no orphans → NOT NULL. Target list/create/update accept `customerId`.
+- Dialogs use `DIALOG_SHELL_SCROLL_CLASS` and opaque `bg-card`. List and detail use `PAGE_MAIN`.
+- Out: CRM, invoices, budget ledger as source of truth, Kanban on this route, new schema fields unless EV requires Customer.
+- Budget/spent stay visible only if defined and maintained.

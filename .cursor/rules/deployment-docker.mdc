@@ -1,0 +1,18 @@
+---
+description: Docker Compose environments, ports, health, and host limits
+globs: docker-compose*.yml,Dockerfile*,scripts/docker-*.{sh,ps1},.env.example
+alwaysApply: false
+---
+
+# Deployment and Docker
+
+- Topology: Browser → Next.js standalone → Prisma → PostgreSQL 16. One-shot `migrations` runs `db-push-safe` and optional seed. App waits for that service, not merely `started`.
+- One root `.env`. Helpers: `bash scripts/docker-dev.sh|docker-uat.sh|docker-prod.sh <command>`. No `.env.uat` / `.env.production`. Copy `.env.example` placeholders only.
+- Compose: `docker-compose.yml` (dev), `docker-compose.uat.yml`, `docker-compose.prod.yml` + shared DB compose. Secrets files `postgres_user`, `postgres_password`, `postgres_db` — never commit values.
+- Verify effective ports in Compose. DEPLOYMENT.md: dev host 3777→3000, UAT 3001, prod 3002, Postgres often 5437. `document/process/docker.md` may list 3000/5432 — do not assume; read the running mapping.
+- Health: container `GET /api/health` every 30s after 40s start. Success 200 `database: connected`; failure 503.
+- `NEXT_PUBLIC_ENV` is baked at build; rebuild to change. `RUN_SEED` / `SEED_PATH` control migration seed.
+- Persist volume `pms-postgres-data-${APP_ENV}` via `POSTGRES_DATA_DIR` (default `./database/postgres/data`). Do not commit data files.
+- Prod start/stop/restart/rebuild/init require confirmation. Optional profile `backup`.
+- Host budget on a shared 1 vCPU / 2 GB box: ~0.5 CPU and ~768 MB for this stack. Prisma `connection_limit=5`, Node heap 256 MB. Do not run two heavy `pnpm dev` stacks.
+- After deploy: app + Postgres up, migrations exit 0, health 200, and a real Work Items / Daily Work record. Compose does not terminate TLS — add reverse proxy/HTTPS at infra.

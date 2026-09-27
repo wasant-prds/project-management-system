@@ -1,0 +1,14 @@
+---
+description: Single company profile and Customer registry
+globs: app/company/**,app/api/company/**,app/api/customers/**
+alwaysApply: false
+---
+
+# Company `/company`
+
+- One Company profile per installation. Persist via target `GET/PATCH /api/company`. `findFirst()` is As-Is, not a uniqueness guarantee — enforce one row.
+- Customer registry: create, read, update, deactivate. Projects pick from this registry. Show Customer → Projects → WorkItem counts and TimeEntry hours from the database.
+- No member directory, invites, team management, or per-user permissions. Do not present `User` or `ProjectMember` as a team.
+- Every visible button persists or is hidden. Empty and error states only — never treat seed/sample customers as facts.
+- Use `STAT_GRID`, scrollable tabs, shared toolbar, and `PAGE_MAIN`. Later dialogs use `responsive-dialog.ts`.
+- Out: HR, payroll, recruitment, IdP sync, multi-company or multi-tenant admin.

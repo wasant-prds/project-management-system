@@ -1,0 +1,16 @@
+---
+description: Analysis uses shared WorkItem and TimeEntry aggregates
+globs: app/analysis/**,app/api/analysis/**,components/page/analysis/**
+alwaysApply: false
+---
+
+# Analysis `/analysis`
+
+- Operational analytics from real WorkItem and TimeEntry rows. Same filters, timezone, and formulas as Dashboard and lists.
+- Filters: period, Customer/Project, functional role, kind. Show the active filters on the page.
+- Show status/kind/priority breakdowns, completed, open/overdue, and hours. Trends use day/week/month of the selected range.
+- Tables and chart points drill through to source records. Export the currently visible filtered set and report success or failure.
+- On-page definitions: completion rate = completed ÷ (total − cancelled); hours = SUM(`TimeEntry.hours`). No hard-coded datasets.
+- Do not chart historical completion from current status. Need `completedAt` or status history first. `submittedAt` is not a completion timestamp.
+- Charts stay inside the component (`STAT_GRID`, scrollable tabs). Grid lines use CSS variables in `app/globals.css`.
+- Out: new chart families without a requirement, predictive analytics, utilization without a calendar, unvalidated financials, a separate reporting service.

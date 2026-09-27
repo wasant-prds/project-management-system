@@ -1,0 +1,28 @@
+---
+description: Shared WorkItem enums and metric formulas used by every menu
+alwaysApply: true
+---
+
+# Enums and metrics
+
+WorkItem enums must match API and UI:
+
+- kind: `Incident` | `Issue` | `Task`
+- priority: `none` | `low` | `medium` | `high` | `urgent`
+- role: `Developer` | `infra` | `SA` | null (functional work role, not permission)
+- status: `backlog` | `todo` | `in-progress` | `blocked` | `sa-testing` | `pm-testing` | `completed` | `cancelled`
+
+Serialize Prisma underscores to hyphenated public status: `in_progress` ↔ `in-progress`, `sa_testing` ↔ `sa-testing`, `pm_testing` ↔ `pm-testing`.
+
+One formula everywhere:
+
+- Total = WorkItems matching filters (all statuses)
+- Open = not `completed` and not `cancelled`
+- Completed = `status = completed` only — never include `cancelled`
+- Completion rate and Project progress = completed ÷ (total − cancelled) × 100; denominator 0 → 0%
+- Overdue = `dueDate` before today in Asia/Bangkok and status not completed/cancelled
+- Logged hours = SUM(`TimeEntry.hours`) for the range/filters; keep decimals; do not round before the sum
+- Work Items list group "Complete" may include `cancelled`; metric labels must stay distinct
+- `submittedAt` is stamped for `sa-testing` or `completed` — it is not `completedAt`
+- Do not chart historical throughput from current status. Add `completedAt` or status history first
+- Project status comments: Planning / In Progress / Review / Completed / On Hold. Priority: Low / Medium / High / Critical

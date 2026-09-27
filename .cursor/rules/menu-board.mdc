@@ -1,0 +1,15 @@
+---
+description: Board is a live Kanban view of WorkItem.status
+globs: app/board/**,components/page/board/**
+alwaysApply: false
+---
+
+# Board `/board`
+
+- Columns = schema statuses only. Cards = real WorkItems. No sample cards or client-only column state.
+- Column counts = filtered cards. Do not double-count. Empty column is a real empty state.
+- Filters: Customer/Project, functional role (Developer/Infra/SA), kind, priority, and date as appropriate. No assignee filter (single owner).
+- Open card → the same WorkItem. Drag or status change → WorkItem API. On failure, keep the previous value or roll back optimistic UI.
+- Do not add or remove columns unless the enum and a persisted workflow config exist.
+- Layout: `main` `overflow-hidden`; column row `overflow-auto` inside a `min-w-0` pane. Fixed-width columns may scroll sideways. Do not put `overflow-y-auto` on `main` in a way that double-scrolls against the columns.
+- Out: WIP limits, board-private records, comments/attachments without an API.

@@ -1,0 +1,19 @@
+---
+description: Next.js Route Handler contracts, errors, and target endpoints
+globs: app/api/**/*.ts
+alwaysApply: false
+---
+
+# API contracts
+
+- JSON Route Handlers. Current wrappers: `{ workItems }`, `{ workItem }`, `{ projects }`, `{ workLogs }`.
+- POST create 201, GET 200, bad input 400, missing 404, conflict 409, server 500, health DB down 503.
+- Error envelope: `{ "error": { "code", "message", "field?" } }`. Thai message OK. No raw exceptions.
+- Current: `/api/health`, `/users`, `/projects`, `/projects/{id}`, `/work-items`, `/work-items/{id}`, `/work-items/import`, `/work-logs`, `/work-logs/{id}`.
+- Target (reuse services; do not fork status writers): `/api/customers`, `/api/dashboard/summary`, `/api/analysis`, `/api/company`, `/api/settings/me`, `/api/integrations/gitlab/*`. Board status = PATCH `/api/work-items/{id}` or a status route that calls the same service.
+- `GET /api/work-items`: `projectId`, `kind`, `status`, `priority`, `year`, `month`, `search`, `includeYears`. Year/month match workDate else dueDate else createdAt. Invalid enum → 400. `assigneeId` is legacy, not a user-facing filter.
+- `GET /api/work-logs`: `date` or inclusive `startDate`+`endDate`. Day bounds = Asia/Bangkok. `userId` is legacy.
+- Every POST/PATCH `/api/work-logs` must re-check the Project/WorkItem pair. A project-only PATCH must not leave a mismatch.
+- Target mutations resolve owner identity server-side. Do not persist posted `userId`.
+- Add pagination/limit before lists grow. Dashboard/analysis responses include period, timezone, filters, and formula version.
+- Import: per-row outcomes; an invalid batch must not corrupt existing rows.

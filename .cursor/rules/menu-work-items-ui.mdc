@@ -1,0 +1,17 @@
+---
+description: Work Items grouping, sort, tree, sticky headers, and dialogs
+globs: app/work-items/**,components/page/work-items/**
+alwaysApply: false
+---
+
+# Work Items UI
+
+- Group the visible list by Project. Under each project: Overdue → Near due → On track → Complete. Hide empty subgroups. Keep this order in every sort mode.
+- Date buckets use the local calendar date, not UTC clock time. Overdue = due < today. Near due = due ≥ today and same calendar month. On track = incomplete and neither. Complete includes `cancelled`.
+- Default sort: project groups by max `updatedAt`; On track items by `updatedAt`. Hover/keyboard menu: due date ↑/↓, project title A–Z/Z–A, Reset to default. Reset clears sort only — not year, month, project, or search.
+- Tree: Radix `collapsible`. Default first project + first visible subgroup open. Opening a project opens its first visible subgroup. Cards are leaves (not collapsible). CSS spine/elbow — no `├──`. Nested scale via smaller type/padding, not `zoom`/`transform: scale`.
+- Do not persist expand in `localStorage`. Reset expand when year, month, project, search, kind tab, or sort changes.
+- Sticky: two rows under the app bar (project, then indented subgroup). `position: sticky` in scrolling `main`. No `overflow: hidden` on sticky ancestors. Opaque/shadow only while stuck. Unpin after the last card. Do not pin title, stats, filters, or kind tabs.
+- Stats: four cards; `grid-cols-2 sm:grid-cols-4`; compact padding. Phone export = icon + `aria-label`; labels from `sm`. Filters `w-full` on phone. Kind tabs horizontal scroll, `flex-none`.
+- Dialogs: `work-item-dialog-shell.ts`. Height `calc(100dvh − inset)` on phone/tablet; `lg:max-w-[54.6rem]` — never `sm:max-w-[54.6rem]`. Shell `overflow-hidden`; inner region scrolls.
+- View modal: Assignee, Work date, Due date, Submitted on one row (2×2 on phone). Cards: `min-w-0`, `line-clamp-2` title, truncate assignee; do not drop fields. GFM tables in `work-item-description.tsx`.

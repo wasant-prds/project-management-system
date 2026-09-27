@@ -1,0 +1,18 @@
+---
+description: Shared UI tokens, responsive layout, motion, and states
+globs: "**/*.{tsx,css}"
+alwaysApply: false
+---
+
+# UI and UX
+
+- Thai-first labels. Shared tokens/components across all eight menus. Contrast via button/badge/dialog tokens — do not force `text-foreground` on every `button`/`span`/`div`.
+- Breakpoints: phone <640, tablet 640–1023, notebook ≥1024 (`sm` / `lg`). No page-level horizontal overflow. Local scroll only (Board columns, tabs).
+- Shell: `html, body { overflow: hidden }`; `h-svh`. Main uses `PAGE_MAIN` from `components/layout/page-layout.ts` except Board (inner pane scroll, no double-scroll on `main`).
+- Reuse `PAGE_INNER`, `PAGE_TOOLBAR`, `PAGE_HEADING`, `STAT_GRID`, `FILTER_ROW`, `ACTION_LABEL_CLASS`, `TAB_SCROLL_CLASS`, `TAB_TRIGGER_CLASS`.
+- Dialogs: `components/ui/responsive-dialog.ts` (`DIALOG_SHELL_WIDE_CLASS` / `DIALOG_SHELL_SCROLL_CLASS`). Opaque `bg-card`. Confirm-delete stays an alert dialog.
+- Charts: `min-width: 0` in flex/grid. Axes, legend, tooltip, and labels stay inside the chart frame on every breakpoint.
+- Motion: existing CSS/utilities only. Hover/focus 120–180 ms. Dialog/dropdown 160–220 ms. Keyboard focus + `prefers-reduced-motion`. Motion must not delay saves or shift layout.
+- Every surface needs loading, empty, validation, 404, permission denied, and server-error states. Never replace API errors with zeros or mock numbers.
+- Theme: `ThemeProvider` `storageKey="project-management-theme"`. Light / dark / special-dark share the same solid-button contrast.
+- Success export buttons use white text. Field panels on `bg-muted/40` use `text-foreground`.

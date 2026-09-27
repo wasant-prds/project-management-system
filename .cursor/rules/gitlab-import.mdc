@@ -1,0 +1,17 @@
+---
+description: One-way GitLab Issue import into WorkItem
+globs: "**/*gitlab*",app/api/integrations/**,app/work-items/**,app/api/work-items/**
+alwaysApply: false
+---
+
+# GitLab Issue import
+
+- Direction: GitLab → PMS only. Manual, owner-triggered. Map each GitLab Project to one PMS Project before sync. Customer is inherited from that PMS Project.
+- Identity: instance URL + GitLab project ID + global Issue ID. Upsert; never duplicate. Store URL/IDs on `ExternalWorkItemReference`. Show a source link on the Work Item.
+- New import: `kind=Issue`, owner assignee, `priority=none`, empty `role` and `workDate`. Proposed status: `opened → todo`, `closed → completed`.
+- On resync GitLab owns title, description, status, mapped types, due date. PMS keeps role, priority, workDate, owner, and TimeEntries.
+- Map labels only to supported types: `bug`, `data`, `documentation`, `epic`, `feature`, `maintenance`, `opl`, `ops`, `support`, `task`. Skip others and report them. Never set `role` from a label. Do not create Users from GitLab assignees.
+- Response: created / updated / skipped / failed plus per-issue errors. Paginate, honor rate limits, retry idempotently. Deleting a mapping does not delete imported WorkItems or TimeEntries.
+- Token: server env/secret only. `GET /api/integrations/gitlab/status` must not return secrets.
+- Target routes: mapping CRUD `/api/integrations/gitlab/projects`, sync `POST /api/integrations/gitlab/sync`.
+- Phase one excludes webhooks, schedule, write-back, MRs, commits, CI, and GitLab time logs.

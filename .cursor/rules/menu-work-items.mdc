@@ -1,0 +1,17 @@
+---
+description: WorkItem CRUD, enums, import, and GitLab inbound sync
+globs: app/work-items/**,app/api/work-items/**,components/page/work-items/**
+alwaysApply: false
+---
+
+# Work Items `/work-items`
+
+- Canonical write surface: title, description, kind, types, priority, role, status, Project, workDate, dueDate. Assignee is the owner only — no multi-user picker.
+- Shared parse/service for create/update. Invalid enum or FK → 400. The same `WorkItem.id` appears on Board, Projects, Dashboard, and Analysis.
+- Filters: year/month (`workDate` else `dueDate` else `createdAt`), Project, kind, status, priority, search. `includeYears` optional. Default year = current calendar year and always keep that year in the dropdown.
+- Import/export uses the same validation. Per-row errors. Do not wipe existing rows. Export the currently visible items.
+- GitLab: manual one-way Issue import (see gitlab-import rule). Show source link and created/updated/skipped/failed.
+- Stamp `submittedAt` when status becomes `sa-testing` or `completed`. List group "Complete" may include `cancelled`; metrics do not.
+- After mutate, other menus show the same record on refresh. Delete SetNulls `TimeEntry.workItemId` — confirm retention first.
+- Recency is `WorkItem.updatedAt` only — not Daily Work dates. Items without `updatedAt` sort as oldest.
+- Do not default the kind tab to Issues or force Kind = Issue above Incident/Task.

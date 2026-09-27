@@ -1,0 +1,16 @@
+---
+description: Single-owner authentication, secrets, and server validation
+alwaysApply: true
+---
+
+# Auth and security
+
+- One owner account. Authenticate that owner before exposing reads/mutations outside a trusted private network. Do not build multi-user RBAC.
+- Browser identity is untrusted. Resolve the owner `User` on the server. Ignore client `userId`/`assigneeId` except reviewed import/compat paths.
+- Validate every mutation on the server. Status: 400 invalid, 401 unauthenticated, 403 blocked, 404 missing, 409 conflict, 500 internal, 503 dependency down.
+- Never return stack traces or raw database errors. `/api/health` returns a generic dependency status only; keep diagnostics in server logs.
+- Secrets live in Docker secrets or server env — never `NEXT_PUBLIC_*`, git, docs, or logs. Covers Postgres credentials, `DATABASE_URL`, `NEXTAUTH_SECRET`, GitLab tokens.
+- GitLab token: server-only, least privilege, rotatable without deleting imported WorkItems. Status APIs must not echo secrets.
+- Do not publish the instance to the public internet until owner auth or a private access gate exists. Do not expose PostgreSQL on a public port.
+- Log request context or trace ids. Never log passwords, connection strings, or tokens.
+- Production uses non-dev secrets, non-root app user, and a rollback/backup plan. Schema downgrade is not automatic.

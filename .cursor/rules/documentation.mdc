@@ -1,0 +1,15 @@
+---
+description: How to write and update document/ specs and API handbook
+globs: document/**/*.md
+alwaysApply: false
+---
+
+# Documentation
+
+- EV files in `document/` are the product source of truth. When behavior changes, update BR, Scope, Engineering Spec, Architecture, API, Database, Mapping, and Deployment together.
+- Thai-first prose. Keep English model, field, and route names. `document/feature/*` is UI reference only when it matches EV.
+- Do not mark a menu done unless EV data, API, and acceptance are met. Separate UI-complete from data-complete.
+- Never paste real secrets, tokens, or connection strings. `.env.example` stays placeholders.
+- Process commands live in `document/process/db.md` and `docker.md`. Do not revive `package.json` `db:*` or `docker:*` scripts.
+- API handbook responses: every JSON field gets a concise Thai comment (what it is and where it comes from).
+- New work-item reports under `design/work_items/after_implementation` use Thai-first language with English system terms.

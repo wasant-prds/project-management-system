@@ -1,0 +1,16 @@
+---
+description: Daily Work TimeEntry CRUD and Project/WorkItem consistency
+globs: app/daily-work/**,app/api/work-logs/**,components/page/daily-work/**
+alwaysApply: false
+---
+
+# Daily Work `/daily-work`
+
+- CRUD `TimeEntry` for the owner. Required: WorkItem, owner, date, positive hours. Current form also requires description.
+- UI: pick Project first, then WorkItems of that Project. Changing Project resets WorkItem. Server rejects ID mismatch on every POST and PATCH.
+- Resolve `userId` from the authenticated owner. Do not trust a posted `userId` or a client Admin selector.
+- Period views: day / week / month / year in Asia/Bangkok. Hour totals come from the same rows. Block double-submit while a request is pending.
+- Validate hours > 0 and the agreed daily cap on the server. Schema `hours` is an unconstrained Decimal today.
+- After write, refresh Work Item, Project, Dashboard, and Analysis hour totals.
+- Dialogs: `DIALOG_SHELL_WIDE_CLASS`. Card view compact meta. Details `flex-[3]` / Remarks `flex-[7]`. `WorkItemDescription` including GFM tables. Stack columns on phone.
+- Urgency grouping stays on `/work-items`. Out: approvals, payroll, invoice, timer, overtime, billable flags, offline sync, GitLab time import.

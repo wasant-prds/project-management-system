@@ -1,0 +1,16 @@
+---
+description: Core product, stack, menus, language, and source-of-truth docs
+alwaysApply: true
+---
+
+# Core product
+
+- Single-owner Project Management System. Modular Next.js monolith — no new microservice or framework swap.
+- Stack: Next.js App Router, Route Handlers, Prisma, PostgreSQL 16, Docker Compose.
+- Eight menus: `/` Dashboard, `/projects`, `/work-items`, `/board`, `/analysis`, `/daily-work`, `/company`, `/settings`. Do not treat `/tasks` or `/issues` as a second source of truth.
+- Thai-first UI, docs, and chat. Keep English system terms (WorkItem, TimeEntry, Customer, Project).
+- EV source of truth: `document/BUSINESS_REQUIREMENT.md`, `SCOPE.md`, `ENGINEERING_SPEC.md`, `ARCHITECTURE.md`, `API.md`, `DATABASE.md`, `DATABASE_MAPPING.md`, `DEPLOYMENT.md`. Feature `document/feature/*` marked "done" is UI-only; data/API must follow EV.
+- One shared `WorkItem` and `TimeEntry` set. Dashboard, Board, and Analysis are read projections — never mock KPIs in production UI.
+- Developer / Infra / SA live only on `WorkItem.role`. They are not accounts, `User.role`, or permissions.
+- One Company profile per installation. One owner `User`. `ProjectMember` is legacy schema, not a product feature.
+- Implement in order: (1) server validation + owner access (2) Customer + Project backfill (3) Board + Daily Work consistency (4) Dashboard aggregates (5) Analysis/export (6) Company/Settings persist (7) GitLab import.

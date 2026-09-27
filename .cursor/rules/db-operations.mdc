@@ -1,0 +1,17 @@
+---
+description: Safe DB commands, seed, backup, and APP_ENV targeting
+globs: scripts/db-*.{sh,ps1},prisma/seed.ts,database/**,document/process/db.md
+alwaysApply: false
+---
+
+# Database operations
+
+- Run from repo root. Use `bash` for `.sh` (Git Bash on Windows). One root `.env`. `APP_ENV` = `local`|`dev`|`uat`|`prod` selects Compose, container, and volume.
+- `SEED_PATH` default `database/seeds/master` (path from `/app` in the container).
+- Prisma: `pnpm prisma generate` | `migrate dev` | `db seed` (skip if data exists, never wipe) | `studio`. `postinstall` already runs generate.
+- Schema push only via `bash scripts/db-push-safe.sh` (refuses data-loss flags). Docker migrations use this script.
+- Seed dump: `bash scripts/dump-master-seeds.sh` snapshots current `APP_ENV` Postgres into seed JSON (`WorkItem/` by year; leftover JSON removed) then zips to `./backups`. That site's Postgres must be up.
+- `bash scripts/db-manage.sh <cmd>` (or `.ps1`): status, backup, restore, connect, logs, seed, reset, force-seed — all target `APP_ENV` only.
+- Never `reset` or `force-seed` on production or any database with real data. Seed skips when configured tables already have rows.
+- Backup before schema change. A file that was never restored is not verified. SQL backups go under `database/backups` with the site name in the filename.
+- Production Compose profile `backup`: daily `pg_dump` gzip. `BACKUP_KEEP_DAYS` compose default is 3 unless overridden.

@@ -1,0 +1,17 @@
+---
+description: Canonical data ownership, relations, timezone, and write paths
+alwaysApply: true
+---
+
+# Data invariants
+
+- Path: Customer → Project → WorkItem → TimeEntry. Project/Customer labels come from relations, not copied text on child rows.
+- Every Project has exactly one Customer. Customer 1:N Projects. `Project.customerId` may be nullable only during backfill; no orphans before NOT NULL.
+- TimeEntry must reference an existing WorkItem. `projectId` must equal that WorkItem's project (or be derived). Reject mismatch with 400/409; do not write the row.
+- Owner identity is resolved server-side. Never trust browser `userId` or `assigneeId` to switch users. Assignee and Daily Work logger are the same owner.
+- Board columns are `WorkItem.status`. No private board records. Status writes go through the WorkItem service used by `/work-items`.
+- Dashboard, Analysis, and Project summaries use the shared metric formulas. Never hard-code sample arrays or treat API errors as zero.
+- Store timestamps in UTC. Interpret business calendar dates as Asia/Bangkok. The same timezone applies to every filter and date group.
+- Do not rely on implicit cascade for business history. Deleting a Project currently cascades WorkItems/TimeEntries. Confirm + retain/archive before destructive ops.
+- GitLab import upserts the same `WorkItem`. Customer comes from the mapped PMS Project. Removing a mapping keeps imported WorkItems and TimeEntries.
+- Related-row mutations commit in one transaction. After success, refresh or invalidate every surface that reads those rows.

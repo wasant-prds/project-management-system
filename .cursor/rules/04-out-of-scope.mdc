@@ -1,0 +1,22 @@
+---
+description: Explicit out-of-scope product and platform work
+alwaysApply: true
+---
+
+# Out of scope
+
+Do not implement unless product scope changes:
+
+- Multi-user accounts, invites, ProjectMember admin, team permissions, role matrix
+- GitLab write-back, two-way sync, webhooks, scheduled sync, MRs, commits, CI, GitLab time-tracking import
+- New WorkItem statuses, custom fields, nested subtasks, dependency graph, attachments, comments workflow
+- User-defined Board columns or WIP policies
+- Predictive analytics, utilization scores without an agreed working calendar, financial reports from unvalidated budget
+- Timesheet approval, payroll, invoicing, stopwatch, overtime, billable accounting, offline sync
+- CRM pipeline, invoices, budget ledger as source of truth, project document versioning
+- HR, recruitment, external IdP directory sync, multi-tenant or multi-company admin
+- Custom password/2FA without a real provider; notification channels that are not integrated
+- New framework or database, microservices, event bus, native mobile, external CRM/HR APIs
+- SLA or capacity numbers without a measured baseline
+- Dashboard notification center, portfolio forecasting, configurable dashboard builder
+- Cross-company BI warehouse
