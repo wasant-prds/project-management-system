@@ -6,11 +6,13 @@
 | ฉบับ | EV — Enhanced Version |
 | สถานะ | ข้อกำหนดเป้าหมายสำหรับใช้วางแผนการพัฒนา |
 | ภาษาหลัก | ไทย โดยคง system terms ภาษาอังกฤษที่ใช้ทั่วไป |
-| เอกสารประกอบ | [Architecture](./ARCHITECTURE.md), [Business Requirement](./BUSINESS_REQUIREMENT.md), [Scope](./SCOPE.md), [Database](./DATABASE.md), [Database Mapping](./DATABASE_MAPPING.md), [API](./API.md), [Deployment](./DEPLOYMENT.md) |
+| เอกสารประกอบ | [Shared Data Model](./SHARED_DATA_MODEL.md), [Architecture](./ARCHITECTURE.md), [Business Requirement](./BUSINESS_REQUIREMENT.md), [Scope](./SCOPE.md), [Database](./DATABASE.md), [Database Mapping](./DATABASE_MAPPING.md), [API](./API.md), [Deployment](./DEPLOYMENT.md) |
 
 > เอกสารนี้เป็นข้อกำหนดเชิงวิศวกรรมฉบับยกระดับ ไม่ได้ยืนยันว่าความสามารถเป้าหมายมีอยู่ในระบบปัจจุบัน รายละเอียดปัจจุบันและส่วนที่ต้องพัฒนาดูหัวข้อ Baseline และ Gap ในเอกสารที่เกี่ยวข้อง
 
 ## 1. เป้าหมาย
+
+ข้อกำหนด entity, relation, owner, functional role และ metric ที่เป็นมาตรฐานกลางอยู่ใน [Shared Data Model](./SHARED_DATA_MODEL.md); เอกสารนี้ระบุข้อกำหนดเชิงวิศวกรรมและ As-Is/Target เพิ่มเติม
 
 ทำให้ทุกเมนูใช้ข้อมูลธุรกิจชุดเดียวกัน โดยยึด `WorkItem` เป็นรายการงานหลัก และ `TimeEntry` เป็นบันทึก Daily Work ที่ผูกกับรายการงานนั้น หน้า Dashboard, Projects, Board และ Analysis ต้องคำนวณจากข้อมูลเดียวกัน ไม่สร้างชุดข้อมูลตัวอย่างหรือสถานะซ้ำของตัวเอง
 
@@ -71,7 +73,7 @@ Customer → Project → Work Item → Daily Work (Time Entry)
 - Project เป็น context ที่ได้จาก Work Item หรือส่งซ้ำได้เฉพาะเมื่อ backend ตรวจว่า projectId ตรงกับ project ของ workItemId
 - ตรวจรูปแบบวันที่, จำนวนชั่วโมงเป็นค่าบวก, ขีดจำกัดชั่วโมงต่อวัน และความสัมพันธ์ระหว่าง user, Project และ Work Item ฝั่ง server ไม่พึ่ง validation ฝั่ง browser เพียงอย่างเดียว
 - การแก้ไข/ลบต้อง refresh ผลรวมชั่วโมงและทุกมุมมองที่คำนวณจาก TimeEntry
-- รายงานชั่วโมงรวมต้องระบุ timezone และช่วงวันที่ที่ใช้ให้ตรงกัน (ค่าเริ่มต้นทางธุรกิจที่เสนอ: Asia/Bangkok)
+- รายงานชั่วโมงรวมต้องระบุ timezone และช่วงวันที่ที่ใช้ให้ตรงกัน โดยใช้ Asia/Bangkok เป็น business timezone
 
 ### 3.4 Menu contracts
 

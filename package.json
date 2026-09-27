@@ -7,6 +7,8 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
+    "test": "node tests/run.mjs",
+    "test:contracts": "node tests/contracts/shared-data-model.test.mjs",
     "start": "next start",
     "postinstall": "prisma generate"
   },

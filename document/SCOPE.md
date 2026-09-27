@@ -6,7 +6,7 @@
 | เอกสาร | Scope ฉบับรวมและแบ่งตาม Menu |
 | ภาษา | ภาษาไทยเป็นหลัก; system terms ใช้ภาษาอังกฤษเมื่อเป็นคำที่ใช้ทั่วไป |
 | สถานะ | กรอบเป้าหมายสำหรับวางแผนงานพัฒนา; Step 1 ปัจจุบันส่งมอบเอกสารเท่านั้น |
-| เอกสารเชื่อมโยง | [BUSINESS_REQUIREMENT.md](./BUSINESS_REQUIREMENT.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) |
+| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [BUSINESS_REQUIREMENT.md](./BUSINESS_REQUIREMENT.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) |
 
 ## 1. วัตถุประสงค์และขอบเขตของ Step 1
 
@@ -33,6 +33,8 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 
 ## 3. Data scope และระบบที่เชื่อมกัน
 
+ข้อกำหนดข้อมูลร่วมฉบับบรรทัดฐานอยู่ใน [Shared Data Model](./SHARED_DATA_MODEL.md)
+
 ### 3.1 Core business data
 
 - `WorkItem`: แหล่งจริงสำหรับงาน สถานะ ประเภท priority, functional role, owner/assignee, Project และวันทำงาน
@@ -50,7 +52,7 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 - Daily Work ต้องเชื่อม WorkItem; Project ID ต้องสอดคล้องกับ Project ของ WorkItem
 - Project Customer ต้องใช้ relation เดียวกันใน Project list/detail, filters, Dashboard และ Analysis
 - Summary counts/hours/progress ใช้สูตรชุดเดียวกันทุกหน้า
-- ใช้ timezone เดียวกันใน filter และ date grouping
+- ใช้ Asia/Bangkok ใน filter และ date grouping; เก็บ timestamp เป็น UTC
 
 ## 4. รายละเอียด scope / non-scope แยกตาม Menu
 

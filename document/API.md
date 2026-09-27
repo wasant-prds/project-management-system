@@ -6,9 +6,11 @@
 | Base URL | `http://localhost:<app-port>/api` |
 | รูปแบบ | JSON; methods use `GET`, `POST`, `PATCH`, `DELETE` |
 | สถานะ | Inventory ปัจจุบันและ target endpoints; target endpoints are proposals |
-| เอกสารเชื่อมโยง | [DATABASE.md](./DATABASE.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) |
+| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [DATABASE.md](./DATABASE.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) |
 
 ## 1. API conventions
+
+API identities and shared business semantics follow the [Shared Data Model](./SHARED_DATA_MODEL.md). A WorkItem or TimeEntry returned through another menu or aggregate keeps its canonical ID; a projection is not a second writable record.
 
 - Response content type เป็น JSON สำหรับ routes ที่คืนข้อมูล
 - Current APIs ส่วนใหญ่คืน wrapper เช่น `{ "workItems": [...] }`, `{ "workItem": {...} }`, `{ "projects": [...] }`, `{ "workLogs": [...] }`
@@ -95,6 +97,8 @@ Current implementation needs a documented timezone policy to ensure client/serve
 ### Create Daily Work
 
 `POST /api/work-logs` currently requires `hours`, `userId`, `projectId`, and `workItemId`; it checks that the user exists and resolves the Work Item only if it belongs to the selected Project. `PATCH /api/work-logs/{id}` performs the same Work Item/Project check only when `workItemId` is included in the patch. A patch that changes `projectId` without also sending `workItemId` can therefore leave a mismatched pair; this is a current integrity gap. Existing page also submits description, remarks, date and status.
+
+`TimeEntry.status` in this current request example is legacy As-Is data. Target task status is only `WorkItem.status`; Daily Work must not define or report a second task status. Target TimeEntry requires one WorkItem and derives its Project from that relation, validating any supplied `projectId` on every mutation.
 
 ```json
 {

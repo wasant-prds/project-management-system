@@ -6,7 +6,7 @@
 | Environments | Development, UAT, Production |
 | สถานะ | คู่มือ deployment จาก Compose/scripts ปัจจุบัน |
 | ภาษา | ภาษาไทยเป็นหลัก; command และ environment names คงเดิม |
-| เอกสารเชื่อมโยง | [ARCHITECTURE.md](./ARCHITECTURE.md) · [DATABASE.md](./DATABASE.md) · [document/process/docker.md](./process/docker.md) · [document/process/db.md](./process/db.md) |
+| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [DATABASE.md](./DATABASE.md) · [document/process/docker.md](./process/docker.md) · [document/process/db.md](./process/db.md) |
 
 > เอกสารนี้อธิบาย configuration ที่พบใน repository ไม่ใช่การยืนยันว่า environment ใดกำลังทำงานหรือพร้อม deploy คำสั่ง Production บางรายการอาจมี confirmation ใน helper script
 

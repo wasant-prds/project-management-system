@@ -6,7 +6,7 @@
 | เอกสาร | ข้อกำหนดทางธุรกิจฉบับรวมทุกเมนู |
 | ภาษา | ภาษาไทยเป็นหลัก; system terms ใช้ภาษาอังกฤษเมื่อเป็นคำที่ใช้ทั่วไป |
 | สถานะ | ข้อกำหนดเป้าหมายเพื่อพัฒนาและทบทวน |
-| เอกสารเชื่อมโยง | [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [SCOPE.md](./SCOPE.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [API.md](./API.md) |
+| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [SCOPE.md](./SCOPE.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [API.md](./API.md) |
 
 เอกสารนี้รวมและยกระดับ Business Requirement รายเมนูที่อยู่ใน `document/feature/` ให้ทุกหน้าใช้ข้อมูลหลักที่สอดคล้องกัน ตัวเลขในหน้าไม่ควรถือเป็นจริงหากไม่ได้คำนวณจาก `WorkItem` และ `TimeEntry` ในฐานข้อมูล
 
@@ -39,12 +39,14 @@
 
 ## 3. หลักข้อมูลร่วมทุกเมนู
 
+ความหมาย entity/relation, owner, functional role และ metric แบบบรรทัดฐานอยู่ใน [Shared Data Model](./SHARED_DATA_MODEL.md)
+
 - รายการงานหนึ่งรายการมี Work Item ID เดียว ไม่ว่าจะเปิดจาก Work Items, Board, Project หรือ Dashboard
 - Daily Work แต่ละรายการต้องอ้าง Work Item และบันทึกในนามเจ้าของระบบ; Project context ต้องมาจาก Project ของ Work Item นั้น
 - สถานะใน Board และ Work Items ต้องตรงกันทันทีหลังบันทึก
 - Project progress, task counts และชั่วโมงต้องคำนวณจาก Work Items/Time Entries ตามสูตรที่ระบุ ไม่กรอกซ้ำเป็น snapshot ที่แก้คนละที่
 - ทุก Project ต้องผูกกับ Customer หลักหนึ่งราย; Customer หนึ่งรายมีหลาย Projects ได้ และ Project หนึ่งรายการไม่ผูกหลาย Customer ใน scope นี้
-- เวลารายงานทั้งหมดใช้ timezone เดียวกัน (ข้อเสนอ: Asia/Bangkok); UI ต้องแสดงช่วงวันที่ที่เลือก
+- เวลารายงานทั้งหมดใช้ Asia/Bangkok เป็น business timezone; UI ต้องแสดงช่วงวันที่ที่เลือก
 - `cancelled` แยกจาก `completed`; ไม่นับเป็นงานเสร็จเมื่อคำนวณ completion rate
 - รายการไม่มีข้อมูลต้องแสดง empty state; API error ต้องไม่ถูกแทนด้วยเลขศูนย์หรือ mock values ที่ดูเหมือนข้อมูลจริง
 - UI ทั้ง 8 เมนูต้องใช้ visual hierarchy และองค์ประกอบที่สม่ำเสมอ; responsive บนโทรศัพท์ แท็บเล็ต และโน้ตบุ๊ก โดยไม่ตัดข้อมูลหรือซ่อน action สำคัญ
@@ -75,7 +77,7 @@
 - สร้าง ดู แก้ไข และลบ/เก็บถาวร Project โดยเจ้าของ พร้อมชื่อ รายละเอียด สถานะ priority วันเริ่ม/กำหนดเสร็จ และ Customer
 - ค้นหา/กรอง Project ตาม Customer, status และข้อความ; เปิดรายละเอียด Project แล้วเห็น Work Items, functional roles และชั่วโมงรวม
 - แสดง total, open, completed Work Items จาก `WorkItem`; แสดง actual hours จาก `TimeEntry`
-- Progress ที่แสดงต้องมีสูตรเดียวทั้งระบบ (ข้อเสนอ: completed / (total - cancelled), เมื่อ denominator เป็นศูนย์ให้ 0%)
+- Progress ที่แสดงต้องมีสูตรเดียวทั้งระบบ: completed / (total - cancelled); เมื่อ denominator เป็นศูนย์ให้ 0%
 - การลบ Project ต้องแจ้งผลต่อ Work Items/Time Entries และป้องกันการลบข้อมูลประวัติโดยไม่ตั้งใจ
 
 **เกณฑ์ยอมรับ:** Customer ที่เลือกติดกับ Project ที่บันทึกจริง; ทุก Work Item/Daily Work ใน Project detail มี foreign relation ที่ตรวจสอบได้; summary เท่ากับจำนวนรายการจริง

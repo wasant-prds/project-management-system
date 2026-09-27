@@ -5,9 +5,9 @@
 | วัตถุประสงค์ | เชื่อม Menu, UI field, API และ persistent model |
 | สถานะ | As-Is mapping พร้อม Target mapping |
 | ภาษา | ภาษาไทยเป็นหลัก; ชื่อ code/schema คงภาษาอังกฤษ |
-| เอกสารเชื่อมโยง | [DATABASE.md](./DATABASE.md) · [API.md](./API.md) · [BUSINESS_REQUIREMENT.md](./BUSINESS_REQUIREMENT.md) |
+| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [DATABASE.md](./DATABASE.md) · [API.md](./API.md) · [BUSINESS_REQUIREMENT.md](./BUSINESS_REQUIREMENT.md) |
 
-> `Customer`, `Project.customerId` และ GitLab external references เป็น target; ยังไม่มีใน Prisma schema/API/UI ปัจจุบัน
+> `Customer`, `Project.customerId` และ GitLab external references เป็น target; ยังไม่มีใน Prisma schema/API/UI ปัจจุบัน. ความสัมพันธ์และ metric เป้าหมายยึด [Shared Data Model](./SHARED_DATA_MODEL.md)
 
 ## 1. Source-of-truth matrix
 
@@ -16,13 +16,12 @@
 | Work Item / status / assignment | `WorkItem` / `work_items` | `WorkItem.id` | Work Items, Board, Dashboard, Projects, Analysis, Daily Work selector | Work Items API; target Board mutation ผ่าน WorkItem service |
 | Daily Work / actual hours | `TimeEntry` | `TimeEntry.id` | Daily Work, Work Item detail, Project, Dashboard, Analysis | Work Logs API (`/api/work-logs`) |
 | Project | `Project` | `Project.id` | Projects, selectors, Work Items, Daily Work, Dashboard, Analysis | Projects page/API |
-| Customer | Target `Customer` | `Customer.id` | Projects, Dashboard, filters, Analysis | Target Customer/Project API |
+| Customer | Target `Customer` | `Customer.id` | Company registry, Projects, Dashboard, filters, Analysis | Target Customer/Project API |
 | Owner identity | One `User` row | `User.id` | Work Items (assignee), Daily Work (logger), Settings | Owner identity resolved by server; current users API is read-only |
 | Work Item functional role | `WorkItem.role` | enum value | Work Items, Board, Analysis, Project summaries | Work Items API; values Developer / infra / SA |
 | GitLab Issue identity | Target `ExternalWorkItemReference` | instance + GitLab project ID + global issue ID | Work Items (source link/sync status) | GitLab connector only; unique key prevents duplicate import |
 | GitLab Project link | Target `GitLabProjectMapping` | GitLab instance/project ID → `Project.id` | Work Items sync setup; Project supplies Customer context | Owner-managed mapping; one GitLab Project maps to one PMS Project in phase one |
 | Company profile | One `Company` row per installation | `Company.id` | Company | Target Company API; current page read-only query |
-| Customer | Target `Customer` | `Customer.id` | Company registry, Projects, Dashboard, Analysis | Target Customer API |
 | Project membership | Legacy `ProjectMember` relation | `ProjectMember.id` | As-Is Projects/Company counts only | No multi-member/team management in target scope |
 | Owner preferences | Target owner-scoped preference record or selected provider | owner key | Settings | Target Settings API |
 
@@ -80,10 +79,10 @@
 | `description`, `remarks` | same | optional in schema; current page requires description on submit |
 | `hours` | `hours` Decimal | UI/API convert input string to number; target validation must reject nonnumeric/nonpositive values server-side |
 | `date` | `date` | DateTime; day boundaries interpreted in consistent timezone |
-| `status` | `status` | optional free-form string today; standard values must be agreed/enforced |
+| `TimeEntry.status` | `status` | optional free-form legacy field As-Is; not a WorkItem workflow status or target metric; do not create a second status vocabulary |
 | `userId` | `userId` | current page selects Admin/default User client-side; target always resolve the single owner's authenticated identity server-side |
-| `projectId` | `projectId` | currently required by create API despite nullable schema |
-| `workItemId` | `workItemId` | currently required by create API despite nullable schema; must belong to `projectId` |
+| `projectId` | `projectId` | Project context มาจาก Project ของ WorkItem; derive หรือ validate ให้ตรงกันทุกครั้งที่ส่งค่านี้ |
+| `workItemId` | `workItemId` | required in the target model; each TimeEntry belongs to exactly one WorkItem |
 | nested `workItem` | relation | response includes id/title/kind/status; status serialized to public enum spelling |
 
 ### Project summary
@@ -106,7 +105,7 @@
 | Work Item references valid assignee | Required FK; create API checks user exists | Resolve to the sole owner User row; remove assignee choice among multiple users |
 | Daily Work references valid user | Required FK; POST API checks user exists | Use the sole owner's authenticated identity; retain FK |
 | Daily Work Project and Work Item match | POST checks the pair; PATCH checks only when `workItemId` is included. PATCH that changes only `projectId` can mismatch; DB doesn't enforce pair | Derive Project from Work Item and/or add composite DB integrity; validate on every mutation |
-| Work Item/TimeEntry enum validity | WorkItem enums and API parser; TimeEntry.status is free-form String | Central enum/ref data and server validation |
+| Work Item/TimeEntry enum validity | WorkItem enums and API parser; TimeEntry.status is free-form String | Keep WorkItem status canonical; TimeEntry has no separate target workflow status |
 | Project has Customer | Not modeled | Customer FK, staged backfill, required once verified |
 | Company singleton | Not enforced; page uses `findFirst()` | Enforce/select one Company row per installation; multi-company is out of current scope |
 | Historical completion time | `submittedAt` means sa-testing or completed | Add `completedAt` or status history for period analytics |

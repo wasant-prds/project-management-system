@@ -12,14 +12,12 @@ A comprehensive, full-stack project management system built with **Next.js 15**,
 
 ### Core Functionality
 - 📁 **Project Management** - Track projects with status, priority, budgets, and progress
-- ✅ **Task Management** - Assign tasks, set due dates, track time, and dependencies
-- 🐛 **Issue Tracking** - Bug reports, feature requests, and enhancements
-- 👥 **Team Management** - Departments, roles, and user profiles
+- ✅ **Work Item Management** - Manage Incidents, Issues, and Tasks as kinds of the same WorkItem record
+- 👤 **Single-owner workspace** - One system owner; Developer, Infra, and SA are functional roles on WorkItems
 - 📊 **Data Analysis** - Comprehensive analytics and insights dashboard
 - 📋 **Kanban Board** - Visual workflow management with drag-and-drop
 - 📅 **Daily Work Logs** - Track daily activities and time entries
 - ⚙️ **Settings** - User profile and application preferences
-- 💬 **Comments & Collaboration** - Discussion threads on tasks and issues
 - ⏱️ **Time Tracking** - Log work hours and track estimates vs actuals
 - 📝 **Activity Logs** - Complete audit trail of all actions
 - 🔔 **Notifications** - Stay updated on project activities
@@ -85,12 +83,14 @@ bash scripts/docker-dev.sh start-studio
 - **[Scope](./document/SCOPE.md)** - Step 1 boundary and menu-by-menu delivery scope
 - **[Database](./document/DATABASE.md)** - Current Prisma schema and proposed Customer/data-integrity changes
 - **[Database Mapping](./document/DATABASE_MAPPING.md)** - Mapping between menus, APIs, and database records
+- **[Shared Data Model](./document/SHARED_DATA_MODEL.md)** - Canonical Customer, Project, WorkItem, TimeEntry, owner, and metric contract
 - **[API](./document/API.md)** - Current endpoint inventory and target API gaps
 - **[Deployment](./document/DEPLOYMENT.md)** - Docker environments, database initialization, and operations
 - **[Database README](./database/README.md)** - Database setup and management
 - **[Secrets README](./secrets/README.md)** - Environment configuration guide
 - **[Database process](./document/process/db.md)** - Prisma and db helper commands
 - **[Docker process](./document/process/docker.md)** - Dev / UAT / production helper commands
+- **[Testing commands](./document/process/testing.md)** - Reusable pnpm test runner commands
 
 ## 🏗️ Architecture
 
@@ -150,24 +150,9 @@ bash scripts/docker-dev.sh start-studio
 
 ## 🗄️ Database Schema
 
-14 interconnected tables:
+Current Prisma models: Company, User, Project, legacy ProjectMember, WorkItem, TimeEntry, Comment, Milestone, Document, ActivityLog, and Notification. Incident, Issue, and Task are WorkItem kinds, not separate source-of-truth tables. The target product has one owner; ProjectMember is not a team-management feature. Customer and the required Project relation are target requirements and are not yet present in the current schema.
 
-- **Company** - Organization information
-- **Department** - Company departments with leads
-- **User** - Team members and authentication
-- **Project** - Projects with budget and progress tracking
-- **ProjectMember** - Many-to-many user-project relationship
-- **Task** - Tasks with assignments and time tracking
-- **TaskDependency** - Task dependencies
-- **Issue** - Bug reports and feature requests
-- **Comment** - Discussion threads
-- **Milestone** - Project milestones
-- **Document** - File attachments
-- **TimeEntry** - Work time logging
-- **ActivityLog** - Audit trail
-- **Notification** - User notifications
-
-See the Prisma schema file for detailed database documentation.
+See the [Shared Data Model](./document/SHARED_DATA_MODEL.md) for the target model and the [Database](./document/DATABASE.md) document for the As-Is schema.
 
 ## 🐳 Docker Environments
 
@@ -225,6 +210,8 @@ pnpm dev                 # Start dev server
 pnpm build              # Build for production
 pnpm start              # Start production server
 pnpm lint               # Run linter
+pnpm test               # Run all Node tests
+pnpm test:contracts     # Verify shared data model requirements and references
 ```
 
 ### Database

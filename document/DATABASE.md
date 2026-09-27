@@ -6,7 +6,7 @@
 | ORM | Prisma 6 (`prisma/schema.prisma`) |
 | สถานะ | As-Is schema พร้อม target changes ที่เสนอ; ยังไม่มี Customer model |
 | ภาษาหลัก | ภาษาไทย; คงชื่อ model/field ตาม code |
-| เอกสารเชื่อมโยง | [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [API.md](./API.md) · [DEPLOYMENT.md](./DEPLOYMENT.md) |
+| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [API.md](./API.md) · [DEPLOYMENT.md](./DEPLOYMENT.md) |
 
 > ส่วน As-Is อ้างอิง Prisma schema ใน repository ณ วันที่ 2026-09-27 ไม่ใช่ผล introspection ของ database instance ใดโดยเฉพาะ การเพิ่ม `Customer` และ constraint ในหัวข้อ Target ต้องผ่าน review, backup และ migration/backfill plan ก่อน deploy
 
@@ -152,7 +152,7 @@ Customer
 Project.customerId String? FK → Customer.id (nullable ระหว่าง backfill)
 ```
 
-Required business cardinality: Customer 1:N Project; **Project แต่ละรายการต้องผูกกับ Customer หนึ่งราย** และ Customer หนึ่งรายผูก Projects ได้หลายรายการ. ระหว่าง migration `customerId` อาจ nullable ชั่วคราวเพื่อ backfill เท่านั้น; ก่อนเปิดใช้ requirement ใหม่ต้อง map ทุก Project เดิมและตรวจว่าไม่มี orphan. ห้ามใช้ชื่อลูกค้าจาก seed/sample เป็นข้อเท็จจริงโดยไม่มีการยืนยัน
+Required business cardinality: Customer 1:N Project; **Project แต่ละรายการต้องผูกกับ Customer หนึ่งราย** และ Customer หนึ่งรายผูก Projects ได้หลายรายการ ตาม [Shared Data Model](./SHARED_DATA_MODEL.md). ระหว่าง migration `customerId` อาจ nullable ชั่วคราวเพื่อ backfill เท่านั้น; ก่อนเปิดใช้ requirement ใหม่ต้อง map ทุก Project เดิมและตรวจว่าไม่มี orphan. ห้ามใช้ชื่อลูกค้าจาก seed/sample เป็นข้อเท็จจริงโดยไม่มีการยืนยัน
 
 ### 4.2 External reference สำหรับ GitLab Issues (target)
 
@@ -180,7 +180,7 @@ ExternalWorkItemReference
 - Project ID ของ TimeEntry ควรถูก derive จาก WorkItem หรือใช้ composite relation/check เพื่อป้องกัน mismatch
 - กำหนด precision ของ Decimal (`hours`, `budget`, `spent`); ชั่วโมงใช้ scale ที่เหมาะกับการบันทึกเศษชั่วโมงและ currency ใช้ scale 2 ตาม currency policy
 - เพิ่ม check constraints สำหรับ `hours > 0`, `progress BETWEEN 0 AND 100` และ date ranges ตามกฎที่ตกลง
-- พิจารณา enum/reference tables สำหรับ Project status/priority, owner account status และ TimeEntry status แทน String free-form; อย่านำ `Developer`/`Infra`/`SA` ไปใส่ `User.role`
+- พิจารณา enum/reference tables สำหรับ Project status/priority และ owner account status แทน String free-form; `TimeEntry.status` เป็น legacy field ไม่ใช่สถานะ workflow ของ Target และห้ามใช้แทน `WorkItem.status`; อย่านำ `Developer`/`Infra`/`SA` ไปใส่ `User.role`
 - เพิ่ม `completedAt` หรือ `WorkItemStatusHistory` สำหรับ historical throughput; กำหนดการ stamp/reset เมื่อ status เข้า/ออก terminal state
 - พิจารณา soft delete/archive สำหรับ Project/User/WorkItem เพื่อรักษา TimeEntry, ActivityLog และ audit history
 - กำหนดวิธีบังคับ/เลือก company profile เดียวต่อ installation; multi-company/tenant model อยู่นอก scope ปัจจุบัน

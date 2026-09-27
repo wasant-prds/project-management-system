@@ -5,11 +5,13 @@
 | ฉบับ | EV — Enhanced Version |
 | สถานะ | สถาปัตยกรรมเป้าหมายสำหรับระบบชุดปัจจุบัน |
 | ภาษาหลัก | ไทย; system terms คงภาษาอังกฤษ |
-| ข้อกำหนด | [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [API.md](./API.md) · [DATABASE.md](./DATABASE.md) |
+| ข้อกำหนด | [Shared Data Model](./SHARED_DATA_MODEL.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [API.md](./API.md) · [DATABASE.md](./DATABASE.md) |
 
 > ภาพ As-Is ด้านล่างอิง repository ที่ตรวจพบ ณ วันที่ 2026-09-27; ส่วน Target เป็นแนวทางระบบที่เมนูทั้งหมดอ่านข้อมูลจริงชุดเดียวกัน
 
 ## 1. Architectural goals
+
+ความสัมพันธ์และ source of truth ของ business records ให้ยึด [Shared Data Model](./SHARED_DATA_MODEL.md)
 
 - คงเป็น modular monolith บน Next.js App Router, Next.js Route Handlers, Prisma และ PostgreSQL
 - ให้ `WorkItem` และ `TimeEntry` เป็น operational records กลาง ไม่แยกสำเนางาน/เวลารายเมนู
