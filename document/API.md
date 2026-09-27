@@ -6,7 +6,7 @@
 | Base URL | `http://localhost:<app-port>/api` |
 | รูปแบบ | JSON; methods ใช้ `GET`, `POST`, `PATCH`, `DELETE` เว้นแต่ระบุว่าเป็นไฟล์ |
 | สถานะเอกสาร | แยก endpoint ที่พบใน repository (As-Is) ออกจากสัญญาเป้าหมาย (Target proposal) |
-| ขอบเขตข้อมูล | ยึด [Shared Data Model](./SHARED_DATA_MODEL.md); Customer/Project rollout ยึด [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) |
+| ขอบเขตข้อมูล | ยึด [Shared Data Model](./SHARED_DATA_MODEL.md); Customer/Project rollout ยึด [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md); GitLab import ยึด [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) |
 | เอกสารเชื่อมโยง | [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [BUSINESS_REQUIREMENT.md](./BUSINESS_REQUIREMENT.md) · [SCOPE.md](./SCOPE.md) · [DATABASE.md](./DATABASE.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [DEPLOYMENT.md](./DEPLOYMENT.md) |
 
 > **ขอบเขต As-Is:** inventory และพฤติกรรมปัจจุบันอิง source code ใน repository ณ 2026-09-27 ไม่ใช่ผลตรวจ production database. **Target:** endpoint ที่ระบุว่าเป้าหมายยังไม่ถือว่าถูก implement หรือเปิดใช้งานแล้ว.
@@ -139,6 +139,10 @@ Dashboard/Analysis คืน `period`, `timezone`, `filters` และ `metricVe
 - `POST /api/work-items/import`: request ที่ถูกต้องมี rows; validate ทุก row ด้วย schema เดียวกับ create และตรวจ Project references ก่อนเขียน. คืน `imported` count และ `rows[]` ที่มี row `index`, outcome (`created`/`skipped`/`failed`), canonical `workItemId?` และ safe `error?`; row ที่ invalid ห้ามแก้หรือลบข้อมูลเดิม. Import contract ต้องระบุ transaction boundary ให้ผล partial/retry ทำงานตามที่แสดง.
 - Export เป็น read-only projection ของ filter set ปัจจุบัน; ไม่เปลี่ยน WorkItem และไม่เป็นแหล่งข้อมูลอีกชุด.
 
+#### 4.2.1 GitLab Issue import (Target proposal)
+
+การเชื่อม GitLab เป็น manual owner-triggered pull เท่านั้น. Routes ที่เสนอคือ `GET /api/integrations/gitlab/status`, `GET/POST /api/integrations/gitlab/projects`, `PATCH/DELETE /api/integrations/gitlab/projects/{mappingId}` และ `POST /api/integrations/gitlab/sync`; **ไม่มี route เหล่านี้ใน As-Is inventory §1**. Require owner authentication, configured server-side instance/token และ approved Project mapping. Sync response แยก `created`, `updated`, `skipped`, `failed` พร้อม source URL, safe per-Issue reason/retryability และ run-level pagination failure เมื่อมี partial result. Exact identity, field ownership, `opened → todo` / `closed → completed`, label map, transaction boundary, HTTP errors, pagination/rate-limit/retry behavior และ Bangkok date/time rules เป็นของ [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md); ห้ามถือ Target proposal ว่า implemented.
+
 ### 4.3 Daily Work / TimeEntry
 
 - `GET /api/work-logs`: `date=YYYY-MM-DD` หรือ `startDate`+`endDate` (ต้องส่งเป็นคู่และ end ไม่น้อยกว่า start); ห้ามส่ง `date` พร้อม date range. รองรับ optional `projectId`, `workItemId`, `limit`, `cursor`. วันเป็นช่วง inclusive ตาม Asia/Bangkok; `userId` เป็น legacy compatibility เท่านั้น.
@@ -215,6 +219,6 @@ Mutation success คืน canonical resource หลัง server commit. UI อ
 
 ## 6. การพัฒนาตาม dependency และการตรวจ contract
 
-Route proposals ในเอกสารนี้ขึ้นกับ owner access, Customer/Project rollout, shared WorkItem/TimeEntry validation และ preference storage ตามลำดับใน [SCOPE.md](./SCOPE.md). ไม่ทำ live database migration หรือเปิด endpoint ที่พึ่ง Customer จนผ่าน [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md). GitLab Issue import details, mappings, retries และ response outcomes อยู่ใน issue #14; route proposals ด้าน GitLab ไม่ใช่ current API.
+Route proposals ในเอกสารนี้ขึ้นกับ owner access, Customer/Project rollout, shared WorkItem/TimeEntry validation และ preference storage ตามลำดับใน [SCOPE.md](./SCOPE.md). ไม่ทำ live database migration หรือเปิด endpoint ที่พึ่ง Customer จนผ่าน [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md). GitLab Issue import details, mappings, retries และ response outcomes อยู่ใน [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md); route proposals ด้าน GitLab ไม่ใช่ current API.
 
-Contract regression tests ตรวจความครบของเอกสาร, route inventory ปัจจุบัน, target menu coverage และ reusable runner commands; tests เหล่านี้ไม่ได้ยืนยันว่า target endpoints ที่ยังไม่มีถูก implement แล้ว. คำสั่งดูที่ [Testing Commands](./process/testing.md): `pnpm test:api-contracts`, `pnpm test:contracts`, `pnpm test`.
+Contract regression tests ตรวจความครบของเอกสาร, route inventory ปัจจุบัน, target menu coverage และ reusable runner commands; tests เหล่านี้ไม่ได้ยืนยันว่า target endpoints ที่ยังไม่มีถูก implement แล้ว. คำสั่งดูที่ [Testing Commands](./process/testing.md): `pnpm test:api-contracts`, `pnpm test:contracts`, `pnpm test`; GitLab contract ใช้ `pnpm test:gitlab-contracts`.

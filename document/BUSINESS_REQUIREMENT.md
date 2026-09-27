@@ -6,7 +6,7 @@
 | เอกสาร | ข้อกำหนดทางธุรกิจฉบับรวมทุกเมนู |
 | ภาษา | ภาษาไทยเป็นหลัก; system terms ใช้ภาษาอังกฤษเมื่อเป็นคำที่ใช้ทั่วไป |
 | สถานะ | ข้อกำหนดเป้าหมายเพื่อพัฒนาและทบทวน |
-| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [SCOPE.md](./SCOPE.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [API.md](./API.md) |
+| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [SCOPE.md](./SCOPE.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [API.md](./API.md) |
 
 เอกสารนี้รวมและยกระดับ Business Requirement รายเมนูที่อยู่ใน `document/feature/` ให้ทุกหน้าใช้ข้อมูลหลักที่สอดคล้องกัน ตัวเลขในหน้าไม่ควรถือเป็นจริงหากไม่ได้คำนวณจาก `WorkItem` และ `TimeEntry` ในฐานข้อมูล
 
@@ -97,9 +97,9 @@
 - เปิดรายละเอียดแล้วดูข้อมูล Project/Customer, owner และ Daily Work ที่ผูกอยู่
 - แก้ไขข้อมูล/สถานะแล้ว refresh ค่าที่ใช้งานร่วมกันบน Board, Project, Dashboard และ Analysis
 
-**เกณฑ์ยอมรับ:** รายการจาก API ตรงกับ DB; invalid enum/foreign key ถูกปฏิเสธ; Work Item เดียวกันมี ID เดียวในทุกทางเข้า; import ที่ผิดแสดงสาเหตุโดยไม่ทำให้ข้อมูลเดิมเสียหาย; GitLab Issue ที่ sync ซ้ำอ้างถึง WorkItem เดิม มีลิงก์กลับต้นทาง ไม่มีการเขียนข้อมูลกลับ GitLab และการยกเลิก Project mapping ไม่ลบประวัติงานหรือเวลา
+**เกณฑ์ยอมรับ:** รายการจาก API ตรงกับ DB; invalid enum/foreign key ถูกปฏิเสธ; Work Item เดียวกันมี ID เดียวในทุกทางเข้า; import ที่ผิดแสดงสาเหตุโดยไม่ทำให้ข้อมูลเดิมเสียหาย; GitLab Issue ที่ sync ซ้ำอ้างถึง WorkItem เดิม มีลิงก์กลับต้นทาง ไม่มีการเขียนข้อมูลกลับ GitLab และการยกเลิก Project mapping ไม่ลบประวัติงานหรือเวลา. Mapping/status/label/retry details ใช้ [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md).
 
-**ขอบเขต GitLab ระยะแรก:** นำเข้า Issues จาก GitLab ทางเดียวแบบ manual เท่านั้น; mapping สถานะที่เสนอคือ `opened → todo` และ `closed → completed`. ต้อง map GitLab Project กับ Project ในระบบก่อน sync. ยังไม่รวม Merge Requests, commits, CI, scheduled/webhook sync และการนำเข้า time tracking.
+**ขอบเขต GitLab ระยะแรก:** นำเข้า Issues จาก GitLab ทางเดียวแบบ manual เท่านั้น; mapping สถานะคือ `opened → todo` และ `closed → completed`. ต้อง map GitLab Project กับ Project ในระบบก่อน sync และอนุมัติ first-sync policy. ใช้ [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) สำหรับ field ownership, labels, pagination และ retry. ยังไม่รวม Merge Requests, commits, CI, scheduled/webhook sync และการนำเข้า time tracking.
 
 ### 4.4 Management — Board (`/board`)
 

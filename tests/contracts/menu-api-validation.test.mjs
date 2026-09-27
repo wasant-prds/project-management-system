@@ -155,5 +155,6 @@ test("focused API contract runner is reusable and documented", async () => {
   assert.match(guide, /pnpm test:api-contracts/);
   assert.match(guide, /node tests\/run\.mjs api-contracts/);
   assert.match(api, /`pnpm test:api-contracts`, `pnpm test:contracts`, `pnpm test`/);
+  assert.match(api, /`pnpm test:gitlab-contracts`/);
   assert.ok(checklist.includes("- [x] **#13** [Define Menu API and Validation Contracts]"));
 });

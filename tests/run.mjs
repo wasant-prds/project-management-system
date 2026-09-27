@@ -7,6 +7,7 @@ const suites = {
   contracts: { directory: join(testRoot, "contracts") },
   "api-contracts": { files: [join(testRoot, "contracts", "menu-api-validation.test.mjs")] },
   "migration-contracts": { files: [join(testRoot, "contracts", "customer-project-migration.test.mjs")] },
+  "gitlab-contracts": { files: [join(testRoot, "contracts", "gitlab-issue-import.test.mjs")] },
 };
 const requestedSuite = process.argv[2];
 if (requestedSuite && !Object.hasOwn(suites, requestedSuite)) {

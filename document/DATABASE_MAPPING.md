@@ -5,11 +5,11 @@
 | วัตถุประสงค์ | เชื่อม Menu, UI field, API และ persistent model |
 | สถานะ | As-Is mapping พร้อม Target mapping |
 | ภาษา | ภาษาไทยเป็นหลัก; ชื่อ code/schema คงภาษาอังกฤษ |
-| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [DATABASE.md](./DATABASE.md) · [API.md](./API.md) · [BUSINESS_REQUIREMENT.md](./BUSINESS_REQUIREMENT.md) |
+| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) · [DATABASE.md](./DATABASE.md) · [API.md](./API.md) · [BUSINESS_REQUIREMENT.md](./BUSINESS_REQUIREMENT.md) |
 
 > `Customer`, `Project.customerId` และ GitLab external references เป็น target; ยังไม่มีใน Prisma schema/API/UI ปัจจุบัน. ความสัมพันธ์และ metric เป้าหมายยึด [Shared Data Model](./SHARED_DATA_MODEL.md)
 
-การ backfill, mapping register, validation/rollback gates และ external identity uniqueness ใช้ [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) เป็นข้อกำหนดกลาง. Register จริงเป็น run artifact ของ environment และห้ามใส่ข้อมูลลูกค้าจริงใน repository.
+การ backfill, mapping register, validation/rollback gates และ external identity uniqueness ใช้ [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) เป็นข้อกำหนดกลาง. GitLab fields, project mapping, upsert และ failure outcomes ใช้ [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md). Register จริงเป็น run artifact ของ environment และห้ามใส่ข้อมูลลูกค้าจริงใน repository.
 
 Target mapping: ค่า default time zone ของระบบ, application และ PostgreSQL session คือ `Asia/Bangkok` ทุก environment. Calendar-only fields ใช้ PostgreSQL `DATE` (Prisma `@db.Date`) และ timestamps ใช้ `TIMESTAMP WITHOUT TIME ZONE` (Prisma `@db.Timestamp`) เก็บค่า Bangkok local wall-clock; ห้ามแปลง timestamp เป็น UTC. ห้ามอาศัย timezone ของ browser/device ในการ map วัน.
 
@@ -24,7 +24,7 @@ Target mapping: ค่า default time zone ของระบบ, application �
 | Owner identity | One `User` row | `User.id` | Work Items (assignee), Daily Work (logger), Settings | Owner identity resolved by server; current users API is read-only |
 | Work Item functional role | `WorkItem.role` | enum value | Work Items, Board, Analysis, Project summaries | Work Items API; values Developer / infra / SA |
 | GitLab Issue identity | Target `ExternalWorkItemReference` | provider + canonical instance URL + GitLab project ID + global issue ID | Work Items (source link/sync status) | GitLab connector only; database unique key plus transactional upsert prevents duplicate import |
-| GitLab Project link | Target `GitLabProjectMapping` | GitLab instance/project ID → `Project.id` | Work Items sync setup; Project supplies Customer context | Owner-managed mapping; one GitLab Project maps to one PMS Project in phase one |
+| GitLab Project link | Target `GitLabProjectMapping` | GitLab instance/project ID → `Project.id`; owner-approved `approvedLabelMap` | Work Items sync setup; Project supplies Customer context | Owner-managed mapping; one GitLab Project maps to one PMS Project in phase one |
 | Company profile | One `Company` row per installation | `Company.id` | Company | Target Company API; current page read-only query |
 | Project membership | Legacy `ProjectMember` relation | `ProjectMember.id` | As-Is Projects/Company counts only | No multi-member/team management in target scope |
 | Owner preferences | Target owner-scoped preference record or selected provider | owner key | Settings | Target Settings API |
@@ -68,12 +68,13 @@ Target mapping: ค่า default time zone ของระบบ, application �
 | global Issue ID, project ID, instance URL, web URL | `ExternalWorkItemReference` | เก็บ identity/URL; unique key ใช้ป้องกันรายการซ้ำ |
 | `title`, `description` | `WorkItem.title`, `WorkItem.description` | ฟิลด์จากต้นทาง; sync ซ้ำอัปเดตตาม GitLab |
 | GitLab Issue | `WorkItem.kind` | กำหนดเป็น `Issue`; assignee เป็น owner คนเดียว, priority เป็น `none`, `role` และ `workDate` ว่างเมื่อสร้างใหม่ |
-| `state` | `WorkItem.status` | ข้อเสนอ: `opened → todo`, `closed → completed` |
-| `labels` | `WorkItem.types` | รับเฉพาะ label ที่ตรงกับค่าที่ระบบรองรับ (`bug`, `data`, `documentation`, `epic`, `feature`, `maintenance`, `opl`, `ops`, `support`, `task`); ข้าม label อื่นและแจ้งในผล sync; ห้ามกำหนด `role` จาก label |
-| `due_date`, remote `updated_at` | `WorkItem.dueDate`, reference metadata | แปลงเวลาอย่างสม่ำเสมอ; `workDate` ไม่ได้มาจาก GitLab Issue |
+| `state` | `WorkItem.status` | `opened → todo`, `closed → completed`; ไม่มี status ใหม่ |
+| `labels` | `WorkItem.types` | ใช้ `GitLabProjectMapping.approvedLabelMap` แบบ exact/case-sensitive ไปยังค่าที่รองรับ (`bug`, `data`, `documentation`, `epic`, `feature`, `maintenance`, `opl`, `ops`, `support`, `task`); แทนที่ชุด mapped ทุกครั้ง; label ที่ไม่ map ถูกข้ามและรายงาน; ห้ามกำหนด `role` จาก label |
+| `due_date` | `WorkItem.dueDate` | date-only `YYYY-MM-DD` เป็น Bangkok calendar date; null ล้างค่าเดิม; ไม่เปลี่ยนวันตาม timezone |
+| remote `updated_at` | `ExternalWorkItemReference.remoteUpdatedAt` | เก็บ remote source version เป็น Bangkok local wall-clock; ใช้ป้องกัน stale retry; ไม่เขียนทับ `WorkItem.updatedAt` |
 | GitLab assignee | — | ระบบมี owner คนเดียว; ไม่สร้าง User/assignee จาก GitLab |
 
-การ sync ไม่เขียนกลับ GitLab; สร้าง WorkItem ใหม่เมื่อพบ Issue ครั้งแรกและ sync ซ้ำด้วย external identity. ทุกครั้งให้ GitLab เป็นเจ้าของ title/description/status/mapped types/dueDate ส่วน `role`, `priority`, `workDate`, owner และ `TimeEntry` เป็นของ PMS. รายละเอียด mapping สถานะเป็น proposal จนกว่าจะยืนยันก่อน implementation.
+การ sync ไม่เขียนกลับ GitLab; Issue ที่มี reference ใช้ identity เดิม ส่วน Issue ใหม่สร้าง `kind=Issue`, owner assignee, `priority=none`, `role=null`, `workDate=null`. ทุกครั้งให้ GitLab เป็นเจ้าของ title/description/status/mapped types/dueDate ส่วน `role`, `priority`, `workDate`, owner และ `TimeEntry` เป็นของ PMS. Exact identity, initial reconciliation, pagination, retries และ partial outcomes อยู่ใน [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md).
 
 ### Daily Work UI/API → `TimeEntry`
 

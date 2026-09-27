@@ -6,7 +6,7 @@
 | ORM | Prisma 6 (`prisma/schema.prisma`) |
 | สถานะ | As-Is schema พร้อม target changes ที่เสนอ; ยังไม่มี Customer model |
 | ภาษาหลัก | ภาษาไทย; คงชื่อ model/field ตาม code |
-| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [API.md](./API.md) · [DEPLOYMENT.md](./DEPLOYMENT.md) |
+| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [API.md](./API.md) · [DEPLOYMENT.md](./DEPLOYMENT.md) |
 
 > ส่วน As-Is อ้างอิง Prisma schema ใน repository ณ วันที่ 2026-09-27 ไม่ใช่ผล introspection ของ database instance ใดโดยเฉพาะ การเพิ่ม `Customer` และ constraint ในหัวข้อ Target ต้องผ่าน review, backup และ migration/backfill plan ก่อน deploy
 
@@ -168,6 +168,7 @@ Required business cardinality: Customer 1:N Project; **Project แต่ละ�
 ```text
 GitLabProjectMapping
   id, canonicalGitLabInstanceUrl, gitLabProjectId, projectId FK → Project.id
+  approvedLabelMap JSONB // exact GitLab label → supported WorkItem.types; owner-approved
   unique(canonicalGitLabInstanceUrl, gitLabProjectId)
 
 ExternalWorkItemReference
@@ -178,7 +179,7 @@ ExternalWorkItemReference
   unique(workItemId) // ระยะแรก: WorkItem หนึ่งรายการผูกแหล่งภายนอกได้หนึ่งรายการ
 ```
 
-ฟิลด์นี้เป็น target contract: identity คือ `(provider=gitlab, canonical instance URL, GitLab Project ID, global Issue ID)`. Normalize scheme/host และ trailing slash; preserve self-managed base path. ใช้ global Issue ID เป็น deduplication key, เก็บ IID สำหรับ URL/diagnostics, และให้ unique constraint เป็น concurrent-upsert guard. GitLab token ห้ามเก็บในตารางนี้หรือส่งให้ client; ใช้ secret store/environment หรือ owner-scoped secret provider ที่เลือกแล้ว. รายละเอียด canonicalization, conflict behavior และ rollout อยู่ใน [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md).
+ฟิลด์นี้เป็น target contract: identity คือ `(provider=gitlab, canonical instance URL, GitLab Project ID, global Issue ID)`. Normalize scheme/host และ trailing slash; preserve self-managed base path. `approvedLabelMap` เป็น JSONB ของ mapping ที่ owner ยืนยันและ validate target กับ supported `WorkItem.types` ทุกครั้ง. ใช้ global Issue ID เป็น deduplication key, เก็บ IID สำหรับ URL/diagnostics, และให้ unique constraint เป็น concurrent-upsert guard. `remoteUpdatedAt` เก็บ Bangkok local wall-clock source version เพื่อป้องกัน stale retry; `lastSyncedAt` ก็ใช้ Bangkok local wall-clock. GitLab token ห้ามเก็บในตารางนี้หรือส่งให้ client; ใช้ secret store/environment หรือ owner-scoped secret provider ที่เลือกแล้ว. รายละเอียด identity, transaction และ failure behavior อยู่ใน [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) และ [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md).
 
 ### 4.3 Data integrity ที่ควรประเมิน
 

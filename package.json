@@ -11,6 +11,7 @@
     "test:contracts": "node tests/run.mjs contracts",
     "test:api-contracts": "node tests/run.mjs api-contracts",
     "test:migration-contracts": "node tests/run.mjs migration-contracts",
+    "test:gitlab-contracts": "node tests/run.mjs gitlab-contracts",
     "start": "next start",
     "postinstall": "prisma generate"
   },

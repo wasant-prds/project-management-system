@@ -5,7 +5,7 @@
 | ฉบับ | EV — Enhanced Version |
 | สถานะ | สถาปัตยกรรมเป้าหมายสำหรับระบบชุดปัจจุบัน |
 | ภาษาหลัก | ไทย; system terms คงภาษาอังกฤษ |
-| ข้อกำหนด | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [API.md](./API.md) · [DATABASE.md](./DATABASE.md) |
+| ข้อกำหนด | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [API.md](./API.md) · [DATABASE.md](./DATABASE.md) |
 
 > ภาพ As-Is ด้านล่างอิง repository ที่ตรวจพบ ณ วันที่ 2026-09-27; ส่วน Target เป็นแนวทางระบบที่เมนูทั้งหมดอ่านข้อมูลจริงชุดเดียวกัน
 
@@ -119,7 +119,7 @@ erDiagram
 | Edit company/Customer data | Company/Customer service → `Company`, `Customer`, `Project.customerId` | Company, Projects, Dashboard, Analysis |
 | Change owner preferences | Settings service → owner preference store (target schema decision) | Settings and shared UI |
 
-GitLab sync uses a separate import path into `WorkItem` plus an external reference; the linked PMS Project supplies its Customer. GitLab owns imported title, description, status, mapped types and due date; the PMS owner retains functional role, priority, work date, assignee and Daily Work. Removing a project mapping must not delete imported WorkItems or TimeEntries. No menu owns a private copy of a Work Item or its status. Dashboard and Analysis are projections (query results), not write models. If one mutation changes related rows, commit the change transactionally and refresh/invalidate the affected query results.
+GitLab sync uses a separate import path into `WorkItem` plus an external reference; the linked PMS Project supplies its Customer. GitLab owns imported title, description, status, mapped types and due date; the PMS owner retains functional role, priority, work date, assignee and Daily Work. Removing a project mapping must not delete imported WorkItems or TimeEntries. The full identity, pagination, partial-result and retry contract is in [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md). No menu owns a private copy of a Work Item or its status. Dashboard and Analysis are projections (query results), not write models. If one mutation changes related rows, commit the change transactionally and refresh/invalidate the affected query results.
 
 ## 5. Component boundaries
 
@@ -147,7 +147,7 @@ Dashboard และ Analysis charts ต้องยืดตาม parent contai
 5. **Analytics are query-time aggregates initially:** use PostgreSQL aggregates/indexes; add caching/materialized views only after measurement and with an invalidation strategy.
 6. **One date/time policy:** `Asia/Bangkok` is the system, application, and database-session default in every environment. All date/time values persisted by the application use Bangkok calendar/wall-clock semantics; do not convert stored timestamps to UTC. Convert inputs and outputs explicitly using `Asia/Bangkok`, independent of browser/device timezone. Settings shows the fixed system timezone and cannot change persistence or business-date calculations.
 7. **Security boundary:** browser-provided identity is not trusted; authenticate the single owner and resolve the owner record server-side. Developer/Infra/SA are WorkItem functional roles, not authorization roles. Add multi-user authorization only if product scope changes.
-8. **GitLab integration:** keep the connector inside the modular monolith; import GitLab Issues into existing WorkItems in one direction only. Start with owner-triggered manual sync, explicit GitLab Project → PMS Project mapping, external identity for deduplication, and server-only token storage. Do not deploy a separate service for this integration.
+8. **GitLab integration:** keep the connector inside the modular monolith; import GitLab Issues into existing WorkItems in one direction only. Start with owner-triggered manual sync, explicit GitLab Project → PMS Project mapping, external identity for deduplication, and server-only token storage. Follow [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md); do not deploy a separate service for this integration.
 
 ## 7. Consistency and failure handling
 
@@ -156,7 +156,7 @@ Dashboard และ Analysis charts ต้องยืดตาม parent contai
 - Aggregate endpoints use the same statuses, date anchoring, timezone, and cancellation policy as the pages displaying the corresponding rows.
 - Deleting Project/owner identity follows explicit retention behavior; avoid relying on implicit cascade for records users consider business history.
 - Database unavailable: health endpoint returns 503; page/API returns actionable error state without exposing secrets or stack traces.
-- GitLab unavailable/rate-limited: report sync failure or partial result, preserve committed records, and allow a safe retry; unique external identity makes retry idempotent.
+- GitLab unavailable/rate-limited: report sync failure or partial result, preserve committed records, and allow a safe retry; unique external identity makes retry idempotent under the [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md).
 
 ## 8. Runtime and deployment
 

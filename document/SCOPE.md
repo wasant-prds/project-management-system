@@ -6,7 +6,7 @@
 | เอกสาร | Scope ฉบับรวมและแบ่งตาม Menu |
 | ภาษา | ภาษาไทยเป็นหลัก; system terms ใช้ภาษาอังกฤษเมื่อเป็นคำที่ใช้ทั่วไป |
 | สถานะ | กรอบเป้าหมายสำหรับวางแผนงานพัฒนา; Step 1 ปัจจุบันส่งมอบเอกสารเท่านั้น |
-| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [BUSINESS_REQUIREMENT.md](./BUSINESS_REQUIREMENT.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) |
+| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) · [BUSINESS_REQUIREMENT.md](./BUSINESS_REQUIREMENT.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) |
 
 ## 1. วัตถุประสงค์และขอบเขตของ Step 1
 
@@ -70,7 +70,7 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 
 ### Work Items
 
-**In scope:** existing type/status/priority/functional role, single-owner assignment, Project, dates, types, list/detail, filtering, import/export, shared mutation contract, manual one-way GitLab Issue import with explicit GitLab Project → PMS Project mapping, source link, deduplication and sync result summary. GitLab import creates/updates the same canonical `WorkItem`; Customer is inherited through the mapped PMS Project. Removing a mapping retains imported WorkItems and TimeEntries. Filter/summary สำคัญคือ Developer/Infra/SA ไม่ใช่การเลือก account หลายคน.
+**In scope:** existing type/status/priority/functional role, single-owner assignment, Project, dates, types, list/detail, filtering, import/export, shared mutation contract, manual one-way GitLab Issue import with explicit GitLab Project → PMS Project mapping, source link, deduplication and sync result summary. GitLab import creates/updates the same canonical `WorkItem`; Customer is inherited through the mapped PMS Project. Removing a mapping retains imported WorkItems and TimeEntries. Follow the [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) for first-sync approval, field ownership, supported labels, pagination, partial failures and retries. Filter/summary สำคัญคือ Developer/Infra/SA ไม่ใช่การเลือก account หลายคน.
 
 **Out of scope:** GitLab write-back/two-way sync, Merge Requests, commits, CI, webhooks/scheduled sync and GitLab time tracking import in phase one; new workflow statuses, custom fields, nested subtasks, dependency graph UI, attachment storage, comments workflow, unless separately specified (schema models for some legacy entities exist but are not in the primary menu contract).
 
