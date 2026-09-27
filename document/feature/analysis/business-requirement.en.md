@@ -15,7 +15,7 @@ This document describes **what the product must do**. Technical boundaries are i
 
 ## Case 1 — Review performance
 
-The owner opens `/analysis` to see summary cards, tabs, and charts for Customer/Project, Work Item, Daily Work, and Developer/Infra/SA functional-role trends. It does not report on a multi-user team. Target behavior: reporting periods and date grouping use the system default timezone, `Asia/Bangkok`.
+The owner opens `/analysis` to see summary cards, tabs, and charts for Customer/Project, Work Item, Daily Work, and Developer/Infra/SA functional-role trends. It does not report on a multi-user team. Target behavior: reporting periods, date grouping, and persisted date/time interpretation use `Asia/Bangkok`.
 
 ---
 

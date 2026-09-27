@@ -19,6 +19,8 @@
 
 Issue #12 กำหนดสัญญาและขั้นตอนเท่านั้น: ไม่เชื่อมต่อหรือเปลี่ยนฐานข้อมูลจริง และไม่สร้าง Customer หรือ GitLab mapping ตัวอย่าง
 
+การ backfill Customer/Project ใน issue นี้ต้องแก้เฉพาะ `Project.customerId` และคงค่าวัน/เวลาเดิมทุกแถว ห้ามแปลง timezone ใน migration นี้. การปรับข้อมูลเก่าให้ตรงกับ Bangkok wall-clock ต้องแยกเป็น migration เฉพาะ หลังตรวจชนิด column, timezone ของ session และความหมายของค่าที่มีอยู่ พร้อมอนุมัติแผนก่อนเขียนข้อมูล.
+
 ## 2. Target data contract
 
 ### 2.1 Customer
@@ -85,7 +87,7 @@ environment,snapshot_id,captured_at,project_id,project_name_as_seen,customer_id,
 
 ### Stage 0 — inventory, backup, restore rehearsal
 
-1. ใช้ read-only queries ต่อ environment ที่อนุมัติ เก็บ exact Project ID/name inventory และ baseline counts: Project, WorkItem, TimeEntry; ตรวจ FK/orphan เดิมและ dependencies ของ Project. บันทึก snapshot/time และ query revision.
+1. ใช้ read-only queries ต่อ environment ที่อนุมัติ เก็บ exact Project ID/name inventory และ baseline counts: Project, WorkItem, TimeEntry; ตรวจ FK/orphan เดิมและ dependencies ของ Project. บันทึก snapshot/time และ query revision. ตรวจ column types และ timezone ของ database/session; ห้ามสมมติว่าค่าวันเวลาเดิมเป็น Bangkok หากยังไม่มีหลักฐาน.
 2. เตรียม Customer registry จากข้อมูลที่ยืนยัน และทำ mapping register ให้ครบ/อนุมัติตาม §3. หยุดก่อน schema change หากมี unresolved rows.
 3. สร้าง full database backup ก่อนเปลี่ยน schema; บันทึก environment, timestamp, backup path, size และ checksum ใน run record. เก็บ backup ในพื้นที่จำกัดสิทธิ์ แยกจาก volume/database ที่จะเปลี่ยน.
 4. Restore backup ไป isolated database ด้วยขั้นตอนใน `document/process/db.md`; ตรวจว่าฐานข้อมูลเปิดได้, schema/row counts สำคัญตรง baseline และ FK check ผ่าน. Backup ที่ยังไม่ผ่าน restore rehearsal ไม่ถือว่าพร้อม.
@@ -109,7 +111,7 @@ environment,snapshot_id,captured_at,project_id,project_name_as_seen,customer_id,
 
 1. Project inventory IDs ตรงกับ mapping register แบบ exact set; ทุก Project มี Customer เดียว, Customer FK resolve ได้ และไม่มี `customerId IS NULL`.
 2. ไม่มี duplicate mapping rows, Customer IDs ที่ไม่มีหลักฐานอนุมัติ, หรือการเปลี่ยน Customer จาก approved register.
-3. Project/WorkItem/TimeEntry counts และ IDs เทียบกับ baseline; `WorkItem.projectId`, `TimeEntry.workItemId`, และ `TimeEntry.projectId` ไม่ถูก backfill นี้เปลี่ยน. ตรวจ legacy null/mismatch แยกเป็น report; ห้ามแก้เงียบ ๆ ใน migration นี้.
+3. Project/WorkItem/TimeEntry counts และ IDs เทียบกับ baseline; `WorkItem.projectId`, `TimeEntry.workItemId`, และ `TimeEntry.projectId` ไม่ถูก backfill นี้เปลี่ยน. เทียบ date/time values แบบ exact ก่อน/หลัง รวม nulls และ DB precision: `Project.startDate/dueDate/createdAt/updatedAt`, `WorkItem.workDate/dueDate/submittedAt/createdAt/updatedAt`, และ `TimeEntry.date/createdAt/updatedAt` ต้องไม่เปลี่ยน. ตรวจ legacy null/mismatch แยกเป็น report; ห้ามแก้เงียบ ๆ ใน migration นี้.
 4. Referential integrity checks ผ่าน; GitLab mapping/external reference unique tuple ไม่มี duplicates; ทุก reference ชี้ WorkItem เดียวและ mapping ชี้ Project ที่มี Customer.
 5. บันทึกผล query, counts, mismatch/orphan report (ต้องเป็นศูนย์สำหรับ migration gate), operator/reviewer และเวลา.
 

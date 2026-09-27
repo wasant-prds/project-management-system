@@ -50,6 +50,7 @@
 - โครงไดอะล็อก: `components/ui/responsive-dialog.ts`
 - ยืนยันลบยังเป็น alert dialog (กะทัดรัด) แต่คอนทราสต์การ์ดเหมือนโมดัลอื่น
 - จุดตัด: โทรศัพท์ `< 640` แท็บเล็ต `640–1023` เดสก์ท็อป `1024+`
+- Target: วันเริ่มและวันครบกำหนดของ Project ใช้ Bangkok calendar date; timestamp ที่ระบบบันทึกใช้ Bangkok local wall-clock ตามข้อกำหนดกลาง
 
 ---
 

@@ -31,7 +31,9 @@
 
 `GET /api/work-items` รองรับ `projectId`, `assigneeId` (legacy), `kind`, `status`, `priority`, `year`, `month`, `search` และ `includeYears`. `year`/`month` กรองตาม `workDate`, ถัดมา `dueDate`, แล้ว `createdAt`; enum ที่ไม่รู้จักและปี/เดือนผิดรูปแบบตอบ 400. Public status ใช้ hyphen เช่น `in-progress`, แม้ Prisma enum บางค่าจะมี underscore.
 
-`GET /api/work-logs` รองรับ `date=YYYY-MM-DD`, `startDate=YYYY-MM-DD&endDate=YYYY-MM-DD` แบบรวมวันปลายช่วง และ `userId` (legacy). Current handler สร้างขอบเขตวันจาก timezone ของ process จึงยังไม่รับประกัน Asia/Bangkok. ไม่มี cursor/limit.
+As-Is gap ของ `GET /api/work-logs`: รองรับ `date=YYYY-MM-DD`, `startDate=YYYY-MM-DD&endDate=YYYY-MM-DD` แบบรวมวันปลายช่วง และ `userId` (legacy) แต่ handler ปัจจุบันสร้างขอบเขตวันจาก timezone ของ process จึงยังไม่รับประกัน `Asia/Bangkok`. Target implementation ต้องใช้ policy Bangkok ในข้อ 2.4; ปัจจุบันยังไม่มี cursor/limit.
+
+As-Is timestamp gap: current Route Handlers parse several date/time writes with JavaScript `Date` and JSON serialization emits Prisma `DateTime` values as UTC `Z`; parsing and persistence do not enforce the target `+07:00`/Bangkok wall-clock contract. This is current behavior, not target behavior, and the target contract below has not been implemented in runtime routes.
 
 `GET /api/projects` รองรับ `status` และ `options=work-items`. Current handlers โดยรวมยังใช้ error body แบบ `{ "error": "..." }` และบาง mutation มี validation ไม่ครบ; นี่เป็นข้อเท็จจริง As-Is ไม่ใช่รูปแบบที่ endpoint เป้าหมายควรคัดลอก.
 
@@ -96,7 +98,7 @@ Work Items, Projects และ Daily Work ที่เกินขนาดห�
 | `Project.priority` (legacy field) | `Low`, `Medium`, `High`, `Critical` |
 | `Customer.status` (target) | `active`, `inactive` |
 
-ใช้ ISO 8601 ที่ระบุ offset `+07:00` สำหรับ timestamps และ `YYYY-MM-DD` สำหรับ business date. Default time zone ของทั้งระบบ, application และ PostgreSQL session คือ `Asia/Bangkok`; ใช้กับ date-only input, วันเริ่ม/สิ้นสุด, period defaults, filter, grouping และทุกค่าที่เขียนลงฐานข้อมูล. บันทึก timestamp เป็น Bangkok local wall-clock semantics ห้าม normalize เป็น UTC และห้ามพึ่ง timezone ของ browser/device. Work Items ใช้ date anchor `workDate ?? dueDate ?? createdAt`; TimeEntries ใช้ `TimeEntry.date`. WorkItem completion/status ใช้ค่ากลางด้านบน; `TimeEntry.status` เป็น legacy และไม่ใช่ workflow status เป้าหมาย.
+ทุก timestamp field ใน Target request ต้องส่ง ISO 8601 พร้อม offset `+07:00` และทุก timestamp field ใน Target response ต้องแสดง offset `+07:00`; timestamp ที่ไม่มี offset นี้หรือใช้ offset อื่นตอบ `400 VALIDATION_ERROR`. Business date ใช้ `YYYY-MM-DD` แยกจาก timestamp. Default time zone ของทั้งระบบ, application และ PostgreSQL session คือ `Asia/Bangkok`; ใช้กับ date-only input, วันเริ่ม/สิ้นสุด, period defaults, filter, grouping และทุกค่าที่เขียนลงฐานข้อมูล. บันทึก timestamp เป็น Bangkok local wall-clock semantics ห้าม normalize เป็น UTC และห้ามพึ่ง timezone ของ browser/device. Work Items ใช้ date anchor `workDate ?? dueDate ?? createdAt`; TimeEntries ใช้ `TimeEntry.date`. WorkItem completion/status ใช้ค่ากลางด้านบน; `TimeEntry.status` เป็น legacy และไม่ใช่ workflow status เป้าหมาย.
 
 Dashboard/Analysis คืน `period`, `timezone`, `filters` และ `metricVersion` ใน metadata. ใช้สูตรเดียวกัน: `open = status != completed && status != cancelled`; `completed = status == completed`; `completionRate = completed / (total - cancelled) * 100`, ตัวหารศูนย์คืน `0`; overdue คือ due date ก่อน business date ปัจจุบันและ status ไม่ใช่ `completed`/`cancelled`; hours คือผลรวม Decimal `TimeEntry.hours` โดยไม่ปัดก่อนรวม. ห้ามคำนวณ historical throughput จาก current status หรือใช้ `submittedAt` เป็น completed timestamp.
 

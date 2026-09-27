@@ -15,7 +15,7 @@ This document describes **what the product must do**. Technical boundaries are i
 
 ## Case 1 — Log and review hours
 
-Users pick a date (or period), see work logs, add or edit a log, and can open a grouped “view all” dialog for the selected range. Target behavior: dates and period boundaries use the system default timezone, `Asia/Bangkok`.
+Users pick a date (or period), see work logs, add or edit a log, and can open a grouped “view all” dialog for the selected range. Target behavior: dates and period boundaries use `Asia/Bangkok`; saved dates are Bangkok calendar dates and timestamps use Bangkok local wall-clock semantics.
 
 ---
 

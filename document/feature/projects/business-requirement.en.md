@@ -11,6 +11,8 @@
 
 This document describes **what the original UI task must do**. Current product rules are in the consolidated [Thai business requirement](../../BUSINESS_REQUIREMENT.md) and [scope](../../SCOPE.md): each Project must link to one Customer, and the system has one owner without team management.
 
+Target date behavior: Project start and due dates use the `Asia/Bangkok` calendar; date-only values persisted to the database represent Bangkok calendar dates.
+
 ---
 
 ## Case 1 — Browse and open projects

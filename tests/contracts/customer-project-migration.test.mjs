@@ -62,6 +62,13 @@ test("rollout requires backup and restore rehearsal before nullable backfill and
 test("backfill preserves existing work history and defines stop and recovery behavior", () => {
   assert.match(migration, /Project IDs, WorkItem IDs, TimeEntry IDs[\s\S]*?ต้องคงเดิม/);
   assert.match(migration, /Backfill แก้เฉพาะ `Project\.customerId`/);
+  assert.match(migration, /คงค่าวัน\/เวลาเดิมทุกแถว ห้ามแปลง timezone/);
+  assert.match(migration, /Bangkok wall-clock ต้องแยกเป็น migration เฉพาะ/);
+  assert.match(migration, /ตรวจ column types และ timezone ของ database\/session/);
+  assert.match(migration, /date\/time values แบบ exact ก่อน\/หลัง รวม nulls และ DB precision/);
+  for (const field of ["Project.startDate/dueDate", "WorkItem.workDate/dueDate", "TimeEntry.date/createdAt/updatedAt"]) {
+    assert.ok(migration.includes(field), `Missing exact date/time preservation check for ${field}`);
+  }
   assert.match(migration, /unmapped[\s\S]*?คงอยู่/);
   assert.match(migration, /restore backup ใน isolated DB/);
   assert.match(migration, /ห้าม restore ทับข้อมูลใหม่โดยไม่มี reconciliation\/อนุมัติ/);

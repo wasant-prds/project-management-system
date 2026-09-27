@@ -99,6 +99,33 @@ test("target contracts preserve shared enums, relations, status writes, and metr
   assert.match(api, /`period`, `timezone`, `filters` และ `metricVersion`/);
 });
 
+test("target timestamps use the issue's +07:00 API contract and Bangkok persistence policy", async () => {
+  const issue = await read("design/projects/project-management-system/work_items/13_sa_menu-api-validation-contracts.md");
+  const checklist = await read("design/projects/project-management-system/work_items/00_checklist.md");
+  const coreRule = await read(".cursor/rules/00-core-product.mdc");
+  const dataRule = await read(".cursor/rules/01-data-invariants.mdc");
+  const apiRule = await read(".cursor/rules/api-contracts.mdc");
+  const settingsRule = await read(".cursor/rules/menu-settings.mdc");
+  const dateTimePolicy = api.split("### 2.4")[1]?.split("## 3.")[0];
+
+  assert.match(issue, /API รับ\/แสดง timestamps ด้วย offset `\+07:00`/);
+  assert.match(issue, /ทุก database write ใช้ `Asia\/Bangkok` และห้าม normalize เป็น UTC/);
+  assert.match(dateTimePolicy ?? "", /ทุก timestamp field ใน Target request ต้องส่ง ISO 8601 พร้อม offset `\+07:00`/);
+  assert.match(dateTimePolicy ?? "", /ทุก timestamp field ใน Target response ต้องแสดง offset `\+07:00`/);
+  assert.match(dateTimePolicy ?? "", /timestamp ที่ไม่มี offset นี้หรือใช้ offset อื่นตอบ `400 VALIDATION_ERROR`/);
+  assert.match(dateTimePolicy ?? "", /ทุกค่าที่เขียนลงฐานข้อมูล/);
+  assert.match(dateTimePolicy ?? "", /ห้าม normalize เป็น UTC/);
+  assert.match(dateTimePolicy ?? "", /ห้ามพึ่ง timezone ของ browser\/device/);
+  assert.match(apiRule, /Every target API timestamp in a request must use ISO 8601 offset `\+07:00`/);
+  assert.match(apiRule, /timestamp fields in responses must also include `\+07:00`/);
+  assert.match(apiRule, /Reject missing or different offsets with `400 VALIDATION_ERROR`/);
+  assert.match(checklist, /timestamps เป็น Bangkok local wall-clock และห้ามแปลงข้อมูลที่บันทึกเป็น UTC/);
+  assert.match(coreRule, /Persist every date and timestamp using Bangkok calendar\/wall-clock semantics; do not convert stored values to UTC/);
+  assert.match(dataRule, /Database timestamps represent Bangkok local wall-clock date\/time/);
+  assert.match(settingsRule, /Settings must not allow an override/);
+  assert.match(api, /timezone=Asia\/Bangkok` จาก system config แบบ read-only/);
+});
+
 test("resource contracts cover create/update guards and shared aggregate filters", () => {
   assert.match(api, /`name`, `startDate`, `dueDate`, `customerId`/);
   assert.match(api, /Customer ที่มีอยู่และ active/);
@@ -108,12 +135,12 @@ test("resource contracts cover create/update guards and shared aggregate filters
   assert.match(api, /`workItemId`, business `date`, `hours`/);
   assert.match(api, /ตรวจ next-state ของ `workItemId` \+ `projectId` ทุกครั้ง/);
   assert.match(api, /`startDate`, `endDate` \(ทั้งคู่หรือไม่ส่งทั้งคู่/);
-  assert.match(api, /เมื่อไม่ส่งใช้เดือนปัจจุบันใน Asia\/Bangkok/);
+  assert.match(api, /เมื่อไม่ส่งใช้เดือนปัจจุบันใน default time zone `Asia\/Bangkok`/);
   assert.match(api, /Customer registry\/portfolio/);
   assert.match(api, /Target preferences จำกัดที่ theme/);
   assert.match(api, /`profile` รองรับ `name`, `email`, `phone`, `avatar`/);
   assert.match(api, /ถ้ายังไม่มี record ให้ PATCH สร้าง singleton และคืน `201`/);
-  assert.match(api, /ให้คืน default `theme=light`, `locale=th`, `timezone=Asia\/Bangkok`/);
+  assert.match(api, /คืน default `theme=light`, `locale=th` และเพิ่ม `timezone=Asia\/Bangkok` จาก system config แบบ read-only/);
   assert.match(api, /ห้ามคืน raw database error หรือ stack trace/);
 });
 

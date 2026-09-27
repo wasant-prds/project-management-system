@@ -18,7 +18,7 @@
 bash scripts/dump-master-seeds.sh
 ```
 
-ชื่อไฟล์ backup จะมี site และ timestamp เช่น `master-seeds_uat_20260926_120000.zip` ต้องเปิด PostgreSQL container ของ site นั้นอยู่ก่อนรัน หาก host ไม่มี Node.js ให้เปิด app container ของ site นั้นด้วย
+ชื่อไฟล์ backup จะมี site และ timestamp ตาม `Asia/Bangkok` เช่น `master-seeds_uat_20260926_120000.zip` ต้องเปิด PostgreSQL container ของ site นั้นอยู่ก่อนรัน หาก host ไม่มี Node.js ให้เปิด app container ของ site นั้นด้วย
 
 ## Prisma
 

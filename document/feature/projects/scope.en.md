@@ -52,6 +52,7 @@ This document describes **what is in or out of this work** and which service imp
 - Dialog shells: `components/ui/responsive-dialog.ts`.
 - Confirm-delete remains an alert dialog (compact), with the same card contrast as other modals.
 - Breakpoints: phone `< 640`, tablet `640–1023`, desktop `1024+`.
+- Target: Project start/due dates use Bangkok calendar dates; persisted timestamps use Bangkok local wall-clock semantics under the system-wide policy.
 
 ---
 
