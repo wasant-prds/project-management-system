@@ -154,7 +154,26 @@ Project.customerId String? FK → Customer.id (nullable ระหว่าง ba
 
 Required business cardinality: Customer 1:N Project; **Project แต่ละรายการต้องผูกกับ Customer หนึ่งราย** และ Customer หนึ่งรายผูก Projects ได้หลายรายการ. ระหว่าง migration `customerId` อาจ nullable ชั่วคราวเพื่อ backfill เท่านั้น; ก่อนเปิดใช้ requirement ใหม่ต้อง map ทุก Project เดิมและตรวจว่าไม่มี orphan. ห้ามใช้ชื่อลูกค้าจาก seed/sample เป็นข้อเท็จจริงโดยไม่มีการยืนยัน
 
-### 4.2 Data integrity ที่ควรประเมิน
+### 4.2 External reference สำหรับ GitLab Issues (target)
+
+เพื่อ sync GitLab → PMS ซ้ำได้โดยไม่สร้าง WorkItem ซ้ำ ให้เพิ่มตารางเชื่อมภายนอกและ mapping GitLab Project กับ Project ใน PMS:
+
+```text
+GitLabProjectMapping
+  id, gitLabInstanceUrl, gitLabProjectId, projectId FK → Project.id
+  unique(gitLabInstanceUrl, gitLabProjectId)
+
+ExternalWorkItemReference
+  id, workItemId FK → WorkItem.id
+  provider, gitLabInstanceUrl, gitLabProjectId, gitLabIssueId, gitLabIssueIid
+  externalUrl, remoteUpdatedAt, lastSyncedAt, createdAt, updatedAt
+  unique(provider, gitLabInstanceUrl, gitLabProjectId, gitLabIssueId)
+  unique(workItemId) // ระยะแรก: WorkItem หนึ่งรายการผูกแหล่งภายนอกได้หนึ่งรายการ
+```
+
+ฟิลด์นี้เป็นข้อเสนอสำหรับ review; ใช้ GitLab global Issue ID เป็นตัว deduplicate และเก็บ IID สำหรับ URL/diagnostics. GitLab token ห้ามเก็บในตารางนี้หรือส่งให้ client; ใช้ secret store/environment หรือ owner-scoped secret provider ที่เลือกแล้ว.
+
+### 4.3 Data integrity ที่ควรประเมิน
 
 - หากฐานข้อมูลมี User หลายแถวจาก seed/ข้อมูลเดิม ให้เลือก User row ที่เป็นเจ้าของหลักก่อน; map `WorkItem.assigneeId` และ `TimeEntry.userId` อย่างมี audit โดยไม่ลบประวัติหรือ user rows ก่อนตรวจ references ทั้งหมด
 - บังคับว่า Daily Work ของ workflow นี้ต้องมี `workItemId`; หากรักษา optional เพื่อ legacy/import ให้ปฏิเสธ orphan records ในหน้าปฏิบัติงานและรายงานแยก

@@ -38,6 +38,7 @@ Database host port defaults to 5437 ใน shared compose; helper/env settings �
 - `.env` ที่ root ตั้ง `APP_ENV` ให้ตรง environment (`dev`/`local`, `uat`, `prod`) ตาม scripts
 - สร้าง secret files ตาม [secrets/README.md](../secrets/README.md): `postgres_user`, `postgres_password`, `postgres_db`; ใส่ค่าจริงเฉพาะในเครื่อง/secret store ห้าม commit
 - ตั้ง `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `APP_PORT` และ DB/backup overrides ตาม environment; secret name ยังอยู่ใน config แม้ repository ปัจจุบันยังไม่มี auth feature
+- เมื่อเปิด GitLab sync ให้กำหนด GitLab base URL และ access token ใน secret store/environment ของ server ตาม least privilege; ห้ามใช้ `NEXT_PUBLIC_*`, commit secret หรือพิมพ์ token ลง log. ชื่อ variable จริงกำหนดพร้อม connector implementation
 - `POSTGRES_DATA_DIR` เลือก host path สำหรับ DB volume; default จาก shared compose คือ `./database/postgres/data`
 - `SEED_PATH` default `database/seeds/master`; `RUN_SEED` ควบคุม seed ใน migrations service
 
@@ -106,6 +107,7 @@ Repository มี `scripts/docker-dev.sh`, `scripts/docker-uat.sh`, `scripts/doc
 - จำกัดการเข้าถึง Docker socket/host, ใช้ non-root user สำหรับ production app image และเก็บ logs โดยไม่เผยข้อมูลส่วนบุคคลหรือ credentials
 - API ปัจจุบันยังไม่มี owner authentication ที่พบ; แม้มีผู้ใช้คนเดียว ต้องไม่เปิด instance สู่อินเทอร์เน็ตจนกว่าจะปกป้อง account เจ้าของด้วย authentication หรือ private access gate ที่เหมาะสม
 - มี rollback image/config และ DB recovery plan; schema downgrade อัตโนมัติไม่ควรถูกสมมติ
+- GitLab sync ใช้ credential ฝั่ง server เท่านั้น; จำกัด token ให้เข้าถึงเฉพาะ Projects ที่ต้อง sync และ rotate/revoke ได้โดยไม่แก้ข้อมูล WorkItem ที่นำเข้าแล้ว
 
 ## 9. Troubleshooting quick map
 

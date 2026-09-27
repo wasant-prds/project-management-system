@@ -86,11 +86,15 @@
 
 - สร้าง/ดู/แก้ไข/ลบ Work Item; กำหนด title, description, kind, types, priority, functional role, status, Project, work date และ due date; assignee เป็นเจ้าของระบบคนเดียว
 - ค้นหาและกรองตามปี/เดือน, Project, kind และค่าที่ backend รองรับ; รองรับ import/export ตาม validation และผลลัพธ์รายแถว
+- เชื่อม GitLab Project กับ Project ในระบบ แล้วสั่งดึง GitLab Issues เข้ามาเป็น Work Items ได้ทางเดียว; แสดงผล sync และลิงก์กลับไปยัง Issue ต้นทาง
+- Sync ซ้ำแล้วไม่สร้างรายการซ้ำ; ปรับข้อมูลที่กำหนดให้มาจาก GitLab โดยคงข้อมูลเฉพาะในระบบ เช่น functional role, priority, work date และ Daily Work
 - แสดง labels/status/priority ตาม enum กลาง; ไม่แปลงเป็นตัวเลือกเฉพาะหน้า
 - เปิดรายละเอียดแล้วดูข้อมูล Project/Customer, owner และ Daily Work ที่ผูกอยู่
 - แก้ไขข้อมูล/สถานะแล้ว refresh ค่าที่ใช้งานร่วมกันบน Board, Project, Dashboard และ Analysis
 
-**เกณฑ์ยอมรับ:** รายการจาก API ตรงกับ DB; invalid enum/foreign key ถูกปฏิเสธ; Work Item เดียวกันมี ID เดียวในทุกทางเข้า; import ที่ผิดแสดงสาเหตุโดยไม่ทำให้ข้อมูลเดิมเสียหาย
+**เกณฑ์ยอมรับ:** รายการจาก API ตรงกับ DB; invalid enum/foreign key ถูกปฏิเสธ; Work Item เดียวกันมี ID เดียวในทุกทางเข้า; import ที่ผิดแสดงสาเหตุโดยไม่ทำให้ข้อมูลเดิมเสียหาย; GitLab Issue ที่ sync ซ้ำอ้างถึง WorkItem เดิม มีลิงก์กลับต้นทาง ไม่มีการเขียนข้อมูลกลับ GitLab และการยกเลิก Project mapping ไม่ลบประวัติงานหรือเวลา
+
+**ขอบเขต GitLab ระยะแรก:** นำเข้า Issues จาก GitLab ทางเดียวแบบ manual เท่านั้น; mapping สถานะที่เสนอคือ `opened → todo` และ `closed → completed`. ต้อง map GitLab Project กับ Project ในระบบก่อน sync. ยังไม่รวม Merge Requests, commits, CI, scheduled/webhook sync และการนำเข้า time tracking.
 
 ### 4.4 Management — Board (`/board`)
 
@@ -178,6 +182,8 @@
 | Active Project | ค่า Project status ที่องค์กรกำหนด (baseline ใช้ `In Progress`, `Review` ใน Company summary) |
 
 Metric ที่เป็นแนวโน้มตามเวลาไม่ควรใช้ current status ย้อนหลัง; ต้องใช้ status event history หรือ timestamp เฉพาะ เช่น `completedAt` ก่อนอ้างตัวเลข historical throughput
+
+หมายเหตุ: กลุ่มแสดงผล “Complete” ในหน้า Work Items อาจรวม `cancelled` เพื่อจัดกลุ่มรายการที่ปิดแล้ว แต่ metric `Completed` และอัตราความสำเร็จนับเฉพาะ `completed`; รายการ `cancelled` ไม่นับเป็นงานสำเร็จ
 
 ## 6. Non-functional requirements
 

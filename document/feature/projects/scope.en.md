@@ -11,6 +11,8 @@
 
 This document describes **what is in or out of this work** and which service implements it. Product behavior is in the [business requirement](./business-requirement.en.md).
 
+> Note: “No new schema/API” below applies only to the earlier UI task. Current Project-Customer persistence and single-owner rules are in the consolidated [Thai business requirement](../../BUSINESS_REQUIREMENT.md) and [scope](../../SCOPE.md).
+
 ---
 
 ## 1. Service
@@ -27,10 +29,10 @@ This document describes **what is in or out of this work** and which service imp
 
 | Business case | In scope |
 | --- | --- |
-| Case 1 — Browse | Existing list, detail, create, edit, team flows. |
+| Case 1 — Browse | Project list, detail, create/edit, and Customer selection flows. |
 | Case 2 — Scroll | Shared sidebar shell + `PAGE_MAIN` on list and detail. |
 | Case 3 — Contrast | Shared button/badge/dialog tokens. |
-| Case 4 — Modals | `DIALOG_SHELL_SCROLL_CLASS` on create, edit, and team dialogs; opaque `bg-card`. |
+| Case 4 — Modals | `DIALOG_SHELL_SCROLL_CLASS` on create, edit, and Customer selection dialogs; opaque `bg-card`. |
 | Case 5 — Responsive | Shared page chrome tokens. |
 
 ---

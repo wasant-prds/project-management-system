@@ -24,7 +24,7 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 | --- | --- | --- |
 | Overview — Dashboard `/` | KPI, งานที่ต้องติดตาม, Project ล่าสุด, filter และ deep link จาก records จริง | ปัจจุบันเป็น sample data; เพิ่ม DB-backed queries |
 | Overview — Projects `/projects` | Project CRUD/detail, required Customer relation, Work Item/role/hour summaries | ใช้งานบางส่วน; เพิ่ม Customer, hours, consistent progress และ business rules |
-| Overview — Work Items `/work-items` | WorkItem list/create/edit/delete/filter/import/export; owner is sole assignee; Developer/Infra/SA are functional roles | มี API/หน้าใช้งาน; ตรวจเติม validation, owner access control และขอบเขต import |
+| Overview — Work Items `/work-items` | WorkItem list/create/edit/delete/filter/import/export; manual one-way GitLab Issue sync; owner is sole assignee; Developer/Infra/SA are functional roles | มี API/หน้าใช้งาน; ตรวจเติม validation, owner access control, external mapping และ sync contract |
 | Management — Board `/board` | Kanban ของ WorkItem จริง; persist status change | ปัจจุบันเป็น client sample state; เชื่อม WorkItem API และ status enum |
 | Management — Analysis `/analysis` | KPI/charts/tables จาก WorkItem และ TimeEntry จริง | ปัจจุบันเป็น sample arrays; เพิ่ม shared queries, metric definitions, export |
 | Management — Daily Work `/daily-work` | CRUD TimeEntry, period views, WorkItem/Project relation, hours | มี API/หน้าใช้งาน; เสริม auth, validation, date/time consistency |
@@ -68,9 +68,9 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 
 ### Work Items
 
-**In scope:** existing type/status/priority/functional role, single-owner assignment, Project, dates, types, list/detail, filtering, import/export, shared mutation contract. Filter/summary สำคัญคือ Developer/Infra/SA ไม่ใช่การเลือก account หลายคน.
+**In scope:** existing type/status/priority/functional role, single-owner assignment, Project, dates, types, list/detail, filtering, import/export, shared mutation contract, manual one-way GitLab Issue import with explicit GitLab Project → PMS Project mapping, source link, deduplication and sync result summary. GitLab import creates/updates the same canonical `WorkItem`; Customer is inherited through the mapped PMS Project. Removing a mapping retains imported WorkItems and TimeEntries. Filter/summary สำคัญคือ Developer/Infra/SA ไม่ใช่การเลือก account หลายคน.
 
-**Out of scope:** new workflow statuses, custom fields, nested subtasks, dependency graph UI, attachment storage, comments workflow, unless separately specified (schema models for some legacy entities exist but are not in the primary menu contract).
+**Out of scope:** GitLab write-back/two-way sync, Merge Requests, commits, CI, webhooks/scheduled sync and GitLab time tracking import in phase one; new workflow statuses, custom fields, nested subtasks, dependency graph UI, attachment storage, comments workflow, unless separately specified (schema models for some legacy entities exist but are not in the primary menu contract).
 
 ### Board
 
@@ -111,14 +111,15 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 - Customer schema/API/UI and Project backfill plan
 - aggregate queries for dashboard/analysis and consistent calculation helper(s)
 - DB integrity checks for WorkItem/TimeEntry and Project/customer relations
+- GitLab Issue import connector, external-reference mapping, manual sync endpoint/UI, server-only token handling and idempotent upsert
 - responsive loading/empty/error UX and Thai-first labels
-- deployment/schema rollout and safe backup/rollback plan for Customer migration
+- deployment/schema rollout and safe backup/rollback plan for Customer and GitLab mapping changes
 
 **Out of scope ใน scope ปัจจุบัน:**
 
 - เปลี่ยนจาก Next.js/Prisma/PostgreSQL/Docker เป็น framework/database ใหม่
 - แยก microservices/event bus โดยไม่มี measurement หรือ scaling need
-- public API integrations, mobile native clients, external CRM/HR services
+- API integrations other than the approved one-way GitLab Issue import, mobile native clients, external CRM/HR services
 - ยืนยัน SLA/ปริมาณข้อมูลที่ยังไม่มี baseline วัดจริง
 
 ## 6. Dependencies และลำดับแนะนำ
@@ -132,6 +133,7 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 | 4 | Dashboard shared query/aggregates | ใช้ข้อมูลแกนที่นิ่งแล้ว |
 | 5 | Analysis, historical event strategy, export | Metrics ต้องมีนิยามและ timestamp เชื่อถือได้ |
 | 6 | Company/Customer/Settings persistence สำหรับ owner account เดียว | ต้องพึ่ง owner identity ที่ตกลงแล้ว |
+| 7 | GitLab Issue sync แบบทางเดียว | ต้องมี WorkItem/Project mapping, credential handling และ external ID ก่อนเปิดใช้ |
 
 ## 7. Acceptance gate สำหรับระบบเป้าหมาย
 

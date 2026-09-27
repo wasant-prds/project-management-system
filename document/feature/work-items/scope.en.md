@@ -11,6 +11,8 @@
 
 This document describes **what is in or out of this work** and which service implements it. Product behavior is in the [business requirement](./business-requirement.en.md).
 
+> Note: “Done” and “no new API” apply only to the earlier list-layout task. GitLab Issue import is a separate target enhancement and is not implemented; follow the consolidated [Thai scope](../../SCOPE.md) and [API target](../../API.md).
+
 ---
 
 ## 1. Service

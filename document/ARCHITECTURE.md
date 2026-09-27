@@ -62,7 +62,9 @@ flowchart TB
     TIME[TimeEntry service]
     MASTER[Customer / Project / Company service]
     PREF[User preferences service]
+    GITLAB[GitLab import connector]
   end
+  GAPI[GitLab Issues API]
   subgraph Persistence[Persistence]
     PRISMA[Prisma]
     DB[(PostgreSQL)]
@@ -73,16 +75,20 @@ flowchart TB
   Presentation --> TIME
   Presentation --> MASTER
   Presentation --> PREF
+  Presentation --> GITLAB
   AUTH --> READ
   AUTH --> WORK
   AUTH --> TIME
   AUTH --> MASTER
   AUTH --> PREF
+  AUTH --> GITLAB
   READ --> PRISMA
   WORK --> PRISMA
   TIME --> PRISMA
   MASTER --> PRISMA
   PREF --> PRISMA
+  GITLAB --> PRISMA
+  GITLAB -->|outbound read only| GAPI
   PRISMA --> DB
 ```
 
@@ -97,6 +103,8 @@ erDiagram
   OWNER ||--o{ WORK_ITEM : owns
   WORK_ITEM ||--o{ TIME_ENTRY : records
   OWNER ||--o{ TIME_ENTRY : logs
+  PROJECT ||--o{ GITLAB_PROJECT_MAPPING : maps
+  WORK_ITEM ||--o| EXTERNAL_WORK_ITEM_REFERENCE : imports
 ```
 
 `OWNER` ใน target diagram map กับ `User` record เดียวของเจ้าของใน schema ปัจจุบัน; `ProjectMember` เป็น legacy relation และไม่ใช่ส่วนของ target workflow แบบ single-owner
@@ -109,7 +117,7 @@ erDiagram
 | Edit company/Customer data | Company/Customer service → `Company`, `Customer`, `Project.customerId` | Company, Projects, Dashboard, Analysis |
 | Change owner preferences | Settings service → owner preference store (target schema decision) | Settings and shared UI |
 
-No menu owns a private copy of a Work Item or its status. Dashboard and Analysis are projections (query results), not write models. If one mutation changes related rows, commit the change transactionally and refresh/invalidate the affected query results.
+GitLab sync uses a separate import path into `WorkItem` plus an external reference; the linked PMS Project supplies its Customer. GitLab owns imported title, description, status, mapped types and due date; the PMS owner retains functional role, priority, work date, assignee and Daily Work. Removing a project mapping must not delete imported WorkItems or TimeEntries. No menu owns a private copy of a Work Item or its status. Dashboard and Analysis are projections (query results), not write models. If one mutation changes related rows, commit the change transactionally and refresh/invalidate the affected query results.
 
 ## 5. Component boundaries
 
@@ -131,6 +139,7 @@ No menu owns a private copy of a Work Item or its status. Dashboard and Analysis
 5. **Analytics are query-time aggregates initially:** use PostgreSQL aggregates/indexes; add caching/materialized views only after measurement and with an invalidation strategy.
 6. **One date/time policy:** store timestamps in UTC as PostgreSQL/Prisma timestamps and apply Asia/Bangkok when interpreting business calendar dates; validate range boundaries consistently.
 7. **Security boundary:** browser-provided identity is not trusted; authenticate the single owner and resolve the owner record server-side. Developer/Infra/SA are WorkItem functional roles, not authorization roles. Add multi-user authorization only if product scope changes.
+8. **GitLab integration:** keep the connector inside the modular monolith; import GitLab Issues into existing WorkItems in one direction only. Start with owner-triggered manual sync, explicit GitLab Project → PMS Project mapping, external identity for deduplication, and server-only token storage. Do not deploy a separate service for this integration.
 
 ## 7. Consistency and failure handling
 
@@ -139,6 +148,7 @@ No menu owns a private copy of a Work Item or its status. Dashboard and Analysis
 - Aggregate endpoints use the same statuses, date anchoring, timezone, and cancellation policy as the pages displaying the corresponding rows.
 - Deleting Project/owner identity follows explicit retention behavior; avoid relying on implicit cascade for records users consider business history.
 - Database unavailable: health endpoint returns 503; page/API returns actionable error state without exposing secrets or stack traces.
+- GitLab unavailable/rate-limited: report sync failure or partial result, preserve committed records, and allow a safe retry; unique external identity makes retry idempotent.
 
 ## 8. Runtime and deployment
 
@@ -157,4 +167,5 @@ Development, UAT and production use Docker Compose files already present. The sh
 - Whether to add WorkItem status history and a dedicated `completedAt`
 - User preference persistence schema and whether Security settings are in current product scope
 - Retention/archive policy for deleted Projects, Users, WorkItems and TimeEntries
+- GitLab instance/token provisioning, Project mapping, field/label mapping, conflict policy, and whether remote time tracking should create Daily Work entries
 

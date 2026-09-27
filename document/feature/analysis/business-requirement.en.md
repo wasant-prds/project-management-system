@@ -15,7 +15,7 @@ This document describes **what the product must do**. Technical boundaries are i
 
 ## Case 1 — Review performance
 
-Users open `/analysis` to see summary cards, tabs, and charts for project, team, and work trends.
+The owner opens `/analysis` to see summary cards, tabs, and charts for Customer/Project, Work Item, Daily Work, and Developer/Infra/SA functional-role trends. It does not report on a multi-user team.
 
 ---
 

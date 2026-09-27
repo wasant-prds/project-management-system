@@ -11,6 +11,8 @@
 
 This document describes **what the product must do**. Technical boundaries are in the [scope](./scope.en.md).
 
+> Note: The cases below describe the earlier UI scope; “done” applies only to those cases. One-way GitLab Issue import is a separate target enhancement and is not implemented. The consolidated [Thai business requirement](../../BUSINESS_REQUIREMENT.md) and [scope](../../SCOPE.md) are authoritative.
+
 ---
 
 ## Case 1 — Default year is the current year

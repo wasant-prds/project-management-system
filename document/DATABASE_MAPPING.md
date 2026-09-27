@@ -7,7 +7,7 @@
 | ภาษา | ภาษาไทยเป็นหลัก; ชื่อ code/schema คงภาษาอังกฤษ |
 | เอกสารเชื่อมโยง | [DATABASE.md](./DATABASE.md) · [API.md](./API.md) · [BUSINESS_REQUIREMENT.md](./BUSINESS_REQUIREMENT.md) |
 
-> `Customer` และ `Project.customerId` เป็น target; ยังไม่มีใน Prisma schema/API/UI ปัจจุบัน
+> `Customer`, `Project.customerId` และ GitLab external references เป็น target; ยังไม่มีใน Prisma schema/API/UI ปัจจุบัน
 
 ## 1. Source-of-truth matrix
 
@@ -19,6 +19,8 @@
 | Customer | Target `Customer` | `Customer.id` | Projects, Dashboard, filters, Analysis | Target Customer/Project API |
 | Owner identity | One `User` row | `User.id` | Work Items (assignee), Daily Work (logger), Settings | Owner identity resolved by server; current users API is read-only |
 | Work Item functional role | `WorkItem.role` | enum value | Work Items, Board, Analysis, Project summaries | Work Items API; values Developer / infra / SA |
+| GitLab Issue identity | Target `ExternalWorkItemReference` | instance + GitLab project ID + global issue ID | Work Items (source link/sync status) | GitLab connector only; unique key prevents duplicate import |
+| GitLab Project link | Target `GitLabProjectMapping` | GitLab instance/project ID → `Project.id` | Work Items sync setup; Project supplies Customer context | Owner-managed mapping; one GitLab Project maps to one PMS Project in phase one |
 | Company profile | One `Company` row per installation | `Company.id` | Company | Target Company API; current page read-only query |
 | Customer | Target `Customer` | `Customer.id` | Company registry, Projects, Dashboard, Analysis | Target Customer API |
 | Project membership | Legacy `ProjectMember` relation | `ProjectMember.id` | As-Is Projects/Company counts only | No multi-member/team management in target scope |
@@ -30,7 +32,7 @@
 | --- | --- | --- | --- |
 | Dashboard `/` | hard-coded arrays; `DashboardCharts` | sample project stats, work item counts, activity and chart values | Query WorkItem statuses/dates, TimeEntry.hours/date, Project/customer; remove mock arrays; link totals to filtered list |
 | Projects `/projects` | Prisma `Project.findMany`; counts WorkItems/Members; detail uses Project API | Project status/priority/date/budget/spent/progress; `_count.workItems`, legacy `_count.members`; WorkItem status summary | Add required Project.customer relation; hours = `SUM(TimeEntry.hours)`; one shared progress formula; summarize WorkItem functional roles, not team members |
-| Work Items `/work-items` | `/api/work-items`, `/api/projects?options=work-items`, `/api/users` | `WorkItem` core fields; nested Project (id/name/colorProject); current assignee projection | Target has one owner assignee; add Project.customer projection; filter/report by `WorkItem.role`; show Daily Work through `TimeEntry` |
+| Work Items `/work-items` | `/api/work-items`, `/api/projects?options=work-items`, `/api/users`; proposed `/api/integrations/gitlab/*` | `WorkItem` core fields; nested Project; GitLab source reference | Target has one owner assignee; add Project.customer projection; show Daily Work through `TimeEntry`; manual one-way GitLab Issue sync with deduplication |
 | Board `/board` | hard-coded React `useState` columns/cards | No persistent mapping today | `WorkItem.status` defines column; card maps WorkItem fields; mutation patches same `WorkItem`; filters resolve Project/Customer/functional role |
 | Analysis `/analysis` | hard-coded chart datasets and metric constants | Current displayed values do not map reliably to DB | Aggregate `WorkItem` and `TimeEntry` grouped by consistent period, Customer/Project and `WorkItem.role`; include metric definitions and drill-through IDs |
 | Daily Work `/daily-work` | `/api/work-logs`; API persists to `TimeEntry` | `TimeEntry.date/hours/description/remarks/status/userId/projectId/workItemId`; nested User, Project, WorkItem | Derive `projectId` from WorkItem or enforce equality; resolve the sole owner identity server-side; summary uses exact rows |
@@ -54,6 +56,21 @@
 | `submittedAt` | same | currently stamp for `sa-testing` and `completed`; not an unambiguous completedAt |
 | `projectId` | `projectId` | required FK; relation supplies Project label/color |
 | `assigneeId` | `assigneeId` | required FK; target resolves to the sole owner User row |
+
+### GitLab Issue → `WorkItem` (target, inbound only)
+
+| GitLab field | PMS target | Transformation / rule |
+| --- | --- | --- |
+| GitLab Project ID | `GitLabProjectMapping` → `Project.id` | ต้อง map ก่อน sync; Customer มาจาก Project ใน PMS |
+| global Issue ID, project ID, instance URL, web URL | `ExternalWorkItemReference` | เก็บ identity/URL; unique key ใช้ป้องกันรายการซ้ำ |
+| `title`, `description` | `WorkItem.title`, `WorkItem.description` | ฟิลด์จากต้นทาง; sync ซ้ำอัปเดตตาม GitLab |
+| GitLab Issue | `WorkItem.kind` | กำหนดเป็น `Issue`; assignee เป็น owner คนเดียว, priority เป็น `none`, `role` และ `workDate` ว่างเมื่อสร้างใหม่ |
+| `state` | `WorkItem.status` | ข้อเสนอ: `opened → todo`, `closed → completed` |
+| `labels` | `WorkItem.types` | รับเฉพาะ label ที่ตรงกับค่าที่ระบบรองรับ (`bug`, `data`, `documentation`, `epic`, `feature`, `maintenance`, `opl`, `ops`, `support`, `task`); ข้าม label อื่นและแจ้งในผล sync; ห้ามกำหนด `role` จาก label |
+| `due_date`, remote `updated_at` | `WorkItem.dueDate`, reference metadata | แปลงเวลาอย่างสม่ำเสมอ; `workDate` ไม่ได้มาจาก GitLab Issue |
+| GitLab assignee | — | ระบบมี owner คนเดียว; ไม่สร้าง User/assignee จาก GitLab |
+
+การ sync ไม่เขียนกลับ GitLab; สร้าง WorkItem ใหม่เมื่อพบ Issue ครั้งแรกและ sync ซ้ำด้วย external identity. ทุกครั้งให้ GitLab เป็นเจ้าของ title/description/status/mapped types/dueDate ส่วน `role`, `priority`, `workDate`, owner และ `TimeEntry` เป็นของ PMS. รายละเอียด mapping สถานะเป็น proposal จนกว่าจะยืนยันก่อน implementation.
 
 ### Daily Work UI/API → `TimeEntry`
 

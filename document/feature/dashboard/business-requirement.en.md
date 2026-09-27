@@ -15,7 +15,7 @@ This document describes **what the product must do**. Technical boundaries are i
 
 ## Case 1 — Overview of work at a glance
 
-When a user opens `/`, they see a summary of projects, work items, and team activity: four summary cards, recent projects, and charts.
+When the owner opens `/`, they see a summary of Projects, Work Items, and their Daily Work activity: four summary cards, recent Projects, and charts. The system has no multi-user team activity.
 
 ---
 

@@ -63,6 +63,7 @@ Customer → Project → Work Item → Daily Work (Time Entry)
 - Board แสดงคอลัมน์ตาม status ที่ระบบรองรับ; คอลัมน์เป็น workflow configuration ไม่ใช่ข้อมูลแยกใน browser
 - การลากการ์ด/แก้สถานะต้อง validate status, บันทึกผ่าน API และแสดง error เมื่อบันทึกไม่สำเร็จ
 - สถานะปลายทางและ timestamp สำหรับวัด throughput ต้องมี semantics เดียวกันใน UI, API และรายงาน; ปัจจุบัน `submittedAt` ถูก stamp เมื่อเข้าสู่ `sa-testing` หรือ `completed` จึงห้ามตีความเป็นเวลาปิดงานโดยไม่ระบุให้ชัด
+- กลุ่มแสดงผล “Complete” ใน Work Items อาจรวม `cancelled` ตามข้อกำหนด UI เดิม แต่ metric `Completed` ของ Dashboard/Analysis นับเฉพาะ `status = completed`; ต้องคงนิยามนี้ให้ชัดใน label และรายงาน
 
 ### 3.3 Daily Work / Time Entry
 
@@ -80,12 +81,23 @@ Customer → Project → Work Item → Daily Work (Time Entry)
 | --- | --- |
 | Dashboard `/` | อ่าน aggregates จาก WorkItem, TimeEntry, Project และ Customer; มี global filter และลิงก์ไปยังรายการต้นทาง |
 | Projects `/projects` | Project CRUD; ผูก Customer; progress/counts คำนวณจาก WorkItem; hours คำนวณจาก TimeEntry |
-| Work Items `/work-items` | หน้าหลักสำหรับ query/filter/create/update/delete/import WorkItem; คง enum และ validation กลาง |
+| Work Items `/work-items` | หน้าหลักสำหรับ query/filter/create/update/delete/import WorkItem; ดึง GitLab Issues เข้าระบบทางเดียวแบบ idempotent; คง enum และ validation กลาง |
 | Board `/board` | Query WorkItem ด้วย filter แล้ว group ตาม status; status mutation เรียก WorkItem API |
 | Analysis `/analysis` | อ่าน aggregation จาก WorkItem และ TimeEntry พร้อมช่วงเวลาและ filter ที่ระบุได้ |
 | Daily Work `/daily-work` | CRUD TimeEntry ที่อ้าง WorkItem; ช่วงวัน/สัปดาห์/เดือน/ปีใช้ timezone เดียวกัน |
 | Company `/company` | อ่าน/แก้ company profile ของเจ้าของและจัดการ Customer registry; สรุป Projects/Work Items/ชั่วโมงจาก DB; ไม่มี user/team administration |
 | Settings `/settings` | แยก profile, preferences และ security; persist ตามเจ้าของ setting; ห้ามแสดงปุ่มบันทึกที่ไม่เกิดผล |
+
+### 3.4.1 GitLab Issue import
+
+1. Work Items รองรับการดึง GitLab Issues เข้ามาเป็น `WorkItem` แบบทางเดียว (GitLab → PMS); การแก้ใน PMS ไม่ส่งกลับไป GitLab
+2. เจ้าของเป็นผู้เริ่ม sync แบบ manual ในระยะแรก และต้อง map GitLab Project แต่ละรายการกับ Project ใน PMS ก่อนนำเข้า; Customer ของงานจึงได้จาก Project ใน PMS; Work Item แสดงลิงก์กลับไป GitLab Issue
+3. ใช้ GitLab instance, project ID และ global Issue ID เป็น external identity สำหรับ upsert และป้องกันการสร้าง WorkItem ซ้ำ
+4. GitLab Issue สร้าง `WorkItem.kind = Issue`, ใช้ owner คนเดียวเป็น assignee, `priority = none`, `role`/`workDate` ว่าง และ sync title, description, state, supported labels, due date และ remote updated time; GitLab URL/IDs เก็บเป็น external reference
+5. เสนอ mapping สถานะ `opened → todo`, `closed → completed`; sync ซ้ำเขียนทับเฉพาะฟิลด์ที่เป็นของ GitLab (title, description, status, mapped types, due date) และคง `role`, `priority`, `workDate`, owner กับ `TimeEntry` ที่เป็นข้อมูลเฉพาะ PMS
+6. แสดงผลจำนวนสร้างใหม่/อัปเดต/ข้าม/ผิดพลาด และสาเหตุของรายการที่ sync ไม่สำเร็จ; รองรับ pagination, rate limit และ retry โดยไม่ทำให้ข้อมูลซ้ำ; การยกเลิก Project mapping ไม่ลบ WorkItem/TimeEntry ที่นำเข้าแล้ว
+7. เก็บ GitLab token ฝั่ง server ใน secret store/environment; ไม่ส่ง token ให้ browser และไม่บันทึก token ใน logs
+8. Webhook, scheduled sync, Merge Requests, commits, CI data, write-back และ GitLab time logs ยังไม่อยู่ในระยะแรก
 
 ### 3.5 Validation, errors, and security
 
@@ -126,4 +138,6 @@ Customer → Project → Work Item → Daily Work (Time Entry)
 4. Daily Work อนุญาตหลายบันทึกต่อ Work Item ต่อวันหรือไม่ และจำกัดยอดรวมไม่เกิน 24 ชั่วโมงต่อเจ้าของต่อวันหรือไม่
 5. ยืนยันว่า Company profile มีหนึ่ง record ต่อ installation (ข้อกำหนดปัจจุบัน: ใช้หนึ่งบริษัท/เจ้าของต่อ installation)
 6. เลือก `User` record ที่เป็นเจ้าของหลัก และกำหนดวิธี map WorkItem/TimeEntry เดิมที่อ้าง User หลายรายการโดยไม่ทำประวัติสูญหาย
+7. ยืนยัน GitLab instance (gitlab.com หรือ self-managed), รายการ Project ที่เชื่อม, label mapping และว่าจะอนุญาตให้ผูก Issue เข้ากับ WorkItem เดิมหรือให้สร้าง WorkItem ใหม่เมื่อ sync ครั้งแรก (ข้อเสนอปัจจุบัน: สร้างใหม่)
+8. ยืนยันว่าจะนำเข้า GitLab time tracking เป็น Daily Work หรือไม่; ระยะแรก `TimeEntry` ที่เจ้าของบันทึกใน PMS ยังคงเป็นแหล่งจริง
 

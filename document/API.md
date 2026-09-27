@@ -41,7 +41,7 @@
 | `PATCH` | `/api/work-logs/{id}` | update work log | `TimeEntry` |
 | `DELETE` | `/api/work-logs/{id}` | delete work log | `TimeEntry` |
 
-No current Customer, Analysis, Dashboard aggregate, Company mutation, Project team mutation, Settings, login/session or notification endpoints were found under `app/api`.
+No current Customer, Analysis, Dashboard aggregate, Company mutation, Project team mutation, Settings, login/session, notification, or GitLab integration endpoints were found under `app/api`.
 
 ## 3. Current query parameters
 
@@ -125,8 +125,13 @@ The list below is a proposal; route naming should be reviewed before implementat
 | `GET`, `PATCH` | `/api/company` | Read/update the one company profile for this installation |
 | `GET`, `PATCH` | `/api/settings/me` | Owner profile/preferences; no user selector or multi-account settings |
 | `POST` | `/api/work-items/{id}/status` (or reuse PATCH) | Board status change; reuse common WorkItem service |
+| `GET` | `/api/integrations/gitlab/status` | Return connection/configuration state and last-sync summary, without secrets |
+| `GET`, `POST`, `DELETE` | `/api/integrations/gitlab/projects` | List/create/remove GitLab Project mapping (manual setup); removing a mapping retains imported WorkItems and TimeEntries |
+| `POST` | `/api/integrations/gitlab/sync` | Pull Issues for mapped projects; return created/updated/skipped/failed counts and per-issue errors |
 
 Prefer reusing `/api/work-items/{id}` PATCH for Board if it has sufficient validation/audit; do not create two independent status mutation implementations.
+
+GitLab endpoints are proposed and are not present in the current application. Require owner authentication; call GitLab from the server only. The sync endpoint must paginate, respect GitLab rate limits, upsert by external identity, and return a safe retryable result. Initial delivery is manual pull only; do not add webhook or write-back routes.
 
 ## 6. Target response and validation contract
 

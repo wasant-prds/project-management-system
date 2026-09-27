@@ -9,13 +9,13 @@
 | **Status** | **done** |
 | Date | 2026-09-04 |
 
-This document describes **what the product must do**. Technical boundaries are in the [scope](./scope.en.md).
+This document describes **what the original UI task must do**. Current product rules are in the consolidated [Thai business requirement](../../BUSINESS_REQUIREMENT.md) and [scope](../../SCOPE.md): each Project must link to one Customer, and the system has one owner without team management.
 
 ---
 
 ## Case 1 — Browse and open projects
 
-Users can list projects on `/projects`, open a project on `/projects/[id]`, and create or edit a project (and manage team) from the existing dialogs.
+The owner can list projects on `/projects`, open a project on `/projects/[id]`, and create or edit a project with its Customer association.
 
 ---
 
@@ -33,7 +33,7 @@ Filled controls use **light or white text on a dark fill**, and **dark or black 
 
 ## Case 4 — Modals match work-items readability
 
-Create, edit, and team dialogs must fit the viewport (near-full-screen on phone/tablet, capped width on desktop), use an opaque card surface, and keep labels readable. Inner content scrolls when the form is long. Format follows `/work-items` (`DIALOG_SHELL_SCROLL_CLASS`).
+Create, edit, and Customer selection dialogs must fit the viewport (near-full-screen on phone/tablet, capped width on desktop), use an opaque card surface, and keep labels readable. Inner content scrolls when the form is long. Format follows `/work-items` (`DIALOG_SHELL_SCROLL_CLASS`).
 
 ---
 
@@ -53,7 +53,7 @@ Toolbar actions may shorten on the phone. Cards and filters must not overflow.
 
 | Case | Done when |
 | --- | --- |
-| 1 | Users can list, open, create, and edit projects with the existing flows. |
+| 1 | The owner can list, open, create, and edit projects and save each required Customer link. |
 | 2 | List, detail, and sidebar scroll when content is taller than the viewport. |
 | 3 | Primary and other solid buttons use white labels on dark fills. |
 | 4 | Project dialogs stay on-screen, opaque, and readable like work-items. |

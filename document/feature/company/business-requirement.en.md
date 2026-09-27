@@ -9,25 +9,25 @@
 | **Status** | **done** |
 | Date | 2026-09-04 |
 
-This document describes **what the product must do**. Technical boundaries are in the [scope](./scope.en.md).
+This document describes **what the original UI task must do**. For current product rules, the consolidated [Thai business requirement](../../BUSINESS_REQUIREMENT.md) and [scope](../../SCOPE.md) are authoritative: this installation has one owner, and `/company` manages the company profile and Customer registry, not a team.
 
 ---
 
-## Case 1 — View company and team
+## Case 1 — View company profile and Customers
 
-Users open `/company` to see organization summary cards, team members, and company settings tabs.
+The owner opens `/company` to see the company profile, Customer registry, and project/work summaries.
 
 ---
 
 ## Case 2 — Page and menu must scroll
 
-The company page and the left menu must scroll inside the app shell so member grids and settings forms stay reachable.
+The company page and the left menu must scroll inside the app shell so the Customer registry and settings forms stay reachable.
 
 ---
 
 ## Case 3 — Button and fill contrast
 
-Filled controls use **light or white text on a dark fill**, and **dark or black text on a light or white fill**. “Add Member” and similar primary actions must stay readable.
+Filled controls use **light or white text on a dark fill**, and **dark or black text on a light or white fill**. “Add Customer” and similar primary actions must stay readable.
 
 ---
 
@@ -39,7 +39,7 @@ Filled controls use **light or white text on a dark fill**, and **dark or black 
 | Tablet | 640px through 1023px |
 | Desktop / notebook | 1024px and up |
 
-Summary cards are **2×2** on the phone and **four across** from tablet. Tabs scroll horizontally. Member cards wrap instead of overflowing.
+Summary cards are **2×2** on the phone and **four across** from tablet. Tabs scroll horizontally. Customer rows wrap instead of overflowing.
 
 ---
 
@@ -53,7 +53,7 @@ If this page adds create/edit dialogs, they must follow the `/work-items` shell 
 
 | Case | Done when |
 | --- | --- |
-| 1 | Company stats, team tab, and settings tab are visible. |
+| 1 | Company profile, Customer registry, and project/work summaries are visible. |
 | 2 | Main pane and sidebar scroll when content is taller than the viewport. |
 | 3 | Solid buttons use white labels on dark fills. |
 | 4 | Phone/tablet/desktop layouts match Case 4. |
