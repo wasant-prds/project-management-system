@@ -7,6 +7,7 @@ alwaysApply: false
 # Projects `/projects`
 
 - Project CRUD and detail. Required: name, startDate, dueDate, and (target) `customerId`. One Customer per Project.
+- Interpret and persist Project calendar dates and timestamps using the system default timezone `Asia/Bangkok`; do not convert persisted timestamps to UTC.
 - Counts from `WorkItem`. Hours = SUM(`TimeEntry.hours`) without duplicated joins. Progress = completed ÷ (total − cancelled); do not treat stored `progress` as independent truth unless kept in sync.
 - Summarize `WorkItem.role` (Developer / Infra / SA). Do not present `_count.members` or `project-team-modal` as a product feature.
 - Filters: Customer, status, text. Detail lists Work Items, roles, and hours with real foreign keys.

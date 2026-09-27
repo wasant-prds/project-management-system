@@ -96,7 +96,7 @@ Work Items, Projects และ Daily Work ที่เกินขนาดห�
 | `Project.priority` (legacy field) | `Low`, `Medium`, `High`, `Critical` |
 | `Customer.status` (target) | `active`, `inactive` |
 
-ใช้ ISO 8601 สำหรับ timestamps และ `YYYY-MM-DD` สำหรับ business date. Store timestamp เป็น UTC; กำหนดวันเริ่ม/สิ้นสุดของ business date, filter และ grouping ที่ `Asia/Bangkok` (ช่วงวันที่ inclusive; แปลงเป็น UTC instant ก่อน query). Work Items ใช้ date anchor `workDate ?? dueDate ?? createdAt`; TimeEntries ใช้ `TimeEntry.date`. WorkItem completion/status ใช้ค่ากลางด้านบน; `TimeEntry.status` เป็น legacy และไม่ใช่ workflow status เป้าหมาย.
+ใช้ ISO 8601 ที่ระบุ offset `+07:00` สำหรับ timestamps และ `YYYY-MM-DD` สำหรับ business date. Default time zone ของทั้งระบบ, application และ PostgreSQL session คือ `Asia/Bangkok`; ใช้กับ date-only input, วันเริ่ม/สิ้นสุด, period defaults, filter, grouping และทุกค่าที่เขียนลงฐานข้อมูล. บันทึก timestamp เป็น Bangkok local wall-clock semantics ห้าม normalize เป็น UTC และห้ามพึ่ง timezone ของ browser/device. Work Items ใช้ date anchor `workDate ?? dueDate ?? createdAt`; TimeEntries ใช้ `TimeEntry.date`. WorkItem completion/status ใช้ค่ากลางด้านบน; `TimeEntry.status` เป็น legacy และไม่ใช่ workflow status เป้าหมาย.
 
 Dashboard/Analysis คืน `period`, `timezone`, `filters` และ `metricVersion` ใน metadata. ใช้สูตรเดียวกัน: `open = status != completed && status != cancelled`; `completed = status == completed`; `completionRate = completed / (total - cancelled) * 100`, ตัวหารศูนย์คืน `0`; overdue คือ due date ก่อน business date ปัจจุบันและ status ไม่ใช่ `completed`/`cancelled`; hours คือผลรวม Decimal `TimeEntry.hours` โดยไม่ปัดก่อนรวม. ห้ามคำนวณ historical throughput จาก current status หรือใช้ `submittedAt` เป็น completed timestamp.
 
@@ -130,6 +130,7 @@ Dashboard/Analysis คืน `period`, `timezone`, `filters` และ `metricVe
 ### 4.2 Work Items และ Board
 
 - `GET /api/work-items`: target filters `projectId`, `customerId`, `kind`, `status`, `priority`, `role`, `year`, `month`, `search`, `includeYears`, `limit`, `cursor`. `assigneeId` คงไว้ได้เฉพาะ compatibility ภายใน; ไม่ใช่ owner selector.
+- `year`/`month` และ `includeYears` ใช้ calendar date ตาม `Asia/Bangkok`; date anchor คือ `workDate`, ถัดมา `dueDate`, แล้ว `createdAt`. เมื่อไม่ส่ง `year` ให้ใช้ปีปัจจุบันใน timezone นี้.
 - `POST /api/work-items` ต้องมี `title`, `kind`, `projectId`; defaults คือ `priority=none`, `role=null`, `status=backlog`, `types=[]`. Optional fields: `description`, `workDate`, `dueDate`. `assigneeId` ถูก resolve เป็น owner โดย server. Validate enum/date/Project FK; unknown public status → `400 VALIDATION_ERROR`, missing Project → `404 NOT_FOUND`.
 - `PATCH /api/work-items/{id}` รับ partial fields เดียวกับ create, validate ค่าใหม่และ relation ที่มีผลหลัง patch. `status` mutation จาก Board เรียก contract นี้; `submittedAt` ไม่ใช่ completion time และ target ต้องคง semantics ที่กำหนดใน WorkItem contract.
 - `DELETE /api/work-items/{id}` ตอบ `409 CONFLICT` เมื่อยังมี TimeEntry อ้างอยู่จนกว่าจะมี archive/retention path ที่รักษาความสัมพันธ์; As-Is `TimeEntry.workItemId` ใช้ `SetNull`, ดังนั้น target ต้องไม่ทำให้ Daily Work กลายเป็นข้อมูล orphan โดยไม่ตั้งใจ.
@@ -148,7 +149,7 @@ Dashboard/Analysis คืน `period`, `timezone`, `filters` และ `metricVe
 
 ### 4.4 Dashboard และ Analysis aggregates
 
-`GET /api/dashboard/summary` และ `GET /api/analysis` ใช้ query parameters ชุดเดียวกัน: `startDate`, `endDate` (ทั้งคู่หรือไม่ส่งทั้งคู่; เมื่อไม่ส่งใช้เดือนปัจจุบันใน Asia/Bangkok), `customerId`, `projectId`, `role`, `kind`. `startDate`/`endDate` เป็น inclusive business dates. หากส่งทั้ง `customerId` และ `projectId` ที่ไม่สัมพันธ์กัน ให้ตอบ `400 RELATION_MISMATCH`; resource ID ที่ไม่มีอยู่ตอบ `404`.
+`GET /api/dashboard/summary` และ `GET /api/analysis` ใช้ query parameters ชุดเดียวกัน: `startDate`, `endDate` (ทั้งคู่หรือไม่ส่งทั้งคู่; เมื่อไม่ส่งใช้เดือนปัจจุบันใน default time zone `Asia/Bangkok`), `customerId`, `projectId`, `role`, `kind`. `startDate`/`endDate` เป็น inclusive business dates. หากส่งทั้ง `customerId` และ `projectId` ที่ไม่สัมพันธ์กัน ให้ตอบ `400 RELATION_MISMATCH`; resource ID ที่ไม่มีอยู่ตอบ `404`.
 
 ใช้ date range กับ WorkItem date anchor และ `TimeEntry.date` ตามข้อ 2.4. Response ทั้งคู่ต้องบอก effective period, timezone, filters และ metric version เพื่อให้ UI/link/export ระบุฐานคำนวณเดิม. Dashboard `summary` คืน `total`, `open`, `completed`, `overdue`, `completionRate`, `loggedHours` และ bounded `recentWorkItems`, `urgentWorkItems`, `overdueWorkItems` lists พร้อม canonical IDs/deep links. Analysis คืน KPIs เดียวกัน พร้อม `statusBreakdown`, `kindBreakdown`, `priorityBreakdown`, time-series และ filtered source rows สำหรับ drill-through กลับ WorkItem/TimeEntry IDs. ทั้งสอง response ไม่เขียน metric ที่คำนวณได้ลงเป็นข้อมูลชุดใหม่. Historical throughput ต้องรอ status history หรือ completion timestamp ที่มีความหมายชัดเจน.
 
@@ -177,8 +178,8 @@ Dashboard/Analysis คืน `period`, `timezone`, `filters` และ `metricVe
 
 - `GET /api/company`: คืน Company profile เดียวของ installation; ไม่มีข้อมูลให้คืน `company: null` (ไม่ใช่ mock/sample record). `PATCH /api/company` รับ fields ที่มีใน Company model (`name`, `industry`, `email`, `phone`, `address`, `website`, `logo`, `description`); `name` ต้องไม่ว่าง. Target ต้อง enforce singleton semantics; ถ้ายังไม่มี record ให้ PATCH สร้าง singleton และคืน `201`, ถ้ามีแล้วคืน `200`.
 - Customer list/detail/create/update/deactivate ใช้ resource contract ในข้อ 4.1; summary ใต้ Customer มาจาก Project, WorkItem และ TimeEntry query.
-- `GET /api/settings/me`: คืน `{ profile, preferences }` ของเจ้าของที่ยืนยันแล้ว; ถ้ายังไม่มี preferences ให้คืน default `theme=light`, `locale=th`, `timezone=Asia/Bangkok`. ไม่มี identity selector. `PATCH` รับ partial updates ใน nested `profile` และ/หรือ `preferences` object เท่านั้น. `profile` รองรับ `name`, `email`, `phone`, `avatar`; `name` ต้องไม่ว่าง; email ต้องถูกต้องและ unique (`409 CONFLICT` เมื่อชน). Profile fields ที่ไม่มี backing field เช่น Bio หรือ first/last name แยกกันต้องไม่ถูกบันทึกเป็นข้อมูลใหม่.
-- Target preferences จำกัดที่ theme (`light`, `dark`, `special-dark`), locale (`th`, `en`) และ timezone display preference ที่เป็น IANA timezone ใช้ได้. Business-date filters/metrics คง `Asia/Bangkok` เสมอ ไม่เปลี่ยนตาม display preference. Unknown/unintegrated security หรือ notification fields ตอบ `400 VALIDATION_ERROR` และห้ามตอบสำเร็จโดยไม่ persist.
+- `GET /api/settings/me`: คืน `{ profile, preferences }` ของเจ้าของที่ยืนยันแล้ว; หากยังไม่มี preferences ให้คืน default `theme=light`, `locale=th` และเพิ่ม `timezone=Asia/Bangkok` จาก system config แบบ read-only ไม่ใช่ค่าที่เจ้าของเลือก. ค่า timezone เป็นค่าระบบคงที่ทุก environment. ไม่มี identity selector. `PATCH` รับ partial updates ใน nested `profile` และ/หรือ `preferences` object เท่านั้น. `profile` รองรับ `name`, `email`, `phone`, `avatar`; `name` ต้องไม่ว่าง; email ต้องถูกต้องและ unique (`409 CONFLICT` เมื่อชน). Profile fields ที่ไม่มี backing field เช่น Bio หรือ first/last name แยกกันต้องไม่ถูกบันทึกเป็นข้อมูลใหม่.
+- Target preferences จำกัดที่ theme (`light`, `dark`, `special-dark`) และ locale (`th`, `en`). Timezone แสดงเป็น `Asia/Bangkok` แบบ read-only; ห้ามตั้ง preference ที่เปลี่ยน timezone ของการ parse, persistence หรือ business-date calculations. Unknown/unintegrated security หรือ notification fields ตอบ `400 VALIDATION_ERROR` และห้ามตอบสำเร็จโดยไม่ persist.
 - ตัวอย่าง target `PATCH /api/settings/me`:
 
 ```jsonc
@@ -189,8 +190,7 @@ Dashboard/Analysis คืน `period`, `timezone`, `filters` และ `metricVe
   },
   "preferences": { // ค่าที่ระบบ persist และ UI ใช้จริง
     "theme": "dark", // theme ปัจจุบันที่รองรับ
-    "locale": "th", // ภาษาที่เลือก
-    "timezone": "Asia/Bangkok" // timezone สำหรับแสดงผล; ไม่เปลี่ยน business date
+    "locale": "th" // ภาษาที่เลือก; timezone ระบบคงที่เป็น Asia/Bangkok
   }
 }
 ```

@@ -14,6 +14,8 @@
 
 - Prisma datasource ใช้ PostgreSQL ผ่าน `DATABASE_URL`; local/Docker environment สร้าง URL จาก environment หรือ Docker secrets
 - `id` ส่วนใหญ่เป็น String ใช้ `cuid()`; เวลาใช้ `DateTime` และ default `now()`; `updatedAt` ใช้ `@updatedAt`
+- Target convention: วันที่และเวลาทุกค่าที่บันทึกลง PostgreSQL ใช้ `Asia/Bangkok`. Date-only fields แทนวันปฏิทิน Bangkok; timestamp fields แทน Bangkok local wall-clock date/time และห้าม normalize เป็น UTC. กำหนด timezone ของ application, PostgreSQL session และ database defaults เป็น `Asia/Bangkok`; application ต้อง parse/format ด้วย timezone นี้อย่างชัดเจน
+- Target mapping: calendar-only fields ใช้ PostgreSQL `DATE` และ Prisma `@db.Date`; timestamps ใช้ `TIMESTAMP(3) WITHOUT TIME ZONE` และ Prisma `@db.Timestamp(3)` โดยค่าที่เขียนเป็น Bangkok local wall-clock. `DateTime` ที่ไม่มี native annotation ใน Prisma ปัจจุบัน default-map เป็น `timestamp(3)`; ให้ระบุ native type ชัดเจนใน target schema เพื่อป้องกันความหมายเปลี่ยน
 - Prisma model จะ map ไป table ชื่อเดียวกันตาม default ยกเว้น `WorkItem` ซึ่ง map ไป table `work_items`
 - Prisma field `WorkItem.types` map ไป PostgreSQL column `labels_types` และเป็น `String[]`
 - ไม่มี schema migration folder ในรายการไฟล์ปัจจุบันที่ตรวจพบ; Docker migration service ใช้ guarded `prisma db push` ไม่ใช่ versioned migration history
@@ -52,7 +54,7 @@ Relations: assigned Work Items, Project memberships, comments, activity logs, no
 | `description` | String? | รายละเอียด |
 | `status` | String, default `Planning`, indexed | Planning / In Progress / Review / Completed / On Hold (comment) |
 | `priority` | String, default `Medium`, indexed | Low / Medium / High / Critical (comment) |
-| `startDate`, `dueDate` | DateTime | วันเริ่มและกำหนดเสร็จ |
+| `startDate`, `dueDate` | DateTime (As-Is); Target PostgreSQL `DATE` / Prisma `@db.Date` | วันเริ่มและกำหนดเสร็จในปฏิทิน `Asia/Bangkok` |
 | `budget`, `spent` | Decimal?, `spent` default 0 | งบ/ยอดใช้; ไม่มี scale ระบุ |
 | `progress` | Int, default 0 | ความคืบหน้า; comment ระบุช่วง 0–100 แต่ไม่มี DB check |
 | `colorProject` | String? | สีแสดงผล |
@@ -77,7 +79,8 @@ Relations: creator, `ProjectMember[]`, `WorkItem[]`, documents, milestones, acti
 | `role` | Enum `WorkItemRole`? | functional role ที่เจ้าของทำงานใน Work Item นี้: Developer / infra / SA; ไม่ใช่ account role/permission |
 | `status` | Enum `WorkItemStatus`, default `backlog` | backlog, todo, in-progress, blocked, sa-testing, pm-testing, completed, cancelled |
 | `types` | String[], default `[]`, column `labels_types` | labels/types |
-| `workDate`, `dueDate`, `submittedAt` | DateTime? | วันทำงาน, กำหนดเสร็จ, timestamp ที่ปัจจุบัน stamp สำหรับ sa-testing/completed |
+| `workDate`, `dueDate` | DateTime? (As-Is); Target PostgreSQL `DATE` / Prisma `@db.Date` | วันทำงานและกำหนดเสร็จตามปฏิทิน `Asia/Bangkok` |
+| `submittedAt` | DateTime?; Target PostgreSQL `TIMESTAMP(3) WITHOUT TIME ZONE` / Prisma `@db.Timestamp(3)` | เวลาเปลี่ยนสถานะตาม Bangkok local wall-clock; ปัจจุบัน stamp สำหรับ sa-testing/completed |
 | `createdAt`, `updatedAt` | DateTime | เวลาสร้าง/แก้ไข |
 | `projectId` | String, required FK → Project.id | Project เจ้าของงาน; delete Project cascade ลบ WorkItem |
 | `assigneeId` | String, required FK → User.id | ผู้รับผิดชอบ; target คือ owner `User` record เดียว |
@@ -91,7 +94,7 @@ Indexes: projectId, assigneeId, kind, status, priority, workDate, dueDate, creat
 | `id` | String, PK, cuid | รหัสบันทึกเวลา |
 | `description`, `remarks` | String? | รายละเอียดและหมายเหตุ |
 | `hours` | Decimal | ชั่วโมง; ไม่มี precision/scale/check ระบุ |
-| `date` | DateTime, default now | วันที่บันทึก |
+| `date` | DateTime, default now (As-Is); Target PostgreSQL `DATE` / Prisma `@db.Date` | วันที่บันทึกตามปฏิทิน `Asia/Bangkok` |
 | `status` | String? | free-form; comment ระบุตัวอย่าง To Do/In Progress/Review/Completed/Blocked |
 | `createdAt`, `updatedAt` | DateTime | เวลาสร้าง/แก้ไข |
 | `userId` | String, required FK → User.id | ผู้บันทึก; delete User cascade ลบ TimeEntry |

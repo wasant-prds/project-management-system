@@ -92,8 +92,10 @@ Public API ใช้ in-progress, sa-testing และ pm-testing; Prisma map �
 
 ข้อกำหนดวันที่และการกรอง:
 
-- บันทึก timestamp เป็น UTC; ตีความวันธุรกิจ วันที่ครบกำหนด และการจัดกลุ่ม/ขอบเขตวันใน Asia/Bangkok.
-- ช่วงของวันธุรกิจเริ่ม 00:00 Asia/Bangkok และสิ้นสุดก่อน 00:00 ของวันถัดไป แล้วแปลงขอบเขตเป็น UTC สำหรับ query.
+- ค่า default time zone ของระบบทุก environment คือ `Asia/Bangkok` สำหรับ UI calendar, date-only input, วันธุรกิจ, วันที่ครบกำหนด และการจัดกลุ่ม/กรองวัน.
+- บันทึกทุก date/time ด้วย `Asia/Bangkok` semantics: date-only values เป็นวันปฏิทิน Bangkok; timestamp values เป็น Bangkok local wall-clock. ห้ามแปลงค่าที่เก็บเป็น UTC.
+- ตั้ง timezone ของ application และ PostgreSQL session เป็น `Asia/Bangkok`; อ่าน/เขียนผ่าน API ด้วยการ parse/format timezone นี้อย่างชัดเจน ไม่ใช้ timezone ของ browser/device.
+- ช่วงวันธุรกิจเริ่ม 00:00 Asia/Bangkok และสิ้นสุดก่อน 00:00 ของวันถัดไป; query ใช้ขอบเขตเดียวกันใน timezone Bangkok.
 - Logged hours จัดกลุ่มและกรองจาก TimeEntry.date; role, kind, status, Project และ Customer ที่กรองชั่วโมงต้อง resolve ผ่าน WorkItem → Project → Customer ตาม relation เดียวกัน.
 - Project progress/counts กรอง WorkItems ด้วย Project เดียว; ชั่วโมง Project รวม TimeEntries ผ่าน WorkItem ของ Project นั้นหนึ่งครั้งต่อ TimeEntry เพื่อไม่ให้ join ทำชั่วโมงซ้ำ.
 - ปัดเศษได้เฉพาะรูปแบบแสดงผลหลัง aggregate โดยไม่เปลี่ยนค่าที่จัดเก็บหรือผลรวม; ไม่กำหนด precision/scale ใหม่ใน issue นี้.

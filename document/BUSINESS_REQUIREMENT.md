@@ -46,7 +46,8 @@
 - สถานะใน Board และ Work Items ต้องตรงกันทันทีหลังบันทึก
 - Project progress, task counts และชั่วโมงต้องคำนวณจาก Work Items/Time Entries ตามสูตรที่ระบุ ไม่กรอกซ้ำเป็น snapshot ที่แก้คนละที่
 - ทุก Project ต้องผูกกับ Customer หลักหนึ่งราย; Customer หนึ่งรายมีหลาย Projects ได้ และ Project หนึ่งรายการไม่ผูกหลาย Customer ใน scope นี้
-- เวลารายงานทั้งหมดใช้ Asia/Bangkok เป็น business timezone; UI ต้องแสดงช่วงวันที่ที่เลือก
+- ค่า default time zone ของทั้งระบบคือ `Asia/Bangkok` สำหรับวันที่ในปฏิทิน, date-only input, filters, grouping และ metrics; UI ต้องแสดงช่วงวันที่และ timezone ที่ใช้
+- วันและเวลาทุกค่าที่บันทึกลงฐานข้อมูลใช้ timezone `Asia/Bangkok` รวมถึง `createdAt`, `updatedAt`, วันที่ของ Work Item และ Daily Work; ห้ามแปลงค่าที่บันทึกเป็น UTC. กำหนด app/database session timezone เป็น `Asia/Bangkok` และแปลงค่าจาก API/UI อย่างชัดเจน. Settings แสดง timezone ระบบนี้เป็นค่าเดียวกันทุกเมนู
 - `cancelled` แยกจาก `completed`; ไม่นับเป็นงานเสร็จเมื่อคำนวณ completion rate
 - รายการไม่มีข้อมูลต้องแสดง empty state; API error ต้องไม่ถูกแทนด้วยเลขศูนย์หรือ mock values ที่ดูเหมือนข้อมูลจริง
 - UI ทั้ง 8 เมนูต้องใช้ visual hierarchy และองค์ประกอบที่สม่ำเสมอ; responsive บนโทรศัพท์ แท็บเล็ต และโน้ตบุ๊ก โดยไม่ตัดข้อมูลหรือซ่อน action สำคัญ
@@ -167,7 +168,7 @@
 **ต้องทำได้**
 
 - Profile: อ่าน/แก้ไขข้อมูลของเจ้าของที่ login อยู่ ไม่ใช้ profile ตัวอย่างหรือ selector เปลี่ยนผู้ใช้
-- Preferences: persist theme, locale/timezone และการตั้งค่าการแจ้งเตือนที่ product รองรับ
+- Preferences: persist theme, locale และการตั้งค่าการแจ้งเตือนที่ product รองรับ; timezone ของระบบและข้อมูลที่บันทึกเป็น `Asia/Bangkok` แบบคงที่ ไม่ให้ preference เปลี่ยน timezone ที่ใช้บันทึกหรือคำนวณ
 - Security: แสดงเฉพาะความสามารถที่เชื่อม authentication provider ได้จริง; password/2FA controls ต้องไม่รับข้อมูลแล้วทิ้ง
 - แจ้งสถานะบันทึกและ validation; Cancel คืนค่าที่บันทึกไว้ล่าสุด
 - ใช้ settings ชุดเดียวของเจ้าของ; ไม่ต้องมีการตั้งค่าแยกตาม role หรือผู้ใช้หลายคน
@@ -194,6 +195,8 @@ Metric ที่เป็นแนวโน้มตามเวลาไม่�
 ## 6. Non-functional requirements
 
 - ภาษา UI หลักเป็นไทย โดยแสดง enum/common system terms ภาษาอังกฤษได้
+- Default time zone ของระบบคือ `Asia/Bangkok` ทุก environment; ใช้กับปฏิทิน, date-only input, period defaults, filters, grouping และ business metrics โดยไม่ขึ้นกับ browser, OS หรือ container timezone
+- บันทึกทุก date/time ในฐานข้อมูลด้วย `Asia/Bangkok` semantics; วันที่ล้วนเก็บเป็นวันปฏิทิน Bangkok และ timestamp เก็บเป็น Bangkok local wall-clock โดยไม่แปลงเป็น UTC
 - รองรับโทรศัพท์ (<640px), แท็บเล็ต (640–1023px) และโน้ตบุ๊ก (≥1024px); ไม่มี page-level horizontal overflow หรือการตัดข้อมูล/action สำคัญ โดยอนุญาต local scrolling เฉพาะ component ที่ออกแบบไว้ เช่น Board และ tabs
 - ใช้ visual hierarchy, design tokens และ shared UI components ให้สม่ำเสมอทั้ง 8 เมนู
 - ใช้ motion สั้นเพื่อสื่อ feedback เช่น hover/focus, dialog/dropdown, loading และ Board drag; hover/focus ประมาณ 120–180 ms, dialog/dropdown 160–220 ms ใช้ CSS/utilities ที่มีอยู่ก่อนเพิ่ม dependency, ไม่ทำให้ layout กระโดดหรือชะลอการบันทึก และเคารพ keyboard focus กับ `prefers-reduced-motion`
@@ -205,7 +208,7 @@ Metric ที่เป็นแนวโน้มตามเวลาไม่�
 
 ## 7. ลำดับการส่งมอบที่แนะนำ
 
-1. **Foundation:** ยืนยันกฎ Customer, timezone, auth/role, metric และ data retention; เพิ่ม API validation และ consistency rules
+1. **Foundation:** ใช้ default time zone `Asia/Bangkok` พร้อมกฎ Customer, auth/role, metric และ data retention; เพิ่ม API validation และ consistency rules
 2. **Core consistency:** ทำ Projects ↔ Customer; ทำ Board ให้ใช้ WorkItem จริง; เติมความสมบูรณ์ของ Work Items ↔ Daily Work
 3. **Operational overview:** เชื่อม Dashboard กับ source records และ deep links
 4. **Analysis:** สร้าง shared aggregate/query definitions และเพิ่ม status history/completedAt หากต้องการแนวโน้มย้อนหลัง

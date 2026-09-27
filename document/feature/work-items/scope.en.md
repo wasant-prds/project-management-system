@@ -67,7 +67,7 @@ Treat each row as a **non-goal** for this delivery.
 
 ### Case 1 — Year
 
-- Initial state: `String(new Date().getFullYear())` (browser local time).
+- Target: initial state is the current calendar year in `Asia/Bangkok`; do not use `new Date().getFullYear()` from the browser's local timezone.
 - Year options = `all` + current year + years found on loaded items, unique, descending.
 
 ### Case 2 and Case 3 — Sort field
@@ -78,7 +78,7 @@ Treat each row as a **non-goal** for this delivery.
 
 ### Case 5 — Date boundaries
 
-- Compare due dates on the **local calendar date**, not UTC clock time.
+- Target: compare due dates on the **`Asia/Bangkok` calendar date**, not browser-local time or the UTC clock date.
 - Overdue: due date **&lt; today**.
 - Near due: due date **≥ today** and **same calendar month as today**.
 - On track: incomplete, not overdue, not near due.

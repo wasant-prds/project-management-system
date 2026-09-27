@@ -47,6 +47,7 @@ This document describes **what is in or out of this work** and which service imp
 ## 4. Technical notes
 
 - Breakpoints: phone `< 640`, tablet `640–1023`, desktop `1024+`.
+- Target: Analysis reporting periods and time-series grouping use the system default timezone, `Asia/Bangkok`, in every environment.
 - Charts resize with their container; axes, legend, tooltip, and labels stay inside the chart component at every breakpoint without page-level horizontal overflow.
 - Chart grid lines already use CSS variables in `app/globals.css`.
 

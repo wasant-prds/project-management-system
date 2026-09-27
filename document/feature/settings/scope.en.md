@@ -48,6 +48,7 @@ This document describes **what is in or out of this work** and which service imp
 ## 4. Technical notes
 
 - Breakpoints: phone `< 640`, tablet `640–1023`, desktop `1024+`.
+- Target: the system timezone is fixed to `Asia/Bangkok`; display it in Settings without an override control.
 - Light/dark/special-dark all follow the same contrast rule on solid buttons.
 
 ---

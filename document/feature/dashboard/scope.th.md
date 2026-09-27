@@ -48,6 +48,7 @@
 ## 4. บันทึกทางเทคนิค
 
 - จุดตัด: โทรศัพท์ `< sm` (640px) แท็บเล็ต `sm`–`lg` (640–1023px) เดสก์ท็อป `lg+` (1024px)
+- Target: ช่วงรายงานและการจัดกลุ่มวันที่ของ Dashboard ใช้ default time zone `Asia/Bangkok` ทุก environment
 - กราฟปรับขนาดตาม container; แกน, legend, tooltip และ label ต้องอยู่ในกรอบ chart component บนทุก breakpoint โดยไม่สร้าง page-level horizontal overflow
 - กฎคอนทราสต์อยู่ที่ CSS/คอมโพเนนต์ จึงใช้ได้ทุกเมนู ไม่เฉพาะ `/`
 - `html, body { overflow: hidden }` เพื่อให้ `PAGE_MAIN` เป็นตัวเลื่อน

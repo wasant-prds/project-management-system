@@ -51,6 +51,7 @@ This document describes **what is in or out of this work** and which service imp
 - Field panels: `text-foreground` on `bg-muted/40`.
 - Details/Remarks: `WorkItemDescription` in `ScrollablePanel`; card modal `flex-[3]` / `flex-[7]`. GFM tables in `work-item-description.tsx`.
 - Breakpoints: phone `< 640`, tablet `640–1023`, desktop `1024+`.
+- Target: date-only inputs and day/week/month/year boundaries use the system default timezone `Asia/Bangkok`; persist all date/time values using Bangkok calendar/wall-clock semantics without UTC conversion.
 
 ---
 

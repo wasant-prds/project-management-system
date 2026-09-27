@@ -7,7 +7,7 @@ alwaysApply: false
 # Settings `/settings`
 
 - Single owner profile and preferences. No user switcher and no sample profile.
-- Persist only settings the app consumes: theme, locale/timezone, and supported notifications. Theme key: `project-management-theme`.
+- Persist only settings the app consumes: theme, locale, and supported notifications. System timezone is fixed to `Asia/Bangkok` for display, persistence, filters, and metrics; Settings must not allow an override. Theme key: `project-management-theme`.
 - Security tab: only controls backed by a real authentication provider or API. Do not accept password or 2FA input and discard it.
 - Save and validation feedback. Cancel restores the last persisted values. No role-specific or multi-user settings.
 - Target: `GET/PATCH /api/settings/me`. Hide or disable save controls that do not persist.

@@ -74,6 +74,8 @@ Customer → Project → Work Item → Daily Work (Time Entry)
 - ตรวจรูปแบบวันที่, จำนวนชั่วโมงเป็นค่าบวก, ขีดจำกัดชั่วโมงต่อวัน และความสัมพันธ์ระหว่าง user, Project และ Work Item ฝั่ง server ไม่พึ่ง validation ฝั่ง browser เพียงอย่างเดียว
 - การแก้ไข/ลบต้อง refresh ผลรวมชั่วโมงและทุกมุมมองที่คำนวณจาก TimeEntry
 - รายงานชั่วโมงรวมต้องระบุ timezone และช่วงวันที่ที่ใช้ให้ตรงกัน โดยใช้ Asia/Bangkok เป็น business timezone
+- Default time zone ของระบบทุก environment คือ `Asia/Bangkok`; date-only input, ปฏิทิน, date range, year/month filter และ grouping ต้องคำนวณด้วย timezone นี้อย่างชัดเจน ไม่ใช้ local timezone ของ browser/process
+- ตั้ง timezone ของ application และ PostgreSQL session เป็น `Asia/Bangkok`; ทุก date/time ที่บันทึกลง DB ใช้ Bangkok calendar/wall-clock semantics และไม่แปลงเป็น UTC. Parse/format ที่ API/UI ด้วย `Asia/Bangkok` โดยชัดเจน; Settings แสดง timezone ระบบนี้และไม่เปลี่ยน timezone ของข้อมูล
 
 ### 3.4 Menu contracts
 
@@ -117,7 +119,7 @@ Customer → Project → Work Item → Daily Work (Time Entry)
 | ความสอดคล้อง | การเปลี่ยนแปลงเดียวปรากฏเหมือนกันในทุก menu หลัง response สำเร็จและ refresh |
 | ความปลอดภัย | Owner authentication/access control, server validation และ secret isolation ก่อนเปิด instance สู่เครือข่าย |
 | Performance | ใช้ aggregate query, index ที่ตรง filter, จำกัดผลลัพธ์และ pagination เมื่อชุดข้อมูลโต; วัดจากข้อมูลจริงก่อนตั้ง SLA |
-| Usability | ภาษาไทยเป็นหลัก; visual hierarchy สม่ำเสมอ; responsive บนโทรศัพท์/แท็บเล็ต/โน้ตบุ๊ก; มี loading/empty/error state และแสดงวันที่ตาม Asia/Bangkok |
+| Usability | ภาษาไทยเป็นหลัก; visual hierarchy สม่ำเสมอ; responsive บนโทรศัพท์/แท็บเล็ต/โน้ตบุ๊ก; มี loading/empty/error state และใช้ default time zone `Asia/Bangkok` ในทุกเมนู |
 | Frontend behavior | ใช้ CSS/utilities ที่มีอยู่; hover/focus ราว 120–180 ms, dialog/dropdown 160–220 ms; keyboard focus ใช้งานได้และเคารพ `prefers-reduced-motion`; Dashboard/Analysis charts และองค์ประกอบภายในต้องพอดีกับ chart component โดยไม่ทำให้หน้า overflow แนวนอน |
 | Observability | health endpoint ตรวจ DB; error log มี request context โดยไม่มีข้อมูลลับ; บันทึกเหตุการณ์สำคัญที่จำเป็นต่อ audit |
 | Maintainability | API/service และ business rules กลาง; หลีกเลี่ยง query/enum mapping คนละชุดระหว่างเมนู |
@@ -127,6 +129,7 @@ Customer → Project → Work Item → Daily Work (Time Entry)
 - ทุกหน้าแสดงข้อมูลจาก API/Prisma ที่อ่าน persistent records; ไม่มี mock data ใน production UI
 - สร้างหรือแก้ WorkItem หนึ่งรายการแล้ว Work Items, Board, Dashboard, Projects และ Analysis แสดงค่าที่ตรงกัน
 - บันทึก Daily Work แล้ว Work Item/Project/User ที่เกี่ยวข้องและชั่วโมงสะสมตรงกัน; ป้องกัน project/work-item mismatch
+- ทุกเมนูและทุก database write ใช้ default time zone `Asia/Bangkok`; date-only values เป็นวันปฏิทิน Bangkok และ timestamps เป็น Bangkok local wall-clock
 - Filter วันที่ให้ผลลัพธ์ตรงกันเมื่อใช้ timezone และช่วงวันที่เดียวกัน
 - UI ทั้ง 8 เมนูใช้งานได้บนโทรศัพท์ แท็บเล็ต และโน้ตบุ๊กโดยไม่ตัดข้อมูลหรือ action สำคัญ; horizontal scrolling จำกัดอยู่ภายใน component ที่ออกแบบไว้
 - Chart, axis, legend, tooltip และ label ใน Dashboard/Analysis อยู่ภายใน chart component; ไม่เกิด page-level horizontal overflow

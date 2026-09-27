@@ -8,6 +8,7 @@ alwaysApply: false
 
 - Topology: Browser → Next.js standalone → Prisma → PostgreSQL 16. One-shot `migrations` runs `db-push-safe` and optional seed. App waits for that service, not merely `started`.
 - One root `.env`. Helpers: `bash scripts/docker-dev.sh|docker-uat.sh|docker-prod.sh <command>`. No `.env.uat` / `.env.production`. Copy `.env.example` placeholders only.
+- Set `TZ=Asia/Bangkok` for application containers and PostgreSQL session/database defaults in every environment. Persist dates and timestamps using Bangkok calendar/wall-clock semantics; do not convert stored values to UTC. Keep explicit application conversions so browser/device timezone cannot change persisted values.
 - Compose: `docker-compose.yml` (dev), `docker-compose.uat.yml`, `docker-compose.prod.yml` + shared DB compose. Secrets files `postgres_user`, `postgres_password`, `postgres_db` — never commit values.
 - Verify effective ports in Compose. DEPLOYMENT.md: dev host 3777→3000, UAT 3001, prod 3002, Postgres often 5437. `document/process/docker.md` may list 3000/5432 — do not assume; read the running mapping.
 - Health: container `GET /api/health` every 30s after 40s start. Success 200 `database: connected`; failure 503.

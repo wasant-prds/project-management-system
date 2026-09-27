@@ -9,6 +9,7 @@ alwaysApply: true
 - Stack: Next.js App Router, Route Handlers, Prisma, PostgreSQL 16, Docker Compose.
 - Eight menus: `/` Dashboard, `/projects`, `/work-items`, `/board`, `/analysis`, `/daily-work`, `/company`, `/settings`. Do not treat `/tasks` or `/issues` as a second source of truth.
 - Thai-first UI, docs, and chat. Keep English system terms (WorkItem, TimeEntry, Customer, Project).
+- System default time zone in every environment, including application and database sessions, is `Asia/Bangkok`. Persist every date and timestamp using Bangkok calendar/wall-clock semantics; do not convert stored values to UTC.
 - EV source of truth: `document/BUSINESS_REQUIREMENT.md`, `SCOPE.md`, `ENGINEERING_SPEC.md`, `ARCHITECTURE.md`, `API.md`, `DATABASE.md`, `DATABASE_MAPPING.md`, `DEPLOYMENT.md`. Feature `document/feature/*` marked "done" is UI-only; data/API must follow EV.
 - One shared `WorkItem` and `TimeEntry` set. Dashboard, Board, and Analysis are read projections — never mock KPIs in production UI.
 - Developer / Infra / SA live only on `WorkItem.role`. They are not accounts, `User.role`, or permissions.

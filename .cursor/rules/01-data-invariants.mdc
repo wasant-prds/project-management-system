@@ -11,7 +11,9 @@ alwaysApply: true
 - Owner identity is resolved server-side. Never trust browser `userId` or `assigneeId` to switch users. Assignee and Daily Work logger are the same owner.
 - Board columns are `WorkItem.status`. No private board records. Status writes go through the WorkItem service used by `/work-items`.
 - Dashboard, Analysis, and Project summaries use the shared metric formulas. Never hard-code sample arrays or treat API errors as zero.
-- Store timestamps in UTC. Interpret business calendar dates as Asia/Bangkok. The same timezone applies to every filter and date group.
+- System default time zone is `Asia/Bangkok` in every environment, including application and database sessions. Use it for date-only values, calendar/year boundaries, business dates, filters, date groups, and every timestamp written to the database. Do not convert stored values to UTC or infer dates from the browser/device timezone.
+- Database date-only values represent Bangkok calendar dates. Database timestamps represent Bangkok local wall-clock date/time; use explicit Bangkok conversions at API/UI boundaries and configure database sessions to `Asia/Bangkok` so database defaults such as `now()` follow the same rule.
+- Settings may display the fixed system timezone `Asia/Bangkok`; do not expose a timezone override preference.
 - Do not rely on implicit cascade for business history. Deleting a Project currently cascades WorkItems/TimeEntries. Confirm + retain/archive before destructive ops.
 - GitLab import upserts the same `WorkItem`. Customer comes from the mapped PMS Project. Removing a mapping keeps imported WorkItems and TimeEntries.
 - Related-row mutations commit in one transaction. After success, refresh or invalidate every surface that reads those rows.

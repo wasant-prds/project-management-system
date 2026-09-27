@@ -11,13 +11,13 @@
 
 This document describes **what the product must do**. Technical boundaries are in the [scope](./scope.en.md).
 
-> Note: The cases below describe the earlier UI scope; “done” applies only to those cases. One-way GitLab Issue import is a separate target enhancement and is not implemented. The consolidated [Thai business requirement](../../BUSINESS_REQUIREMENT.md) and [scope](../../SCOPE.md) are authoritative.
+> Note: The cases below describe the earlier UI scope; “done” applies only to those cases. The system-wide `Asia/Bangkok` default timezone is a target requirement whose implementation must be verified. One-way GitLab Issue import is a separate target enhancement and is not implemented. The consolidated [Thai business requirement](../../BUSINESS_REQUIREMENT.md) and [scope](../../SCOPE.md) are authoritative.
 
 ---
 
 ## Case 1 — Default year is the current year
 
-When a user opens `/work-items`, the year filter must already be the **current calendar year** (the user’s local date).
+When a user opens `/work-items`, the year filter must already be the **current calendar year in `Asia/Bangkok`**, the system default timezone, regardless of the user's device timezone.
 
 - The year dropdown always includes that current year, even if no work items match.
 - The dropdown also keeps **All years** and every other year that exists on loaded items (newest year first).

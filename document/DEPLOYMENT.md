@@ -30,6 +30,8 @@ Dockerfile มี stages `development`, `uat`, `production`, `migrate`; producti
 
 Database host port defaults to 5437 ใน shared compose; helper/env settings อาจ override ผ่าน `POSTGRES_PORT`. ตรวจ effective Compose config ก่อนเปลี่ยนค่า port. README เดิมระบุ dev URL เป็น 3000 แต่ Compose ที่ตรวจพบใช้ 3777:3000
 
+นโยบาย Target: ตั้ง `TZ=Asia/Bangkok` สำหรับ application container และตั้ง timezone ของ PostgreSQL database/session เป็น `Asia/Bangkok` ในทุก environment. วันและเวลาทุกค่าที่เขียนลง PostgreSQL ต้องใช้ Bangkok calendar/wall-clock semantics และห้ามแปลงเป็น UTC. Application ต้อง parse/format ด้วย `Asia/Bangkok` อย่างชัดเจนเพื่อไม่ให้ timezone ของ browser/device เปลี่ยนค่าที่บันทึก.
+
 ระบบเป้าหมายเป็น installation สำหรับเจ้าของหนึ่งคน ไม่ใช่ multi-user service; ให้ปกป้อง owner account และจำกัดการเปิดเผย network ตามรูปแบบใช้งานจริง
 
 ## 3. Prerequisites and configuration

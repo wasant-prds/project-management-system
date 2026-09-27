@@ -36,7 +36,7 @@ test("shared metrics, decimal hours, and business dates are explicit", () => {
   assert.match(model, /dueDate มี business calendar date ก่อนวันนี้ใน Asia\/Bangkok/);
   assert.match(model, /SUM\(TimeEntry\.hours\)/);
   assert.match(model, /ไม่ปัดก่อน summation/);
-  assert.match(model, /บันทึก timestamp เป็น UTC/);
+  assert.match(model, /ห้ามแปลงค่าที่เก็บเป็น UTC/);
   assert.match(model, /ห้ามรายงาน historical throughput จาก current status/);
 });
 

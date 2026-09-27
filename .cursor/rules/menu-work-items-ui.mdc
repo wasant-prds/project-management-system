@@ -7,7 +7,7 @@ alwaysApply: false
 # Work Items UI
 
 - Group the visible list by Project. Under each project: Overdue → Near due → On track → Complete. Hide empty subgroups. Keep this order in every sort mode.
-- Date buckets use the local calendar date, not UTC clock time. Overdue = due < today. Near due = due ≥ today and same calendar month. On track = incomplete and neither. Complete includes `cancelled`.
+- Date buckets use the system-default `Asia/Bangkok` calendar date, not browser-local or UTC clock time. Overdue = due < today. Near due = due ≥ today and same calendar month. On track = incomplete and neither. Complete includes `cancelled`.
 - Default sort: project groups by max `updatedAt`; On track items by `updatedAt`. Hover/keyboard menu: due date ↑/↓, project title A–Z/Z–A, Reset to default. Reset clears sort only — not year, month, project, or search.
 - Tree: Radix `collapsible`. Default first project + first visible subgroup open. Opening a project opens its first visible subgroup. Cards are leaves (not collapsible). CSS spine/elbow — no `├──`. Nested scale via smaller type/padding, not `zoom`/`transform: scale`.
 - Do not persist expand in `localStorage`. Reset expand when year, month, project, search, kind tab, or sort changes.

@@ -52,7 +52,7 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 - Daily Work ต้องเชื่อม WorkItem; Project ID ต้องสอดคล้องกับ Project ของ WorkItem
 - Project Customer ต้องใช้ relation เดียวกันใน Project list/detail, filters, Dashboard และ Analysis
 - Summary counts/hours/progress ใช้สูตรชุดเดียวกันทุกหน้า
-- ใช้ Asia/Bangkok ใน filter และ date grouping; เก็บ timestamp เป็น UTC
+- ใช้ `Asia/Bangkok` เป็น default time zone ของทุก environment รวม application และ PostgreSQL session; ทุกวันที่/เวลาที่บันทึกลง DB ใช้ Bangkok calendar/wall-clock semantics ไม่แปลง timestamp เป็น UTC. Parse/format ค่าอย่างชัดเจนและไม่พึ่ง timezone ของ browser/device
 
 ## 4. รายละเอียด scope / non-scope แยกตาม Menu
 
@@ -132,7 +132,7 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 
 | ลำดับ | Dependency / output | เหตุผล |
 | --- | --- | --- |
-| 0 | ทบทวนเอกสารทั้งชุด; วาง mapping Projects เดิมไป Customer, ยืนยัน timezone, owner access method, metric formulas และ retention | ป้องกัน schema/API เปลี่ยนซ้ำ |
+| 0 | ทบทวนเอกสารทั้งชุด; วาง mapping Projects เดิมไป Customer, ใช้ default time zone Asia/Bangkok, ยืนยัน owner access method, metric formulas และ retention | ป้องกัน schema/API เปลี่ยนซ้ำ |
 | 1 | Validation, owner access-control foundation, error contract | ป้องกันข้อมูลผิดและป้องกัน instance ก่อนเปิด mutation |
 | 2 | Customer model/API + Project backfill + Project UI relation | ทำให้ Project มี customer context |
 | 3 | Board เชื่อม WorkItem และปรับ Daily Work consistency | ยืนยัน operational records ที่ใช้ร่วมกัน |

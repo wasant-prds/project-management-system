@@ -15,7 +15,7 @@
 
 ## กรณีที่ 1 — ดูผลการดำเนินงาน
 
-เจ้าของเปิด `/analysis` เพื่อดูการ์ดสรุป แท็บ และกราฟแนวโน้ม Projects, Work Items, Daily Work และ functional roles Developer/Infra/SA จากข้อมูลจริง; ไม่มี team-performance report สำหรับผู้ใช้หลายคน
+เจ้าของเปิด `/analysis` เพื่อดูการ์ดสรุป แท็บ และกราฟแนวโน้ม Projects, Work Items, Daily Work และ functional roles Developer/Infra/SA จากข้อมูลจริง; ไม่มี team-performance report สำหรับผู้ใช้หลายคน; Target: ช่วงรายงานและการจัดกลุ่มวันที่ใช้ default time zone `Asia/Bangkok`
 
 ---
 

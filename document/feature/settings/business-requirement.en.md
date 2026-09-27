@@ -15,7 +15,7 @@ This document describes **what the product must do**. Technical boundaries are i
 
 ## Case 1 — Manage preferences
 
-Users open `/settings` to edit profile, notifications, security, and appearance (including light / dark / special-dark).
+Users open `/settings` to edit profile, notifications, security, and appearance (including light / dark / special-dark). Target behavior: show the fixed system timezone, `Asia/Bangkok`, without a preference that can change stored dates, timestamps, formatting, or metrics.
 
 ---
 

@@ -20,7 +20,8 @@ One formula everywhere:
 - Open = not `completed` and not `cancelled`
 - Completed = `status = completed` only — never include `cancelled`
 - Completion rate and Project progress = completed ÷ (total − cancelled) × 100; denominator 0 → 0%
-- Overdue = `dueDate` before today in Asia/Bangkok and status not completed/cancelled
+- Default time zone for all menus/environments and database writes = `Asia/Bangkok`; business dates, date filters, and persisted timestamps must not depend on browser/device local time.
+- Overdue = `dueDate` before today's `Asia/Bangkok` calendar date and status not completed/cancelled
 - Logged hours = SUM(`TimeEntry.hours`) for the range/filters; keep decimals; do not round before the sum
 - Work Items list group "Complete" may include `cancelled`; metric labels must stay distinct
 - `submittedAt` is stamped for `sa-testing` or `completed` — it is not `completedAt`

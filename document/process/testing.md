@@ -27,3 +27,7 @@ pnpm test:api-contracts
 Add reusable Node test files under `tests/` with the `.test.mjs` suffix. `pnpm test` runs the full suite; `pnpm test:contracts` uses the same root runner with the `contracts` suite filter; `pnpm test:migration-contracts` runs the focused migration contract file through the root runner without spawning a child process.
 
 The API contract checks describe documentation and current route inventory; they do not claim that target endpoints without Route Handlers have been implemented. `pnpm test:api-contracts` (or `node tests/run.mjs api-contracts`) runs only `tests/contracts/menu-api-validation.test.mjs` through the shared root runner.
+
+## Date and timezone checks
+
+Date/filter/report contract tests must use `Asia/Bangkok` as the system, application, and database-session default in every environment, regardless of the test runner's or browser's local timezone. Cover date-only inputs, current year/month defaults, inclusive day boundaries around midnight in Bangkok, database-generated `now()` defaults, and verify persisted timestamps retain Bangkok local wall-clock values without UTC normalization. Verify Settings cannot override the fixed system timezone.

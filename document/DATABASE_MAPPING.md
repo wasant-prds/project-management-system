@@ -11,6 +11,8 @@
 
 การ backfill, mapping register, validation/rollback gates และ external identity uniqueness ใช้ [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) เป็นข้อกำหนดกลาง. Register จริงเป็น run artifact ของ environment และห้ามใส่ข้อมูลลูกค้าจริงใน repository.
 
+Target mapping: ค่า default time zone ของระบบ, application และ PostgreSQL session คือ `Asia/Bangkok` ทุก environment. Calendar-only fields ใช้ PostgreSQL `DATE` (Prisma `@db.Date`) และ timestamps ใช้ `TIMESTAMP WITHOUT TIME ZONE` (Prisma `@db.Timestamp`) เก็บค่า Bangkok local wall-clock; ห้ามแปลง timestamp เป็น UTC. ห้ามอาศัย timezone ของ browser/device ในการ map วัน.
+
 ## 1. Source-of-truth matrix
 
 | Business data | Canonical model | Canonical key | อ่านโดย | เขียนโดย |
@@ -53,8 +55,8 @@
 | `role` | `role` | Work Item functional role: Developer/infra/SA or null; not an account role |
 | `status` | `status` | API serializes `in_progress` ↔ `in-progress`, `sa_testing` ↔ `sa-testing`, `pm_testing` ↔ `pm-testing` |
 | `types` | `types` → DB `labels_types` | String array validated against supported types |
-| `workDate`, `dueDate` | same | optional timestamps; filter timezone must be consistent |
-| `submittedAt` | same | currently stamp for `sa-testing` and `completed`; not an unambiguous completedAt |
+| `workDate`, `dueDate` | same | Target PostgreSQL `DATE` / Prisma `@db.Date`; persist and compare as calendar dates in `Asia/Bangkok` |
+| `submittedAt` | same | Target `TIMESTAMP WITHOUT TIME ZONE` / Prisma `@db.Timestamp`; Bangkok local wall-clock; currently stamp for `sa-testing` and `completed`, not an unambiguous completedAt |
 | `projectId` | `projectId` | required FK; relation supplies Project label/color |
 | `assigneeId` | `assigneeId` | required FK; target resolves to the sole owner User row |
 
@@ -80,7 +82,7 @@
 | `id` | `id` | response identity |
 | `description`, `remarks` | same | optional in schema; current page requires description on submit |
 | `hours` | `hours` Decimal | UI/API convert input string to number; target validation must reject nonnumeric/nonpositive values server-side |
-| `date` | `date` | DateTime; day boundaries interpreted in consistent timezone |
+| `date` | `date` | Target PostgreSQL `DATE` / Prisma `@db.Date`; calendar date in `Asia/Bangkok`; day boundaries use the same timezone |
 | `TimeEntry.status` | `status` | optional free-form legacy field As-Is; not a WorkItem workflow status or target metric; do not create a second status vocabulary |
 | `userId` | `userId` | current page selects Admin/default User client-side; target always resolve the single owner's authenticated identity server-side |
 | `projectId` | `projectId` | Project context มาจาก Project ของ WorkItem; derive หรือ validate ให้ตรงกันทุกครั้งที่ส่งค่านี้ |

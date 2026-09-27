@@ -51,6 +51,7 @@
 - แผงฟิลด์: `text-foreground` บน `bg-muted/40`
 - Details/Remarks: `WorkItemDescription` ใน `ScrollablePanel`; โมดัลการ์ด `flex-[3]` / `flex-[7]` ตาราง GFM ใน `work-item-description.tsx`
 - จุดตัด: โทรศัพท์ `< 640` แท็บเล็ต `640–1023` เดสก์ท็อป `1024+`
+- Target: วันที่ป้อนและขอบเขตวัน/สัปดาห์/เดือน/ปีใช้ default time zone `Asia/Bangkok`; ทุก date/time ที่เขียนลง DB ใช้ Bangkok calendar/wall-clock semantics และไม่แปลงเป็น UTC
 
 ---
 

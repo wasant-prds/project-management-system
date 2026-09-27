@@ -7,6 +7,7 @@ alwaysApply: false
 # Database schema
 
 - PostgreSQL 16 + Prisma 6 via `DATABASE_URL`. IDs `cuid()`. DateTime + `now()`. `updatedAt` `@updatedAt`.
+- Use `Asia/Bangkok` as the timezone for all persisted dates and timestamps. Date-only values represent Bangkok calendar dates; timestamp columns represent Bangkok local wall-clock values. Configure the PostgreSQL session timezone to `Asia/Bangkok` for database-generated defaults and use explicit application conversions; never normalize persisted values to UTC.
 - `WorkItem` maps to table `work_items`. Field `types` maps to column `labels_types` (`String[]`).
 - Target: `Customer` + `Project.customerId` (nullable only during backfill, then NOT NULL). Cardinality Customer 1:N Project.
 - Target GitLab: `GitLabProjectMapping` unique(instanceUrl, gitLabProjectId). `ExternalWorkItemReference` unique(provider, instance, project, issueId) and unique(workItemId) in phase one. Never store tokens in tables.
