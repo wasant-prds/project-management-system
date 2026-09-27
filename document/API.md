@@ -6,7 +6,7 @@
 | Base URL | `http://localhost:<app-port>/api` |
 | รูปแบบ | JSON; methods use `GET`, `POST`, `PATCH`, `DELETE` |
 | สถานะ | Inventory ปัจจุบันและ target endpoints; target endpoints are proposals |
-| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [DATABASE.md](./DATABASE.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) |
+| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [DATABASE.md](./DATABASE.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) |
 
 ## 1. API conventions
 
@@ -122,8 +122,8 @@ The list below is a proposal; route naming should be reviewed before implementat
 | Method | Proposed endpoint | Consumer / purpose |
 | --- | --- | --- |
 | `GET`, `POST` | `/api/customers` | Customer registry used by the owner and Project selector |
-| `GET`, `PATCH`, `DELETE` | `/api/customers/{id}` | Customer detail/update/deactivate |
-| `GET / POST / PATCH` | `/api/projects` and `/api/projects/{id}` | Include required `customerId`; validate Customer relation |
+| `GET`, `PATCH`, `DELETE` | `/api/customers/{id}` | Customer detail/update/deactivate; reject hard delete with 409 while any Project references it |
+| `GET`, `POST`, `PATCH`, `DELETE` | `/api/projects` and `/api/projects/{id}` | Include required `customerId`; validate Customer relation and active status for new/reassigned links; reject hard delete with 409 while dependent history exists |
 | `GET` | `/api/dashboard/summary` | KPI, period/filter inputs, deep-link criteria |
 | `GET` | `/api/analysis` | Aggregate series/tables for WorkItem + TimeEntry |
 | `GET`, `PATCH` | `/api/company` | Read/update the one company profile for this installation |
@@ -136,6 +136,8 @@ The list below is a proposal; route naming should be reviewed before implementat
 Prefer reusing `/api/work-items/{id}` PATCH for Board if it has sufficient validation/audit; do not create two independent status mutation implementations.
 
 GitLab endpoints are proposed and are not present in the current application. Require owner authentication; call GitLab from the server only. The sync endpoint must paginate, respect GitLab rate limits, upsert by external identity, and return a safe retryable result. Initial delivery is manual pull only; do not add webhook or write-back routes.
+
+Customer/Project backfill, delete protection, GitLab identity canonicalization and uniqueness are target contracts in [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md). These proposed endpoint behaviors do not imply that a live migration or Customer mapping has already been applied.
 
 ## 6. Target response and validation contract
 

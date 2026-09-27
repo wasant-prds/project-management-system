@@ -6,7 +6,7 @@
 | Environments | Development, UAT, Production |
 | สถานะ | คู่มือ deployment จาก Compose/scripts ปัจจุบัน |
 | ภาษา | ภาษาไทยเป็นหลัก; command และ environment names คงเดิม |
-| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [DATABASE.md](./DATABASE.md) · [document/process/docker.md](./process/docker.md) · [document/process/db.md](./process/db.md) |
+| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [DATABASE.md](./DATABASE.md) · [document/process/docker.md](./process/docker.md) · [document/process/db.md](./process/db.md) |
 
 > เอกสารนี้อธิบาย configuration ที่พบใน repository ไม่ใช่การยืนยันว่า environment ใดกำลังทำงานหรือพร้อม deploy คำสั่ง Production บางรายการอาจมี confirmation ใน helper script
 
@@ -82,7 +82,7 @@ Repository มี `scripts/docker-dev.sh`, `scripts/docker-uat.sh`, `scripts/doc
 4. หาก `RUN_SEED=true` จะรัน Prisma seed จาก `SEED_PATH`; ตรวจ `prisma/seed.ts` และ seed guard ก่อนใช้งานจริง
 5. App รอ migrations service สำเร็จ แล้ว entrypoint สร้าง `DATABASE_URL` จาก secrets และเริ่ม server
 
-ปัจจุบัน flow ใช้ `prisma db push` ไม่ได้ maintain migration history แบบ versioned migrations ใน repository ที่ตรวจพบ. Customer migration/backfill ควรทำเป็น staged rollout และ backup ก่อนตาม [DATABASE.md](./DATABASE.md); อย่าใช้ force seed/reset กับข้อมูล production
+ปัจจุบัน flow ใช้ `prisma db push` ไม่ได้ maintain migration history แบบ versioned migrations ใน repository ที่ตรวจพบ. Customer migration/backfill ต้องทำ per-environment staged nullable → approved mapping → validate → required rollout ตาม [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md), พร้อม backup และ isolated restore rehearsal ก่อน apply. อย่าใช้ force seed/reset กับข้อมูล production.
 
 ## 6. Health checks and operational verification
 

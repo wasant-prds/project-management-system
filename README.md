@@ -82,6 +82,7 @@ bash scripts/docker-dev.sh start-studio
 - **[Business Requirement](./document/BUSINESS_REQUIREMENT.md)** - Requirements organized by menu
 - **[Scope](./document/SCOPE.md)** - Step 1 boundary and menu-by-menu delivery scope
 - **[Database](./document/DATABASE.md)** - Current Prisma schema and proposed Customer/data-integrity changes
+- **[Customer/Project Migration Contract](./document/CUSTOMER_PROJECT_MIGRATION.md)** - Auditable mapping, staged rollout, validation, and recovery gates
 - **[Database Mapping](./document/DATABASE_MAPPING.md)** - Mapping between menus, APIs, and database records
 - **[Shared Data Model](./document/SHARED_DATA_MODEL.md)** - Canonical Customer, Project, WorkItem, TimeEntry, owner, and metric contract
 - **[API](./document/API.md)** - Current endpoint inventory and target API gaps
@@ -211,7 +212,8 @@ pnpm build              # Build for production
 pnpm start              # Start production server
 pnpm lint               # Run linter
 pnpm test               # Run all Node tests
-pnpm test:contracts     # Verify shared data model requirements and references
+pnpm test:contracts     # Verify data and document contracts
+pnpm test:migration-contracts  # Verify Customer/Project migration and identity contract
 ```
 
 ### Database

@@ -5,7 +5,7 @@
 | ฉบับ | EV — Enhanced Version |
 | สถานะ | สถาปัตยกรรมเป้าหมายสำหรับระบบชุดปัจจุบัน |
 | ภาษาหลัก | ไทย; system terms คงภาษาอังกฤษ |
-| ข้อกำหนด | [Shared Data Model](./SHARED_DATA_MODEL.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [API.md](./API.md) · [DATABASE.md](./DATABASE.md) |
+| ข้อกำหนด | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [API.md](./API.md) · [DATABASE.md](./DATABASE.md) |
 
 > ภาพ As-Is ด้านล่างอิง repository ที่ตรวจพบ ณ วันที่ 2026-09-27; ส่วน Target เป็นแนวทางระบบที่เมนูทั้งหมดอ่านข้อมูลจริงชุดเดียวกัน
 
@@ -16,7 +16,7 @@
 - คงเป็น modular monolith บน Next.js App Router, Next.js Route Handlers, Prisma และ PostgreSQL
 - ให้ `WorkItem` และ `TimeEntry` เป็น operational records กลาง ไม่แยกสำเนางาน/เวลารายเมนู
 - ให้หน้า read model/aggregate เป็น query ที่คำนวณจาก record จริง ไม่ใช้ mock arrays หรือ state ที่ไม่ persist
-- เพิ่ม Customer เป็น master data ที่เชื่อม Project โดยมีแผน backfill ก่อนบังคับ foreign key
+- เพิ่ม Customer เป็น master data ที่เชื่อม Project โดยใช้ approved Project-ID mapping register, backup/restore rehearsal, orphan validation และ recovery gate ก่อนบังคับ foreign key ตาม [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md)
 - รวม validation, enum mapping, project/work-item consistency และ authorization ไว้ฝั่ง server
 
 ## 2. As-Is architecture
@@ -169,11 +169,11 @@ Development, UAT and production use Docker Compose files already present. The sh
 
 ## 9. Decisions still open
 
-- How to map existing Projects to Customer records during backfill
+- Environment-specific Project-to-Customer decisions and evidence must be completed in the approved migration register before that environment is changed; no mapping is inferred by this repository contract
 - Owner authentication method and whether this single-owner installation sits behind an additional private network/access gate
 - Whether Company remains one profile per installation (the current business requirement) or changes to a multi-company product later
 - Whether to add WorkItem status history and a dedicated `completedAt`
 - User preference persistence schema and whether Security settings are in current product scope
-- Retention/archive policy for deleted Projects, Users, WorkItems and TimeEntries
+- Retention/archive implementation for deleted Projects, Users, WorkItems and TimeEntries; until approved, reject deletion that would cascade into business history
 - GitLab instance/token provisioning, Project mapping, field/label mapping, conflict policy, and whether remote time tracking should create Daily Work entries
 

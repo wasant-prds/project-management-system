@@ -6,7 +6,7 @@
 | ฉบับ | EV — Enhanced Version |
 | สถานะ | ข้อกำหนดเป้าหมายสำหรับใช้วางแผนการพัฒนา |
 | ภาษาหลัก | ไทย โดยคง system terms ภาษาอังกฤษที่ใช้ทั่วไป |
-| เอกสารประกอบ | [Shared Data Model](./SHARED_DATA_MODEL.md), [Architecture](./ARCHITECTURE.md), [Business Requirement](./BUSINESS_REQUIREMENT.md), [Scope](./SCOPE.md), [Database](./DATABASE.md), [Database Mapping](./DATABASE_MAPPING.md), [API](./API.md), [Deployment](./DEPLOYMENT.md) |
+| เอกสารประกอบ | [Shared Data Model](./SHARED_DATA_MODEL.md), [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md), [Architecture](./ARCHITECTURE.md), [Business Requirement](./BUSINESS_REQUIREMENT.md), [Scope](./SCOPE.md), [Database](./DATABASE.md), [Database Mapping](./DATABASE_MAPPING.md), [API](./API.md), [Deployment](./DEPLOYMENT.md) |
 
 > เอกสารนี้เป็นข้อกำหนดเชิงวิศวกรรมฉบับยกระดับ ไม่ได้ยืนยันว่าความสามารถเป้าหมายมีอยู่ในระบบปัจจุบัน รายละเอียดปัจจุบันและส่วนที่ต้องพัฒนาดูหัวข้อ Baseline และ Gap ในเอกสารที่เกี่ยวข้อง
 
@@ -48,7 +48,7 @@ Customer → Project → Work Item → Daily Work (Time Entry)
 4. Work Items, Board, Dashboard, Projects และ Analysis ต้องอ่าน `WorkItem` ชุดเดียวกัน; Daily Work, ชั่วโมงใน Project และรายงานเวลาอ่าน `TimeEntry` ชุดเดียวกัน
 5. การแก้สถานะจาก Work Items หรือ Board ต้องเขียนกลับ WorkItem เดียวกันและสะท้อนในทุกหน้าหลัง refresh/query ใหม่
 6. ยอดรวมและกราฟต้องได้จาก database query/aggregation หรือข้อมูล API ที่คำนวณจากฐานข้อมูล ห้ามใช้ hard-coded sample values
-7. Project แต่ละรายการผูกกับ Customer หนึ่งราย; Customer หนึ่งรายมีหลาย Projects ได้ ให้รองรับการผูกข้อมูล Project เดิมก่อนบังคับ `customerId`
+7. Project แต่ละรายการผูกกับ Customer หนึ่งราย; Customer หนึ่งรายมีหลาย Projects ได้. Customer ขั้นต่ำมี stable ID, required name และ active/inactive status; customer ที่ถูกใช้งานห้ามลบ. ใช้ approved mapping register ต่อ Project และทำ staged nullable/backfill/validation ก่อนบังคับ `customerId` ตาม [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md)
 8. การลบ/เก็บถาวรต้องไม่ทำให้ข้อมูลเวลาหรือประวัติงานหายโดยไม่ตั้งใจ; นโยบาย soft delete/retention ต้องสรุปก่อนพัฒนา destructive operation
 
 ### 3.2 Work Item workflow
@@ -94,7 +94,7 @@ Customer → Project → Work Item → Daily Work (Time Entry)
 
 1. Work Items รองรับการดึง GitLab Issues เข้ามาเป็น `WorkItem` แบบทางเดียว (GitLab → PMS); การแก้ใน PMS ไม่ส่งกลับไป GitLab
 2. เจ้าของเป็นผู้เริ่ม sync แบบ manual ในระยะแรก และต้อง map GitLab Project แต่ละรายการกับ Project ใน PMS ก่อนนำเข้า; Customer ของงานจึงได้จาก Project ใน PMS; Work Item แสดงลิงก์กลับไป GitLab Issue
-3. ใช้ GitLab instance, project ID และ global Issue ID เป็น external identity สำหรับ upsert และป้องกันการสร้าง WorkItem ซ้ำ
+3. ใช้ `(provider, canonical GitLab instance URL, GitLab Project ID, global Issue ID)` เป็น external identity พร้อม database uniqueness และ transactional upsert เพื่อป้องกันการสร้าง WorkItem ซ้ำ; รายละเอียดอยู่ใน [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md)
 4. GitLab Issue สร้าง `WorkItem.kind = Issue`, ใช้ owner คนเดียวเป็น assignee, `priority = none`, `role`/`workDate` ว่าง และ sync title, description, state, supported labels, due date และ remote updated time; GitLab URL/IDs เก็บเป็น external reference
 5. เสนอ mapping สถานะ `opened → todo`, `closed → completed`; sync ซ้ำเขียนทับเฉพาะฟิลด์ที่เป็นของ GitLab (title, description, status, mapped types, due date) และคง `role`, `priority`, `workDate`, owner กับ `TimeEntry` ที่เป็นข้อมูลเฉพาะ PMS
 6. แสดงผลจำนวนสร้างใหม่/อัปเดต/ข้าม/ผิดพลาด และสาเหตุของรายการที่ sync ไม่สำเร็จ; รองรับ pagination, rate limit และ retry โดยไม่ทำให้ข้อมูลซ้ำ; การยกเลิก Project mapping ไม่ลบ WorkItem/TimeEntry ที่นำเข้าแล้ว
@@ -138,8 +138,8 @@ Customer → Project → Work Item → Daily Work (Time Entry)
 
 ## 6. คำถามที่ต้องยืนยันก่อน migration/implementation
 
-1. ยืนยันนโยบาย backfill สำหรับ Projects เดิมที่จะผูก Customer; กฎเป้าหมายคือหนึ่ง Customer หลักต่อ Project
-2. Project เดิมที่ไม่มี Customer จะ map ไป Customer ใด หรือเก็บเป็น unassigned ชั่วคราว
+1. ก่อน rollout จริง ให้สร้างและอนุมัติ environment-specific mapping register สำหรับทุก Project ตาม [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md); แถวที่ unmapped/ambiguous ต้อง block rollout และห้ามเดาค่าแทน
+2. ยืนยันหลักฐานและ Customer ID ของแต่ละ Project จากเจ้าของข้อมูลใน environment ที่กำลังย้าย; repository ไม่มีข้อมูลจริงให้กำหนด mapping ล่วงหน้า
 3. `submittedAt` หมายถึงส่งเข้า SA Testing หรือส่งงานเสร็จ; ควรเพิ่ม `completedAt`/status history เพื่อวัด throughput หรือไม่
 4. Daily Work อนุญาตหลายบันทึกต่อ Work Item ต่อวันหรือไม่ และจำกัดยอดรวมไม่เกิน 24 ชั่วโมงต่อเจ้าของต่อวันหรือไม่
 5. ยืนยันว่า Company profile มีหนึ่ง record ต่อ installation (ข้อกำหนดปัจจุบัน: ใช้หนึ่งบริษัท/เจ้าของต่อ installation)

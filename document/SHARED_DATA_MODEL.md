@@ -5,7 +5,7 @@
 | Issue | #11 — Define the Shared Work and Customer Data Model |
 | Role | SA |
 | สถานะ | Target business data contract; ยังไม่ใช่การยืนยัน schema หรือ migration ที่ deploy แล้ว |
-| เอกสารที่เกี่ยวข้อง | [Engineering Spec](./ENGINEERING_SPEC.md) · [Business Requirement](./BUSINESS_REQUIREMENT.md) · [Database](./DATABASE.md) · [Database Mapping](./DATABASE_MAPPING.md) · [API](./API.md) |
+| เอกสารที่เกี่ยวข้อง | [Engineering Spec](./ENGINEERING_SPEC.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [Business Requirement](./BUSINESS_REQUIREMENT.md) · [Database](./DATABASE.md) · [Database Mapping](./DATABASE_MAPPING.md) · [API](./API.md) |
 
 เอกสารนี้เป็นสัญญากลางของข้อมูล Customer, Project, WorkItem, TimeEntry และเจ้าของระบบ ใช้ร่วมกันทุกเมนูและเป็นแหล่งอ้างอิงเมื่อคำอธิบายซ้ำในเอกสารอื่นไม่ตรงกัน ข้อเท็จจริง As-Is อ้างอิง Prisma schema และ API ใน repository; Target คือข้อกำหนดทางธุรกิจ ยังไม่ได้เพิ่ม Customer model หรือเปลี่ยน schema ใน issue นี้
 
@@ -22,6 +22,8 @@
 | Functional role | WorkItem.role เป็น enum ที่เลือกได้ | Developer, infra และ SA เป็นบทบาทการทำงานบน WorkItem เท่านั้น ไม่ใช่ User, permission, team หรือ account role |
 
 การ backfill Customer, เลือกหรือรวม User เดิม, เปลี่ยน nullability, referential actions และข้อกำหนด migration เป็นงานแยกตาม issue ที่เกี่ยวข้อง ต้องไม่อนุมานค่าลูกค้าหรือเจ้าของจาก seed/sample data
+
+สำหรับ Customer/Project migration ให้ใช้ [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md): Customer ขั้นต่ำมี stable ID, required name, `active`/`inactive` status และ audit timestamps; การ map ทุก Project ต้องมี approved evidence register. GitLab Issue identity ใช้ `(provider, canonical instance URL, GitLab Project ID, global Issue ID)` และ unique constraint ป้องกัน external reference ซ้ำ. เอกสารนี้กำหนด semantics; ไม่ได้ยืนยันว่า schema หรือข้อมูลจริงถูก migrate แล้ว.
 
 ## 2. Logical entities and relationships
 

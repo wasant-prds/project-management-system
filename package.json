@@ -8,7 +8,8 @@
     "dev": "next dev",
     "lint": "next lint",
     "test": "node tests/run.mjs",
-    "test:contracts": "node tests/contracts/shared-data-model.test.mjs",
+    "test:contracts": "node tests/run.mjs contracts",
+    "test:migration-contracts": "node tests/run.mjs migration-contracts",
     "start": "next start",
     "postinstall": "prisma generate"
   },

@@ -5,9 +5,11 @@
 | วัตถุประสงค์ | เชื่อม Menu, UI field, API และ persistent model |
 | สถานะ | As-Is mapping พร้อม Target mapping |
 | ภาษา | ภาษาไทยเป็นหลัก; ชื่อ code/schema คงภาษาอังกฤษ |
-| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [DATABASE.md](./DATABASE.md) · [API.md](./API.md) · [BUSINESS_REQUIREMENT.md](./BUSINESS_REQUIREMENT.md) |
+| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [DATABASE.md](./DATABASE.md) · [API.md](./API.md) · [BUSINESS_REQUIREMENT.md](./BUSINESS_REQUIREMENT.md) |
 
 > `Customer`, `Project.customerId` และ GitLab external references เป็น target; ยังไม่มีใน Prisma schema/API/UI ปัจจุบัน. ความสัมพันธ์และ metric เป้าหมายยึด [Shared Data Model](./SHARED_DATA_MODEL.md)
+
+การ backfill, mapping register, validation/rollback gates และ external identity uniqueness ใช้ [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) เป็นข้อกำหนดกลาง. Register จริงเป็น run artifact ของ environment และห้ามใส่ข้อมูลลูกค้าจริงใน repository.
 
 ## 1. Source-of-truth matrix
 
@@ -19,7 +21,7 @@
 | Customer | Target `Customer` | `Customer.id` | Company registry, Projects, Dashboard, filters, Analysis | Target Customer/Project API |
 | Owner identity | One `User` row | `User.id` | Work Items (assignee), Daily Work (logger), Settings | Owner identity resolved by server; current users API is read-only |
 | Work Item functional role | `WorkItem.role` | enum value | Work Items, Board, Analysis, Project summaries | Work Items API; values Developer / infra / SA |
-| GitLab Issue identity | Target `ExternalWorkItemReference` | instance + GitLab project ID + global issue ID | Work Items (source link/sync status) | GitLab connector only; unique key prevents duplicate import |
+| GitLab Issue identity | Target `ExternalWorkItemReference` | provider + canonical instance URL + GitLab project ID + global issue ID | Work Items (source link/sync status) | GitLab connector only; database unique key plus transactional upsert prevents duplicate import |
 | GitLab Project link | Target `GitLabProjectMapping` | GitLab instance/project ID → `Project.id` | Work Items sync setup; Project supplies Customer context | Owner-managed mapping; one GitLab Project maps to one PMS Project in phase one |
 | Company profile | One `Company` row per installation | `Company.id` | Company | Target Company API; current page read-only query |
 | Project membership | Legacy `ProjectMember` relation | `ProjectMember.id` | As-Is Projects/Company counts only | No multi-member/team management in target scope |

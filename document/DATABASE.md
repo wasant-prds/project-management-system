@@ -6,7 +6,7 @@
 | ORM | Prisma 6 (`prisma/schema.prisma`) |
 | สถานะ | As-Is schema พร้อม target changes ที่เสนอ; ยังไม่มี Customer model |
 | ภาษาหลัก | ภาษาไทย; คงชื่อ model/field ตาม code |
-| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [API.md](./API.md) · [DEPLOYMENT.md](./DEPLOYMENT.md) |
+| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [API.md](./API.md) · [DEPLOYMENT.md](./DEPLOYMENT.md) |
 
 > ส่วน As-Is อ้างอิง Prisma schema ใน repository ณ วันที่ 2026-09-27 ไม่ใช่ผล introspection ของ database instance ใดโดยเฉพาะ การเพิ่ม `Customer` และ constraint ในหัวข้อ Target ต้องผ่าน review, backup และ migration/backfill plan ก่อน deploy
 
@@ -139,8 +139,8 @@ Customer relation ยังไม่มี ส่วน relation ระหว่
 Customer
   id          String PK (cuid)
   name        String required
-  code        String? unique (business decision)
-  status      String/enum (Active, Inactive) — ยืนยันค่าก่อนทำ schema
+  code        String? (optional; no uniqueness contract)
+  status      CustomerStatus (active, inactive)
   email       String?
   phone       String?
   address     String?
@@ -152,7 +152,11 @@ Customer
 Project.customerId String? FK → Customer.id (nullable ระหว่าง backfill)
 ```
 
-Required business cardinality: Customer 1:N Project; **Project แต่ละรายการต้องผูกกับ Customer หนึ่งราย** และ Customer หนึ่งรายผูก Projects ได้หลายรายการ ตาม [Shared Data Model](./SHARED_DATA_MODEL.md). ระหว่าง migration `customerId` อาจ nullable ชั่วคราวเพื่อ backfill เท่านั้น; ก่อนเปิดใช้ requirement ใหม่ต้อง map ทุก Project เดิมและตรวจว่าไม่มี orphan. ห้ามใช้ชื่อลูกค้าจาก seed/sample เป็นข้อเท็จจริงโดยไม่มีการยืนยัน
+```text
+CustomerStatus = active | inactive
+```
+
+Required business cardinality: Customer 1:N Project; **Project แต่ละรายการต้องผูกกับ Customer หนึ่งราย** และ Customer หนึ่งรายผูก Projects ได้หลายรายการ ตาม [Shared Data Model](./SHARED_DATA_MODEL.md). ขั้นต่ำคือ stable `id`, ชื่อที่ไม่ว่าง, `status` (`active`/`inactive`) และ audit timestamps; contact fields เป็น optional. Customer ที่ Project ใช้อยู่ห้าม hard-delete ให้ deactivate; Project ที่มี work/history ห้าม hard-delete. ระหว่าง migration `customerId` nullable ได้เฉพาะ staged backfill ก่อน map ทุก Project จาก approved register และตรวจ orphan. ห้ามใช้ชื่อลูกค้าจาก seed/sample เป็นข้อเท็จจริงโดยไม่มีการยืนยัน. ขั้นตอนสำคัญและ recovery gate อยู่ใน [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md).
 
 ### 4.2 External reference สำหรับ GitLab Issues (target)
 
@@ -160,18 +164,18 @@ Required business cardinality: Customer 1:N Project; **Project แต่ละ�
 
 ```text
 GitLabProjectMapping
-  id, gitLabInstanceUrl, gitLabProjectId, projectId FK → Project.id
-  unique(gitLabInstanceUrl, gitLabProjectId)
+  id, canonicalGitLabInstanceUrl, gitLabProjectId, projectId FK → Project.id
+  unique(canonicalGitLabInstanceUrl, gitLabProjectId)
 
 ExternalWorkItemReference
   id, workItemId FK → WorkItem.id
-  provider, gitLabInstanceUrl, gitLabProjectId, gitLabIssueId, gitLabIssueIid
+  provider, canonicalGitLabInstanceUrl, gitLabProjectId, gitLabGlobalIssueId, gitLabIssueIid
   externalUrl, remoteUpdatedAt, lastSyncedAt, createdAt, updatedAt
-  unique(provider, gitLabInstanceUrl, gitLabProjectId, gitLabIssueId)
+  unique(provider, canonicalGitLabInstanceUrl, gitLabProjectId, gitLabGlobalIssueId)
   unique(workItemId) // ระยะแรก: WorkItem หนึ่งรายการผูกแหล่งภายนอกได้หนึ่งรายการ
 ```
 
-ฟิลด์นี้เป็นข้อเสนอสำหรับ review; ใช้ GitLab global Issue ID เป็นตัว deduplicate และเก็บ IID สำหรับ URL/diagnostics. GitLab token ห้ามเก็บในตารางนี้หรือส่งให้ client; ใช้ secret store/environment หรือ owner-scoped secret provider ที่เลือกแล้ว.
+ฟิลด์นี้เป็น target contract: identity คือ `(provider=gitlab, canonical instance URL, GitLab Project ID, global Issue ID)`. Normalize scheme/host และ trailing slash; preserve self-managed base path. ใช้ global Issue ID เป็น deduplication key, เก็บ IID สำหรับ URL/diagnostics, และให้ unique constraint เป็น concurrent-upsert guard. GitLab token ห้ามเก็บในตารางนี้หรือส่งให้ client; ใช้ secret store/environment หรือ owner-scoped secret provider ที่เลือกแล้ว. รายละเอียด canonicalization, conflict behavior และ rollout อยู่ใน [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md).
 
 ### 4.3 Data integrity ที่ควรประเมิน
 
@@ -201,7 +205,7 @@ ExternalWorkItemReference
 
 ## 6. Schema change process
 
-1. สร้าง DB backup และทดสอบ restore ก่อนเปลี่ยน schema สำคัญ
+1. ทำตาม [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md): inventory และ approved mapping register → backup + isolated restore rehearsal → nullable additive rollout → backfill → validation gates → required constraint. หยุดเมื่อมี unresolved mapping/orphan.
 2. สร้าง Prisma schema change และตรวจ generated SQL/data-loss warning
 3. หากมี data transformation ให้ทำ staged backfill และรายงาน record ที่ map ไม่ได้
 4. สำหรับ production พิจารณาเปลี่ยน `db push` เป็น versioned migration เมื่อทีมพร้อม; ปัจจุบัน repository ใช้ safe `db push`

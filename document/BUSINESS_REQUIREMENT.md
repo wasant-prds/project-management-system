@@ -6,7 +6,7 @@
 | เอกสาร | ข้อกำหนดทางธุรกิจฉบับรวมทุกเมนู |
 | ภาษา | ภาษาไทยเป็นหลัก; system terms ใช้ภาษาอังกฤษเมื่อเป็นคำที่ใช้ทั่วไป |
 | สถานะ | ข้อกำหนดเป้าหมายเพื่อพัฒนาและทบทวน |
-| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [SCOPE.md](./SCOPE.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [API.md](./API.md) |
+| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [SCOPE.md](./SCOPE.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [API.md](./API.md) |
 
 เอกสารนี้รวมและยกระดับ Business Requirement รายเมนูที่อยู่ใน `document/feature/` ให้ทุกหน้าใช้ข้อมูลหลักที่สอดคล้องกัน ตัวเลขในหน้าไม่ควรถือเป็นจริงหากไม่ได้คำนวณจาก `WorkItem` และ `TimeEntry` ในฐานข้อมูล
 
@@ -78,7 +78,7 @@
 - ค้นหา/กรอง Project ตาม Customer, status และข้อความ; เปิดรายละเอียด Project แล้วเห็น Work Items, functional roles และชั่วโมงรวม
 - แสดง total, open, completed Work Items จาก `WorkItem`; แสดง actual hours จาก `TimeEntry`
 - Progress ที่แสดงต้องมีสูตรเดียวทั้งระบบ: completed / (total - cancelled); เมื่อ denominator เป็นศูนย์ให้ 0%
-- การลบ Project ต้องแจ้งผลต่อ Work Items/Time Entries และป้องกันการลบข้อมูลประวัติโดยไม่ตั้งใจ
+- การลบ Project ที่มี WorkItem/TimeEntry หรือประวัติอ้างอยู่ต้องถูกปฏิเสธจนกว่าจะมี archive/retention policy ที่อนุมัติ; Customer ที่มี Project อ้างอยู่ให้ deactivate แทนการลบ
 
 **เกณฑ์ยอมรับ:** Customer ที่เลือกติดกับ Project ที่บันทึกจริง; ทุก Work Item/Daily Work ใน Project detail มี foreign relation ที่ตรวจสอบได้; summary เท่ากับจำนวนรายการจริง
 
@@ -152,7 +152,8 @@
 **ต้องทำได้**
 
 - อ่าน/แก้ไข company profile ของเจ้าของจาก `Company`; ถือเป็นข้อมูลบริษัทเดียวของ installation นี้
-- เพิ่ม ดู แก้ไข และปิดใช้งาน Customer ในทะเบียนกลาง เพื่อให้ Project เลือก Customer ได้
+- เพิ่ม ดู แก้ไข และปิดใช้งาน Customer ในทะเบียนกลางเพื่อให้ Project เลือก Customer ได้; Customer ต้องมีชื่อและสถานะ active/inactive; Customer inactive ใช้รักษาประวัติแต่ห้ามเลือกผูก Project ใหม่
+- ห้าม hard-delete Customer ที่ยังมี Project อ้างอยู่; การย้ายข้อมูล Project เดิมต้องมี mapping evidence และผ่าน backup, restore, validation และ recovery gates ตาม [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md)
 - แสดง Projects ภายใต้ Customer และจำนวน Work Items/ชั่วโมงจากข้อมูลจริง
 - ไม่ต้องมีหน้าจัดการสมาชิก, เชิญผู้ใช้, Project membership หรือ team permissions ในขอบเขตปัจจุบัน
 - ข้อมูลเจ้าของที่เก็บใน `User` ใช้เป็น identity/ผู้รับผิดชอบเพียงคนเดียว ไม่แสดงเป็นทีมหลายสมาชิก

@@ -6,10 +6,16 @@ Project tests use pnpm and Node's built-in test runner; no additional test depen
 pnpm test
 ```
 
-Run the shared data model contract suite by itself:
+Run all documentation/data contract suites:
 
 ```powershell
 pnpm test:contracts
 ```
 
-Add reusable Node test files under `tests/` with the `.test.mjs` suffix. The root `test` command runs the full suite; `test:contracts` runs the shared model documentation and cross-reference checks directly.
+Run only the Customer/Project migration contract checks:
+
+```powershell
+pnpm test:migration-contracts
+```
+
+Add reusable Node test files under `tests/` with the `.test.mjs` suffix. `pnpm test` runs the full suite; `pnpm test:contracts` uses the same root runner with the `contracts` suite filter; `pnpm test:migration-contracts` runs the focused migration contract file through the root runner without spawning a child process.

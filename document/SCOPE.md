@@ -6,7 +6,7 @@
 | เอกสาร | Scope ฉบับรวมและแบ่งตาม Menu |
 | ภาษา | ภาษาไทยเป็นหลัก; system terms ใช้ภาษาอังกฤษเมื่อเป็นคำที่ใช้ทั่วไป |
 | สถานะ | กรอบเป้าหมายสำหรับวางแผนงานพัฒนา; Step 1 ปัจจุบันส่งมอบเอกสารเท่านั้น |
-| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [BUSINESS_REQUIREMENT.md](./BUSINESS_REQUIREMENT.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) |
+| เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [BUSINESS_REQUIREMENT.md](./BUSINESS_REQUIREMENT.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) |
 
 ## 1. วัตถุประสงค์และขอบเขตของ Step 1
 
@@ -64,7 +64,7 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 
 ### Projects
 
-**In scope:** Customer picker/filter, Project CRUD/detail, work item counts, functional role breakdown, progress formula, logged hours, guard against accidental data loss. Project แต่ละรายการต้องมี Customer หนึ่งราย; Customer หนึ่งรายเชื่อม Projects ได้หลายรายการ.
+**In scope:** Customer picker/filter, Project CRUD/detail, work item counts, functional role breakdown, progress formula, logged hours, guard against accidental data loss. Project แต่ละรายการต้องมี Customer หนึ่งราย; Customer หนึ่งรายเชื่อม Projects ได้หลายรายการ. Customer มีชื่อและสถานะ active/inactive; backfill ต้องใช้ approved per-Project mapping register และผ่าน backup/restore/validation gates ก่อนบังคับ relation ตาม [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md).
 
 **Out of scope:** CRM pipeline/contract billing, invoice, budget ledger, project document versioning, unless explicitly prioritized later. Existing budget/spent fields may remain visible only if maintained and defined.
 
