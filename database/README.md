@@ -99,13 +99,10 @@ Sized for a 1 vCPU / 2 GB host running two projects (this stack ~384 MB for Post
 
 The volume is labeled with backup metadata:
 - **Frequency**: Daily
-- **Retention**: 30 days
+- **Retention**: owner-approved default `BACKUP_KEEP_DAYS=30` (override supported); labels do not certify that backups have run
 - **Type**: Database
 
-Implement your backup strategy based on these labels using tools like:
-- `pg_dump` for database dumps
-- Volume snapshots
-- File-based backups of the data directory
+Use [Database Rollout](../document/DATABASE_ROLLOUT.md) for approved `BACKUP_DIR`, retention, verified custom `pg_dump`, isolated restore, staged checks and recovery. Raw copies of a running PostgreSQL data directory are not verified backups. Database/session defaults are `Asia/Bangkok`; preserve Bangkok local wall-clock values without UTC conversion.
 
 ## Troubleshooting
 
@@ -122,20 +119,7 @@ sudo chown -R $USER:$USER ./database/postgres/data/
 ```
 
 ### Corrupted Data
-If the database becomes corrupted:
-```bash
-# Stop containers
-docker-compose down
-
-# Backup current data (optional)
-cp -r ./database/postgres/data ./database/postgres/data.backup
-
-# Remove corrupted data
-rm -rf ./database/postgres/data/*
-
-# Restart with fresh data
-docker-compose up -d
-```
+Stop affected writes, preserve the current volume and incident snapshot, and follow [the recovery runbook](../document/DATABASE_ROLLOUT.md). Restore a verified backup to an isolated replacement, reconcile post-backup writes and obtain owner approval before cutover. Never delete the original data directory or initialize a fresh database as a recovery shortcut.
 
 ### Connection Issues
 ```bash

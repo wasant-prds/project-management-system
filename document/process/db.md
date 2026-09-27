@@ -43,8 +43,8 @@ bash scripts/db-manage.sh <command>
 | --- | --- |
 | `bash scripts/db-manage.sh status` | แสดงสถานะฐานข้อมูล |
 | `bash scripts/db-manage.sh reset` | reset ฐานข้อมูล (ลบข้อมูลทั้งหมด) |
-| `bash scripts/db-manage.sh backup` | สร้าง backup ของฐานข้อมูลตาม `APP_ENV`; ถ้า PostgreSQL หยุดอยู่แต่พบไฟล์ฐานข้อมูล จะเปิดเฉพาะ PostgreSQL ชั่วคราวแล้วหยุดหลัง backup |
-| `bash scripts/db-manage.sh restore <file>` | กู้คืนฐานข้อมูลจาก backup |
+| `bash scripts/db-manage.sh backup` | สร้าง custom archive + checksum/inventory + isolated restore evidence; ต้องเปิด PostgreSQL และหยุด writes ก่อน |
+| `bash scripts/db-manage.sh restore <file>` | ทดสอบ custom archive ใน PostgreSQL แยก ไม่เขียนทับ live database |
 | `bash scripts/db-manage.sh connect` | เชื่อมต่อฐานข้อมูลด้วย `psql` |
 | `bash scripts/db-manage.sh logs` | แสดง logs ของ PostgreSQL |
 | `bash scripts/db-manage.sh seed` | รัน seed ใน Linux migrations container ของ site ที่เลือก (ข้ามเฉพาะตารางใน seed config ที่มีข้อมูลอยู่แล้ว; ถ้า container หยุดแต่พบไฟล์ฐานข้อมูล จะข้ามอย่างปลอดภัย) |
@@ -58,7 +58,7 @@ bash scripts/db-manage.sh status
 bash scripts/db-manage.sh backup
 ```
 
-`backup` จะบันทึก SQL backup ไว้ใน `database/backups` โดยใส่ชื่อ site ในชื่อไฟล์
+`backup` ใช้ `BACKUP_DIR` default `./database/backups/postgres_data` จาก repository root และ `BACKUP_KEEP_DAYS` default 30 วัน (override ใน root `.env` ได้). คำสั่งเพิ่มเติม: `verify-rollout <archive> <stage>`, `health`, `prune-backups`. รายละเอียด staged rollout, retention pin, restore และ recovery อยู่ใน [Database Rollout](../DATABASE_ROLLOUT.md). ใช้ Node local toolchain + Docker CLI; helper ไม่เริ่ม/หยุด production ให้อัตโนมัติ.
 
 ## Per-table seed
 

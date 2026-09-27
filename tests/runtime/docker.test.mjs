@@ -12,6 +12,30 @@ const docker = (args) => {
 };
 const enabled = process.env.PMS_RUN_DOCKER_TESTS === '1';
 
+test('scheduled backup fails safely and publishes only successful dumps without leaking diagnostics', { skip: !enabled }, async () => {
+  const folder=await mkdtemp(join(tmpdir(),'pms-daily-backup-'));
+  try {
+    await mkdir(join(folder,'bin')); await mkdir(join(folder,'backups'));
+    await writeFile(join(folder,'bin','pg_dump'),'#!/bin/sh\necho synthetic-dump\necho synthetic-private-password >&2\nexit "${DUMP_EXIT:-0}"\n');
+    await writeFile(join(folder,'bin','sleep'),'#!/bin/sh\nexit 77\n');
+    for (const fail of ['1','0']) {
+      const args=['run','--rm','--network','none','--mount',`type=bind,source=${folder},target=/fixture`,
+        '--mount',`type=bind,source=${join(folder,'backups')},target=/backups`,
+        '--mount',`type=bind,source=${join(process.cwd(),'scripts')},target=/scripts,readonly`,
+        '-e','PATH=/fixture/bin:/usr/bin:/bin','-e','APP_ENV=prod','-e','BACKUP_DIR=/backups',
+        '-e','BACKUP_KEEP_DAYS=','-e','POSTGRES_PASSWORD=synthetic-private-password','-e','POSTGRES_USER=synthetic',
+        '-e','POSTGRES_DB=synthetic','-e',`DUMP_EXIT=${fail}`,'--entrypoint','sh','postgres:16-alpine',
+        '-c','chmod +x /fixture/bin/* && sh /scripts/db-backup-scheduled.sh'];
+      const result=spawnSync('docker',args,{ encoding:'utf8',timeout:30000 });
+      assert.equal(result.status,fail==='1'?1:77);
+      assert.doesNotMatch(`${result.stdout}${result.stderr}`,/synthetic-private-password/);
+      const { readdir }=await import('node:fs/promises'); const files=await readdir(join(folder,'backups'));
+      assert.equal(files.length,fail==='1'?0:1);
+      if (fail==='0') assert.match(files[0],/^pms_prod_daily_.*\.dump$/);
+    }
+  } finally { await rm(folder,{ recursive:true,force:true }); }
+});
+
 test('effective Dev/UAT/Production Compose has loopback ports, secrets and timezone', { skip: !enabled }, async () => {
   docker(['run', '--rm', '--network', 'none', '--mount', `type=bind,source=${join(process.cwd(), 'scripts')},target=/scripts,readonly`, '--entrypoint', 'sh', 'postgres:16-alpine', '-c',
     'for script in /scripts/docker-entrypoint-app.sh /scripts/docker-entrypoint-dev.sh /scripts/docker-entrypoint-migrate.sh /scripts/init-postgres.sh; do sh -n "$script" || exit 1; done']);
@@ -20,6 +44,7 @@ test('effective Dev/UAT/Production Compose has loopback ports, secrets and timez
     const envPath = join(folder, '.env');
     for (const [site, file, port] of [['dev', 'docker-compose.yml', 3777], ['uat', 'docker-compose.uat.yml', 3001], ['prod', 'docker-compose.prod.yml', 3002]]) {
       await writeFile(envPath, `APP_ENV=${site}\nAPP_PORT=${port}\nAPP_ORIGIN=http://localhost:${port}\nPOSTGRES_USER=synthetic\nPOSTGRES_PASSWORD=synthetic\nPOSTGRES_DB=synthetic\nRUN_SEED=false\nOWNER_GATE_USERNAME=owner\nOWNER_GATE_PASSWORD=synthetic-owner-password-at-least-32\nGITLAB_TOKEN=synthetic-gitlab-token\nPOSTGRES_DATA_DIR=${folder.replaceAll('\\', '/')}\n`);
+      await writeFile(envPath, `BACKUP_DIR=${folder.replaceAll('\\', '/')}\nBACKUP_KEEP_DAYS=3\n`, { flag: 'a' });
       const config = JSON.parse(docker(['compose', '--env-file', envPath, '-f', file, 'config', '--format', 'json']));
       assert.equal(verifyCompose(config), true);
       assert.equal(config.services.app.environment.APP_ENV, site);
@@ -29,6 +54,14 @@ test('effective Dev/UAT/Production Compose has loopback ports, secrets and timez
       assert.equal(config.secrets, undefined);
       assert.equal(config.services.app.secrets, undefined);
     }
+    // Blank/unset BACKUP_DIR must mount the same default used by the operations CLI.
+    await writeFile(envPath, 'APP_ENV=prod\nAPP_ORIGIN=http://localhost:3002\nPOSTGRES_USER=synthetic\nPOSTGRES_PASSWORD=synthetic\nPOSTGRES_DB=synthetic\nOWNER_GATE_USERNAME=owner\nOWNER_GATE_PASSWORD=synthetic-owner-password-at-least-32\nBACKUP_KEEP_DAYS=\nBACKUP_DIR=\n');
+    const defaults = JSON.parse(docker(['compose','--env-file',envPath,'-f','docker-compose.prod.yml','--profile','backup','config','--format','json']));
+    assert.equal(defaults.services.backup.environment.BACKUP_DIR, './database/backups/postgres_data');
+    assert.equal(defaults.services.backup.environment.BACKUP_KEEP_DAYS,'30');
+    assert.equal(defaults.volumes.postgres_data.labels['com.dhas.retention.days'],'30');
+    const defaultDir = join(process.cwd(),'database','backups','postgres_data').replaceAll('\\','/');
+    for (const service of ['postgres','backup']) assert.equal(defaults.services[service].volumes.find(v => v.target === '/backups').source.replaceAll('\\','/'), defaultDir);
   } finally { await rm(folder, { recursive: true, force: true }); }
 });
 

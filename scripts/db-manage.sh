@@ -173,116 +173,6 @@ reset() {
   print_info "Start the selected site with: bash $START_SCRIPT start"
 }
 
-backup() {
-  print_header
-  echo
-
-  if ! db_docker info >/dev/null 2>&1; then
-    print_error "Docker Engine is not available; cannot access the APP_ENV=$DB_SITE database."
-    if db_running_on_windows; then
-      print_info "Start Docker Desktop or enable its WSL integration, then retry."
-    else
-      print_info "On Linux, check Docker with: systemctl status docker"
-      print_info "If Docker is installed but stopped, run: systemctl start docker"
-    fi
-    print_info "Then retry: bash scripts/db-manage.sh backup"
-    return 1
-  fi
-
-  local timestamp backup_file db_user db_name
-  db_user=$(read_database_setting POSTGRES_USER)
-  db_name=$(read_database_setting POSTGRES_DB)
-  mkdir -p "$BACKUP_DIR"
-
-  local started_for_backup=false
-  if ! check_container; then
-    if ! check_data_dir; then
-      print_error "No database files found for APP_ENV=$DB_SITE at: $DATA_DIR"
-      print_info "Refusing to start an empty database for backup."
-      return 1
-    fi
-
-    print_info "Starting only the $DB_SITE PostgreSQL service for backup..."
-    started_for_backup=true
-    if ! compose up -d postgres; then
-      stop_backup_postgres "$started_for_backup"
-      print_error "Could not start PostgreSQL for APP_ENV=$DB_SITE."
-      return 1
-    fi
-  fi
-
-  if ! wait_for_postgres; then
-    stop_backup_postgres "$started_for_backup"
-    return 1
-  fi
-
-  timestamp=$(date +"%Y%m%d_%H%M%S")
-  backup_file="$BACKUP_DIR/pms_${DB_SITE}_backup_${timestamp}.sql"
-
-  print_info "Creating $DB_SITE database backup: $backup_file"
-  if ! db_docker exec "$CONTAINER_NAME" pg_dump -U "$db_user" "$db_name" > "$backup_file"; then
-    rm -f -- "$backup_file"
-    stop_backup_postgres "$started_for_backup"
-    print_error "Database backup failed for APP_ENV=$DB_SITE."
-    return 1
-  fi
-  if ! gzip -f "$backup_file"; then
-    rm -f -- "$backup_file" "${backup_file}.gz"
-    stop_backup_postgres "$started_for_backup"
-    print_error "Could not compress the database backup."
-    return 1
-  fi
-  print_success "Backup created: ${backup_file}.gz"
-  print_info "Backup size: $(du -sh "${backup_file}.gz" | cut -f1)"
-  stop_backup_postgres "$started_for_backup"
-  echo
-}
-
-restore() {
-  print_header
-  echo
-  local backup_file db_user db_name confirm
-  backup_file="${1:-}"
-  if [ -z "$backup_file" ]; then
-    print_error "Please specify a backup file"
-    print_info "Usage: bash scripts/db-manage.sh restore <backup_file>"
-    echo
-    print_info "Available backups for $DB_SITE:"
-    ls -lh "$BACKUP_DIR"/pms_"$DB_SITE"_backup_*.sql.gz 2>/dev/null || print_warning "No backups found"
-    return 1
-  fi
-  if [ ! -f "$backup_file" ]; then
-    print_error "Backup file not found: $backup_file"
-    return 1
-  fi
-  require_container
-  print_warning "WARNING: This will overwrite data in the $DB_SITE database."
-  read -r -p "Are you sure you want to restore from this backup? (yes/no): " confirm
-  if [ "$confirm" != "yes" ]; then
-    print_info "Restore cancelled"
-    return 0
-  fi
-
-  db_user=$(read_database_setting POSTGRES_USER)
-  db_name=$(read_database_setting POSTGRES_DB)
-  print_info "Restoring $DB_SITE database from: $backup_file"
-  if [[ "$backup_file" == *.gz ]]; then
-    gunzip -c "$backup_file" | db_docker exec -i "$CONTAINER_NAME" psql -U "$db_user" "$db_name"
-  elif [[ "$backup_file" == *.zip ]]; then
-    if command -v unzip >/dev/null 2>&1; then
-        unzip -p "$backup_file" '*.sql' | db_docker exec -i "$CONTAINER_NAME" psql -U "$db_user" "$db_name"
-    elif command -v python3 >/dev/null 2>&1; then
-        python3 -c 'import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); names=[n for n in z.namelist() if n.lower().endswith(".sql")]; sys.stdout.buffer.write(z.read(names[0])) if names else sys.exit("No .sql file in backup")' "$backup_file" | db_docker exec -i "$CONTAINER_NAME" psql -U "$db_user" "$db_name"
-    else
-      print_error "Restoring .zip backups requires unzip or python3"
-      return 1
-    fi
-  else
-    db_docker exec -i "$CONTAINER_NAME" psql -U "$db_user" "$db_name" < "$backup_file"
-  fi
-  print_success "Database restored successfully"
-}
-
 connect() {
   print_header
   echo
@@ -355,7 +245,10 @@ usage() {
   echo "  status       Show selected site's database status"
   echo "  reset        Reset selected site's database (deletes all data)"
   echo "  backup       Back up selected site's database"
-  echo "  restore      Restore selected site from a backup file"
+  echo "  restore      Rehearse custom archive in an isolated disposable database"
+  echo "  verify-rollout <archive> <stage>  Check staged rollout and exact history"
+  echo "  health       Check app, PostgreSQL, migration completion and /api/health"
+  echo "  prune-backups Remove expired verified backups, preserving newest/pinned"
   echo "  connect      Connect to selected site's database (psql)"
   echo "  logs         Show selected site's PostgreSQL logs"
   echo "  seed         Run Prisma seed against the configured DATABASE_URL"
@@ -366,8 +259,11 @@ usage() {
 case "${1:-}" in
   status) status ;;
   reset) reset ;;
-  backup) backup ;;
-  restore) restore "${2:-}" ;;
+  backup) node scripts/db-rollout.mjs backup ;;
+  restore) node scripts/db-rollout.mjs rehearse "${2:-}" ;;
+  verify-rollout) node scripts/db-rollout.mjs verify "${2:-}" "${3:-}" ;;
+  health) node scripts/db-rollout.mjs health ;;
+  prune-backups) node scripts/db-rollout.mjs prune ;;
   connect) connect ;;
   logs) logs ;;
   seed) seed ;;

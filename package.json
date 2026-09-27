@@ -4,6 +4,8 @@
   "private": true,
   "packageManager": "pnpm@10.34.5",
   "scripts": {
+    "test:database-rollout": "node tests/run.mjs database-rollout",
+    "test:database-rollout-docker": "node tests/run.mjs database-rollout-docker",
     "build": "next build",
     "dev": "node scripts/runtime-launch.mjs --dev",
     "lint": "next lint",

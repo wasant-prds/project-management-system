@@ -97,7 +97,7 @@ Repository มี `scripts/docker-dev.sh`, `scripts/docker-uat.sh`, `scripts/doc
 ## 7. Persistent data, backup, restore
 
 - PostgreSQL data อยู่ใน bind-backed Docker volume ชื่อ `pms-postgres-data-${APP_ENV}`; actual host path จาก `POSTGRES_DATA_DIR`
-- Production `backup` service อยู่ใต้ Compose profile `backup`, ใช้ `pg_dump` gzip รายวัน และลบไฟล์เก่าตาม `BACKUP_KEEP_DAYS`; compose default เป็น 3 วัน หากต้องการนานกว่านั้นต้อง override อย่างชัดเจน
+- Production `backup` service อยู่ใต้ Compose profile `backup`, ใช้ custom `pg_dump` รายวันแบบ atomic; defaults ที่เจ้าของกำหนดคือ `BACKUP_DIR=./database/backups/postgres_data` และ `BACKUP_KEEP_DAYS=30` (override ได้). ต้องทดสอบ isolated restore ก่อน rollout ตาม [Database Rollout](./DATABASE_ROLLOUT.md)
 - Manual backup/restore/status/seed helpers อธิบายใน [document/process/db.md](./process/db.md)
 - ก่อน schema rollout หรือ restore: ยืนยัน environment, สร้าง backup ใหม่, ตรวจขนาด/เวลาของไฟล์, และมี downtime/restore plan ที่เจ้าของระบบรับรู้
 - ทดสอบ restore ไป environment แยกและตรวจ row counts/relations; ไฟล์ backup ที่ยังไม่เคย restore ไม่ถือว่า verified
@@ -134,3 +134,7 @@ If schema sync succeeds but seed fails and `database/seeds/master/config.json` i
 ### RUN_SEED=true with per-table guards
 
 With an approved dataset at `database/seeds/master`, set `RUN_SEED=true` in root `.env`. Each configured table is checked independently: any existing row causes that table to be skipped; empty tables receive the configured seed rows. Parent references must resolve against existing or newly inserted records. Invalid data rolls back all seed inserts. Rebuild the migration image after changing the seed runner: `docker compose -f docker-compose.prod.yml build migrations`, then (after deployment authorization) `docker compose -f docker-compose.prod.yml up -d`. No reset or volume deletion is needed.
+
+## Database operations ที่ implement ใน #16
+
+เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. Customer/GitLab target schema และ business API ยังไม่ถูก deploy ในงาน Infra นี้. เจ้าของกำหนด defaults เป็น BACKUP_DIR=./database/backups/postgres_data และ BACKUP_KEEP_DAYS=30 แล้ว. ผล isolated verification ยืนยันการเตรียมเครื่องมือของ #16; ยังไม่ได้ rollout หรือสร้าง backup ของ Dev/UAT/Production จริง ซึ่งต้องผ่าน runbook ก่อน schema changes.

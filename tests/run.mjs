@@ -4,6 +4,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const testRoot = resolve(dirname(fileURLToPath(import.meta.url)));
 const suites = {
+  "database-rollout": { files: [join(testRoot, "database", "rollout.test.mjs")] },
+  "database-rollout-docker": { files: [join(testRoot, "database", "rollout-docker.test.mjs")] },
   seed: { files: [join(testRoot, "seed", "seed.test.mjs")] },
   "seed-docker": { files: [join(testRoot, "seed", "docker.test.mjs")] },
   "runtime-docker": { files: [join(testRoot, "runtime", "docker.test.mjs")] },
@@ -15,6 +17,7 @@ const suites = {
   "gitlab-contracts": { files: [join(testRoot, "contracts", "gitlab-issue-import.test.mjs")] },
 };
 const requestedSuite = process.argv[2];
+if (requestedSuite === "database-rollout-docker") process.env.PMS_RUN_ROLLOUT_DOCKER_TESTS = "1";
 if (requestedSuite === "runtime-container") process.env.PMS_RUN_CONTAINER_TESTS = "1";
 if (requestedSuite === "runtime-docker") process.env.PMS_RUN_DOCKER_TESTS = "1";
 if (requestedSuite === "seed-docker") process.env.PMS_RUN_SEED_DOCKER_TESTS = "1";

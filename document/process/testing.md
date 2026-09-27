@@ -68,3 +68,24 @@ node tests/run.mjs runtime-container
 - `docker build --target migrate -t pms-seed-validation .` then `pnpm test:seed-docker`: PostgreSQL/Prisma mixed tables, existing parent references, idempotency and transaction rollback. Uses disposable containers without installation volumes.
 
 When `database/seeds/master/config.json` is available, `pnpm test:seed-docker` additionally runs the real migrations entrypoint with `RUN_SEED=true` against a fresh disposable database using the installation dataset. It then reruns seeding and verifies every existing record is unchanged. Row contents and raw errors are withheld; the test never uses installation volumes.
+
+## Issue #16 — database rollout และ recovery
+
+```powershell
+pnpm test:database-rollout
+node tests/run.mjs database-rollout
+pnpm test:database-rollout-docker
+node tests/run.mjs database-rollout-docker
+```
+
+Unit suite ใช้ temporary artifacts/mocked operations; Docker suite เป็น opt-in ที่ focused command เปิดให้อัตโนมัติ (`pnpm test` skip). ต้องมี Docker daemon, `postgres:16-alpine` และ production app image ที่มี runtime launcher/health route (`PMS_ROLLOUT_TEST_IMAGE` override ได้; default `project-management-system-production-app:latest`). ใช้ Node/Prisma CLI จาก lockfile เพื่อสร้าง As-Is schema เฉพาะ fixture แล้วทดลอง nullable/backfilled/required target DDL. ตรวจ backup/checksum/full restore/schema/exact hashes, same-count history changes, unmapped Customer, relation mismatch, database-generated Bangkok wall-clock default และ real Next.js `/api/health` กับ migration-container exit. Fixture ใช้ network none/shared isolated namespace ไม่มี ports หรือ installation volumes/root `.env`; cleanup container/temporary files หลังจบ.
+
+Runbook และข้อจำกัด environment จริงอยู่ใน [Database Rollout](../DATABASE_ROLLOUT.md). Compose/scheduled backup regression ใช้ `pnpm test:runtime-docker`.
+
+หากไม่มี production app image สำหรับ health smoke ให้ build validation image (ไม่ deploy) และเลือกผ่าน runtime environment:
+
+```powershell
+docker build --target production -t pms-issue16-app-validation .
+$env:PMS_ROLLOUT_TEST_IMAGE = 'pms-issue16-app-validation'
+pnpm test:database-rollout-docker
+```

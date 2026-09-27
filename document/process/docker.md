@@ -10,7 +10,7 @@ Compose is tuned so **this stack uses about half the machine**, leaving room for
 | --- | --- | --- |
 | CPU | ~0.50 (`postgres` 0.20 + `app` 0.30) | ~0.50 |
 | RAM | ~768 MB (`postgres` 384 MB + `app` 384 MB) | ~1.2 GB |
-| Disk | WAL capped at 256 MB; container logs 10 MB × 3; backups 3 days | rest of 50 GB |
+| Disk | WAL capped at 256 MB; container logs 10 MB × 3; backups per approved BACKUP_KEEP_DAYS | rest of 50 GB |
 
 PostgreSQL uses `max_connections=20`, `shared_buffers=64MB`, and a Prisma `connection_limit=5`. Node heap is capped with `NODE_OPTIONS=--max-old-space-size=256`. Do not run two heavy `pnpm dev` stacks on this host; use UAT/production images.
 
