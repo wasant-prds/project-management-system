@@ -1,19 +1,20 @@
 ---
-description: Next.js Route Handler contracts, errors, and target endpoints
+description: Next.js Route Handler contracts, validation, errors, and menu API targets
 globs: app/api/**/*.ts
 alwaysApply: false
 ---
 
 # API contracts
 
-- JSON Route Handlers. Current wrappers: `{ workItems }`, `{ workItem }`, `{ projects }`, `{ workLogs }`.
-- POST create 201, GET 200, bad input 400, missing 404, conflict 409, server 500, health DB down 503.
-- Error envelope: `{ "error": { "code", "message", "field?" } }`. Thai message OK. No raw exceptions.
-- Current: `/api/health`, `/users`, `/projects`, `/projects/{id}`, `/work-items`, `/work-items/{id}`, `/work-items/import`, `/work-logs`, `/work-logs/{id}`.
-- Target (reuse services; do not fork status writers): `/api/customers`, `/api/dashboard/summary`, `/api/analysis`, `/api/company`, `/api/settings/me`, `/api/integrations/gitlab/*`. Board status = PATCH `/api/work-items/{id}` or a status route that calls the same service.
-- `GET /api/work-items`: `projectId`, `kind`, `status`, `priority`, `year`, `month`, `search`, `includeYears`. Year/month match workDate else dueDate else createdAt. Invalid enum → 400. `assigneeId` is legacy, not a user-facing filter.
-- `GET /api/work-logs`: `date` or inclusive `startDate`+`endDate`. Day bounds = Asia/Bangkok. `userId` is legacy.
-- Every POST/PATCH `/api/work-logs` must re-check the Project/WorkItem pair. A project-only PATCH must not leave a mismatch.
-- Target mutations resolve owner identity server-side. Do not persist posted `userId`.
-- Add pagination/limit before lists grow. Dashboard/analysis responses include period, timezone, filters, and formula version.
-- Import: per-row outcomes; an invalid batch must not corrupt existing rows.
+- `document/API.md` is the detailed contract. Keep current route facts separate from proposed endpoints; do not describe a target endpoint as implemented.
+- All target business API reads/mutations require the authenticated owner. Resolve `userId`/`assigneeId` server-side; `Developer`, `infra`, and `SA` are WorkItem functional roles, not permissions.
+- Validate body, query, enum, date, numeric value, foreign key, Customer status, and relation invariants server-side on every mutation.
+- Canonical target error envelope: `{ error: { code, message, field? } }`. Map invalid input/relation mismatch to 400, unauthenticated to 401, policy denial to 403, missing to 404, state/unique/history conflict to 409, unexpected error to safe 500, required dependency down to safe 503. Never return raw exceptions or secrets.
+- Create returns 201; successful reads/updates/deletes return 200. Health is an infrastructure probe exception; 503 must not expose database details.
+- Current API inventory: `/api/health`, `/api/users`, `/api/projects[/{id}]`, `/api/work-items[/{id}]`, `/api/work-items/import`, `/api/work-logs[/{id}]`. Current wrappers/errors and missing owner auth/pagination are As-Is gaps.
+- Target read/write contract covers Dashboard, Projects, Work Items, Board, Analysis, Daily Work, Company, and Settings in `document/API.md`. Summary responses use shared WorkItem/TimeEntry sources and include effective period, `Asia/Bangkok`, filters, and metric version.
+- Board status mutation must call the same WorkItem service/validation as Work Items. Never add a Board-owned status or duplicate summary record.
+- Every TimeEntry create/update re-checks that its WorkItem exists and its Project agrees with the WorkItem's Project; target requires WorkItem and derives owner server-side.
+- Collection targets use default `limit=50`, max `200`, and opaque `cursor`; validate bounds and keep deterministic ordering. Current list handlers do not yet implement pagination.
+- Work Item enums/status spelling and shared metrics are defined in `.cursor/rules/02-enums-metrics.mdc`; keep public statuses hyphenated.
+- GitLab target is owner-triggered and one-way; detailed import mapping/retry response belongs to issue #14. Never expose the token.

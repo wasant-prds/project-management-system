@@ -96,8 +96,8 @@ test("primary EV docs and proposed APIs reference the migration contract", async
     assert.match(content, /\[Customer\/Project Migration Contract\]\(\.\/CUSTOMER_PROJECT_MIGRATION\.md\)/, `Missing contract reference in ${path}`);
   }
   const api = await read("document/API.md");
-  assert.match(api, /reject hard delete with 409 while any Project references it/);
-  assert.match(api, /reject hard delete with 409 while dependent history exists/);
+  assert.match(api, /`DELETE` hard-delete ได้เมื่อไม่มี Project อ้างถึงเท่านั้น มิฉะนั้น `409 CONFLICT`/);
+  assert.match(api, /`DELETE \/api\/projects\/\{id\}`: `409 CONFLICT` หากมี WorkItem, TimeEntry หรือ dependent business history/);
   const checklist = await read("design/projects/project-management-system/work_items/00_checklist.md");
   assert.ok(checklist.includes("- [x] **#12** [Specify Customer and Project Data Migration]"));
 });

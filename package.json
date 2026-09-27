@@ -9,6 +9,7 @@
     "lint": "next lint",
     "test": "node tests/run.mjs",
     "test:contracts": "node tests/run.mjs contracts",
+    "test:api-contracts": "node tests/run.mjs api-contracts",
     "test:migration-contracts": "node tests/run.mjs migration-contracts",
     "start": "next start",
     "postinstall": "prisma generate"
