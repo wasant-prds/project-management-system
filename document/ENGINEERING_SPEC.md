@@ -115,7 +115,8 @@ Customer → Project → Work Item → Daily Work (Time Entry)
 | ความสอดคล้อง | การเปลี่ยนแปลงเดียวปรากฏเหมือนกันในทุก menu หลัง response สำเร็จและ refresh |
 | ความปลอดภัย | Owner authentication/access control, server validation และ secret isolation ก่อนเปิด instance สู่เครือข่าย |
 | Performance | ใช้ aggregate query, index ที่ตรง filter, จำกัดผลลัพธ์และ pagination เมื่อชุดข้อมูลโต; วัดจากข้อมูลจริงก่อนตั้ง SLA |
-| Usability | ภาษาไทยเป็นหลัก; รองรับหน้าจอเล็ก, loading/empty/error state และแสดงวันที่ตาม Asia/Bangkok |
+| Usability | ภาษาไทยเป็นหลัก; visual hierarchy สม่ำเสมอ; responsive บนโทรศัพท์/แท็บเล็ต/โน้ตบุ๊ก; มี loading/empty/error state และแสดงวันที่ตาม Asia/Bangkok |
+| Frontend behavior | ใช้ CSS/utilities ที่มีอยู่; hover/focus ราว 120–180 ms, dialog/dropdown 160–220 ms; keyboard focus ใช้งานได้และเคารพ `prefers-reduced-motion`; Dashboard/Analysis charts และองค์ประกอบภายในต้องพอดีกับ chart component โดยไม่ทำให้หน้า overflow แนวนอน |
 | Observability | health endpoint ตรวจ DB; error log มี request context โดยไม่มีข้อมูลลับ; บันทึกเหตุการณ์สำคัญที่จำเป็นต่อ audit |
 | Maintainability | API/service และ business rules กลาง; หลีกเลี่ยง query/enum mapping คนละชุดระหว่างเมนู |
 
@@ -125,6 +126,9 @@ Customer → Project → Work Item → Daily Work (Time Entry)
 - สร้างหรือแก้ WorkItem หนึ่งรายการแล้ว Work Items, Board, Dashboard, Projects และ Analysis แสดงค่าที่ตรงกัน
 - บันทึก Daily Work แล้ว Work Item/Project/User ที่เกี่ยวข้องและชั่วโมงสะสมตรงกัน; ป้องกัน project/work-item mismatch
 - Filter วันที่ให้ผลลัพธ์ตรงกันเมื่อใช้ timezone และช่วงวันที่เดียวกัน
+- UI ทั้ง 8 เมนูใช้งานได้บนโทรศัพท์ แท็บเล็ต และโน้ตบุ๊กโดยไม่ตัดข้อมูลหรือ action สำคัญ; horizontal scrolling จำกัดอยู่ภายใน component ที่ออกแบบไว้
+- Chart, axis, legend, tooltip และ label ใน Dashboard/Analysis อยู่ภายใน chart component; ไม่เกิด page-level horizontal overflow
+- Motion สื่อ feedback โดยไม่ทำให้ layout shift หรือชะลอการบันทึก; keyboard focus และ `prefers-reduced-motion` ทำงานถูกต้อง
 - ทุก loading, empty, validation, not-found และ server-error state มีการตอบสนองที่ผู้ใช้เข้าใจ
 - Customer association สำหรับ Project และ migration/backfill ผ่านการ review ก่อนบังคับใช้
 - Owner authentication และ validation ฝั่ง server ครอบคลุมทุก mutation ก่อนเปิด production

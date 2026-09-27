@@ -47,6 +47,7 @@
 - เวลารายงานทั้งหมดใช้ timezone เดียวกัน (ข้อเสนอ: Asia/Bangkok); UI ต้องแสดงช่วงวันที่ที่เลือก
 - `cancelled` แยกจาก `completed`; ไม่นับเป็นงานเสร็จเมื่อคำนวณ completion rate
 - รายการไม่มีข้อมูลต้องแสดง empty state; API error ต้องไม่ถูกแทนด้วยเลขศูนย์หรือ mock values ที่ดูเหมือนข้อมูลจริง
+- UI ทั้ง 8 เมนูต้องใช้ visual hierarchy และองค์ประกอบที่สม่ำเสมอ; responsive บนโทรศัพท์ แท็บเล็ต และโน้ตบุ๊ก โดยไม่ตัดข้อมูลหรือซ่อน action สำคัญ
 
 ## 4. Business Requirement แยกตาม Menu
 
@@ -60,6 +61,7 @@
 - แสดงงานที่เพิ่งสร้าง/ปรับปรุง และรายการเร่งด่วน/เกินกำหนดพร้อม Project, Customer, functional role, status และ due date; ผู้รับผิดชอบคือเจ้าของระบบ
 - แสดง Project ล่าสุดพร้อม Customer และ progress ที่คำนวณจาก Work Items
 - การ์ด/กราฟที่กดได้พาไปหน้ารายการพร้อม filter ที่สอดคล้องกับตัวเลข
+- กราฟและองค์ประกอบภายใน (แกน, legend, tooltip และ label) ต้องอยู่ในกรอบ chart component และไม่ทำให้หน้าเลื่อนแนวนอน
 - ระบุช่วงวันที่และนิยามยอดบนหน้า; เมื่อยังไม่มีข้อมูลให้แสดงข้อความว่างที่ถูกต้อง
 
 **เกณฑ์ยอมรับ:** สร้างหรือเปลี่ยนสถานะ Work Item แล้ว KPI และรายการ Dashboard เปลี่ยนตามข้อมูลฐานข้อมูล; ไม่มีชื่อผู้ใช้/โครงการ/ตัวเลข sample; ทุกยอดเปิดดูรายการต้นทางได้
@@ -119,6 +121,7 @@
 - เลือกช่วงวันและ filter Customer/Project, functional role, kind; แสดง filter ที่กำลังใช้อยู่
 - แสดง Work Items ตาม status/kind/priority, จำนวนที่เสร็จ, งานค้าง/เกินกำหนด และชั่วโมงจาก TimeEntry
 - กราฟแนวโน้มใช้วัน/สัปดาห์/เดือนตามช่วงที่เลือก; ตาราง/จุดข้อมูลพาไปยังรายการต้นทางได้
+- กราฟและองค์ประกอบภายใน (แกน, legend, tooltip และ label) ต้องอยู่ในกรอบ chart component บนทุกขนาดหน้าจอ โดยไม่ทำให้ทั้งหน้าเลื่อนแนวนอน
 - Export ต้องส่งออกข้อมูลที่ตรงกับ filter และแสดงสถานะสำเร็จ/ล้มเหลว
 - นิยาม metric ต้องแสดงชัด เช่น completion rate = completed / (total - cancelled); ชั่วโมง = ผลรวม TimeEntry.hours ในช่วงวันที่
 - การวิเคราะห์ตามช่วงเวลาใช้วันที่ event ที่มีความหมาย; ปัจจุบันไม่มี status history และ `submittedAt` ใช้ทั้งสถานะ `sa-testing` และ `completed` จึงต้องตัดสินใจเพิ่ม `completedAt`/status history ก่อนรายงาน completion trend
@@ -188,7 +191,10 @@ Metric ที่เป็นแนวโน้มตามเวลาไม่�
 ## 6. Non-functional requirements
 
 - ภาษา UI หลักเป็นไทย โดยแสดง enum/common system terms ภาษาอังกฤษได้
-- รองรับ mobile/tablet/desktop; ยึด breakpoints ปัจจุบันใน feature docs: <640px, 640–1023px, ≥1024px
+- รองรับโทรศัพท์ (<640px), แท็บเล็ต (640–1023px) และโน้ตบุ๊ก (≥1024px); ไม่มี page-level horizontal overflow หรือการตัดข้อมูล/action สำคัญ โดยอนุญาต local scrolling เฉพาะ component ที่ออกแบบไว้ เช่น Board และ tabs
+- ใช้ visual hierarchy, design tokens และ shared UI components ให้สม่ำเสมอทั้ง 8 เมนู
+- ใช้ motion สั้นเพื่อสื่อ feedback เช่น hover/focus, dialog/dropdown, loading และ Board drag; hover/focus ประมาณ 120–180 ms, dialog/dropdown 160–220 ms ใช้ CSS/utilities ที่มีอยู่ก่อนเพิ่ม dependency, ไม่ทำให้ layout กระโดดหรือชะลอการบันทึก และเคารพ keyboard focus กับ `prefers-reduced-motion`
+- กราฟ Dashboard/Analysis และแกน, legend, tooltip, label ต้องปรับตาม parent container และอยู่ภายในกรอบ chart component
 - แสดง loading, empty, validation, permission denied, not found และ server failure อย่างชัดเจน
 - ข้อมูลเวลาและ identity ต้องได้รับการป้องกันด้วย owner authentication หรือ private access control ก่อน production; ไม่ต้องมี permission matrix หลาย role
 - Export และ import ต้องเคารพ filter และ validation เดียวกับหน้า/API

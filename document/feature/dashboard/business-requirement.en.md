@@ -39,7 +39,7 @@ Filled controls use **light or white text on a dark fill**, and **dark or black 
 | Tablet | 640px through 1023px |
 | Desktop / notebook | 1024px and up |
 
-Summary cards use a **2×2** grid on the phone and **four across** from tablet. Toolbar actions may shorten on the phone. Charts and cards must not overflow horizontally.
+Summary cards use a **2×2** grid on the phone and **four across** from tablet. Toolbar actions may shorten on the phone. Charts and cards must not overflow horizontally; axes, legend, tooltip, and labels must stay inside the chart component without causing page-level horizontal scrolling.
 
 ---
 
@@ -50,4 +50,4 @@ Summary cards use a **2×2** grid on the phone and **four across** from tablet. 
 | 1 | The dashboard shows summary stats, recent projects, and activity charts. |
 | 2 | The main pane and sidebar scroll when content is taller than the viewport. |
 | 3 | Primary/success/info/neutral fills use white (or near-white) labels in light and dark themes. |
-| 4 | Phone/tablet/desktop layouts match Case 4 without clipping the page. |
+| 4 | Phone/tablet/notebook layouts match Case 4 without clipping the page; chart elements stay inside the component frame. |

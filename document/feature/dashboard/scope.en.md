@@ -48,6 +48,7 @@ This document describes **what is in or out of this work** and which service imp
 ## 4. Technical notes
 
 - Breakpoints: phone `< sm` (640px), tablet `sm`–`lg` (640–1023px), desktop `lg+` (1024px).
+- Charts resize with their container; axes, legend, tooltip, and labels stay inside the chart component at every breakpoint without page-level horizontal overflow.
 - Contrast rule is CSS/component-level so it applies on every menu, not only `/`.
 - `html, body { overflow: hidden }` so the bounded `PAGE_MAIN` is the scroll container.
 

@@ -56,7 +56,7 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 
 ### Dashboard
 
-**In scope:** DB-backed KPIs, overdue/recent lists, selected period, Customer/Project filters, links ไปยังรายการต้นทาง, loading/empty/error states.
+**In scope:** DB-backed KPIs, overdue/recent lists, selected period, Customer/Project filters, links ไปยังรายการต้นทาง, loading/empty/error states; responsive card/chart layout ที่ไม่ทำให้หน้า overflow.
 
 **Out of scope เว้นแต่มี requirement เพิ่ม:** notification center, portfolio forecasting, configurable dashboard builder, cross-company BI warehouse.
 
@@ -80,7 +80,7 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 
 ### Analysis
 
-**In scope:** operational analytics from WorkItem/TimeEntry, documented formulas, period/filter consistency, Customer/Project/functional-role filters, export of visible result, drill-through.
+**In scope:** operational analytics from WorkItem/TimeEntry, documented formulas, period/filter consistency, Customer/Project/functional-role filters, export of visible result, drill-through; responsive charts whose axes, legend, tooltip and labels remain inside the chart component.
 
 **Out of scope:** predictive analytics, utilization/efficiency score unless denominator/working calendar is agreed, financial reporting from budget data without validated source, historical status charts before event history exists.
 
@@ -112,7 +112,11 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 - aggregate queries for dashboard/analysis and consistent calculation helper(s)
 - DB integrity checks for WorkItem/TimeEntry and Project/customer relations
 - GitLab Issue import connector, external-reference mapping, manual sync endpoint/UI, server-only token handling and idempotent upsert
-- responsive loading/empty/error UX and Thai-first labels
+- consistent visual hierarchy, design tokens and shared components across all eight menus
+- responsive UX for phone (<640px), tablet (640–1023px) and notebook (≥1024px); prevent page-level overflow or clipped primary actions/content, while allowing intentional local scrolling in Board/tabs
+- short, purposeful motion for hover/focus (120–180 ms), dialog/dropdown (160–220 ms), loading and Board drag using existing CSS/utilities; no unnecessary animation dependency, no motion that delays saves or shifts layout; support keyboard focus and `prefers-reduced-motion`
+- responsive Dashboard/Analysis chart components that contain their axes, legend, tooltip and labels within the component frame
+- loading/empty/error UX and Thai-first labels
 - deployment/schema rollout and safe backup/rollback plan for Customer and GitLab mapping changes
 
 **Out of scope ใน scope ปัจจุบัน:**
@@ -142,6 +146,8 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 - TimeEntry แสดงเจ้าของผู้บันทึก วันที่ ชั่วโมง Project และ Work Item ตรงกันใน Daily Work และ Analysis
 - เปลี่ยน Customer ของ Project แล้วทุก filter/summary แสดง Customer เดียวกัน
 - Summary formula และ timezone ถูกบันทึกและใช้ร่วมกัน
+- ทุกเมนูใช้งานได้ตามขนาดหน้าจอที่กำหนดโดยไม่เกิด page-level horizontal overflow; Dashboard/Analysis chart elements อยู่ภายใน chart component
+- Motion ไม่ขัดจังหวะการทำงาน และรองรับ keyboard focus กับ `prefers-reduced-motion`
 - Mutation ที่ไม่ผ่าน validation/permission ไม่เปลี่ยนข้อมูล; deletion ไม่ลบประวัติที่ต้องเก็บ
 - Operations documentation มีขั้นตอน deploy, DB sync, backup และ health verification
 

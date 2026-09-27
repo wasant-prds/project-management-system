@@ -47,6 +47,7 @@
 ## 4. บันทึกทางเทคนิค
 
 - จุดตัด: โทรศัพท์ `< 640` แท็บเล็ต `640–1023` เดสก์ท็อป `1024+`
+- กราฟปรับขนาดตาม container; แกน, legend, tooltip และ label ต้องอยู่ในกรอบ chart component บนทุก breakpoint โดยไม่สร้าง page-level horizontal overflow
 - เส้นกริดกราฟใช้ตัวแปร CSS ใน `app/globals.css` อยู่แล้ว
 
 ---

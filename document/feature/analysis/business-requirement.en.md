@@ -39,7 +39,7 @@ Filled controls use **light or white text on a dark fill**, and **dark or black 
 | Tablet | 640px through 1023px |
 | Desktop / notebook | 1024px and up |
 
-Summary cards are **2×2** on the phone and **four across** from tablet. Tabs scroll horizontally. Charts must not overflow the page.
+Summary cards are **2×2** on the phone and **four across** from tablet. Tabs scroll horizontally. Charts, axes, legend, tooltip, and labels must stay inside the chart component without causing page-level horizontal scrolling.
 
 ---
 
@@ -50,4 +50,4 @@ Summary cards are **2×2** on the phone and **four across** from tablet. Tabs sc
 | 1 | Analysis tabs, stats, and charts are visible. |
 | 2 | Main pane and sidebar scroll when content is taller than the viewport. |
 | 3 | Solid buttons (including export) use white labels on dark fills. |
-| 4 | Phone/tablet/desktop layouts match Case 4. |
+| 4 | Phone/tablet/notebook layouts match Case 4; chart elements stay inside the component frame. |

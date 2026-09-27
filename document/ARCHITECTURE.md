@@ -130,6 +130,12 @@ GitLab sync uses a separate import path into `WorkItem` plus an external referen
 | Prisma | Typed persistence mapping and relations | HTTP/view state |
 | PostgreSQL | Persistent data, constraints, indexes, transactions | Derived duplicated metrics |
 
+### 5.1 Shared presentation behavior
+
+ทุกเมนูใช้ design tokens และ shared UI components เพื่อให้ typography, spacing, colors และ visual hierarchy สม่ำเสมอ ชั้น Presentation ต้องปรับ layout ตามโทรศัพท์ แท็บเล็ต และโน้ตบุ๊ก; การเลื่อนแนวนอนอนุญาตเฉพาะภายใน component ที่จำเป็น เช่น Board หรือ tabs ไม่ใช่ทั้งหน้า
+
+Dashboard และ Analysis charts ต้องยืดตาม parent container (เช่นกำหนด `min-width: 0` ใน flex/grid context) และวางแกน, legend, tooltip และ label ให้อยู่ภายในกรอบ chart component ใช้ CSS transition หรือ animation utilities ที่มีอยู่สำหรับ hover/focus, dialog/dropdown, loading และ Board drag โดยประมาณ 120–180 ms สำหรับ hover/focus และ 160–220 ms สำหรับ dialog/dropdown ไม่เพิ่ม dependency โดยไม่จำเป็น และต้องรองรับ keyboard focus กับ `prefers-reduced-motion`; motion ต้องไม่หน่วง mutation หรือทำให้ layout shift
+
 ## 6. Key architecture decisions
 
 1. **Modular monolith:** match the existing deployable unit; introduce a service boundary in code rather than a new service fleet.
