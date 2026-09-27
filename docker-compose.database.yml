@@ -75,6 +75,8 @@ services:
       SEED_PATH: ${SEED_PATH:-database/seeds/master}
       SEEDS_ROOT: /app
       RUN_SEED: ${RUN_SEED:-true}
+      MIGRATION_REQUIRE_SECRETS: "true"
+      MIGRATION_MAX_ATTEMPTS: ${MIGRATION_MAX_ATTEMPTS:-3}
       NODE_OPTIONS: --max-old-space-size=192
     volumes:
       - ./prisma:/app/prisma

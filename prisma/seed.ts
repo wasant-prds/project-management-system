@@ -37,6 +37,32 @@ function resolveSeedDir(): string {
   return resolve(seedsRoot, seedPath)
 }
 
+async function skipIfSeedConfigIsMissing(seedDir: string): Promise<boolean> {
+  if (existsSync(join(seedDir, 'config.json'))) return false
+
+  const [companies, users, projects, workItems] = await Promise.all([
+    prisma.company.count(),
+    prisma.user.count(),
+    prisma.project.count(),
+    prisma.workItem.count(),
+  ])
+  const existingData = [
+    { table: 'Company', rows: companies },
+    { table: 'User', rows: users },
+    { table: 'Project', rows: projects },
+    { table: 'WorkItem', rows: workItems },
+  ].filter(({ rows }) => rows > 0)
+
+  if (existingData.length === 0) return false
+
+  console.warn(`⚠️ Seed config is missing at ${join(seedDir, 'config.json')}.`)
+  console.warn('   Existing production data was found; skipping seed to prevent duplicate or stale imports.')
+  for (const { table, rows } of existingData) {
+    console.warn(`   - ${table}: ${rows} rows`)
+  }
+  return true
+}
+
 function loadConfig(seedDir: string): SeedConfig {
   const configPath = join(seedDir, 'config.json')
   if (!existsSync(configPath)) {
@@ -98,9 +124,12 @@ async function main() {
   console.log('🌱 Seeding database...')
 
   const seedDir = resolveSeedDir()
+  console.log(`📂 Seed path: ${seedDir}`)
+  if (await skipIfSeedConfigIsMissing(seedDir)) return
+
   const config = loadConfig(seedDir)
 
-  console.log(`📂 Seed path: ${seedDir} (${config.name})`)
+  console.log(`📂 Seed dataset: ${config.name}`)
   if (config.description) {
     console.log(`   ${config.description}`)
   }

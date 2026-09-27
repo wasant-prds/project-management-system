@@ -23,9 +23,7 @@ yarn-error.log*
 /secrets/*.txt
 
 # database
-/database/seeds/master/*
-!/database/seeds/master/WorkItem/
-/database/seeds/master/WorkItem/*
+/database/seeds/*
 /database/postgres/data/*
 !/database/postgres/data/.gitkeep
 /database/backups/
