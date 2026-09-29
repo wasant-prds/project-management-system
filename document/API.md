@@ -25,7 +25,9 @@
 | `GET`, `POST` | `/api/work-logs` | Daily Work อ่าน/สร้าง TimeEntry | `TimeEntry` พร้อม User/Project/WorkItem; wrapper `{ workLogs }` หรือ `{ workLog }` |
 | `GET`, `PATCH`, `DELETE` | `/api/work-logs/{id}` | Daily Work อ่าน/แก้/ลบ TimeEntry | TimeEntry เดียว; wrapper `{ workLog }` |
 
-ไม่พบ API route สำหรับ Customer, Dashboard aggregates, Analysis, Company mutation หรือ Settings persistence. Board ยังไม่มี API ของตัวเอง; ใช้ UI sample data ใน As-Is. `/api/projects` เป็น Project API ที่มีอยู่ แม้หน้า Projects จะ query Prisma บน server ด้วย. ยังไม่มี authentication middleware หรือ pagination ใน current API.
+ไม่พบ API route สำหรับ Customer, Dashboard aggregates, Analysis, Company mutation หรือ Settings persistence. Board ยังไม่มี API ของตัวเอง; ใช้ UI sample data ใน As-Is. `/api/projects` เป็น Project API ที่มีอยู่ แม้หน้า Projects จะ query Prisma บน server ด้วย. Baseline วันที่ 2026-09-27 ยังไม่มี authentication middleware หรือ pagination; Issue #17 เพิ่ม middleware/owner resolver แล้ว แต่ pagination ยังไม่ถูก implement.
+
+**สถานะ #17:** owner gate ตรวจ HTTP Basic และ origin ก่อน Next.js; middleware ปฏิเสธ page/API ที่ไม่มี internal proof ด้วย `401 OWNER_UNAUTHENTICATED` (หรือ gate `403 ACCESS_DENIED` เมื่อ origin ไม่ผ่าน). `GET /api/health` เป็นข้อยกเว้น. Route Handlers ของ Projects, Users, Work Items และ Work Logs ตรวจ owner ฝั่ง server. `GET /api/users` คืน owner หนึ่งคน; WorkItem create/import/update และ TimeEntry create/update ไม่ยอมรับ `assigneeId`/`userId` ที่ต่างจาก owner (`400 VALIDATION_ERROR`); list ของ Work Items/Work Logs กรอง owner. Browser ยังอาจส่ง ID owner เดิมเพื่อ compatibility แต่ server เป็นผู้กำหนดค่าเขียนจริง. Error อื่นของ legacy routes ยังมีรูปแบบเดิมและจะปรับใน issue ที่เกี่ยวข้อง.
 
 ### 1.1 Query parameters ปัจจุบัน
 

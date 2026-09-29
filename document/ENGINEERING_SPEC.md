@@ -148,7 +148,7 @@ Target contract, exact mappings, manual sync flow, per-Issue transactions, respo
 
 ## Runtime security ที่ implement ใน #15
 
-สถานะเพิ่มเติม ณ 2026-09-28: มี private owner access gate หน้า Next.js, server-only environment injection จาก root `.env` ของ Dev/UAT/Production, loopback host ports และ `Asia/Bangkok` สำหรับ app/PostgreSQL session แล้ว. รายละเอียดปัจจุบันและคำสั่งตรวจที่ไม่พิมพ์ secrets อยู่ใน [Runtime Security](./RUNTIME_SECURITY.md). Baseline เดิมที่กล่าวว่าไม่มี auth/session ยังใช้กับ owner User/session (#17); gate นี้ไม่ resolve User หรือเพิ่ม GitLab connector (#20), ไม่เปลี่ยน schema/records และไม่ยืนยันว่า installation จริง deploy แล้ว.
+สถานะเพิ่มเติม ณ 2026-09-28: มี private owner access gate หน้า Next.js, server-only environment injection จาก root `.env` ของ Dev/UAT/Production, loopback host ports และ `Asia/Bangkok` สำหรับ app/PostgreSQL session แล้ว. Issue #17 ผูก gate กับ Next.js middleware ด้วย proof แบบสุ่มต่อ process และ resolve owner จาก `User` หนึ่งแถวฝั่ง server; WorkItem/TimeEntry writes ไม่เชื่อ owner ID จาก browser. HTTP Basic ของ gate เป็น browser-managed access session; ไม่มี session table หรือ password ใน DB. หาก `User` ไม่ใช่หนึ่งแถว ระบบปฏิเสธการทำงานที่ต้องใช้ owner. รายละเอียด runtime อยู่ใน [Runtime Security](./RUNTIME_SECURITY.md). ยังไม่ยืนยันว่า installation จริง deploy แล้ว.
 
 ## Database operations ที่ implement ใน #16
 

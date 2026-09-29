@@ -15,6 +15,8 @@ const suites = {
   "api-contracts": { files: [join(testRoot, "contracts", "menu-api-validation.test.mjs")] },
   "migration-contracts": { files: [join(testRoot, "contracts", "customer-project-migration.test.mjs")] },
   "gitlab-contracts": { files: [join(testRoot, "contracts", "gitlab-issue-import.test.mjs")] },
+  auth: { directory: join(testRoot, "auth") },
+  runner: { directory: join(testRoot, "runner") },
 };
 const requestedSuite = process.argv[2];
 if (requestedSuite === "database-rollout-docker") process.env.PMS_RUN_ROLLOUT_DOCKER_TESTS = "1";
@@ -24,7 +26,7 @@ if (requestedSuite === "seed-docker") process.env.PMS_RUN_SEED_DOCKER_TESTS = "1
 if (requestedSuite && !Object.hasOwn(suites, requestedSuite)) {
   throw new Error(`Unknown test suite: ${requestedSuite}. Available suites: ${Object.keys(suites).join(", ")}`);
 }
-const suite = requestedSuite ? suites[requestedSuite] : undefined;
+const suite = suites[requestedSuite ?? ''];
 
 async function findTestFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });

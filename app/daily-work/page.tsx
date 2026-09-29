@@ -18,22 +18,74 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { toast } from "@/hooks/use-toast"
 import { formatDate } from "@/lib/utils"
-import { WorkLog, Project, User, WorkLogFormData, emptyWorkLogForm } from "@/components/page/daily-work/types"
+import { WorkLog, Project, WorkLogFormData, emptyWorkLogForm } from "@/components/page/daily-work/types"
 import { WorkLogList } from "@/components/page/daily-work/work-log-list"
 import { WorkLogDialog } from "@/components/page/daily-work/work-log-dialog"
 import { StatsCard } from "@/components/page/daily-work/stats-card"
+
+type ViewPeriod = "day" | "week" | "month" | "year"
+
+function workLogQuery(date: Date | undefined, period: ViewPeriod) {
+  if (!date) return ""
+  if (period === "day") return `?date=${formatDate(date)}`
+
+  const startDate = new Date(date)
+  const endDate = new Date(date)
+  if (period === "week") {
+    const day = startDate.getDay()
+    startDate.setDate(startDate.getDate() - day)
+    endDate.setDate(startDate.getDate() + 6)
+  } else if (period === "month") {
+    startDate.setDate(1)
+    endDate.setMonth(endDate.getMonth() + 1)
+    endDate.setDate(0)
+  } else if (period === "year") {
+    startDate.setMonth(0, 1)
+    endDate.setMonth(11, 31)
+  }
+  return `?startDate=${formatDate(startDate)}&endDate=${formatDate(endDate)}`
+}
+
+function workLogFormError(form: WorkLogFormData) {
+  if (!form.hours || !form.description || !form.projectId || !form.workItemId) {
+    return "Please fill in date, hours, project, work item, and description"
+  }
+  if (Number.parseFloat(form.hours) > 24) return "Hours cannot exceed 24"
+  return null
+}
+
+async function saveWorkLog(form: WorkLogFormData, selected: WorkLog | null) {
+  const url = selected ? `/api/work-logs/${selected.id}` : "/api/work-logs"
+  const method = selected ? "PATCH" : "POST"
+  const response = await fetch(url, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      description: form.description,
+      remarks: form.remarks,
+      hours: form.hours,
+      date: form.date,
+      projectId: form.projectId,
+      workItemId: form.workItemId,
+      status: form.status,
+    }),
+  })
+  if (response.ok) return
+  const data = await response.json()
+  const message = typeof data.error === "string" ? data.error : data.error?.message
+  throw new Error(message || "Failed to save work log")
+}
 
 export default function DailyWorkPage() {
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [workLogs, setWorkLogs] = useState<WorkLog[]>([])
   const [projects, setProjects] = useState<Project[]>([])
-  const [users, setUsers] = useState<User[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
   const [selectedWorkLog, setSelectedWorkLog] = useState<WorkLog | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [viewPeriod, setViewPeriod] = useState<"day" | "week" | "month" | "year">("day")
+  const [viewPeriod, setViewPeriod] = useState<ViewPeriod>("day")
 
   // Form state
   const [formData, setFormData] = useState<WorkLogFormData>(emptyWorkLogForm(formatDate(new Date())))
@@ -43,44 +95,14 @@ export default function DailyWorkPage() {
     fetchWorkLogs()
   }, [date, viewPeriod])
 
-  // Fetch projects and users on mount
+  // Fetch projects on mount
   useEffect(() => {
     fetchProjects()
-    fetchUsers()
   }, [])
 
   const fetchWorkLogs = async () => {
     try {
-      let queryParam = ""
-
-      if (date) {
-        if (viewPeriod === "day") {
-          const dateStr = formatDate(date)
-          queryParam = `?date=${dateStr}`
-        } else {
-          // Calculate date range based on view period
-          const startDate = new Date(date)
-          const endDate = new Date(date)
-
-          if (viewPeriod === "week") {
-            // Get start of week (Sunday)
-            const day = startDate.getDay()
-            startDate.setDate(startDate.getDate() - day)
-            endDate.setDate(startDate.getDate() + 6)
-          } else if (viewPeriod === "month") {
-            startDate.setDate(1)
-            endDate.setMonth(endDate.getMonth() + 1)
-            endDate.setDate(0) // Last day of month
-          } else if (viewPeriod === "year") {
-            startDate.setMonth(0, 1)
-            endDate.setMonth(11, 31)
-          }
-
-          queryParam = `?startDate=${formatDate(startDate)}&endDate=${formatDate(endDate)}`
-        }
-      }
-
-      const response = await fetch(`/api/work-logs${queryParam}`)
+      const response = await fetch(`/api/work-logs${workLogQuery(date, viewPeriod)}`)
       const data = await response.json()
       if (response.ok) {
         setWorkLogs(data.workLogs)
@@ -107,18 +129,6 @@ export default function DailyWorkPage() {
     }
   }
 
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch("/api/users")
-      const data = await response.json()
-      if (response.ok) {
-        setUsers(data.users || data)
-      }
-    } catch (error) {
-      console.error("Error fetching users:", error)
-    }
-  }
-
   const handleOpenDialog = useCallback((workLog?: WorkLog) => {
     if (workLog) {
       setSelectedWorkLog(workLog)
@@ -139,19 +149,11 @@ export default function DailyWorkPage() {
   }, [date])
 
   const handleSubmit = useCallback(async () => {
-    if (!formData.hours || !formData.description || !formData.projectId || !formData.workItemId) {
+    const validationError = workLogFormError(formData)
+    if (validationError) {
       toast({
         title: "Validation Error",
-        description: "Please fill in date, hours, project, work item, and description",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (Number.parseFloat(formData.hours) > 24) {
-      toast({
-        title: "Validation Error",
-        description: "Hours cannot exceed 24",
+        description: validationError,
         variant: "destructive",
       })
       return
@@ -160,62 +162,23 @@ export default function DailyWorkPage() {
     setIsLoading(true)
 
     try {
-      const url = selectedWorkLog ? `/api/work-logs/${selectedWorkLog.id}` : "/api/work-logs"
-      const method = selectedWorkLog ? "PATCH" : "POST"
-
-      // Get Admin user ID as default (Wasant P.)
-      const adminUser = users.find(u => u.role === 'Admin')
-      const userId = selectedWorkLog?.user.id || adminUser?.id || users[0]?.id
-
-      if (!userId) {
-        toast({
-          title: "Error",
-          description: "No user found. Please wait for users to load.",
-          variant: "destructive",
-        })
-        setIsLoading(false)
-        return
-      }
-
-      console.log('Submitting work log:', { description: formData.description, hours: formData.hours, date: formData.date, projectId: formData.projectId, status: formData.status, userId })
-
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          description: formData.description,
-          remarks: formData.remarks,
-          hours: formData.hours,
-          date: formData.date,
-          projectId: formData.projectId,
-          workItemId: formData.workItemId,
-          status: formData.status,
-          userId,
-        }),
+      await saveWorkLog(formData, selectedWorkLog)
+      toast({
+        title: "Success",
+        description: `Work log ${selectedWorkLog ? "updated" : "created"} successfully`,
       })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: `Work log ${selectedWorkLog ? "updated" : "created"} successfully`,
-        })
-        setIsDialogOpen(false)
-        fetchWorkLogs()
-      } else {
-        throw new Error(data.error)
-      }
-    } catch (error: any) {
+      setIsDialogOpen(false)
+      fetchWorkLogs()
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to save work log",
+        description: error instanceof Error ? error.message : "Failed to save work log",
         variant: "destructive",
       })
     } finally {
       setIsLoading(false)
     }
-  }, [formData, selectedWorkLog, users])
+  }, [formData, selectedWorkLog])
 
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm("Are you sure you want to delete this work log?")) {

@@ -16,6 +16,8 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 
 **สิ่งที่ยังไม่ทำใน Step 1:** เปลี่ยน UI, เพิ่ม Customer model/migration, สร้าง endpoint ใหม่, เพิ่ม authentication, เปลี่ยน Docker/deployment behavior หรือย้ายข้อมูลจริง
 
+**ความคืบหน้าหลัง Step 1 — #17:** มี owner gate กับ Next.js middleware และ server-side owner resolver แล้ว. ใช้ HTTP Basic สำหรับเจ้าของหนึ่งคนและ `User` หนึ่งแถว; ไม่เพิ่ม multi-user, RBAC, session table หรือการย้ายข้อมูล. ข้อความ Step 1 ข้างต้นเป็น baseline ของงานเอกสารเดิม.
+
 ## 2. Product scope เป้าหมาย
 
 ขอบเขตผลิตภัณฑ์ครอบคลุม 8 เมนูที่ผู้ใช้ระบุและการเชื่อมข้อมูลระหว่างกัน:

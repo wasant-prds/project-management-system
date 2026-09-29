@@ -5,7 +5,6 @@ import type {
   WorkItemStatus,
 } from '@prisma/client'
 import {
-  DEFAULT_ASSIGNEE_ID,
   isWorkItemKind,
   isWorkItemPriority,
   isWorkItemRole,
@@ -39,41 +38,32 @@ function parseDate(value: unknown, field: string): Date | null | string {
   return date
 }
 
-export function parseWorkItemInput(value: unknown): ParseResult {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return { error: 'Work item must be an object' }
-  }
-
-  const body = value as Record<string, unknown>
-  const title = typeof body.title === 'string' ? body.title.trim() : ''
-  const projectId = typeof body.projectId === 'string' ? body.projectId.trim() : ''
-  if (!title || !projectId) {
-    return { error: 'Title and project ID are required' }
-  }
-
+function parseClassification(body: Record<string, unknown>):
+  | { data: Pick<ParsedWorkItemInput, 'kind' | 'status' | 'priority' | 'role' | 'types'> }
+  | { error: string } {
   if (!isWorkItemKind(body.kind)) {
     return { error: 'kind must be Incident, Issue, or Task' }
   }
 
-  const status = body.status === undefined || body.status === null
-    ? 'backlog'
-    : parseWorkItemStatus(body.status)
+  const status = parseWorkItemStatus(body.status ?? 'backlog')
   if (!status) return { error: 'Invalid status' }
 
   const priority = body.priority ?? 'none'
   if (!isWorkItemPriority(priority)) return { error: 'Invalid priority' }
 
-  const role = body.role === undefined || body.role === null || body.role === ''
-    ? null
-    : body.role
+  const role = body.role === '' ? null : body.role ?? null
   if (role !== null && !isWorkItemRole(role)) return { error: 'Invalid role' }
 
   const types = parseWorkItemTypes(body.types)
   if (types === null) return { error: 'Invalid types' }
 
-  const descriptionValue = body.description === undefined || body.description === null
-    ? null
-    : body.description
+  return { data: { kind: body.kind, status, priority, role, types } }
+}
+
+function parseOptionalFields(body: Record<string, unknown>, ownerId: string):
+  | { data: Pick<ParsedWorkItemInput, 'description' | 'workDate' | 'dueDate' | 'assigneeId' | 'id'> }
+  | { error: string } {
+  const descriptionValue = body.description ?? null
   if (descriptionValue !== null && typeof descriptionValue !== 'string') {
     return { error: 'Description must be a string' }
   }
@@ -92,28 +82,39 @@ export function parseWorkItemInput(value: unknown): ParseResult {
     id = body.id.trim()
   }
 
-  let assigneeId = DEFAULT_ASSIGNEE_ID
-  if (body.assigneeId !== undefined && body.assigneeId !== null && body.assigneeId !== '') {
-    if (typeof body.assigneeId !== 'string' || !body.assigneeId.trim()) {
-      return { error: 'assigneeId must be a non-empty string' }
-    }
-    assigneeId = body.assigneeId.trim()
+  if (
+    body.assigneeId !== undefined &&
+    body.assigneeId !== null &&
+    body.assigneeId !== '' &&
+    body.assigneeId !== ownerId
+  ) {
+    return { error: 'assigneeId must match the authenticated owner' }
   }
+
+  return { data: { ...(id ? { id } : {}), description, workDate, dueDate, assigneeId: ownerId } }
+}
+
+export function parseWorkItemInput(value: unknown, ownerId: string): ParseResult {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return { error: 'Work item must be an object' }
+  }
+
+  const body = value as Record<string, unknown>
+  const title = typeof body.title === 'string' ? body.title.trim() : ''
+  const projectId = typeof body.projectId === 'string' ? body.projectId.trim() : ''
+  if (!title || !projectId) return { error: 'Title and project ID are required' }
+
+  const classification = parseClassification(body)
+  if ('error' in classification) return classification
+  const optional = parseOptionalFields(body, ownerId)
+  if ('error' in optional) return optional
 
   return {
     data: {
-      ...(id ? { id } : {}),
+      ...classification.data,
+      ...optional.data,
       title,
-      description,
-      kind: body.kind,
-      priority,
-      role,
-      status,
-      types,
-      workDate,
-      dueDate,
       projectId,
-      assigneeId,
     },
   }
 }

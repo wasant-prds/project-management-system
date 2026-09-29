@@ -1,10 +1,12 @@
 # Runtime security — Issue #15 (Infra)
 
-สถานะ: implement private owner access gate และ server secret injection แล้ว; owner User/session (#17) และ GitLab connector (#20) ยังเป็นงานถัดไป. ไม่มีการ deploy หรือเปลี่ยนข้อมูลจริงจาก issue นี้.
+สถานะ: implement private owner access gate, server secret injection และ issue #17 ที่เชื่อม gate กับ Next.js middleware/owner User resolver แล้ว. GitLab connector (#20) ยังเป็นงานถัดไป. ไม่มีการ deploy หรือเปลี่ยนข้อมูลจริงจาก issue นี้.
 
 ## Access boundary
 
 `Browser → owner gate :3000 → Next.js 127.0.0.1:3001 → Prisma → PostgreSQL` อยู่ใน app container เดียว. Gate ใช้ HTTP Basic สำหรับ credential เจ้าของหนึ่งชุดจาก secret store/environment; ไม่สร้าง password database, session หรือ multi-user RBAC. ตรวจ credential ด้วย fixed-length SHA-256 digest และ timing-safe comparison. SHA-256 ใช้เปรียบเทียบระหว่าง request เท่านั้น ไม่ใช่ password storage format.
+
+Issue #17 เพิ่ม internal proof แบบสุ่มต่อ process: gate ลบ header proof ที่ browser ส่งมาและใส่ค่าใหม่ให้ Next.js middleware ตรวจ. Middleware ส่ง authenticated marker ต่อให้ server-side owner resolver ซึ่งต้องพบ `User` เพียงหนึ่งแถว. Browser จัดการ HTTP Basic credential เป็น access session; ปิด browser session หรือ rotate credential เพื่อออกจากระบบ. Proof ถูก redact จาก child logs และไม่มีค่าใน client bundle หรือ `.env`.
 
 ทุก page, API, static asset และ WebSocket ต้องผ่าน gate; ไม่มี credential/credential ผิด → `401 OWNER_UNAUTHENTICATED`, origin ไม่ตรง → `403 ACCESS_DENIED`, startup config ไม่ครบ → process ไม่เริ่ม. Mutations และ WebSocket ต้องส่ง `Origin` ตรง `APP_ORIGIN`; API client ต้องส่ง header นี้ด้วย. Gate ลบ Authorization และ middleware bypass header ก่อนส่งเข้า Next. Health ยกเว้นเฉพาะ `GET /api/health` ที่ไม่มี query; response มีเพียง generic dependency status และ Bangkok timestamp, failure เป็น 503 ไม่มี raw exception. Health ตรวจ Prisma session timezone เป็น `Asia/Bangkok` ด้วย.
 
@@ -48,7 +50,7 @@ node scripts/runtime-verify.mjs docker-compose.prod.yml
 1. สร้าง GitLab token ใหม่สำหรับ instance/Projects เดิม ด้วยสิทธิ์อ่านเดิมและ expiry ที่เหมาะสม; แก้ GITLAB_TOKEN ใน root `.env` ของ installation เดียว. ห้ามเปลี่ยน canonical URL เพื่อ rotate token.
 2. บันทึก root `.env` และ recreate **app only** เพื่อให้ Compose inject ค่าใหม่ (`docker compose -f <compose-file> up -d --no-deps --force-recreate app`); production ต้องผ่าน operator confirmation ตาม process. Restart เพียงอย่างเดียวไม่เปลี่ยน environment ของ container ที่สร้างไว้แล้ว. ไม่ recreate migrations/DB และไม่ใช้ reset/seed.
 3. รัน safe runtime verification; เมื่อ connector #20 พร้อมจึงตรวจ owner-triggered read/sync ที่อนุมัติ. จากนั้น revoke token เก่าใน GitLab. เหตุรั่วให้ revoke ทันที, disable integration (GITLAB_BASE_URL/GITLAB_TOKEN ว่างทั้งคู่), recreate app และตรวจระบบก่อนเปิดอีกครั้ง.
-4. Owner gate rotation ใช้ credential ใหม่ใน root `.env` และ recreate app เช่นเดียวกัน; credential เก่าจะใช้ไม่ได้หลัง process เปลี่ยน. Browser อาจ cache Basic credential ให้ปิด session/browser แล้วกรอกค่าใหม่. ไม่มี in-app logout/session จนกว่างาน #17 พร้อม.
+4. Owner gate rotation ใช้ credential ใหม่ใน root `.env` และ recreate app เช่นเดียวกัน; credential เก่าจะใช้ไม่ได้หลัง process เปลี่ยน. Browser อาจ cache Basic credential ให้ปิด session/browser แล้วกรอกค่าใหม่. Issue #17 ใช้ browser-managed Basic session; ไม่มี in-app logout.
 5. Imported WorkItems, external references, Project mappings และ TimeEntries ไม่ถูกแก้/ลบจาก rotation/revocation. Rollback ใช้ image/config เดิมที่ยังมี gate; ห้าม rollback ไป image ที่ bypass gate. ไม่ downgrade schema หรือคืน credential ที่ revoke แล้ว.
 
 ## Verification evidence และ limitations

@@ -11,6 +11,7 @@ import {
 } from '@/lib/work-items'
 import { parseWorkItemInput } from '@/lib/work-item-input'
 import { Prisma, type WorkItemStatus } from '@prisma/client'
+import { getOwner, ownerErrorResponse } from '@/lib/owner'
 
 const workItemInclude = {
   assignee: {
@@ -85,15 +86,56 @@ function searchClause(query: string): Prisma.WorkItemWhereInput {
   return { OR: clauses }
 }
 
+function baseWorkItemFilter(searchParams: URLSearchParams, ownerId: string) {
+  const where: Prisma.WorkItemWhereInput = { project: { is: {} }, assigneeId: ownerId }
+  const projectId = searchParams.get('projectId')
+  const assigneeId = searchParams.get('assigneeId')
+  const kind = searchParams.get('kind')
+  const statusParam = searchParams.get('status')
+  const priority = searchParams.get('priority')
+
+  if (assigneeId && assigneeId !== ownerId) {
+    return { error: { code: 'VALIDATION_ERROR', message: 'assigneeId ต้องเป็นเจ้าของระบบ' } }
+  }
+  if (projectId) where.projectId = projectId
+  if (kind) {
+    if (!isWorkItemKind(kind)) return { error: 'Invalid kind' }
+    where.kind = kind
+  }
+  if (statusParam) {
+    const status = parseWorkItemStatus(statusParam)
+    if (!status) return { error: 'Invalid status' }
+    where.status = status
+  }
+  if (priority) {
+    if (!isWorkItemPriority(priority)) return { error: 'Invalid priority' }
+    where.priority = priority
+  }
+  return { where }
+}
+
+async function periodFilter(yearParam: string, monthParam: string) {
+  if (yearParam === 'all' && monthParam === 'all') return { clause: null, availableYears: undefined }
+
+  const month = monthParam === 'all' ? null : Number(monthParam)
+  let years = [Number(yearParam)]
+  let availableYears: string[] | undefined
+  if (yearParam === 'all') {
+    availableYears = await getAvailableYears()
+    years = availableYears.map(Number)
+  }
+  const dateRanges = years.flatMap((year) => dateRangeFor(year, month))
+  const clause: Prisma.WorkItemWhereInput = dateRanges.length > 0
+    ? { OR: dateRanges }
+    : { id: '__no_work_items_in_selected_period__' }
+  return { clause, availableYears }
+}
+
 // GET /api/work-items
 export async function GET(request: Request) {
   try {
+    const owner = await getOwner()
     const { searchParams } = new URL(request.url)
-    const projectId = searchParams.get('projectId')
-    const assigneeId = searchParams.get('assigneeId')
-    const kind = searchParams.get('kind')
-    const statusParam = searchParams.get('status')
-    const priority = searchParams.get('priority')
     const yearParam = searchParams.get('year') ?? 'all'
     const monthParam = searchParams.get('month') ?? 'all'
     const search = searchParams.get('search')?.trim() ?? ''
@@ -107,42 +149,16 @@ export async function GET(request: Request) {
     }
 
     // Ignore legacy seed rows whose required Project record is missing.
-    const where: Prisma.WorkItemWhereInput = { project: { is: {} } }
-    const and: Prisma.WorkItemWhereInput[] = []
-    if (projectId) where.projectId = projectId
-    if (assigneeId) where.assigneeId = assigneeId
-    if (kind) {
-      if (!isWorkItemKind(kind)) {
-        return NextResponse.json({ error: 'Invalid kind' }, { status: 400 })
-      }
-      where.kind = kind
+    const filters = baseWorkItemFilter(searchParams, owner.id)
+    if ('error' in filters) {
+      return NextResponse.json({ error: filters.error }, { status: 400 })
     }
-    if (statusParam) {
-      const status = parseWorkItemStatus(statusParam)
-      if (!status) {
-        return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
-      }
-      where.status = status
-    }
-    if (priority) {
-      if (!isWorkItemPriority(priority)) {
-        return NextResponse.json({ error: 'Invalid priority' }, { status: 400 })
-      }
-      where.priority = priority
-    }
+    const where = filters.where
 
     const shouldIncludeYears = includeYears || (yearParam === 'all' && monthParam !== 'all')
-    let availableYears: string[] | undefined
-
-    if (yearParam !== 'all' || monthParam !== 'all') {
-      const month = monthParam === 'all' ? null : Number(monthParam)
-      const years = yearParam === 'all'
-        ? (availableYears = await getAvailableYears()).map(Number)
-        : [Number(yearParam)]
-      const dateRanges = years.flatMap((year) => dateRangeFor(year, month))
-      and.push(dateRanges.length > 0 ? { OR: dateRanges } : { id: '__no_work_items_in_selected_period__' })
-    }
-
+    const { clause, availableYears } = await periodFilter(yearParam, monthParam)
+    const and: Prisma.WorkItemWhereInput[] = []
+    if (clause) and.push(clause)
     if (search) and.push(searchClause(search))
     if (and.length > 0) where.AND = and
 
@@ -160,6 +176,8 @@ export async function GET(request: Request) {
       { status: 200 },
     )
   } catch (error) {
+    const ownerError = ownerErrorResponse(error)
+    if (ownerError) return ownerError
     console.error('Error fetching work items:')
     return NextResponse.json(
       { error: 'Failed to fetch work items' },
@@ -171,24 +189,19 @@ export async function GET(request: Request) {
 // POST /api/work-items
 export async function POST(request: Request) {
   try {
-    const result = parseWorkItemInput(await request.json())
+    const owner = await getOwner()
+    const result = parseWorkItemInput(await request.json(), owner.id)
     if ('error' in result) {
       return NextResponse.json({ error: result.error }, { status: 400 })
     }
 
-    const { id, ...input } = result.data
-    void id
+    const input = { ...result.data }
+    delete input.id
 
-    const [project, assignee] = await Promise.all([
-      prisma.project.findUnique({ where: { id: input.projectId }, select: { id: true } }),
-      prisma.user.findUnique({ where: { id: input.assigneeId }, select: { id: true } }),
-    ])
+    const project = await prisma.project.findUnique({ where: { id: input.projectId }, select: { id: true } })
 
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    }
-    if (!assignee) {
-      return NextResponse.json({ error: 'Assignee not found' }, { status: 404 })
     }
 
     const workItem = await prisma.workItem.create({
@@ -204,6 +217,8 @@ export async function POST(request: Request) {
       { status: 201 },
     )
   } catch (error) {
+    const ownerError = ownerErrorResponse(error)
+    if (ownerError) return ownerError
     console.error('Error creating work item:')
     return NextResponse.json(
       { error: 'Failed to create work item' },

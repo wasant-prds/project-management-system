@@ -112,11 +112,17 @@ test("primary EV docs and proposed APIs reference the migration contract", async
 test("reusable test runner documents all-suite, contract-suite, and focused commands", async () => {
   const packageJson = JSON.parse(await read("package.json"));
   const runner = await read("tests/run.mjs");
+  const reportRunner = await read("scripts/test-unit.sh");
   const testing = await read("document/process/testing.md");
   assert.equal(packageJson.scripts.test, "node tests/run.mjs");
   assert.equal(packageJson.scripts["test:contracts"], "node tests/run.mjs contracts");
   assert.equal(packageJson.scripts["test:migration-contracts"], "node tests/run.mjs migration-contracts");
+  assert.equal(packageJson.scripts["test:runner"], "node tests/run.mjs runner");
   assert.match(runner, /Object\.hasOwn\(suites, requestedSuite\)/);
   assert.match(runner, /"migration-contracts": \{ files:/);
+  assert.match(runner, /runner: \{ directory:/);
+  assert.match(reportRunner, /node --test-reporter=tap tests\/run\.mjs/);
+  assert.match(reportRunner, /database-rollout-docker\|runtime-container\|runtime-docker\|seed-docker/);
+  assert.match(testing, /bash scripts\/test-unit\.sh/);
   assert.match(testing, /pnpm test:migration-contracts/);
 });

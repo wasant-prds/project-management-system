@@ -125,7 +125,7 @@ Repository มี `scripts/docker-dev.sh`, `scripts/docker-uat.sh`, `scripts/doc
 
 ## Runtime security ที่ implement ใน #15
 
-สถานะเพิ่มเติม ณ 2026-09-28: มี private owner access gate หน้า Next.js, server-only environment injection จาก root `.env` ของ Dev/UAT/Production, loopback host ports และ `Asia/Bangkok` สำหรับ app/PostgreSQL session แล้ว. รายละเอียดปัจจุบันและคำสั่งตรวจที่ไม่พิมพ์ secrets อยู่ใน [Runtime Security](./RUNTIME_SECURITY.md). Baseline เดิมที่กล่าวว่าไม่มี auth/session ยังใช้กับ owner User/session (#17); gate นี้ไม่ resolve User หรือเพิ่ม GitLab connector (#20), ไม่เปลี่ยน schema/records และไม่ยืนยันว่า installation จริง deploy แล้ว.
+สถานะเพิ่มเติม ณ 2026-09-28: Issue #17 เพิ่ม proof แบบสุ่มต่อ process ระหว่าง owner gate, Next.js middleware และ server-side owner resolver; launcher ส่ง proof ให้ child ผ่าน environment ภายในเท่านั้นและไม่บันทึกค่า. ใช้ credential gate จาก root `.env` เดิม; ไม่ต้องเพิ่ม secret ใหม่หรือ schema migration. ก่อนเปิดใช้งานต้องตรวจว่า DB มี `User` เจ้าของเพียงหนึ่งแถว. คำสั่งตรวจเฉพาะงานคือ `pnpm test:auth`, `pnpm test:runtime-security`, `pnpm exec tsc --noEmit` และ `pnpm build`. Build บน Windows อาจต้องเปิดสิทธิ์สร้าง symlink สำหรับ Next standalone trace หรือรันใน Linux/Docker. การใช้ HTTP Basic จากภายนอกต้องผ่าน HTTPS proxy/private tunnel ตาม [Runtime Security](./RUNTIME_SECURITY.md); ยังไม่ยืนยันว่า deploy จริงแล้ว.
 
 ### Migrations stops at seed
 

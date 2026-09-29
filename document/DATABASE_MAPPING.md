@@ -21,7 +21,7 @@ Target mapping: ค่า default time zone ของระบบ, application �
 | Daily Work / actual hours | `TimeEntry` | `TimeEntry.id` | Daily Work, Work Item detail, Project, Dashboard, Analysis | Work Logs API (`/api/work-logs`) |
 | Project | `Project` | `Project.id` | Projects, selectors, Work Items, Daily Work, Dashboard, Analysis | Projects page/API |
 | Customer | Target `Customer` | `Customer.id` | Company registry, Projects, Dashboard, filters, Analysis | Target Customer/Project API |
-| Owner identity | One `User` row | `User.id` | Work Items (assignee), Daily Work (logger), Settings | Owner identity resolved by server; current users API is read-only |
+| Owner identity | One `User` row | `User.id` | Work Items (assignee), Daily Work (logger), Settings | Issue #17: server `getOwner()` หลัง owner gate/middleware; ไม่รับ browser ID ที่ต่างจาก owner |
 | Work Item functional role | `WorkItem.role` | enum value | Work Items, Board, Analysis, Project summaries | Work Items API; values Developer / infra / SA |
 | GitLab Issue identity | Target `ExternalWorkItemReference` | provider + canonical instance URL + GitLab project ID + global issue ID | Work Items (source link/sync status) | GitLab connector only; database unique key plus transactional upsert prevents duplicate import |
 | GitLab Project link | Target `GitLabProjectMapping` | GitLab instance/project ID → `Project.id`; owner-approved `approvedLabelMap` | Work Items sync setup; Project supplies Customer context | Owner-managed mapping; one GitLab Project maps to one PMS Project in phase one |

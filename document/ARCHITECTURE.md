@@ -180,7 +180,7 @@ Development, UAT and production use Docker Compose files already present. The sh
 
 ## Runtime security ที่ implement ใน #15
 
-สถานะเพิ่มเติม ณ 2026-09-28: มี private owner access gate หน้า Next.js, server-only environment injection จาก root `.env` ของ Dev/UAT/Production, loopback host ports และ `Asia/Bangkok` สำหรับ app/PostgreSQL session แล้ว. รายละเอียดปัจจุบันและคำสั่งตรวจที่ไม่พิมพ์ secrets อยู่ใน [Runtime Security](./RUNTIME_SECURITY.md). Baseline เดิมที่กล่าวว่าไม่มี auth/session ยังใช้กับ owner User/session (#17); gate นี้ไม่ resolve User หรือเพิ่ม GitLab connector (#20), ไม่เปลี่ยน schema/records และไม่ยืนยันว่า installation จริง deploy แล้ว.
+สถานะเพิ่มเติม ณ 2026-09-28: owner gate ตรวจ HTTP Basic ก่อนส่ง request ไป Next.js แบบ loopback; gate แทนที่ internal proof ที่ browser ส่งมา แล้ว middleware ตรวจ proof และส่ง authenticated marker ให้ Route Handler. `getOwner()` ตรวจ marker และเลือก `User` เพียงหนึ่งแถว; หากไม่มีหรือมีหลายแถวจะ fail closed. หน้าและ API ผ่าน middleware เดียวกัน ยกเว้น `GET /api/health`. ไม่มี permission matrix หรือ session table. ดู [Runtime Security](./RUNTIME_SECURITY.md).
 
 ## Database operations ที่ implement ใน #16
 

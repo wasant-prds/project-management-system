@@ -6,6 +6,15 @@ Project tests use pnpm and Node's built-in test runner; no additional test depen
 pnpm test
 ```
 
+To print the test results as a package → file → test tree, use the reusable Bash wrapper. Pass an existing suite name such as `auth` to run only that suite:
+
+```bash
+bash scripts/test-unit.sh
+bash scripts/test-unit.sh auth
+```
+
+The wrapper uses Node's TAP reporter and the existing `tests/run.mjs` suite selection; it does not discover or execute tests independently. Verify the formatter itself with `pnpm test:runner` or `bash scripts/test-unit.sh runner`.
+
 Run all documentation/data contract suites:
 
 ```powershell

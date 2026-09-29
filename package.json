@@ -16,6 +16,8 @@
     "test:api-contracts": "node tests/run.mjs api-contracts",
     "test:migration-contracts": "node tests/run.mjs migration-contracts",
     "test:gitlab-contracts": "node tests/run.mjs gitlab-contracts",
+    "test:auth": "node tests/run.mjs auth",
+    "test:runner": "node tests/run.mjs runner",
     "start": "node scripts/runtime-launch.mjs --start",
     "postinstall": "prisma generate",
     "test:runtime-security": "node tests/run.mjs runtime-security",

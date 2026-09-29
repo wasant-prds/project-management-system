@@ -24,7 +24,6 @@ import { toast } from '@/hooks/use-toast'
 import { Loader2 } from 'lucide-react'
 import { WORK_ITEM_DIALOG_SHELL_CLASS } from './work-item-dialog-shell'
 import {
-  DEFAULT_ASSIGNEE_ID,
   WORK_ITEM_KINDS,
   WORK_ITEM_PRIORITIES,
   WORK_ITEM_PRIORITY_LABELS,
@@ -41,7 +40,6 @@ import {
 } from '@/lib/work-items'
 
 type ProjectOption = { id: string; name: string }
-type UserOption = { id: string; name: string }
 
 export type WorkItemFormValues = {
   id?: string
@@ -55,7 +53,6 @@ export type WorkItemFormValues = {
   workDate: string
   dueDate: string
   projectId: string
-  assigneeId: string
 }
 
 export const emptyWorkItemForm = (): WorkItemFormValues => ({
@@ -69,7 +66,6 @@ export const emptyWorkItemForm = (): WorkItemFormValues => ({
   workDate: '',
   dueDate: '',
   projectId: '',
-  assigneeId: DEFAULT_ASSIGNEE_ID,
 })
 
 type WorkItemDialogProps = {
@@ -78,7 +74,6 @@ type WorkItemDialogProps = {
   mode: 'create' | 'edit'
   initialValues: WorkItemFormValues
   projects: ProjectOption[]
-  users: UserOption[]
   onSaved: () => void
 }
 
@@ -88,7 +83,6 @@ export function WorkItemDialog({
   mode,
   initialValues,
   projects,
-  users,
   onSaved,
 }: Readonly<WorkItemDialogProps>) {
   const [form, setForm] = useState<WorkItemFormValues>(initialValues)
@@ -133,7 +127,6 @@ export function WorkItemDialog({
         workDate: form.workDate || null,
         dueDate: form.dueDate || null,
         projectId: form.projectId,
-        assigneeId: form.assigneeId || DEFAULT_ASSIGNEE_ID,
       }
 
       const url = mode === 'edit' && form.id ? `/api/work-items/${form.id}` : '/api/work-items'
@@ -145,7 +138,8 @@ export function WorkItemDialog({
       })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to save work item')
+        const message = typeof data.error === 'string' ? data.error : data.error?.message
+        throw new Error(message || 'Failed to save work item')
       }
 
       toast({
@@ -172,7 +166,7 @@ export function WorkItemDialog({
           <DialogHeader className="shrink-0 space-y-1 px-4 pt-5 pr-12 sm:px-6">
             <DialogTitle>{mode === 'edit' ? 'Edit Work Item' : 'New Work Item'}</DialogTitle>
             <DialogDescription>
-              Incident, Issue, or Task in a project. Assignee defaults to Wasant Pep.
+              Incident, Issue หรือ Task ใน Project โดยเจ้าของระบบเป็นผู้รับผิดชอบ
             </DialogDescription>
           </DialogHeader>
 
@@ -237,23 +231,7 @@ export function WorkItemDialog({
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Assignee</Label>
-              <Select
-                value={form.assigneeId}
-                onValueChange={(value) => setForm({ ...form, assigneeId: value })}
-                disabled={isLoading}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select assignee" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <p className="text-sm text-muted-foreground">ผู้รับผิดชอบ: เจ้าของระบบ</p>
 
             <div className="space-y-2">
               <Label>Priority</Label>

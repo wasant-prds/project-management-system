@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ArrowUpDown, Download, FileText, Plus, Search, Upload } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-import { DEFAULT_ASSIGNEE_ID, type WorkItemKindValue } from '@/lib/work-items'
+import { type WorkItemKindValue } from '@/lib/work-items'
 import { WorkItemViewDialog } from '@/components/page/work-items/work-item-view-dialog'
 import { WorkItemGroupedList } from '@/components/page/work-items/work-item-grouped-list'
 import {
@@ -74,7 +74,7 @@ function isKindTab(value: string): value is KindTab {
 }
 
 function toDateInput(value: string | null) {
-  return value ? value.slice(0, 10) : ''
+  return value?.slice(0, 10) ?? ''
 }
 
 function toFormValues(item: WorkItem): WorkItemFormValues {
@@ -90,7 +90,6 @@ function toFormValues(item: WorkItem): WorkItemFormValues {
     workDate: toDateInput(item.workDate),
     dueDate: toDateInput(item.dueDate),
     projectId: item.project.id,
-    assigneeId: item.assignee.id || DEFAULT_ASSIGNEE_ID,
   }
 }
 
@@ -101,6 +100,14 @@ function matchesYearMonth(item: WorkItem, year: string, month: string) {
   if (year !== 'all' && parts.year !== year) return false
   if (month !== 'all' && parts.month !== month) return false
   return true
+}
+
+function workItemQuery(year: string, month: string, project: string, search: string, includeYears: boolean) {
+  const params = new URLSearchParams({ year, month })
+  if (project !== 'all') params.set('projectId', project)
+  if (search.trim()) params.set('search', search.trim())
+  if (includeYears) params.set('includeYears', 'true')
+  return params.toString()
 }
 
 function WorkItemSortMenu({
@@ -186,7 +193,6 @@ export default function WorkItemsPage() {
   const [workItems, setWorkItems] = useState<WorkItem[]>([])
   const [projects, setProjects] = useState<ProjectOption[]>([])
   const [availableYears, setAvailableYears] = useState<string[]>([])
-  const [users, setUsers] = useState<Array<{ id: string; name: string }>>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
   const [yearFilter, setYearFilter] = useState(() => String(new Date().getFullYear()))
@@ -203,8 +209,6 @@ export default function WorkItemsPage() {
   const yearOptionsLoadedRef = useRef(false)
   const projectsLoadedRef = useRef(false)
   const projectsRequestRef = useRef<Promise<ProjectOption[]> | null>(null)
-  const usersLoadedRef = useRef(false)
-  const usersRequestRef = useRef<Promise<Array<{ id: string; name: string }>> | null>(null)
   const loadGenerationRef = useRef(0)
   const loadControllerRef = useRef<AbortController | null>(null)
   const [loadedFilterKey, setLoadedFilterKey] = useState<string | null>(null)
@@ -227,13 +231,9 @@ export default function WorkItemsPage() {
     setWorkItems([])
     setLoadError(null)
 
-    const params = new URLSearchParams({ year: yearFilter, month: monthFilter })
-    if (projectFilter !== 'all') params.set('projectId', projectFilter)
-    if (debouncedSearchQuery.trim()) params.set('search', debouncedSearchQuery.trim())
-    if (!yearOptionsLoadedRef.current) params.set('includeYears', 'true')
-
     try {
-      const response = await fetch(`/api/work-items?${params.toString()}`, { signal: controller.signal })
+      const query = workItemQuery(yearFilter, monthFilter, projectFilter, debouncedSearchQuery, !yearOptionsLoadedRef.current)
+      const response = await fetch(`/api/work-items?${query}`, { signal: controller.signal })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to load work items')
       if (generation !== loadGenerationRef.current) return
@@ -266,13 +266,11 @@ export default function WorkItemsPage() {
     if (projectsLoadedRef.current) return true
 
     try {
-      if (!projectsRequestRef.current) {
-        projectsRequestRef.current = fetch('/api/projects?options=work-items').then(async (response) => {
-          const data = await response.json()
-          if (!response.ok) throw new Error(data.error || 'Failed to load projects')
-          return (data.projects || []) as ProjectOption[]
-        })
-      }
+      projectsRequestRef.current ??= fetch('/api/projects?options=work-items').then(async (response) => {
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Failed to load projects')
+        return (data.projects || []) as ProjectOption[]
+      })
       const nextProjects = await projectsRequestRef.current
       setProjects(nextProjects)
       projectsLoadedRef.current = true
@@ -289,33 +287,6 @@ export default function WorkItemsPage() {
   useEffect(() => {
     void ensureProjectsLoaded()
   }, [ensureProjectsLoaded])
-
-  const ensureUsersLoaded = useCallback(async () => {
-    if (usersLoadedRef.current) return true
-
-    try {
-      if (!usersRequestRef.current) {
-        usersRequestRef.current = fetch('/api/users').then(async (response) => {
-          const data = await response.json()
-          if (!response.ok) throw new Error(data.error || 'Failed to load users')
-          return (data.users || []).map((user: { id: string; name: string }) => ({
-            id: user.id,
-            name: user.name,
-          }))
-        })
-      }
-      const nextUsers = await usersRequestRef.current
-      setUsers(nextUsers)
-      usersLoadedRef.current = true
-      return true
-    } catch (error) {
-      console.error(error)
-      toast({ title: 'Error', description: 'Failed to load users', variant: 'destructive' })
-      return false
-    } finally {
-      usersRequestRef.current = null
-    }
-  }, [])
 
   const yearOptions = useMemo(() => {
     const years = new Set<string>([String(new Date().getFullYear()), ...availableYears])
@@ -358,8 +329,7 @@ export default function WorkItemsPage() {
   }
 
   const openCreate = async () => {
-    const [usersReady, projectsReady] = await Promise.all([ensureUsersLoaded(), ensureProjectsLoaded()])
-    if (!usersReady || !projectsReady) return
+    if (!(await ensureProjectsLoaded())) return
     setViewItem(null)
     setDialogMode('create')
     setFormValues(emptyWorkItemForm())
@@ -371,8 +341,7 @@ export default function WorkItemsPage() {
   }
 
   const openEdit = async (item: WorkItem) => {
-    const [usersReady, projectsReady] = await Promise.all([ensureUsersLoaded(), ensureProjectsLoaded()])
-    if (!usersReady || !projectsReady) return
+    if (!(await ensureProjectsLoaded())) return
     setViewItem(null)
     setDialogMode('edit')
     setFormValues(toFormValues(item))
@@ -466,6 +435,21 @@ export default function WorkItemsPage() {
   const filterKey = [yearFilter, monthFilter, projectFilter, debouncedSearchQuery.trim()].join('|')
   const resultsAreCurrent = loadedFilterKey === filterKey
   const isListLoading = loadingFilterKey === filterKey || (!resultsAreCurrent && !loadError)
+
+  let listContent = (
+    <WorkItemGroupedList
+      groups={visibleGroups}
+      resetKey={expandResetKey}
+      onView={openView}
+      onEdit={openEdit}
+      onDelete={handleDelete}
+    />
+  )
+  if (isListLoading) {
+    listContent = <output className="rounded-lg border bg-card py-12 text-center text-muted-foreground">Loading work items…</output>
+  } else if (loadError && !resultsAreCurrent) {
+    listContent = <div className="rounded-lg border bg-card py-12 text-center text-destructive" role="alert">{loadError}</div>
+  }
 
   return (
     <SidebarProvider>
@@ -621,23 +605,7 @@ export default function WorkItemsPage() {
                 </TabsList>
               </div>
               <TabsContent value={kindTab}>
-                {isListLoading ? (
-                  <div className="rounded-lg border bg-card py-12 text-center text-muted-foreground" role="status">
-                    Loading work items…
-                  </div>
-                ) : loadError && !resultsAreCurrent ? (
-                  <div className="rounded-lg border bg-card py-12 text-center text-destructive" role="alert">
-                    {loadError}
-                  </div>
-                ) : (
-                  <WorkItemGroupedList
-                    groups={visibleGroups}
-                    resetKey={expandResetKey}
-                    onView={openView}
-                    onEdit={openEdit}
-                    onDelete={handleDelete}
-                  />
-                )}
+                {listContent}
               </TabsContent>
             </Tabs>
           </div>
@@ -658,7 +626,6 @@ export default function WorkItemsPage() {
           mode={dialogMode}
           initialValues={formValues}
           projects={projects}
-          users={users}
           onSaved={load}
         />
       </SidebarInset>

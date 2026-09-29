@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { loadRuntimeConfig, safeRuntimeSummary } from './runtime-config.mjs';
 import { databaseUrl } from './database-url.mjs';
@@ -6,10 +7,29 @@ import { createOwnerGate } from './owner-gate.mjs';
 
 export function redact(value, env) {
   let result = value;
-  for (const key of ['OWNER_GATE_USERNAME', 'OWNER_GATE_PASSWORD', 'GITLAB_TOKEN', 'NEXTAUTH_SECRET', 'DATABASE_URL', 'POSTGRES_PASSWORD']) {
+  for (const key of ['OWNER_GATE_USERNAME', 'OWNER_GATE_PASSWORD', 'PMS_INTERNAL_OWNER_PROOF', 'GITLAB_TOKEN', 'NEXTAUTH_SECRET', 'DATABASE_URL', 'POSTGRES_PASSWORD']) {
     if (env[key]) result = result.split(env[key]).join('[redacted]');
   }
   return result.replace(/postgres(?:ql)?:\/\/[^\s]+/gi, '[redacted database URL]');
+}
+
+function applicationCommand(args, upstreamPort) {
+  if (args[0] !== '--dev' && args[0] !== '--start') return args;
+  const mode = args[0] === '--dev' ? 'dev' : 'start';
+  return [process.execPath, 'node_modules/next/dist/bin/next', mode, '--hostname', '127.0.0.1', '--port', String(upstreamPort)];
+}
+
+function logChildOutput(stream, env) {
+  let pending = '';
+  stream.setEncoding('utf8');
+  stream.on('data', (chunk) => {
+    pending += chunk;
+    const lines = pending.split('\n');
+    pending = lines.pop();
+    for (const line of lines) console.log(redact(line, env));
+    if (pending.length > 65536) pending = '[oversized log omitted]';
+  });
+  stream.on('end', () => { if (pending) console.log(redact(pending, env)); });
 }
 
 export async function launch(args = process.argv.slice(2)) {
@@ -25,9 +45,9 @@ export async function launch(args = process.argv.slice(2)) {
   const port = Number(env.PORT || env.APP_PORT || 3000);
   if (!Number.isInteger(port) || port < 1 || port > 65534) throw new Error('Invalid application port');
   const upstreamPort = port + 1;
-  if (args[0] === '--dev' || args[0] === '--start') {
-    args = [process.execPath, 'node_modules/next/dist/bin/next', args[0] === '--dev' ? 'dev' : 'start', '--hostname', '127.0.0.1', '--port', String(upstreamPort)];
-  }
+  // Per-process proof shared only by the gate and the loopback Next child.
+  env.PMS_INTERNAL_OWNER_PROOF = randomBytes(32).toString('hex');
+  args = applicationCommand(args, upstreamPort);
   const gate = createOwnerGate(env, upstreamPort);
   // The child never listens on the container network; only the gate does.
   const childEnv = { ...env, PORT: String(upstreamPort), HOSTNAME: '127.0.0.1' };
@@ -38,18 +58,7 @@ export async function launch(args = process.argv.slice(2)) {
   delete childEnv.OWNER_GATE_PASSWORD_FILE;
   const child = spawn(args[0], args.slice(1), { env: childEnv, stdio: ['inherit', 'pipe', 'pipe'] });
   if (process.send) process.send({ childPid: child.pid });
-  for (const stream of [child.stdout, child.stderr]) {
-    let pending = '';
-    stream.setEncoding('utf8');
-    stream.on('data', (chunk) => {
-      pending += chunk;
-      const lines = pending.split('\n');
-      pending = lines.pop();
-      for (const line of lines) console.log(redact(line, env));
-      if (pending.length > 65536) pending = '[oversized log omitted]';
-    });
-    stream.on('end', () => { if (pending) console.log(redact(pending, env)); });
-  }
+  for (const stream of [child.stdout, child.stderr]) logChildOutput(stream, env);
   child.on('error', () => { console.error('Application process unavailable'); gate.close(); process.exitCode = 1; });
   child.on('exit', (code) => { gate.close(); process.exit(code ?? 1); });
   gate.on('error', () => { console.error('Owner gate unavailable'); child.kill(); });
@@ -59,5 +68,10 @@ export async function launch(args = process.argv.slice(2)) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  launch().catch((error) => { console.error(error.message); process.exitCode = 1; });
+  try {
+    await launch();
+  } catch (error) {
+    console.error(error.message);
+    process.exitCode = 1;
+  }
 }

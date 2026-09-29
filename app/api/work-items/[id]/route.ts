@@ -10,6 +10,7 @@ import {
   shouldStampSubmittedAt,
 } from '@/lib/work-items'
 import type { Prisma, WorkItemStatus } from '@prisma/client'
+import { getOwner, ownerErrorResponse } from '@/lib/owner'
 
 const workItemInclude = {
   assignee: {
@@ -114,9 +115,6 @@ function applyOptionalScalars(body: WorkItemPatchBody): Prisma.WorkItemUpdateInp
   if (body.projectId !== undefined) {
     data.project = { connect: { id: body.projectId as string } }
   }
-  if (body.assigneeId !== undefined) {
-    data.assignee = { connect: { id: body.assigneeId as string } }
-  }
   return data
 }
 
@@ -143,13 +141,14 @@ function buildWorkItemUpdate(
 
 // GET /api/work-items/[id]
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const owner = await getOwner()
     const { id } = await params
     const workItem = await prisma.workItem.findFirst({
-      where: { id, project: { is: {} } },
+      where: { id, assigneeId: owner.id, project: { is: {} } },
       include: workItemInclude,
     })
 
@@ -162,6 +161,8 @@ export async function GET(
       { status: 200 },
     )
   } catch (error) {
+    const ownerError = ownerErrorResponse(error)
+    if (ownerError) return ownerError
     console.error('Error fetching work item:')
     return NextResponse.json(
       { error: 'Failed to fetch work item' },
@@ -176,14 +177,21 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const owner = await getOwner()
     const { id } = await params
     const body = (await request.json()) as WorkItemPatchBody
+    if (body.assigneeId !== undefined && body.assigneeId !== owner.id) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION_ERROR', message: 'assigneeId ต้องเป็นเจ้าของระบบ' } },
+        { status: 400 },
+      )
+    }
     const existing = await prisma.workItem.findUnique({
       where: { id },
-      select: { id: true, submittedAt: true },
+      select: { id: true, submittedAt: true, assigneeId: true },
     })
 
-    if (!existing) {
+    if (!existing || existing.assigneeId !== owner.id) {
       return NextResponse.json({ error: 'Work item not found' }, { status: 404 })
     }
 
@@ -203,6 +211,8 @@ export async function PATCH(
       { status: 200 },
     )
   } catch (error) {
+    const ownerError = ownerErrorResponse(error)
+    if (ownerError) return ownerError
     console.error('Error updating work item:')
     return NextResponse.json(
       { error: 'Failed to update work item' },
@@ -213,17 +223,23 @@ export async function PATCH(
 
 // DELETE /api/work-items/[id]
 export async function DELETE(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const owner = await getOwner()
     const { id } = await params
-    await prisma.workItem.delete({ where: { id } })
+    const result = await prisma.workItem.deleteMany({ where: { id, assigneeId: owner.id } })
+    if (!result.count) {
+      return NextResponse.json({ error: 'Work item not found' }, { status: 404 })
+    }
     return NextResponse.json(
       { message: 'Work item deleted successfully' },
       { status: 200 },
     )
   } catch (error) {
+    const ownerError = ownerErrorResponse(error)
+    if (ownerError) return ownerError
     console.error('Error deleting work item:')
     return NextResponse.json(
       { error: 'Failed to delete work item' },

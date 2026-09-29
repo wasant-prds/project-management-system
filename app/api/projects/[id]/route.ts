@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { serializeWorkItemStatus } from '@/lib/work-items'
+import { getOwner, ownerErrorResponse } from '@/lib/owner'
 
 // GET /api/projects/[id] - Get a single project
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await getOwner()
     const { id } = await params
     const project = await prisma.project.findUnique({
       where: { id },
@@ -69,6 +71,8 @@ export async function GET(
       },
     }, { status: 200 })
   } catch (error) {
+    const ownerError = ownerErrorResponse(error)
+    if (ownerError) return ownerError
     console.error('Error fetching project:')
     return NextResponse.json(
       { error: 'Failed to fetch project' },
@@ -83,6 +87,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await getOwner()
     const { id } = await params
     const body = await request.json()
     const {
@@ -123,6 +128,8 @@ export async function PATCH(
 
     return NextResponse.json({ project }, { status: 200 })
   } catch (error) {
+    const ownerError = ownerErrorResponse(error)
+    if (ownerError) return ownerError
     console.error('Error updating project:')
     return NextResponse.json(
       { error: 'Failed to update project' },
@@ -133,10 +140,11 @@ export async function PATCH(
 
 // DELETE /api/projects/[id] - Delete a project
 export async function DELETE(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await getOwner()
     const { id } = await params
     await prisma.project.delete({
       where: { id },
@@ -147,6 +155,8 @@ export async function DELETE(
       { status: 200 }
     )
   } catch (error) {
+    const ownerError = ownerErrorResponse(error)
+    if (ownerError) return ownerError
     console.error('Error deleting project:')
     return NextResponse.json(
       { error: 'Failed to delete project' },

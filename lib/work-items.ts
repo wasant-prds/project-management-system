@@ -1,8 +1,5 @@
 import type { WorkItemKind, WorkItemPriority, WorkItemRole, WorkItemStatus } from '@prisma/client'
 
-export const DEFAULT_ASSIGNEE_ID = 'cmgupk5uo000bld2wm9rvq28j'
-export const DEFAULT_ASSIGNEE_NAME = 'Wasant Pep'
-
 export const WORK_ITEM_KINDS = ['Incident', 'Issue', 'Task'] as const
 export type WorkItemKindValue = (typeof WORK_ITEM_KINDS)[number]
 

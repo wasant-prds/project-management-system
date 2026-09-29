@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getOwner, ownerErrorResponse } from '@/lib/owner'
 
 // GET /api/projects - Get all projects
 export async function GET(request: Request) {
   try {
+    await getOwner()
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
 
@@ -47,6 +49,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ projects }, { status: 200 })
   } catch (error) {
+    const ownerError = ownerErrorResponse(error)
+    if (ownerError) return ownerError
     console.error('Error fetching projects:')
     return NextResponse.json(
       { error: 'Failed to fetch projects' },
@@ -58,6 +62,7 @@ export async function GET(request: Request) {
 // POST /api/projects - Create a new project
 export async function POST(request: Request) {
   try {
+    const owner = await getOwner()
     const body = await request.json()
     const {
       name,
@@ -67,7 +72,6 @@ export async function POST(request: Request) {
       startDate,
       dueDate,
       budget,
-      creatorId,
     } = body
 
     // Validate required fields
@@ -87,7 +91,7 @@ export async function POST(request: Request) {
         startDate: new Date(startDate),
         dueDate: new Date(dueDate),
         budget: budget ? parseFloat(budget) : null,
-        creatorId,
+        creatorId: owner.id,
       },
       include: {
         creator: {
@@ -101,6 +105,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ project }, { status: 201 })
   } catch (error) {
+    const ownerError = ownerErrorResponse(error)
+    if (ownerError) return ownerError
     console.error('Error creating project:')
     return NextResponse.json(
       { error: 'Failed to create project' },

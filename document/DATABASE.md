@@ -221,7 +221,7 @@ ExternalWorkItemReference
 
 ## Runtime security ที่ implement ใน #15
 
-สถานะเพิ่มเติม ณ 2026-09-28: มี private owner access gate หน้า Next.js, server-only environment injection จาก root `.env` ของ Dev/UAT/Production, loopback host ports และ `Asia/Bangkok` สำหรับ app/PostgreSQL session แล้ว. รายละเอียดปัจจุบันและคำสั่งตรวจที่ไม่พิมพ์ secrets อยู่ใน [Runtime Security](./RUNTIME_SECURITY.md). Baseline เดิมที่กล่าวว่าไม่มี auth/session ยังใช้กับ owner User/session (#17); gate นี้ไม่ resolve User หรือเพิ่ม GitLab connector (#20), ไม่เปลี่ยน schema/records และไม่ยืนยันว่า installation จริง deploy แล้ว.
+สถานะเพิ่มเติม ณ 2026-09-28: Issue #17 ไม่เปลี่ยน schema หรือ records. Runtime ต้องพบ `User` หนึ่งแถวเพื่อใช้เป็น owner identity; `WorkItem.assigneeId`, `TimeEntry.userId` และ Project creator ของรายการใหม่ใช้ ID นี้จาก server. `User.password` เดิมไม่ใช่ credential ของ gate และไม่มี session table ใหม่. HTTP Basic อยู่ที่ gate; เก็บ secret ใน environment ตาม [Runtime Security](./RUNTIME_SECURITY.md).
 
 ## Database operations ที่ implement ใน #16
 
