@@ -17,6 +17,8 @@ This document describes **what the product must do**. Technical boundaries are i
 
 Users open `/settings` to edit profile, notifications, security, and appearance (including light / dark / special-dark). Target behavior: show the fixed system timezone, `Asia/Bangkok`, without a preference that can change stored dates, timestamps, formatting, or metrics.
 
+Appearance uses the system-wide Neumorphism visual language through shared tokens that adapt to the selected theme. Keep the existing light / dark / special-dark choices; do not add a separate Neumorphism preference.
+
 ---
 
 ## Case 2 — Page and menu must scroll
@@ -55,5 +57,5 @@ Confirm dialogs (if any) use the same opaque card contrast as `/work-items`.
 | --- | --- |
 | 1 | Settings tabs and forms are visible. |
 | 2 | Main pane and sidebar scroll when content is taller than the viewport. |
-| 3 | Solid buttons use white labels on dark fills in light and dark themes. |
+| 3 | Buttons remain readable in every theme; Neumorphism does not reduce contrast or replace visible keyboard focus. |
 | 4 | Phone/tablet/desktop layouts match Case 4. |

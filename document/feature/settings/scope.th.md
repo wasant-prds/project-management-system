@@ -19,7 +19,7 @@
 | --- | --- |
 | รันไทม์ | Next.js **`app`** เท่านั้น (`pms-app-dev`) ไม่มีไมโครเซอร์วิสใหม่ |
 | หน้า | `app/settings/page.tsx` |
-| ธีม | `ThemeProvider` ที่มีอยู่ (`storageKey="project-management-theme"`) |
+| ธีม | `ThemeProvider` ที่มีอยู่ (`storageKey="project-management-theme"`); ใช้ Neumorphism shared tokens ของระบบกับ light/dark/special-dark โดยหน้านี้ไม่เพิ่ม style toggle |
 | API / Docker / migration ใหม่ | **ไม่มี** |
 
 ---
@@ -32,6 +32,7 @@
 | กรณีที่ 2 — เลื่อน | โครงแถบข้างร่วม + `PAGE_MAIN` |
 | กรณีที่ 3 — คอนทราสต์ | โทเค็นปุ่มร่วมและตัวแปร CSS ของธีม |
 | กรณีที่ 4 — ตอบสนอง | แท็บเลื่อนและฟอร์มเรียงซ้อน |
+| กรณีที่ 5 — รูปแบบภาพรวม | ใช้ surface/shadow tokens แบบ Neumorphism ร่วมกับเมนูอื่นและทุก theme โดยรักษา contrast และ keyboard focus |
 
 ---
 
@@ -50,6 +51,7 @@
 - จุดตัด: โทรศัพท์ `< 640` แท็บเล็ต `640–1023` เดสก์ท็อป `1024+`
 - Target: timezone ของระบบคงที่เป็น `Asia/Bangkok`; แสดงค่านี้ใน Settings และไม่มีตัวเลือก override
 - light/dark/special-dark ตามกฎคอนทราสต์เดียวกันบนปุ่มทึบ
+- Neumorphism เป็นรูปแบบภาพรวมร่วมของระบบ ไม่ใช่ preference ใหม่; เงาไม่ทดแทนข้อความ, contrast, selected/error state หรือ visible focus
 
 ---
 

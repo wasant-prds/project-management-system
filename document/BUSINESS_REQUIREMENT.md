@@ -199,6 +199,8 @@ Metric ที่เป็นแนวโน้มตามเวลาไม่�
 - บันทึกทุก date/time ในฐานข้อมูลด้วย `Asia/Bangkok` semantics; วันที่ล้วนเก็บเป็นวันปฏิทิน Bangkok และ timestamp เก็บเป็น Bangkok local wall-clock โดยไม่แปลงเป็น UTC
 - รองรับโทรศัพท์ (<640px), แท็บเล็ต (640–1023px) และโน้ตบุ๊ก (≥1024px); ไม่มี page-level horizontal overflow หรือการตัดข้อมูล/action สำคัญ โดยอนุญาต local scrolling เฉพาะ component ที่ออกแบบไว้ เช่น Board และ tabs
 - ใช้ visual hierarchy, design tokens และ shared UI components ให้สม่ำเสมอทั้ง 8 เมนู
+- ใช้ Neumorphism เป็น visual language ร่วมทั้ง 8 เมนู โดยใช้ raised/inset surfaces และ soft shadows อย่างพอดีให้สอดคล้องกับ light/dark/special-dark; คง contrast, typography, ขอบเขต component และสถานะการใช้งานให้อ่านชัด และไม่เพิ่ม Neumorphism เป็น theme mode แยก
+- เงาและสีพื้นผิวห้ามใช้แทนข้อความ, semantic status colors, selected/error state, keyboard focus indicator หรือ focus ring และห้ามตกแต่งจนรบกวนการอ่านข้อมูลหรือการใช้งาน
 - ใช้ motion สั้นเพื่อสื่อ feedback เช่น hover/focus, dialog/dropdown, loading และ Board drag; hover/focus ประมาณ 120–180 ms, dialog/dropdown 160–220 ms ใช้ CSS/utilities ที่มีอยู่ก่อนเพิ่ม dependency, ไม่ทำให้ layout กระโดดหรือชะลอการบันทึก และเคารพ keyboard focus กับ `prefers-reduced-motion`
 - กราฟ Dashboard/Analysis และแกน, legend, tooltip, label ต้องปรับตาม parent container และอยู่ภายในกรอบ chart component
 - แสดง loading, empty, validation, permission denied, not found และ server failure อย่างชัดเจน

@@ -19,7 +19,7 @@ This document describes **what is in or out of this work** and which service imp
 | --- | --- |
 | Runtime | Next.js **`app`** only (`pms-app-dev`). No new microservice. |
 | Page | `app/settings/page.tsx` |
-| Theme | Existing `ThemeProvider` (`storageKey="project-management-theme"`). |
+| Theme | Existing `ThemeProvider` (`storageKey="project-management-theme"`); use the shared Neumorphism tokens with light/dark/special-dark, without a page-specific style toggle. |
 | New API / Docker service / migration | **No.** |
 
 ---
@@ -32,6 +32,7 @@ This document describes **what is in or out of this work** and which service imp
 | Case 2 — Scroll | Shared sidebar shell + `PAGE_MAIN`. |
 | Case 3 — Contrast | Shared button tokens and theme CSS variables. |
 | Case 4 — Responsive | Scrollable tabs and stacked forms. |
+| Case 5 — Shared visual style | Use system-wide Neumorphism surface/shadow tokens across existing themes while preserving contrast and keyboard focus. |
 
 ---
 
@@ -50,6 +51,7 @@ This document describes **what is in or out of this work** and which service imp
 - Breakpoints: phone `< 640`, tablet `640–1023`, desktop `1024+`.
 - Target: the system timezone is fixed to `Asia/Bangkok`; display it in Settings without an override control.
 - Light/dark/special-dark all follow the same contrast rule on solid buttons.
+- Neumorphism is the shared system visual style, not a new preference; shadows do not replace labels, contrast, selected/error states, or visible focus.
 
 ---
 

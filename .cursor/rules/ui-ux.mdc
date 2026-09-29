@@ -6,7 +6,8 @@ alwaysApply: false
 
 # UI and UX
 
-- Thai-first labels. Shared tokens/components across all eight menus. Contrast via button/badge/dialog tokens — do not force `text-foreground` on every `button`/`span`/`div`.
+- Thai-first labels. Shared tokens/components across all eight menus. Apply a restrained, system-wide Neumorphism visual language through theme-aware surface/shadow tokens: use raised/inset surfaces and soft shadows only where they clarify hierarchy; avoid shadowing every nested element or reducing data density/readability. Keep existing light/dark/special-dark modes; Neumorphism is not a separate theme toggle.
+- Shadows and surface colors never replace readable labels, semantic status colors, selected/error states, contrast, or a visible keyboard focus ring. Preserve clear boundaries and explicit states where soft surfaces alone are ambiguous. Contrast via button/badge/dialog tokens — do not force `text-foreground` on every `button`/`span`/`div`.
 - Breakpoints: phone <640, tablet 640–1023, notebook ≥1024 (`sm` / `lg`). No page-level horizontal overflow. Local scroll only (Board columns, tabs).
 - Shell: `html, body { overflow: hidden }`; `h-svh`. Main uses `PAGE_MAIN` from `components/layout/page-layout.ts` except Board (inner pane scroll, no double-scroll on `main`).
 - Reuse `PAGE_INNER`, `PAGE_TOOLBAR`, `PAGE_HEADING`, `STAT_GRID`, `FILTER_ROW`, `ACTION_LABEL_CLASS`, `TAB_SCROLL_CLASS`, `TAB_TRIGGER_CLASS`.

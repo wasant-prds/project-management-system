@@ -117,6 +117,7 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 - DB integrity checks for WorkItem/TimeEntry and Project/customer relations
 - GitLab Issue import connector, external-reference mapping, manual sync endpoint/UI, server-only token handling and idempotent upsert
 - consistent visual hierarchy, design tokens and shared components across all eight menus
+- system-wide Neumorphism visual language implemented through shared theme-aware tokens/components: restrained raised/inset surfaces and soft shadows across all eight menus and current light/dark/special-dark modes; retain readable typography, explicit boundaries and business states, contrast and visible keyboard focus; no separate Neumorphism theme toggle
 - responsive UX for phone (<640px), tablet (640–1023px) and notebook (≥1024px); prevent page-level overflow or clipped primary actions/content, while allowing intentional local scrolling in Board/tabs
 - short, purposeful motion for hover/focus (120–180 ms), dialog/dropdown (160–220 ms), loading and Board drag using existing CSS/utilities; no unnecessary animation dependency, no motion that delays saves or shifts layout; support keyboard focus and `prefers-reduced-motion`
 - responsive Dashboard/Analysis chart components that contain their axes, legend, tooltip and labels within the component frame

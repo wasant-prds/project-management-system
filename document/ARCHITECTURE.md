@@ -134,7 +134,11 @@ GitLab sync uses a separate import path into `WorkItem` plus an external referen
 
 ### 5.1 Shared presentation behavior
 
-ทุกเมนูใช้ design tokens และ shared UI components เพื่อให้ typography, spacing, colors และ visual hierarchy สม่ำเสมอ ชั้น Presentation ต้องปรับ layout ตามโทรศัพท์ แท็บเล็ต และโน้ตบุ๊ก; การเลื่อนแนวนอนอนุญาตเฉพาะภายใน component ที่จำเป็น เช่น Board หรือ tabs ไม่ใช่ทั้งหน้า
+ทุกเมนูใช้ design tokens และ shared UI components เพื่อให้ typography, spacing, colors และ visual hierarchy สม่ำเสมอ โดยใช้ **Neumorphism เป็น visual language กลาง**: surface อาจใช้ raised/inset effect และ soft shadow อย่างพอดีเพื่อแยกชั้นข้อมูล; ใช้ theme-aware tokens แทนการกำหนดสีหรือเงาตายตัว และปรับเงาให้เหมาะกับ light, dark และ special-dark ที่มีอยู่ ไม่เพิ่ม theme mode หรือ preference แยกสำหรับ Neumorphism
+
+Neumorphism ใช้กับ surface และ component ที่ช่วยสื่อ hierarchy เท่านั้น ไม่ใส่เงาซ้ำทุก element หรือทำให้ข้อมูลหนาแน่นอ่านยาก; คง typography, border/divider, icon, semantic status color และ affordance ที่ชัดเจนไว้ เงาและสีพื้นผิวใช้แทนข้อความ, contrast, selected/error state, keyboard focus indicator หรือ focus ring ไม่ได้ ทุกเมนูต้องใช้กติกานี้ผ่าน shared tokens/components เดียวกัน
+
+ชั้น Presentation ต้องปรับ layout ตามโทรศัพท์ แท็บเล็ต และโน้ตบุ๊ก; การเลื่อนแนวนอนอนุญาตเฉพาะภายใน component ที่จำเป็น เช่น Board หรือ tabs ไม่ใช่ทั้งหน้า
 
 Dashboard และ Analysis charts ต้องยืดตาม parent container (เช่นกำหนด `min-width: 0` ใน flex/grid context) และวางแกน, legend, tooltip และ label ให้อยู่ภายในกรอบ chart component ใช้ CSS transition หรือ animation utilities ที่มีอยู่สำหรับ hover/focus, dialog/dropdown, loading และ Board drag โดยประมาณ 120–180 ms สำหรับ hover/focus และ 160–220 ms สำหรับ dialog/dropdown ไม่เพิ่ม dependency โดยไม่จำเป็น และต้องรองรับ keyboard focus กับ `prefers-reduced-motion`; motion ต้องไม่หน่วง mutation หรือทำให้ layout shift
 
@@ -148,6 +152,7 @@ Dashboard และ Analysis charts ต้องยืดตาม parent contai
 6. **One date/time policy:** `Asia/Bangkok` is the system, application, and database-session default in every environment. All date/time values persisted by the application use Bangkok calendar/wall-clock semantics; do not convert stored timestamps to UTC. Convert inputs and outputs explicitly using `Asia/Bangkok`, independent of browser/device timezone. Settings shows the fixed system timezone and cannot change persistence or business-date calculations.
 7. **Security boundary:** browser-provided identity is not trusted; authenticate the single owner and resolve the owner record server-side. Developer/Infra/SA are WorkItem functional roles, not authorization roles. Add multi-user authorization only if product scope changes.
 8. **GitLab integration:** keep the connector inside the modular monolith; import GitLab Issues into existing WorkItems in one direction only. Start with owner-triggered manual sync, explicit GitLab Project → PMS Project mapping, external identity for deduplication, and server-only token storage. Follow [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md); do not deploy a separate service for this integration.
+9. **Shared visual language:** apply Neumorphism across all eight menus through shared theme-aware tokens/components; preserve existing light/dark/special-dark modes and accessibility contrast/focus requirements. This is a system design treatment, not a separate user-selectable theme.
 
 ## 7. Consistency and failure handling
 
