@@ -124,14 +124,125 @@ test('owner access audit timestamps use Bangkok wall-clock independently of mach
   }
 })
 
+test('Daily Work dates parse, persist, query, and display with Bangkok wall-clock semantics', () => {
+  const previousTimezone = process.env.TZ
+  process.env.TZ = 'America/Los_Angeles'
+  try {
+    const { parseBangkokDateTime, currentBangkokWallClockDate, bangkokDateRange, serializeBangkokTimestamp, formatBangkokDateLabel } = loadTs('../../lib/bangkok-datetime.ts', {})
+    const { formatDate } = loadTs('../../lib/utils.ts', { clsx: { clsx: () => '' }, 'tailwind-merge': { twMerge: () => '' } })
+    assert.equal(parseBangkokDateTime('2026-09-30').toISOString(), '2026-09-30T00:00:00.000Z')
+    assert.equal(parseBangkokDateTime('2026-09-30T01:02:03.004+07:00').toISOString(), '2026-09-30T01:02:03.004Z')
+    assert.equal(parseBangkokDateTime('2026-09-30T01:02:03Z'), null)
+    assert.equal(parseBangkokDateTime('2026-02-30'), null)
+    assert.equal(currentBangkokWallClockDate(new Date('2026-09-29T17:00:00.000Z')).toISOString(), '2026-09-30T00:00:00.000Z')
+    const range = bangkokDateRange('2026-09-30')
+    assert.equal(range.start.toISOString(), '2026-09-30T00:00:00.000Z')
+    assert.equal(range.end.toISOString(), '2026-10-01T00:00:00.000Z')
+    assert.equal(serializeBangkokTimestamp(range.start), '2026-09-30T00:00:00.000+07:00')
+    assert.equal(formatBangkokDateLabel('2026-09-30T00:00:00.000+07:00'), 'Sep 30, 2026')
+    assert.equal(formatDate('2026-09-30T00:00:00.000+07:00'), '2026-09-30')
+    assert.equal(formatDate('2026-09-30'), '2026-09-30')
+  } finally {
+    if (previousTimezone === undefined) delete process.env.TZ
+    else process.env.TZ = previousTimezone
+  }
+})
+
+test('Daily Work only links WorkItems owned by the authenticated owner and serializes Bangkok timestamps', async () => {
+  const queries = []
+  let selectedWorkItem = { id: 'owned-item' }
+  const { resolveWorkItemId, serializeWorkLog } = loadTs('../../lib/work-logs.ts', {
+    '@/lib/db': { prisma: { workItem: { findFirst: async (query) => {
+      queries.push(query)
+      return selectedWorkItem
+    } } } },
+    '@/lib/work-items': { serializeWorkItemStatus: (status) => status },
+    '@/lib/bangkok-datetime': loadTs('../../lib/bangkok-datetime.ts', {}),
+  })
+  assert.equal(await resolveWorkItemId('project-1', 'owned-item', 'owner-1'), 'owned-item')
+  selectedWorkItem = null
+  await assert.rejects(resolveWorkItemId('project-1', 'foreign-item', 'owner-1'), /selected project/)
+  await assert.rejects(resolveWorkItemId('project-1', {}, 'owner-1'), /work item is required/i)
+  await assert.rejects(resolveWorkItemId('project-1', null, 'owner-1'), /work item is required/i)
+  assert.deepEqual(JSON.parse(JSON.stringify(queries[0].where)), { id: 'owned-item', projectId: 'project-1', assigneeId: 'owner-1' })
+  assert.deepEqual(JSON.parse(JSON.stringify(queries[1].where)), { id: 'foreign-item', projectId: 'project-1', assigneeId: 'owner-1' })
+  const serialized = serializeWorkLog({
+    date: new Date('2026-09-30T00:00:00.000Z'),
+    createdAt: new Date('2026-09-30T01:00:00.000Z'),
+    updatedAt: new Date('2026-09-30T02:00:00.000Z'),
+    workItem: { id: 'owned-item', title: 'Owned', kind: 'Task', status: 'todo', assigneeId: 'owner-1' },
+  }, 'owner-1')
+  assert.equal(serialized.date, '2026-09-30T00:00:00.000+07:00')
+  assert.equal(serialized.createdAt, '2026-09-30T01:00:00.000+07:00')
+  assert.equal(serialized.updatedAt, '2026-09-30T02:00:00.000+07:00')
+  assert.equal(serialized.workItem.assigneeId, undefined)
+  assert.equal(serializeWorkLog({ date: new Date('2026-09-30T00:00:00.000Z'), workItem: { id: 'foreign-item', title: 'Foreign', kind: 'Task', status: 'todo', assigneeId: 'legacy-2' } }, 'owner-1').workItem, null)
+})
+
+test('Daily Work date filters use exclusive Bangkok day boundaries regardless of machine timezone', async () => {
+  const previousTimezone = process.env.TZ
+  process.env.TZ = 'America/Los_Angeles'
+  try {
+    let query
+    const { GET } = loadTs('../../app/api/work-logs/route.ts', {
+      'next/server': { NextResponse: { json: (body, options) => ({ status: options.status, body }) } },
+      '@/lib/db': { prisma: { timeEntry: { findMany: async (value) => { query = value; return [] } } } },
+      '@/lib/owner': { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: () => null },
+      '@/lib/work-logs': { serializeWorkLog: (value) => value, workLogInclude: {} },
+      '@/lib/bangkok-datetime': loadTs('../../lib/bangkok-datetime.ts', {}),
+    })
+    const result = await GET(new Request('http://localhost/api/work-logs?date=2026-09-30'))
+    assert.equal(result.status, 200)
+    assert.equal(query.where.userId, 'owner-1')
+    assert.equal(query.where.date.gte.toISOString(), '2026-09-30T00:00:00.000Z')
+    assert.equal(query.where.date.lt.toISOString(), '2026-10-01T00:00:00.000Z')
+    const invalid = await GET(new Request('http://localhost/api/work-logs?date=2026-02-30'))
+    assert.equal(invalid.status, 400)
+  } finally {
+    if (previousTimezone === undefined) delete process.env.TZ
+    else process.env.TZ = previousTimezone
+  }
+})
+
+test('Daily Work displays clear access errors and clears stale rows on failed reads', async () => {
+  const { readWorkLogsResponse } = loadTs('../../lib/work-log-response.ts', {})
+  for (const [status, code, title] of [
+    [401, 'OWNER_UNAUTHENTICATED', 'Authentication required'],
+    [403, 'ACCESS_DENIED', 'Access denied'],
+    [503, 'DEPENDENCY_UNAVAILABLE', 'Error'],
+  ]) {
+    const result = await readWorkLogsResponse({
+      ok: false,
+      status,
+      json: async () => ({ error: { code } }),
+    })
+    assert.equal(result.workLogs.length, 0)
+    assert.equal(result.error.title, title)
+    assert.ok(result.error.message)
+  }
+  const successful = await readWorkLogsResponse({
+    ok: true,
+    status: 200,
+    json: async () => ({ workLogs: [{ id: 'log-1' }] }),
+  })
+  assert.deepEqual(Array.from(successful.workLogs), [{ id: 'log-1' }])
+  assert.equal(successful.error, null)
+})
+
 test('Daily Work create rejects a different user and persists the server owner', async () => {
   const created = []
+  const resolvedOwnerIds = []
   const response = { json: (body, options) => ({ status: options.status, body }) }
+  const bangkokDate = loadTs('../../lib/bangkok-datetime.ts', {})
   const { POST } = loadTs('../../app/api/work-logs/route.ts', {
     'next/server': { NextResponse: response },
     '@/lib/db': { prisma: { timeEntry: { create: async (query) => { created.push(query.data); return { ...query.data, workItem: null } } } } },
     '@/lib/owner': { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: () => null },
-    '@/lib/work-logs': { resolveWorkItemId: async () => 'item-1', serializeWorkLog: (value) => value, workLogInclude: {} },
+    '@/lib/work-logs': { resolveWorkItemId: async (_projectId, _workItemId, ownerId) => { resolvedOwnerIds.push(ownerId); return 'item-1' }, serializeWorkLog: (value) => value, workLogInclude: {} },
+    '@/lib/bangkok-datetime': {
+      parseBangkokDateTime: bangkokDate.parseBangkokDateTime,
+      currentBangkokWallClockDate: bangkokDate.currentBangkokWallClockDate,
+    },
   })
   const request = (body) => ({ json: async () => body })
   const valid = { hours: '2', projectId: 'project-1', workItemId: 'item-1', date: '2026-09-28' }
@@ -139,12 +250,19 @@ test('Daily Work create rejects a different user and persists the server owner',
   assert.equal(created.length, 0)
   assert.equal((await POST(request(valid))).status, 201)
   assert.equal(created[0].userId, 'owner-1')
+  assert.deepEqual(resolvedOwnerIds, ['owner-1'])
+  assert.equal(created[0].date.toISOString(), '2026-09-28T00:00:00.000Z')
+  assert.equal((await POST(request({ ...valid, date: '2026-09-28T10:30:00.000+07:00' }))).status, 201)
+  assert.equal(created[1].date.toISOString(), '2026-09-28T10:30:00.000Z')
+  assert.equal(resolvedOwnerIds[1], 'owner-1')
 })
 
 test('Daily Work update rejects a foreign owner ID and invalid date or hours before writing', async () => {
   const updates = []
   const lookups = []
+  const resolvedOwnerIds = []
   const response = { json: (body, options) => ({ status: options.status, body }) }
+  const bangkokDate = loadTs('../../lib/bangkok-datetime.ts', {})
   const { PATCH } = loadTs('../../app/api/work-logs/[id]/route.ts', {
     'next/server': { NextResponse: response },
     '@/lib/db': { prisma: { timeEntry: {
@@ -152,7 +270,8 @@ test('Daily Work update rejects a foreign owner ID and invalid date or hours bef
       update: async (query) => { updates.push(query.data); return { ...query.data, workItem: null } },
     } } },
     '@/lib/owner': { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: () => null },
-    '@/lib/work-logs': { resolveWorkItemId: async () => 'item-1', serializeWorkLog: (value) => value, workLogInclude: {} },
+    '@/lib/work-logs': { resolveWorkItemId: async (_projectId, _workItemId, ownerId) => { resolvedOwnerIds.push(ownerId); return 'item-1' }, serializeWorkLog: (value) => value, workLogInclude: {} },
+    '@/lib/bangkok-datetime': { parseBangkokDateTime: bangkokDate.parseBangkokDateTime },
   })
   const request = (body) => ({ json: async () => body })
   const context = { params: Promise.resolve({ id: 'log-1' }) }
@@ -174,12 +293,13 @@ test('Daily Work update rejects a foreign owner ID and invalid date or hours bef
   }
   assert.equal(updates.length, 0)
 
-  const valid = await PATCH(request({ hours: '2.5', date: '2026-09-28' }), context)
+  const valid = await PATCH(request({ hours: '2.5', date: '2026-09-28', workItemId: 'item-1' }), context)
   assert.equal(valid.status, 200)
   assert.equal(updates[0].hours, 2.5)
   assert.equal(updates[0].date.toISOString(), '2026-09-28T00:00:00.000Z')
   assert.equal(lookups.at(-1).where.userId, 'owner-1')
   assert.equal(Object.hasOwn(updates[0], 'userId'), false)
+  assert.deepEqual(resolvedOwnerIds, ['owner-1'])
 })
 
 test('WorkItem create passes server owner into validation and persistence', async () => {
@@ -326,6 +446,30 @@ test('WorkItem list keeps owner and period filters after refactor', async () => 
   assert.equal(queriedWhere.assigneeId, 'owner-1')
   assert.equal(queriedWhere.kind, 'Task')
   assert.equal(queriedWhere.AND[0].OR.length, 3)
+})
+
+test('WorkItem year options only include years from the authenticated owner', async () => {
+  let yearQuery
+  const { GET } = loadTs('../../app/api/work-items/route.ts', {
+    'next/server': { NextResponse: { json: (body, options) => ({ status: options?.status ?? 200, body }) } },
+    '@/lib/db': { prisma: {
+      $queryRaw: async (query) => { yearQuery = query; return [{ year: 2026 }] },
+      workItem: { findMany: async () => [] },
+    } },
+    '@/lib/owner': { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: () => null },
+    '@/lib/work-items': {
+      WORK_ITEM_KINDS: [], WORK_ITEM_STATUSES: [], isWorkItemKind: () => true,
+      isWorkItemPriority: () => true, parseWorkItemStatus: (value) => value,
+      serializeWorkItemStatus: (value) => value,
+    },
+    '@/lib/work-item-input': {},
+    '@prisma/client': { Prisma: { sql: (strings, ...values) => ({ strings: Array.from(strings), values }) } },
+  })
+  const result = await GET(new Request('http://localhost/api/work-items?includeYears=true'))
+  assert.equal(result.status, 200)
+  assert.deepEqual(result.body.years, ['2026'])
+  assert.ok(yearQuery.strings.join('?').includes('wi."assigneeId" = ?'))
+  assert.deepEqual(yearQuery.values, ['owner-1'])
 })
 
 test('gate replaces a forged internal proof only after owner credential check', async () => {

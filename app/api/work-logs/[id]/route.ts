@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { serializeWorkLog, workLogInclude, resolveWorkItemId } from '@/lib/work-logs'
 import { getOwner, ownerErrorResponse } from '@/lib/owner'
+import { parseBangkokDateTime } from '@/lib/bangkok-datetime'
 
 function parseHours(value: unknown): number | null {
   if (typeof value === 'number') return Number.isFinite(value) ? value : null
@@ -12,13 +13,14 @@ function parseHours(value: unknown): number | null {
 }
 
 function parseDate(value: unknown): Date | null {
-  if (typeof value !== 'string' || value.trim() === '') return null
-
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? null : date
+  return parseBangkokDateTime(value)
 }
 
-async function workLogUpdateData(body: Record<string, unknown>, currentProjectId: string | null) {
+async function workLogUpdateData(
+  body: Record<string, unknown>,
+  currentProjectId: string | null,
+  ownerId: string,
+) {
   const { description, remarks, hours, date, projectId, workItemId, status } = body
   const updateData: Record<string, unknown> = {}
   if (description !== undefined) updateData.description = description
@@ -38,7 +40,7 @@ async function workLogUpdateData(body: Record<string, unknown>, currentProjectId
   if (workItemId !== undefined) {
     let nextProjectId = currentProjectId
     if (projectId !== undefined) nextProjectId = projectId as string | null
-    updateData.workItemId = await resolveWorkItemId(nextProjectId, workItemId)
+    updateData.workItemId = await resolveWorkItemId(nextProjectId, workItemId, ownerId)
   }
   return { data: updateData }
 }
@@ -59,7 +61,7 @@ export async function GET(
       return NextResponse.json({ error: 'Work log not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ workLog: serializeWorkLog(workLog) }, { status: 200 })
+    return NextResponse.json({ workLog: serializeWorkLog(workLog, owner.id) }, { status: 200 })
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError
@@ -90,7 +92,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Work log not found' }, { status: 404 })
     }
 
-    const update = await workLogUpdateData(body, existing.projectId)
+    const update = await workLogUpdateData(body, existing.projectId, owner.id)
     if ('error' in update) {
       return NextResponse.json(
         { error: { code: 'VALIDATION_ERROR', message: update.error } },
@@ -104,13 +106,17 @@ export async function PATCH(
       include: workLogInclude,
     })
 
-    return NextResponse.json({ workLog: serializeWorkLog(workLog) }, { status: 200 })
+    return NextResponse.json({ workLog: serializeWorkLog(workLog, owner.id) }, { status: 200 })
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError
     const message = error instanceof Error ? error.message : 'Failed to update work log'
     console.error('Error updating work log:')
-    const status = ['Work item does not belong to the selected project', 'A project is required before assigning a work item'].includes(message) ? 400 : 500
+    const status = [
+      'Work item does not belong to the selected project',
+      'A project is required before assigning a work item',
+      'A work item is required before saving Daily Work',
+    ].includes(message) ? 400 : 500
     return NextResponse.json({ error: status === 400 ? message : 'Failed to save Daily Work' }, { status })
   }
 }

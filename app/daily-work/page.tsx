@@ -18,6 +18,7 @@ import { useState, useEffect, useMemo, useCallback } from "react"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { toast } from "@/hooks/use-toast"
 import { formatDate } from "@/lib/utils"
+import { readWorkLogsResponse } from "@/lib/work-log-response"
 import { WorkLog, Project, WorkLogFormData, emptyWorkLogForm } from "@/components/page/daily-work/types"
 import { WorkLogList } from "@/components/page/daily-work/work-log-list"
 import { WorkLogDialog } from "@/components/page/daily-work/work-log-dialog"
@@ -93,10 +94,17 @@ export default function DailyWorkPage() {
   const fetchWorkLogs = useCallback(async () => {
     try {
       const response = await fetch(`/api/work-logs${workLogQuery(date, viewPeriod)}`)
-      const data = await response.json()
-      if (response.ok) {
-        setWorkLogs(data.workLogs)
+      const result = await readWorkLogsResponse<WorkLog>(response)
+      if (result.error) {
+        setWorkLogs([])
+        toast({
+          title: result.error.title,
+          description: result.error.message,
+          variant: "destructive",
+        })
+        return
       }
+      setWorkLogs(result.workLogs)
     } catch (error) {
       console.error("Error fetching work logs:", error)
       toast({

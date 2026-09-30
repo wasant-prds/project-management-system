@@ -10,7 +10,7 @@ export type WorkLog = {
   description: string | null
   remarks: string | null
   hours: number
-  date: Date
+  date: string
   status: string | null
   user: {
     id: string

@@ -3,14 +3,7 @@ import { prisma } from '@/lib/db'
 import { serializeWorkLog, workLogInclude, resolveWorkItemId } from '@/lib/work-logs'
 import type { Prisma } from '@prisma/client'
 import { getOwner, ownerErrorResponse } from '@/lib/owner'
-
-function dateRangeFromParam(date: string) {
-  const [year, month, day] = date.split('-').map(Number)
-  return {
-    start: new Date(year, month - 1, day, 0, 0, 0, 0),
-    end: new Date(year, month - 1, day, 23, 59, 59, 999),
-  }
-}
+import { bangkokDateRange, currentBangkokWallClockDate, parseBangkokDateTime } from '@/lib/bangkok-datetime'
 
 export async function GET(request: Request) {
   try {
@@ -30,12 +23,18 @@ export async function GET(request: Request) {
     const where: Prisma.TimeEntryWhereInput = { userId: owner.id }
 
     if (date) {
-      const range = dateRangeFromParam(date)
-      where.date = { gte: range.start, lte: range.end }
+      const range = bangkokDateRange(date)
+      if (!range) return NextResponse.json({ error: 'date must use a valid YYYY-MM-DD value' }, { status: 400 })
+      where.date = { gte: range.start, lt: range.end }
+    } else if (Boolean(startDateParam) !== Boolean(endDateParam)) {
+      return NextResponse.json({ error: 'startDate and endDate must be provided together' }, { status: 400 })
     } else if (startDateParam && endDateParam) {
-      const start = dateRangeFromParam(startDateParam).start
-      const end = dateRangeFromParam(endDateParam).end
-      where.date = { gte: start, lte: end }
+      const start = bangkokDateRange(startDateParam)
+      const end = bangkokDateRange(endDateParam)
+      if (!start || !end || end.start < start.start) {
+        return NextResponse.json({ error: 'startDate and endDate must be valid ordered dates' }, { status: 400 })
+      }
+      where.date = { gte: start.start, lt: end.end }
     }
 
 
@@ -46,7 +45,7 @@ export async function GET(request: Request) {
     })
 
     return NextResponse.json(
-      { workLogs: workLogs.map(serializeWorkLog) },
+      { workLogs: workLogs.map((workLog) => serializeWorkLog(workLog, owner.id)) },
       { status: 200 },
     )
   } catch (error) {
@@ -75,14 +74,18 @@ export async function POST(request: Request) {
         { status: 400 },
       )
     }
-    const resolvedWorkItemId = await resolveWorkItemId(projectId, workItemId)
+    const workLogDate = date === undefined ? currentBangkokWallClockDate() : parseBangkokDateTime(date)
+    if (!workLogDate || Number.isNaN(workLogDate.getTime())) {
+      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: 'date must be a date-only value or an ISO timestamp with +07:00' } }, { status: 400 })
+    }
+    const resolvedWorkItemId = await resolveWorkItemId(projectId, workItemId, owner.id)
 
     const workLog = await prisma.timeEntry.create({
       data: {
         description,
         remarks,
         hours: Number.parseFloat(hours),
-        date: date ? new Date(date) : new Date(),
+        date: workLogDate,
         userId: owner.id,
         projectId,
         workItemId: resolvedWorkItemId ?? null,
@@ -91,13 +94,17 @@ export async function POST(request: Request) {
       include: workLogInclude,
     })
 
-    return NextResponse.json({ workLog: serializeWorkLog(workLog) }, { status: 201 })
+    return NextResponse.json({ workLog: serializeWorkLog(workLog, owner.id) }, { status: 201 })
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError
     const message = error instanceof Error ? error.message : 'Failed to create work log'
     console.error('Error creating work log:')
-    const status = ['Work item does not belong to the selected project', 'A project is required before assigning a work item'].includes(message) ? 400 : 500
+    const status = [
+      'Work item does not belong to the selected project',
+      'A project is required before assigning a work item',
+      'A work item is required before saving Daily Work',
+    ].includes(message) ? 400 : 500
     return NextResponse.json({ error: status === 400 ? message : 'Failed to save Daily Work' }, { status })
   }
 }

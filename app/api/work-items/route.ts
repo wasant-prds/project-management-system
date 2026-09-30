@@ -40,11 +40,12 @@ function serializeWorkItem<T extends { status: WorkItemStatus }>(item: T) {
 
 type WorkItemYearRow = { year: number }
 
-async function getAvailableYears() {
+async function getAvailableYears(ownerId: string) {
   const rows = await prisma.$queryRaw<WorkItemYearRow[]>(Prisma.sql`
     SELECT DISTINCT EXTRACT(YEAR FROM COALESCE(wi."workDate", wi."dueDate", wi."createdAt"))::int AS year
     FROM "work_items" AS wi
     INNER JOIN "Project" AS p ON p."id" = wi."projectId"
+    WHERE wi."assigneeId" = ${ownerId}
     ORDER BY year DESC
   `)
 
@@ -114,14 +115,14 @@ function baseWorkItemFilter(searchParams: URLSearchParams, ownerId: string) {
   return { where }
 }
 
-async function periodFilter(yearParam: string, monthParam: string) {
+async function periodFilter(yearParam: string, monthParam: string, ownerId: string) {
   if (yearParam === 'all' && monthParam === 'all') return { clause: null, availableYears: undefined }
 
   const month = monthParam === 'all' ? null : Number(monthParam)
   let years = [Number(yearParam)]
   let availableYears: string[] | undefined
   if (yearParam === 'all') {
-    availableYears = await getAvailableYears()
+    availableYears = await getAvailableYears(ownerId)
     years = availableYears.map(Number)
   }
   const dateRanges = years.flatMap((year) => dateRangeFor(year, month))
@@ -156,7 +157,7 @@ export async function GET(request: Request) {
     const where = filters.where
 
     const shouldIncludeYears = includeYears || (yearParam === 'all' && monthParam !== 'all')
-    const { clause, availableYears } = await periodFilter(yearParam, monthParam)
+    const { clause, availableYears } = await periodFilter(yearParam, monthParam, owner.id)
     const and: Prisma.WorkItemWhereInput[] = []
     if (clause) and.push(clause)
     if (search) and.push(searchClause(search))
@@ -168,7 +169,7 @@ export async function GET(request: Request) {
         include: workItemInclude,
         orderBy: { createdAt: 'desc' },
       }),
-      shouldIncludeYears && !availableYears ? getAvailableYears() : Promise.resolve(availableYears),
+      shouldIncludeYears && !availableYears ? getAvailableYears(owner.id) : Promise.resolve(availableYears),
     ])
 
     return NextResponse.json(

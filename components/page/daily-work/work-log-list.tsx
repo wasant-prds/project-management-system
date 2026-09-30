@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator"
 import { ACTION_LABEL_CLASS } from "@/components/layout/page-layout"
 import { DIALOG_SHELL_WIDE_CLASS } from "@/components/ui/responsive-dialog"
 import { WorkItemDescription } from "@/components/page/work-items/work-item-description"
+import { formatBangkokDateLabel } from "@/lib/bangkok-datetime"
 
 // Constants
 const DEFAULT_PROJECT_COLOR = "#3b82f6"
@@ -102,7 +103,7 @@ const generateCSVRow = (log: WorkLog): string => {
     log.user.name,
     log.user.email,
     log.hours.toString(),
-    new Date(log.date).toLocaleDateString(),
+    formatBangkokDateLabel(log.date),
     log.description || "",
     log.remarks || "",
     log.status || "",
@@ -362,7 +363,7 @@ export function WorkLogList({
                                 </Badge>
                               </div>
                               <div className="text-xs text-muted-foreground">
-                                {new Date(log.date).toLocaleDateString('en-US', {
+                                {formatBangkokDateLabel(log.date, {
                                   weekday: 'short',
                                   year: 'numeric',
                                   month: 'short',
