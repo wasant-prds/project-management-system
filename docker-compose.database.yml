@@ -83,9 +83,15 @@ services:
         reservations: { cpus: "0.05", memory: 64M }
     environment:
       <<: *database-env
+      APP_ENV: ${APP_ENV:-dev}
       SEED_PATH: ${SEED_PATH:-database/seeds/master}
       SEEDS_ROOT: /app
       RUN_SEED: ${RUN_SEED:-false}
+      DB_SCHEMA_BACKUP_RESTORE_VERIFIED: ${DB_SCHEMA_BACKUP_RESTORE_VERIFIED:-false}
+      DB_SCHEMA_EMPTY_DATABASE_VERIFIED: ${DB_SCHEMA_EMPTY_DATABASE_VERIFIED:-false}
+      DB_SCHEMA_SYNC_APPROVED: ${DB_SCHEMA_SYNC_APPROVED:-false}
+      DB_SCHEMA_SYNC_APPROVED_ENV: ${DB_SCHEMA_SYNC_APPROVED_ENV:-}
+      DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256: ${DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256:-}
       MIGRATION_MAX_ATTEMPTS: ${MIGRATION_MAX_ATTEMPTS:-3}
       NODE_OPTIONS: --max-old-space-size=192
     volumes:

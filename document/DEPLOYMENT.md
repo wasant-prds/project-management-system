@@ -81,12 +81,15 @@ Repository มี `scripts/docker-dev.sh`, `scripts/docker-uat.sh`, `scripts/doc
 ## 5. Database initialization and schema rollout
 
 1. PostgreSQL healthcheck รอให้ DB พร้อม
-2. `migrations` one-shot service สร้าง Prisma Client และเรียก `scripts/db-push-safe.sh`
-3. `db-push-safe.sh` ปฏิเสธ flags ที่อาจทำ data loss ตาม implementation
-4. หาก `RUN_SEED=true` จะรัน Prisma seed จาก `SEED_PATH`; ตรวจ `prisma/seed.ts` และ seed guard ก่อนใช้งานจริง
-5. App รอ migrations service สำเร็จ แล้ว entrypoint สร้าง `DATABASE_URL` จาก environment ของ root `.env` และเริ่ม server
+2. `migrations` one-shot service เรียก `scripts/db-schema-rollout-gate.mjs` ก่อน `prisma generate` หรือ `db push`
+3. Gate ต้องยืนยัน backup/isolated restore, explicit approval, target `APP_ENV` และ SHA-256 ของ `prisma/schema.prisma`; ถ้าไม่ตรง migration service จะหยุดและ app จะไม่เริ่ม
+4. หลังผ่าน gate, service สร้าง Prisma Client และเรียก `scripts/db-push-safe.sh` ซึ่งตรวจ gate ซ้ำและปฏิเสธ flags ที่อาจทำ data loss
+5. หาก `RUN_SEED=true` จะรัน Prisma seed จาก `SEED_PATH`; ตรวจ `prisma/seed.ts` และ seed guard ก่อนใช้งานจริง
+6. App รอ migrations service สำเร็จ แล้ว entrypoint สร้าง `DATABASE_URL` จาก environment ของ root `.env` และเริ่ม server
 
 ปัจจุบัน flow ใช้ `prisma db push` ไม่ได้ maintain migration history แบบ versioned migrations ใน repository ที่ตรวจพบ. Customer migration/backfill ต้องทำ per-environment staged nullable → approved mapping → validate → required rollout ตาม [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md), พร้อม backup และ isolated restore rehearsal ก่อน apply. อย่าใช้ force seed/reset กับข้อมูล production.
+
+Compose ปิด schema sync โดย default. สำหรับฐานข้อมูลที่มีข้อมูล ให้ owner อนุมัติ environment, ทำ backup ใหม่และ restore rehearsal ผ่านแล้ว ตรวจใน isolated copy ว่าการแปลง WorkItem `DATE`, relation `TimeEntry.workItem ON DELETE RESTRICT`, orphan rows และ Project/TimeEntry consistency ถูกต้อง แล้วตั้ง `DB_SCHEMA_BACKUP_RESTORE_VERIFIED=true`. สำหรับฐานข้อมูลใหม่ ให้ตรวจยืนยันว่าไม่มี schema/table หรือข้อมูลที่ต้องเก็บ แล้วตั้ง `DB_SCHEMA_EMPTY_DATABASE_VERIFIED=true` แทน backup flag. ตั้ง `DB_SCHEMA_SYNC_APPROVED=true`, `DB_SCHEMA_SYNC_APPROVED_ENV=<local|dev|uat|prod>` และ `DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256` ให้ตรงกับ revision ที่ review แล้ว (PowerShell: `(Get-FileHash prisma/schema.prisma -Algorithm SHA256).Hash.ToLowerInvariant()`; POSIX: `sha256sum prisma/schema.prisma`). ต้องเปิด baseline flag เพียงแบบเดียว. Approval ถูกผูกกับ target environment และ schema hash; schema เปลี่ยนแล้วต้องทำ review/approval ใหม่. หาก gate ไม่ผ่าน ให้หยุด deployment แล้วแก้ approval ตาม runbook; ห้าม bypass โดยตรงหรือเปิด writes บน schema ที่ยังไม่ verify. `DB_MANAGE_MODE=seed` ไม่ทำ schema sync และไม่ใช้ gate.
 
 ## 6. Health checks and operational verification
 
@@ -143,4 +146,4 @@ With an approved dataset at `database/seeds/master`, set `RUN_SEED=true` in root
 
 ## Work Item schema rollout ที่ต้องใช้หลัง #19
 
-Source schema เปลี่ยน `WorkItem.workDate`/`dueDate` เป็น PostgreSQL `DATE`, ระบุ `TIMESTAMP(3) WITHOUT TIME ZONE` สำหรับ WorkItem timestamps และเปลี่ยน `TimeEntry.workItem` เป็น `Restrict`. Issue #19 ตรวจ Prisma schema ใน source แต่ไม่ได้ apply schema กับ Dev/UAT/Production. ก่อน deploy image ที่ใช้ schema นี้ ให้สร้าง verified backup และ isolated restore rehearsal ตาม [Database Rollout](./DATABASE_ROLLOUT.md), ตรวจ date conversion/history และ health/API checks ใน environment เป้าหมาย. ห้ามใช้ Production `db push` ก่อน review ผลกระทบต่อข้อมูลเดิมและ restore path.
+Source schema เปลี่ยน `WorkItem.workDate`/`dueDate` เป็น PostgreSQL `DATE`, ระบุ `TIMESTAMP(3) WITHOUT TIME ZONE` สำหรับ WorkItem timestamps และเปลี่ยน `TimeEntry.workItem` เป็น `Restrict`. Issue #19 ตรวจ Prisma schema ใน source แต่ไม่ได้ apply schema กับ Dev/UAT/Production. Migration service บังคับ gate ที่ผูก approval กับ environment และ SHA-256 schema ก่อน `db push`. ก่อน deploy image ที่ใช้ schema นี้ ให้สร้าง verified backup และ isolated restore rehearsal ตาม [Database Rollout](./DATABASE_ROLLOUT.md), ตรวจ date conversion, FK/legacy rows, Project/TimeEntry consistency และ health/API checks ใน environment เป้าหมาย. ห้ามใช้ Production `db push` ก่อน review ผลกระทบต่อข้อมูลเดิมและ restore path.

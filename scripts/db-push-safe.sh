@@ -3,6 +3,8 @@
 # Refuses --accept-data-loss / --force-reset so Docker/CI cannot wipe tables.
 set -eu
 
+node scripts/db-schema-rollout-gate.mjs
+
 for arg in "$@"; do
   case "$arg" in
     --accept-data-loss|--force-reset)

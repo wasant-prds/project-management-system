@@ -9,7 +9,8 @@ alwaysApply: false
 - Run from repo root. Use `bash` for `.sh` (Git Bash on Windows). One root `.env`. `APP_ENV` = `local`|`dev`|`uat`|`prod` selects Compose, container, and volume.
 - `SEED_PATH` default `database/seeds/master` (path from `/app` in the container).
 - Prisma: `pnpm prisma generate` | `migrate dev` | `db seed` (skip if data exists, never wipe) | `studio`. `postinstall` already runs generate.
-- Schema push only via `bash scripts/db-push-safe.sh` (refuses data-loss flags). Docker migrations use this script.
+- Schema push only via `bash scripts/db-push-safe.sh` (checks rollout approval and refuses data-loss flags); Docker migrations also gate before Prisma generation.
+- Docker schema sync is blocked by default. Before approving it, verify a fresh target backup and isolated restore; set `DB_SCHEMA_BACKUP_RESTORE_VERIFIED=true`, `DB_SCHEMA_SYNC_APPROVED=true`, the exact `DB_SCHEMA_SYNC_APPROVED_ENV`, and the reviewed schema SHA-256. A changed schema hash requires a new approval.
 - Seed dump: `bash scripts/dump-master-seeds.sh` snapshots current `APP_ENV` Postgres into seed JSON (`WorkItem/` by year; leftover JSON removed) then zips to `./backups`. That site's Postgres must be up.
 - `bash scripts/db-manage.sh <cmd>` (or `.ps1`): status, backup, restore, verify-rollout, health, prune-backups, connect, logs, seed, reset, force-seed — all target `APP_ENV` only. Backup/restore commands require the local Node toolchain and Docker CLI.
 - Never `reset` or `force-seed` on production or any database with real data. Seed skips when configured tables already have rows.

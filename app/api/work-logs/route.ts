@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { serializeWorkLog, workLogInclude, resolveWorkItemId } from '@/lib/work-logs'
-import type { Prisma } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 import { getOwner, ownerErrorResponse } from '@/lib/owner'
 import { bangkokDateRange, currentBangkokWallClockDate, parseBangkokDateTime } from '@/lib/bangkok-datetime'
+import { lockOwnedWorkItemForUpdate } from '@/lib/work-item-lock'
+import { errorMessage } from '@/lib/error-message'
 
 export async function GET(request: Request) {
   try {
@@ -78,33 +80,36 @@ export async function POST(request: Request) {
     if (!workLogDate || Number.isNaN(workLogDate.getTime())) {
       return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: 'date must be a date-only value or an ISO timestamp with +07:00' } }, { status: 400 })
     }
-    const resolvedWorkItemId = await resolveWorkItemId(projectId, workItemId, owner.id)
-
-    const workLog = await prisma.timeEntry.create({
-      data: {
-        description,
-        remarks,
-        hours: Number.parseFloat(hours),
-        date: workLogDate,
-        userId: owner.id,
-        projectId,
-        workItemId: resolvedWorkItemId ?? null,
-        status,
-      },
-      include: workLogInclude,
-    })
+    const workLog = await prisma.$transaction(async (transaction) => {
+      await lockOwnedWorkItemForUpdate(transaction, workItemId, owner.id)
+      const resolvedWorkItemId = await resolveWorkItemId(projectId, workItemId, owner.id, transaction)
+      return transaction.timeEntry.create({
+        data: {
+          description,
+          remarks,
+          hours: Number.parseFloat(hours),
+          date: workLogDate,
+          userId: owner.id,
+          projectId,
+          workItemId: resolvedWorkItemId ?? null,
+          status,
+        },
+        include: workLogInclude,
+      })
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
 
     return NextResponse.json({ workLog: serializeWorkLog(workLog, owner.id) }, { status: 201 })
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError
-    const message = error instanceof Error ? error.message : 'Failed to create work log'
-    console.error('Error creating work log:')
+    const message = errorMessage(error, 'Failed to create work log')
     const status = [
       'Work item does not belong to the selected project',
       'A project is required before assigning a work item',
       'A work item is required before saving Daily Work',
     ].includes(message) ? 400 : 500
-    return NextResponse.json({ error: status === 400 ? message : 'Failed to save Daily Work' }, { status })
+    if (status === 400) return NextResponse.json({ error: message }, { status })
+    console.error('Error creating work log:')
+    return NextResponse.json({ error: 'Failed to save Daily Work' }, { status })
   }
 }

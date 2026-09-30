@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { verifyCompose } from '../../scripts/runtime-verify.mjs';
@@ -38,7 +38,7 @@ test('scheduled backup fails safely and publishes only successful dumps without 
 
 test('effective Dev/UAT/Production Compose has loopback ports, secrets and timezone', { skip: !enabled }, async () => {
   docker(['run', '--rm', '--network', 'none', '--mount', `type=bind,source=${join(process.cwd(), 'scripts')},target=/scripts,readonly`, '--entrypoint', 'sh', 'postgres:16-alpine', '-c',
-    'for script in /scripts/docker-entrypoint-app.sh /scripts/docker-entrypoint-dev.sh /scripts/docker-entrypoint-migrate.sh /scripts/init-postgres.sh; do sh -n "$script" || exit 1; done']);
+    'for script in /scripts/docker-entrypoint-app.sh /scripts/docker-entrypoint-dev.sh /scripts/docker-entrypoint-migrate.sh /scripts/db-push-safe.sh /scripts/init-postgres.sh; do sh -n "$script" || exit 1; done']);
   const folder = await mkdtemp(join(tmpdir(), 'pms-compose-test-'));
   try {
     const envPath = join(folder, '.env');
@@ -50,6 +50,10 @@ test('effective Dev/UAT/Production Compose has loopback ports, secrets and timez
       assert.equal(config.services.app.environment.APP_ENV, site);
       assert.equal(config.services.migrations.environment.TZ, 'Asia/Bangkok');
       assert.equal(config.services.migrations.environment.RUN_SEED, 'false');
+      assert.equal(config.services.migrations.environment.APP_ENV, site);
+      assert.equal(config.services.migrations.environment.DB_SCHEMA_BACKUP_RESTORE_VERIFIED, 'false');
+      assert.equal(config.services.migrations.environment.DB_SCHEMA_EMPTY_DATABASE_VERIFIED, 'false');
+      assert.equal(config.services.migrations.environment.DB_SCHEMA_SYNC_APPROVED, 'false');
       assert.equal(config.services.app.environment.GITLAB_TOKEN, 'synthetic-gitlab-token');
       assert.equal(config.secrets, undefined);
       assert.equal(config.services.app.secrets, undefined);
@@ -70,11 +74,12 @@ test('migration entrypoint skips absent seed by default and explains explicit se
   try {
     await mkdir(join(folder, 'bin'));
     await mkdir(join(folder, 'node_modules', '.bin'), { recursive: true });
-    await writeFile(join(folder, 'bin', 'node'), '#!/bin/sh\nprintf synthetic-database-url\n', { mode: 0o755 });
+    await writeFile(join(folder, 'bin', 'node'), '#!/bin/sh\ncase "$1" in\n  /app/scripts/database-url.mjs) printf synthetic-database-url ;;\n  scripts/db-schema-rollout-gate.mjs)\n    [ "${DB_SCHEMA_BACKUP_RESTORE_VERIFIED:-false}" = true ] && [ "${DB_SCHEMA_SYNC_APPROVED:-false}" = true ] && [ "${DB_SCHEMA_SYNC_APPROVED_ENV:-}" = "${APP_ENV:-}" ] && [ -n "${DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256:-}" ] || { echo \'Schema rollout gate fixture rejected approval.\' >&2; exit 1; }\n    ;;\n  *) exit 1 ;;\nesac\n', { mode: 0o755 });
     await writeFile(join(folder, 'node_modules', '.bin', 'prisma'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
     await writeFile(join(folder, 'bin', 'pnpm'), '#!/bin/sh\nif [ "$*" = "prisma db seed" ]; then echo "Seed config not found; synthetic-private-password" >&2; exit 1; fi\nexit 0\n', { mode: 0o755 });
     for (const setting of [undefined, 'false', 'true']) {
       const args = ['run', '--rm', '--network', 'none', '--mount', `type=bind,source=${folder},target=/fixture`, '--mount', `type=bind,source=${join(process.cwd(), 'scripts')},target=/fixture/scripts,readonly`, '-w', '/fixture', '-e', 'PATH=/fixture/bin:/usr/bin:/bin', '-e', 'SEEDS_ROOT=/fixture', '--entrypoint', 'sh'];
+      args.push('-e', 'APP_ENV=dev', '-e', 'DB_SCHEMA_BACKUP_RESTORE_VERIFIED=true', '-e', 'DB_SCHEMA_SYNC_APPROVED=true', '-e', 'DB_SCHEMA_SYNC_APPROVED_ENV=dev', '-e', `DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256=${'a'.repeat(64)}`);
       if (setting !== undefined) args.push('-e', `RUN_SEED=${setting}`);
       args.push('postgres:16-alpine', '-c', 'chmod +x /fixture/bin/* /fixture/node_modules/.bin/prisma && sh /fixture/scripts/docker-entrypoint-migrate.sh');
       const result = spawnSync('docker', args, { encoding: 'utf8', timeout: 30000 });
@@ -84,6 +89,21 @@ test('migration entrypoint skips absent seed by default and explains explicit se
       if (setting === 'true') assert.match(output, /Seed config is missing\. Set RUN_SEED=false/);
       else assert.match(output, /RUN_SEED=false.*skipping seed/);
     }
+  } finally { await rm(folder, { recursive: true, force: true }); }
+});
+
+test('migration entrypoint blocks Prisma schema sync before any database command without an approval gate', { skip: !enabled }, async () => {
+  const folder = await mkdtemp(join(tmpdir(), 'pms-schema-gate-'));
+  try {
+    await mkdir(join(folder, 'bin'));
+    await mkdir(join(folder, 'node_modules', '.bin'), { recursive: true });
+    await writeFile(join(folder, 'bin', 'node'), '#!/bin/sh\nif [ "$1" = "/app/scripts/database-url.mjs" ]; then printf synthetic-database-url; exit 0; fi\nif [ "$1" = "scripts/db-schema-rollout-gate.mjs" ]; then echo \'Schema sync is blocked until approval.\' >&2; exit 1; fi\nexit 1\n', { mode: 0o755 });
+    await writeFile(join(folder, 'bin', 'pnpm'), '#!/bin/sh\nprintf "%s\\n" "$*" >> /fixture/commands.log\nexit 0\n', { mode: 0o755 });
+    const args = ['run', '--rm', '--network', 'none', '--mount', `type=bind,source=${folder},target=/fixture`, '--mount', `type=bind,source=${join(process.cwd(), 'scripts')},target=/fixture/scripts,readonly`, '-w', '/fixture', '-e', 'PATH=/fixture/bin:/usr/bin:/bin', '-e', 'SEEDS_ROOT=/fixture', '-e', 'APP_ENV=dev', '--entrypoint', 'sh', 'postgres:16-alpine', '-c', 'chmod +x /fixture/bin/* && sh /fixture/scripts/docker-entrypoint-migrate.sh'];
+    const result = spawnSync('docker', args, { encoding: 'utf8', timeout: 30000 });
+    assert.equal(result.status, 1);
+    assert.match(`${result.stdout || ''}${result.stderr || ''}`, /Schema sync is blocked until approval/);
+    await assert.rejects(readFile(join(folder, 'commands.log')));
   } finally { await rm(folder, { recursive: true, force: true }); }
 });
 

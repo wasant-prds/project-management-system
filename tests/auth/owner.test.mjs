@@ -36,6 +36,17 @@ function loadTs(path, mocks, runtimeProcess = process) {
         return { data: { ...value, assigneeId: ownerId } }
       },
     },
+    '@/lib/work-item-lock': { lockOwnedWorkItemForUpdate: async () => {} },
+    '@/lib/error-message': {
+      errorMessage: (error, fallback) => typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string' ? error.message : fallback,
+    },
+    'node:crypto': require('node:crypto'),
+    '@prisma/client': {
+      Prisma: {
+        sql: (strings, ...values) => ({ strings, values }),
+        TransactionIsolationLevel: { Serializable: 'Serializable' },
+      },
+    },
   }
   vm.runInNewContext(output, { module: mockedModule, exports: mockedModule.exports, require: (name) => {
     if (name in mocks) return mocks[name]
@@ -212,6 +223,8 @@ test('Daily Work date filters use exclusive Bangkok day boundaries regardless of
     const { GET } = loadTs('../../app/api/work-logs/route.ts', {
       'next/server': { NextResponse: { json: (body, options) => ({ status: options.status, body }) } },
       '@/lib/db': { prisma: { timeEntry: { findMany: async (value) => { query = value; return [] } } } },
+      '@/lib/work-item-lock': { lockOwnedWorkItemForUpdate: async () => {} },
+      '@prisma/client': { Prisma: { TransactionIsolationLevel: { Serializable: 'Serializable' } } },
       '@/lib/owner': { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: () => null },
       '@/lib/work-logs': { serializeWorkLog: (value) => value, workLogInclude: {} },
       '@/lib/bangkok-datetime': loadTs('../../lib/bangkok-datetime.ts', {}),
@@ -257,13 +270,25 @@ test('Daily Work displays clear access errors and clears stale rows on failed re
 test('Daily Work create rejects a different user and persists the server owner', async () => {
   const created = []
   const resolvedOwnerIds = []
+  const lockedWorkItems = []
+  const transactionOptions = []
   const response = { json: (body, options) => ({ status: options.status, body }) }
   const bangkokDate = loadTs('../../lib/bangkok-datetime.ts', {})
   const { POST } = loadTs('../../app/api/work-logs/route.ts', {
     'next/server': { NextResponse: response },
-    '@/lib/db': { prisma: { timeEntry: { create: async (query) => { created.push(query.data); return { ...query.data, workItem: null } } } } },
+    '@/lib/db': { prisma: {
+      async $transaction(callback, options) {
+        transactionOptions.push(options)
+        return callback({
+          $queryRaw: async () => [],
+          timeEntry: { create: async (query) => { created.push(query.data); return { ...query.data, workItem: null } } },
+        })
+      },
+    } },
     '@/lib/owner': { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: () => null },
-    '@/lib/work-logs': { resolveWorkItemId: async (_projectId, _workItemId, ownerId) => { resolvedOwnerIds.push(ownerId); return 'item-1' }, serializeWorkLog: (value) => value, workLogInclude: {} },
+    '@/lib/work-logs': { resolveWorkItemId: async (_projectId, _workItemId, ownerId, database) => { resolvedOwnerIds.push(ownerId); assert.ok(database); return 'item-1' }, serializeWorkLog: (value) => value, workLogInclude: {} },
+    '@/lib/work-item-lock': { lockOwnedWorkItemForUpdate: async (_transaction, workItemId, ownerId) => { lockedWorkItems.push({ workItemId, ownerId }) } },
+    '@prisma/client': { Prisma: { TransactionIsolationLevel: { Serializable: 'Serializable' } } },
     '@/lib/bangkok-datetime': {
       parseBangkokDateTime: bangkokDate.parseBangkokDateTime,
       currentBangkokWallClockDate: bangkokDate.currentBangkokWallClockDate,
@@ -276,26 +301,44 @@ test('Daily Work create rejects a different user and persists the server owner',
   assert.equal((await POST(request(valid))).status, 201)
   assert.equal(created[0].userId, 'owner-1')
   assert.deepEqual(resolvedOwnerIds, ['owner-1'])
+  assert.deepEqual(lockedWorkItems, [{ workItemId: 'item-1', ownerId: 'owner-1' }])
+  assert.equal(transactionOptions[0].isolationLevel, 'Serializable')
   assert.equal(created[0].date.toISOString(), '2026-09-28T00:00:00.000Z')
   assert.equal((await POST(request({ ...valid, date: '2026-09-28T10:30:00.000+07:00' }))).status, 201)
   assert.equal(created[1].date.toISOString(), '2026-09-28T10:30:00.000Z')
   assert.equal(resolvedOwnerIds[1], 'owner-1')
+  assert.equal(lockedWorkItems[1].workItemId, 'item-1')
 })
 
 test('Daily Work update rejects a foreign owner ID and invalid date or hours before writing', async () => {
   const updates = []
   const lookups = []
   const resolvedOwnerIds = []
+  const lockedWorkItems = []
+  const transactionOptions = []
+  const timeEntry = {
+    findFirst: async (query) => { lookups.push(query); return { projectId: 'project-1', workItemId: 'item-1' } },
+    update: async (query) => { updates.push(query.data); return { ...query.data, workItem: null } },
+  }
+  const database = {
+    async $transaction(callback, options) {
+      transactionOptions.push(options)
+      return callback({ $queryRaw: async () => [], timeEntry })
+    },
+  }
   const response = { json: (body, options) => ({ status: options.status, body }) }
   const bangkokDate = loadTs('../../lib/bangkok-datetime.ts', {})
   const { PATCH } = loadTs('../../app/api/work-logs/[id]/route.ts', {
     'next/server': { NextResponse: response },
-    '@/lib/db': { prisma: { timeEntry: {
-      findFirst: async (query) => { lookups.push(query); return { projectId: 'project-1' } },
-      update: async (query) => { updates.push(query.data); return { ...query.data, workItem: null } },
-    } } },
+    '@/lib/db': { prisma: database },
     '@/lib/owner': { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: () => null },
-    '@/lib/work-logs': { resolveWorkItemId: async (_projectId, _workItemId, ownerId) => { resolvedOwnerIds.push(ownerId); return 'item-1' }, serializeWorkLog: (value) => value, workLogInclude: {} },
+    '@/lib/work-logs': { resolveWorkItemId: async (projectId, _workItemId, ownerId, databaseClient) => {
+      resolvedOwnerIds.push(ownerId)
+      assert.ok(databaseClient)
+      if (projectId !== 'project-1') throw new Error('Work item does not belong to the selected project')
+      return 'item-1'
+    }, serializeWorkLog: (value) => value, workLogInclude: {} },
+    '@/lib/work-item-lock': { lockOwnedWorkItemForUpdate: async (_transaction, workItemId, ownerId) => { lockedWorkItems.push({ workItemId, ownerId }) } },
     '@/lib/bangkok-datetime': { parseBangkokDateTime: bangkokDate.parseBangkokDateTime },
   })
   const request = (body) => ({ json: async () => body })
@@ -318,13 +361,23 @@ test('Daily Work update rejects a foreign owner ID and invalid date or hours bef
   }
   assert.equal(updates.length, 0)
 
+  const inconsistentProject = await PATCH(request({ projectId: 'project-2' }), context)
+  assert.equal(inconsistentProject.status, 400)
+  assert.match(inconsistentProject.body.error, /does not belong to the selected project/)
+  assert.equal(updates.length, 0)
+
   const valid = await PATCH(request({ hours: '2.5', date: '2026-09-28', workItemId: 'item-1' }), context)
   assert.equal(valid.status, 200)
   assert.equal(updates[0].hours, 2.5)
   assert.equal(updates[0].date.toISOString(), '2026-09-28T00:00:00.000Z')
   assert.equal(lookups.at(-1).where.userId, 'owner-1')
   assert.equal(Object.hasOwn(updates[0], 'userId'), false)
-  assert.deepEqual(resolvedOwnerIds, ['owner-1'])
+  assert.deepEqual(resolvedOwnerIds, ['owner-1', 'owner-1'])
+  assert.equal(transactionOptions.at(-1).isolationLevel, 'Serializable')
+  assert.deepEqual(lockedWorkItems, [
+    { workItemId: 'item-1', ownerId: 'owner-1' },
+    { workItemId: 'item-1', ownerId: 'owner-1' },
+  ])
 })
 
 test('WorkItem create passes server owner into validation and persistence', async () => {
@@ -354,12 +407,18 @@ test('WorkItem create passes server owner into validation and persistence', asyn
 test('WorkItem update rejects a foreign assignee ID before reading or writing', async () => {
   const reads = []
   const writes = []
+  const workItem = {
+    findFirst: async (query) => { reads.push(query); return null },
+    update: async (query) => { writes.push(query); return query.data },
+  }
+  const database = {
+    $queryRaw: async () => [],
+    workItem,
+    async $transaction(callback) { return callback({ ...database }) },
+  }
   const { PATCH } = loadTs('../../app/api/work-items/[id]/route.ts', {
     'next/server': { NextResponse: { json: (body, options) => ({ status: options.status, body }) } },
-    '@/lib/db': { prisma: { workItem: {
-      findFirst: async (query) => { reads.push(query); return null },
-      update: async (query) => { writes.push(query); return query.data },
-    } } },
+    '@/lib/db': { prisma: database },
     '@/lib/owner': { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: () => null },
     '@/lib/work-items': {},
   })
@@ -453,7 +512,7 @@ test('WorkItem list keeps owner and period filters after refactor', async () => 
   const { GET } = loadTs('../../app/api/work-items/route.ts', {
     'next/server': { NextResponse: { json: (body, options) => ({ status: options.status, body }) } },
     '@/lib/db': { prisma: {
-      workItem: { findMany: async ({ where }) => { queriedWhere = where; return [] } },
+      workItem: { findMany: async ({ where }) => { queriedWhere = where; return [] }, count: async () => 0 },
     } },
     '@/lib/owner': { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: () => null },
     '@/lib/work-items': {
@@ -480,7 +539,7 @@ test('WorkItem year options only include years from the authenticated owner', as
     'next/server': { NextResponse: { json: (body, options) => ({ status: options?.status ?? 200, body }) } },
     '@/lib/db': { prisma: {
       $queryRaw: async (query) => { yearQuery = query; return [{ year: 2026 }] },
-      workItem: { findMany: async () => [] },
+      workItem: { findMany: async () => [], count: async () => 0 },
     } },
     '@/lib/owner': { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: () => null },
     '@/lib/work-items': {

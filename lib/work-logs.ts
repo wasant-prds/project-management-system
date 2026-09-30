@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db'
 import { serializeWorkItemStatus } from '@/lib/work-items'
 import { serializeBangkokTimestamp } from '@/lib/bangkok-datetime'
-import type { WorkItemStatus } from '@prisma/client'
+import type { Prisma, WorkItemStatus } from '@prisma/client'
 
 export const workLogInclude = {
   user: {
@@ -34,6 +34,7 @@ export async function resolveWorkItemId(
   projectId: string | null | undefined,
   workItemId: unknown,
   ownerId: string,
+  database: Pick<Prisma.TransactionClient, 'workItem'> = prisma,
 ) {
   if (workItemId === undefined) return undefined
   if (typeof workItemId !== 'string' || workItemId.trim() === '') {
@@ -44,7 +45,7 @@ export async function resolveWorkItemId(
     throw new Error('A project is required before assigning a work item')
   }
 
-  const workItem = await prisma.workItem.findFirst({
+  const workItem = await database.workItem.findFirst({
     where: { id: workItemId, projectId, assigneeId: ownerId },
     select: { id: true },
   })

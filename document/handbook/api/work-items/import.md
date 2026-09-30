@@ -2,67 +2,132 @@
 
 ## Overview
 
-ตรวจ WorkItem rows ทั้งชุดก่อนบันทึกเป็น bulk `createMany`. API นี้นำข้อมูลเข้า PMS โดยตรง; ไม่ได้เชื่อม GitLab.
+นำเข้า WorkItem จาก JSON ผ่าน API โดยตรวจและเขียนทีละแถว. ใช้ WorkItem และ Project จริงใน PMS; ไม่ใช่ GitLab integration. แถวที่ผิดหรือซ้ำมีผลลัพธ์แยกกัน และไม่ rollback แถวอื่นที่สำเร็จ.
 
-| Property | Value |
-| --- | --- |
-| Method | `POST` |
-| Endpoint | `/api/work-items/import` |
+| Method | Endpoint | Success status |
+| --- | --- | --- |
+| POST | /api/work-items/import | 200 |
 
 ## สิทธิ์ที่มองเห็น
 
-ต้องผ่าน owner gate และ `getOwner()`. ทุก WorkItem ได้ `assigneeId` จาก server-resolved owner; client เปลี่ยน owner ไม่ได้.
+ต้องผ่าน HTTP Basic owner gate, middleware proof และ getOwner(). assigneeId ที่บันทึกมาจาก owner User ที่ server resolve; client ไม่สามารถเปลี่ยน owner ได้. ดู [Owner access](../../../handbook/operations/owner-access.md).
 
 ## ดึงข้อมูลจากตารางไหน
 
 | Table | Operation | เหตุผล |
 | --- | --- | --- |
-| `User` | Read | resolve owner และ set assignee ID |
-| `Project` | Read | ตรวจว่า Project IDs ทุกตัวมีอยู่ก่อน insert |
-| `work_items` | Insert | bulk create หลัง validate rows ทั้งหมด |
+| User | Read | resolve owner และกำหนด assigneeId |
+| Project | Read | ตรวจ Project ต่อแถว |
+| work_items | Read/Insert | ตรวจ id ซ้ำและสร้าง WorkItem ของแต่ละแถว |
+
+แต่ละแถวทำ Project lookup, ตรวจ id ถ้ามี และ create แยกกัน; ไม่มี transaction ครอบทั้ง array. Failure ของ lookup/create ภายในแถวจะถูกแปลงเป็นผล failed ของแถวนั้นและทำแถวถัดไปต่อ.
 
 ## Request
 
-Body เป็น non-empty array ของ WorkItem objects หรือ object `{ "workItems": [...] }`. แต่ละ row ใช้ fields/validation เดียวกับ [WorkItem create](./collection.md#post-body); ต้องมี `title`, `projectId`, `kind`. `id` ที่ให้มาจะถูกใช้ใน bulk import หาก non-empty. `assigneeId` หากส่งต้องเท่ากับ owner (หรือเป็น null/empty).
+Body รองรับ JSON array ที่ไม่ว่าง หรือ object ที่มี workItems เป็น array ที่ไม่ว่าง. แต่ละ row ใช้ validation และ fields เดียวกับ [WorkItem create](./collection.md#post-body).
 
-```json
-{
-  "workItems": [
-    {"id":"external-1","title":"Fix login","projectId":"project-id","kind":"Issue","status":"todo"}
-  ]
-}
-```
+| Field | Type | Required | Validation / behavior |
+| --- | --- | --- | --- |
+| title | string | Yes | trim แล้วต้องไม่ว่าง |
+| projectId | string | Yes | ต้องเป็น Project ที่มีอยู่ |
+| kind | enum | Yes | Incident, Issue หรือ Task |
+| status | enum | No | default backlog; sa-testing/completed ประทับ submittedAt |
+| priority | enum | No | default none |
+| role | enum, null or empty string | No | Developer, infra, SA หรือ null |
+| types | string array or null | No | ใช้ allowed WorkItem type list; null/duplicates normalize เป็น []/unique list |
+| description | string or null | No | empty/null กลายเป็น null |
+| workDate, dueDate | YYYY-MM-DD, null or empty string | No | valid Bangkok calendar date; null/empty กลายเป็น null |
+| id | non-empty string | No | คง ID นี้ไว้เมื่อสร้าง; ถ้ามี WorkItem ใช้ ID แล้วจะ skip โดยไม่แก้ record เดิม |
+| assigneeId | string, null or empty string | No | ถ้าเป็น string ต้องตรง owner; ค่าเขียนจริงมาจาก server |
+
+Unknown fields ไม่ได้ถูกนำไปบันทึก.
+
+    [
+      {
+        "id": "import-row-1",
+        "title": "Fix login",
+        "projectId": "project-id",
+        "kind": "Issue",
+        "status": "todo",
+        "priority": "high",
+        "types": ["bug"]
+      }
+    ]
+
+การส่ง stable id ช่วยให้ retry ข้ามแถวที่สร้างไปแล้ว. หากไม่ส่ง id การ retry แถวที่สร้างสำเร็จไปแล้วอาจสร้าง WorkItem ซ้ำด้วย Prisma-generated ID.
 
 ## Response
 
-HTTP `201`:
+เมื่อ envelope ถูกต้อง API ตอบ HTTP 200 แม้มีบาง row failed หรือ skipped.
 
-| Field | Description |
+| Response field | Description |
 | --- | --- |
-| `imported` | จำนวน WorkItem ที่ `createMany` insert สำเร็จ |
+| imported | จำนวนแถวที่สร้างสำเร็จ |
+| rows | ผลลัพธ์ต่อแถว เรียงตาม request |
+| rows[].row | ลำดับแถวเริ่มจาก 1 |
+| rows[].outcome | created, skipped หรือ failed |
+| rows[].workItemId | WorkItem ID ที่สร้าง; มีเฉพาะ outcome created |
+| rows[].error | เหตุผลของ skipped/failed; optional |
+| rows[].error.code | VALIDATION_ERROR, NOT_FOUND, DUPLICATE หรือ IMPORT_FAILED |
+| rows[].error.message | สาเหตุแบบปลอดภัยสำหรับแสดงผู้ใช้ |
+| rows[].error.field | field ที่ผิด เช่น projectId; optional |
 
-```jsonc
-{"imported": 1 // จำนวน rows ที่สร้างสำเร็จ}
-```
+Example ที่มีหนึ่งแถวสร้างสำเร็จ, หนึ่งแถว ID ซ้ำ และหนึ่งแถว Project ไม่มี:
+
+    {
+      "imported": 1, // จำนวน WorkItem ที่สร้าง
+      "rows": [
+        {
+          "row": 1, // ลำดับใน request
+          "outcome": "created", // แถวนี้สร้างสำเร็จ
+          "workItemId": "work-item-id" // ID ที่สร้างใน PMS
+        },
+        {
+          "row": 2, // ลำดับใน request
+          "outcome": "skipped", // ไม่แก้ existing WorkItem
+          "error": {
+            "code": "DUPLICATE", // ID ซ้ำ
+            "message": "Work Item ID already exists; existing data was left unchanged." // ข้อความผลลัพธ์
+          }
+        },
+        {
+          "row": 3, // ลำดับใน request
+          "outcome": "failed", // Project ไม่พบ
+          "error": {
+            "code": "NOT_FOUND", // ไม่พบ relation ที่อ้าง
+            "message": "Project not found", // สาเหตุ
+            "field": "projectId" // field ที่อ้างถึง Project
+          }
+        }
+      ]
+    }
+
+row error field เป็น optional; validation ที่ parser รายงานเป็นข้อความรวมจะไม่มี field.
 
 ## Error Responses
 
-| HTTP | Body/code | Cause |
+| HTTP | Response | Cause |
 | ---: | --- | --- |
-| `400` | `{error}` | body ไม่ใช่ array ที่รองรับ, array ว่าง หรือ row แรกที่ validation ไม่ผ่าน |
-| `401` | `OWNER_UNAUTHENTICATED` | owner gate/resolver ปฏิเสธ |
-| `403` | `ACCESS_DENIED` | Origin ไม่ผ่าน |
-| `404` | `{error, row}` | Project ใน row ไม่มี; `row` เป็น index เริ่มจาก 1 |
-| `409` | `{error}` | ID ซ้ำ (`P2002`); message ระบุว่าไม่มีการ import |
-| `500` | `{error: "Failed to import work items"}` | bulk insert/DB error |
-| `503` | `DEPENDENCY_UNAVAILABLE` | owner resolve ไม่ได้ |
+| 400 | error.code = VALIDATION_ERROR | JSON เสีย, body ไม่ใช่ array/envelope ที่รองรับ หรือ array ว่าง |
+| 401 | error.code = OWNER_UNAUTHENTICATED | ยังไม่ผ่าน owner gate |
+| 403 | error.code = ACCESS_DENIED | Origin ของ request ไม่ตรง APP_ORIGIN |
+| 500 | error.code = INTERNAL_ERROR | failure นอกขอบเขตประมวลผลรายแถว |
+| 503 | error.code = DEPENDENCY_UNAVAILABLE | resolve owner User ให้ได้หนึ่งรายการไม่ได้ |
 
-Error validation ระดับ row ตอบ `row` และข้อความ prefix `Row N:`. ตรวจทุก row และ Project ก่อนเรียก `createMany`; ไม่มี row-success response แบบ partial.
+เมื่อ envelope ผ่านแล้ว Project missing, validation error, duplicate ID และ row-level lookup/write failure อยู่ใน rows[] พร้อม HTTP 200; Project missing มี code NOT_FOUND, duplicate เป็น skipped/DUPLICATE, และ unexpected per-row database error เป็น failed/IMPORT_FAILED. API ทำต่อจนจบแถวที่รับมา.
 
 ## Processing Flow
 
-Gate → resolve owner → parse envelope → validate each row และ force owner → ตรวจ Project IDs → set submittedAt สำหรับ status ที่กำหนด → `createMany` → imported count.
+owner gate → resolve owner → parse JSON/envelope → วนทุก row ตามลำดับ → shared parser และบังคับ owner → ตรวจ Project → ตรวจ duplicate ID ถ้าส่งมา → create WorkItem และ submittedAt → เก็บผลแถว → ส่ง imported และ rows.
+
+Import เป็น partial-success operation. ห้ามสมมติว่า failed หนึ่งแถว rollback แถวก่อนหน้า; ใช้ ID คงที่สำหรับ retry-safe rows.
 
 ## Verification
 
-`pnpm test:auth`. ใช้ test DB/fixture; ตรวจ array และ wrapper input, invalid row index, foreign assignee, missing Project, duplicate IDs ที่ atomic ไม่สร้าง partial data และ valid count. ห้ามใช้ข้อมูล production/GitLab credential เป็น fixture.
+ใช้ disposable test database และ Project ID จาก fixture เท่านั้น.
+
+- pnpm test:work-items — valid/invalid rows, Project FK race, Project/duplicate-ID lookup failure และ importable JSON export.
+- pnpm test:auth — owner access และ import endpoint.
+- pnpm test — regression suite.
+
+Negative cases: JSON ไม่ถูกต้อง, envelope ว่าง, invalid enum/date, foreign assigneeId, missing Project, duplicate ID และ row lookup failure. ยืนยันว่าผล rows[] ครบตาม input และแถวอื่นยังถูกประมวลผล.

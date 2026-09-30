@@ -23,7 +23,7 @@
 | `GET`, `PATCH`, `DELETE` | `/api/projects/{id}` | Projects อ่าน/แก้/ลบ Project; delete ปฏิเสธเมื่อมีประวัติอ้างอิง | `{ project }` หรือ error envelope (#18) |
 | `GET`, `POST` | `/api/company` | อ่านรายการ/เพิ่ม Company | `{ companies }` / `{ company }` (#18) |
 | `PATCH`, `DELETE` | `/api/company/{id}` | แก้ Company; ลบได้เมื่อไม่มี Project และไม่ใช่ Dhas | `{ company }` หรือ error envelope (#18) |
-| `GET`, `POST` | `/api/work-items` | Work Items; filter และสร้าง WorkItem ด้วย validation กลาง | WorkItem พร้อม Project/Company/owner; wrapper `{ workItems, years? }` หรือ `{ workItem }` |
+| `GET`, `POST` | `/api/work-items` | Work Items; filter, cursor pagination และสร้าง WorkItem ด้วย validation กลาง | WorkItem พร้อม Project/Company/owner; `{ workItems, page, summary, years? }` หรือ `{ workItem }` |
 | `GET`, `PATCH`, `DELETE` | `/api/work-items/{id}` | Work Items อ่าน/แก้/ลบ WorkItem; detail คืน Daily Work ที่ผูกอยู่ | WorkItem เดียว; wrapper `{ workItem }`; DELETE ปฏิเสธเมื่อมีประวัติเวลา |
 | `POST` | `/api/work-items/import` | Work Items bulk import แบบแยกผลรายแถว | ตรวจ WorkItem input และ Project/owner references; valid rows ทำต่อได้เมื่อแถวอื่นผิด |
 | `GET`, `POST` | `/api/work-logs` | Daily Work อ่าน/สร้าง TimeEntry | `TimeEntry` พร้อม User/Project/WorkItem; wrapper `{ workLogs }` หรือ `{ workLog }` |
@@ -35,11 +35,11 @@
 
 ### 1.1 Query parameters ปัจจุบัน
 
-`GET /api/work-items` รองรับ `projectId`, `companyId`, `assigneeId` (legacy; ต้องเป็น owner), `kind`, `status`, `priority`, `role` (`none` ใช้กรอง role ว่าง), `year`, `month`, `search` และ `includeYears`. เมื่อไม่ส่ง `year` ใช้ปีปัจจุบันของ `Asia/Bangkok`; `year=all` ขอทุกปี. ปี/เดือนกรองตาม `workDate`, ถัดมา `dueDate`, แล้ว `createdAt`. Enum ที่ไม่รู้จักและปี/เดือนผิดรูปแบบตอบ 400. Public status ใช้ hyphen เช่น `in-progress`, แม้ Prisma enum บางค่าจะมี underscore.
+`GET /api/work-items` รองรับ `projectId`, `companyId`, `assigneeId` (legacy; ต้องเป็น owner), `kind`, `status`, `priority`, `role` (`none` ใช้กรอง role ว่าง), `year`, `month`, `search`, `includeYears`, `limit` และ `cursor`. `limit` default 50, สูงสุด 200; `page.nextCursor` ผูกกับ filters และ ordering `createdAt DESC, id DESC`. Response มี `summary` สำหรับรายการทั้งหมดที่ตรง filters ไม่ใช่เฉพาะหน้าปัจจุบัน. เมื่อไม่ส่ง `year` ใช้ปีปัจจุบันของ `Asia/Bangkok`; `year=all` ขอทุกปี. ปี/เดือนกรองตาม `workDate`, ถัดมา `dueDate`, แล้ว `createdAt`. Enum ที่ไม่รู้จัก ปี/เดือนผิดรูปแบบ และ limit/cursor ไม่ถูกต้องหรือใช้กับ filters อื่นตอบ 400. Public status ใช้ hyphen เช่น `in-progress`, แม้ Prisma enum บางค่าจะมี underscore.
 
 As-Is gap ของ `GET /api/work-logs`: รองรับ `date=YYYY-MM-DD`, `startDate=YYYY-MM-DD&endDate=YYYY-MM-DD` แบบรวมวันปลายช่วง และ `userId` (legacy) แต่ handler ปัจจุบันสร้างขอบเขตวันจาก timezone ของ process จึงยังไม่รับประกัน `Asia/Bangkok`. Target implementation ต้องใช้ policy Bangkok ในข้อ 2.4; ปัจจุบันยังไม่มี cursor/limit.
 
-Issue #19 ทำให้ Work Item API รับ `workDate`/`dueDate` เป็น business date `YYYY-MM-DD`, ใช้ Prisma `DATE`, คืน business date ในรูปแบบเดิม และคืน timestamps เป็น Bangkok `+07:00`. `submittedAt` ใช้ Bangkok local wall-clock. WorkItem GET/PATCH/POST/import ใช้ owner-side validation ชุดเดียวกัน; endpoint อื่นให้ตรวจตามสถานะ implementation ของแต่ละ issue.
+Issue #19 ทำให้ Work Item API รับ `workDate`/`dueDate` เป็น business date `YYYY-MM-DD`, ใช้ Prisma `DATE`, คืน business date ในรูปแบบเดิม และคืน timestamps เป็น Bangkok `+07:00`. `submittedAt` ใช้ Bangkok local wall-clock. WorkItem GET/PATCH/POST/import ใช้ owner-side validation ชุดเดียวกัน; เปลี่ยน Project ของ WorkItem ที่มี Daily Work จะถูกปฏิเสธเป็น `409 RELATION_MISMATCH` ใน serializable transaction. Import จับ lookup/create failure เป็นผลรายแถว. Export เดิน cursor จนครบ filtered result.
 
 `GET /api/projects` รองรับ `status`, `search`, `limit`, `cursor` และ `options=work-items`. Project/Company handlers ของ #18 ใช้ error envelope; legacy handlers อื่นบางตัวอาจยังใช้ `{ "error": "..." }` และมี validation ไม่ครบ.
 
@@ -88,7 +88,7 @@ Target errors ใช้ envelope เดียวและ stable machine code:
 
 ### 2.3 Pagination และ ordering
 
-Company, Project, WorkItem, and TimeEntry collection reads use `limit` and opaque `cursor`: default `50`, maximum `200`; invalid bounds return `400`. Cursors continue from `page.nextCursor` and bind to the original filters/order. Responses include `page: { limit, nextCursor }`, where a null cursor means the last page. Ordering uses a deterministic ID tie-breaker. Dashboard/Analysis return aggregates and bounded previews instead of paginated resource lists.
+Company, Project, WorkItem, and TimeEntry collection reads use `limit` and opaque `cursor`: default `50`, maximum `200`; invalid bounds return `400`. Cursors continue from `page.nextCursor` and bind to the original filters/order. Responses include `page: { limit, nextCursor }`, where a null cursor means the last page. Ordering uses a deterministic ID tie-breaker. Work Items also return full-filter `summary` counts so page-local statistics do not undercount. Dashboard/Analysis return aggregates and bounded previews instead of paginated resource lists.
 
 Work Items, Projects และ Daily Work ที่เกินขนาดหน้าให้ UI ขอหน้าถัดไปแทนการคืนข้อมูลไม่จำกัด. Export ใช้ filter set และ records เดียวกับหน้ารายการ โดยไม่สร้างสำเนาข้อมูล.
 

@@ -44,6 +44,22 @@ Manual backup ใช้ PostgreSQL custom archive (`.dump`, pg_dump --no-owner -
 5. **Stage 4 required:** หลัง app ใหม่ทำงานและ backfilled gate ผ่าน ให้รัน `node scripts/company-project-required.mjs --apply <environment> <verified-archive>`. รัน `verify required`; ต้องมี NOT NULL, FK/Company code unique index, ไม่มี legacy relation defects และ Project/WorkItem/TimeEntry count/hash/column types คงเดิม (ยกเว้น `Project.companyId`). ทุก verify ทำ restore rehearsal ใหม่.
 6. **Stage 5 Project DATE:** ตรวจว่าทุก Project date มีเวลาเที่ยงคืน, สร้าง verified backup ใหม่, หยุด app writes, แล้วรัน `node scripts/project-date-promotion.mjs --apply <environment> <new-verified-archive>`. Script ตรวจ calendar values และ fields อื่นทุกแถวก่อน commit. Deploy image ที่ใช้ Prisma `@db.Date`, ตรวจ authenticated Company/Project reads และ `api/health` ก่อนเปิด writes. Migration service อาจไม่มี container ค้างหลัง deploy; ตรวจ schema gates ที่ apply จริงแทนการนับแค่ service exit.
 
+### Issue #19 WorkItem schema gate
+
+Compose migrations และ `scripts/db-push-safe.sh` จะไม่เรียก `prisma db push` จนกว่า environment จะผ่าน manual gate. ฐานข้อมูลที่มีข้อมูลต้องมี backup ใหม่และ isolated restore rehearsal ด้วย revision/schema ที่จะ deploy; ตรวจ WorkItem date values ที่จะถูก cast เป็น PostgreSQL `DATE`, `TimeEntry.workItem` FK/`ON DELETE RESTRICT`, orphan references และความสอดคล้อง `TimeEntry.projectId = WorkItem.projectId`. ฐานข้อมูลใหม่ต้องตรวจว่าไม่มี schema/table หรือข้อมูลที่ต้องเก็บ. บันทึก archive/verification receipt หรือผล empty-database check, schema diff, environment, approver และผลตรวจใน rollout record. การ backup อย่างเดียวหรือ daily backup candidate ไม่นับว่า verified.
+
+หลังตรวจครบ ให้ตั้ง root `.env` ของ environment เป้าหมายดังนี้ แล้ว recreate migrations/app ด้วย Compose command ตาม environment:
+
+```dotenv
+DB_SCHEMA_BACKUP_RESTORE_VERIFIED=true
+DB_SCHEMA_EMPTY_DATABASE_VERIFIED=false
+DB_SCHEMA_SYNC_APPROVED=true
+DB_SCHEMA_SYNC_APPROVED_ENV=uat
+DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256=<sha256-of-reviewed-prisma-schema>
+```
+
+คำนวณค่า hash จาก revision ที่จะ deploy ด้วย `sha256sum prisma/schema.prisma` หรือ PowerShell `(Get-FileHash prisma/schema.prisma -Algorithm SHA256).Hash.ToLowerInvariant()`. เปิด baseline flag เพียงแบบเดียว: backup+restore สำหรับฐานข้อมูลที่มีข้อมูล หรือ `DB_SCHEMA_EMPTY_DATABASE_VERIFIED=true` หลังตรวจฐานข้อมูลใหม่ว่าง. Gate ตรวจ baseline, explicit approval, `APP_ENV` (`local`, `dev`, `uat`, `prod`), และ hash เทียบกับ schema ใน migration image; mismatch จะหยุดก่อน `prisma generate` และ database sync. Schema change ใหม่หรือ target environment อื่นต้องทำ verification และ approval ใหม่. `DB_MANAGE_MODE=seed` ไม่แก้ schemaและไม่ผ่าน `db push`, จึงไม่ต้องตั้ง gate; `force-seed` ต้องผ่าน gate.
+
 เก็บ release revision, approved register, backup/receipt/checksum, pre/post validation, approver และ exceptions ใน run record ตาม retention. Pin rollout archive ด้วยไฟล์ชื่อ `<archive>.pin` (เช่น PowerShell `New-Item "$backupFile.pin" -ItemType File`) จนปล่อย retention hold โดยเจ้าของ. `prune` ลบเฉพาะ verified archives หมดอายุของ environment เดียว เก็บ newest verified archive, pinned, corrupt/unverified และไฟล์ environment อื่น. ไม่ prune อัตโนมัติระหว่าง rollout.
 
 ## Scheduled backup

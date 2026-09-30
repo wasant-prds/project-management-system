@@ -2,11 +2,13 @@
 
 ## Overview
 
-คู่มือนี้สรุป API, access gate, data model และงานปฏิบัติการจาก implementation ปัจจุบันของ Project Management System (PMS) ใช้ source code และ Prisma schema เป็นหลัก; เอกสารนี้ไม่ถือว่า API ที่ยังเป็น target contract เปิดใช้งานแล้ว
+คู่มือนี้สรุป API, access gate, data model และงานปฏิบัติการจาก implementation ปัจจุบันของ Project Management System (PMS). ใช้ source code และ Prisma schema เป็นหลัก; เอกสารนี้ไม่ถือว่า API ที่ยังเป็น target contract เปิดใช้งานแล้ว.
 
-ระบบเป็น Next.js App Router + Prisma + PostgreSQL สำหรับ owner หนึ่งคน ใช้ Company → Project → WorkItem → TimeEntry และยึด `Asia/Bangkok` สำหรับเวลา อ่านเรื่อง [Owner access](./operations/owner-access.md), [Database model](./database/data-model.md) และ [Runtime operations](./operations/runtime.md) ก่อนเปลี่ยนแปลงระบบ
+ระบบเป็น Next.js App Router + Prisma + PostgreSQL สำหรับ owner หนึ่งคน ใช้ Company → Project → WorkItem → TimeEntry และยึด Asia/Bangkok สำหรับวันและเวลา อ่าน [Owner access](./operations/owner-access.md), [Database model](./database/data-model.md) และ [Runtime operations](./operations/runtime.md) ก่อนเปลี่ยนแปลงระบบ.
 
-สำหรับ Issue #18 ระบบรองรับหลาย Company แต่ Project แต่ละรายการต้องอ้าง Company หนึ่งรายการผ่าน `companyId`. Prisma schema ปัจจุบันไม่มี `Customer` model; รายละเอียด Dhas, Company APIs และ Project APIs อยู่ในหน้า Company/Projects และ [Database model](./database/data-model.md). Handbook ยืนยันพฤติกรรมจาก repository; สถานะข้อมูลในฐานข้อมูล environment จริงต้องตรวจจาก environment นั้นแยกต่างหาก.
+Issue #19 ใช้ WorkItem record เดียวร่วมกันระหว่างเมนู Work Items, Board, Projects, Dashboard และ Analysis; มี CRUD, filters, cursor pagination, JSON import แบบรายแถว และ CSV/Markdown/JSON export ที่สร้างใน browser. Detail API แสดง Company ผ่าน Project และ Daily Work ที่ผูกกับ WorkItem.
+
+สำหรับ Issue #18 ระบบรองรับหลาย Company แต่ Project แต่ละรายการต้องอ้าง Company หนึ่งรายการผ่าน companyId. Prisma schema ปัจจุบันไม่มี Customer model; รายละเอียด Dhas, Company APIs และ Project APIs อยู่ในหน้า Company/Projects และ [Database model](./database/data-model.md). Handbook ยืนยันพฤติกรรมจาก repository; สถานะข้อมูลในฐานข้อมูล environment จริงต้องตรวจจาก environment นั้นแยกต่างหาก.
 
 ## API
 
@@ -30,11 +32,11 @@ Route Handler ปัจจุบันมีดังนี้:
 - [Project collection](./api/projects/collection.md) — list, create
 - [Project detail](./api/projects/detail.md) — read, update, delete
 
-### Work Items
+### Work Items — Issue #19
 
-- [WorkItem collection](./api/work-items/collection.md) — list, create
-- [WorkItem detail](./api/work-items/detail.md) — read, update, delete
-- [WorkItem import](./api/work-items/import.md) — bulk create
+- [WorkItem collection](./api/work-items/collection.md) — filters, cursor pagination, summary และ create; Work Items UI ใช้ collection นี้ดึงข้อมูลเพื่อ export
+- [WorkItem detail](./api/work-items/detail.md) — read, update, delete; detail read แสดง Company และ Daily Work
+- [WorkItem import](./api/work-items/import.md) — JSON bulk import พร้อมผลลัพธ์รายแถว
 
 ### Daily Work
 
@@ -43,14 +45,14 @@ Route Handler ปัจจุบันมีดังนี้:
 
 ## Jobs
 
-- [Production database backup candidate](./jobs/database/daily-backup.md) — optional production Compose `backup` profile; this is the only background service found in the repository. Application queue/worker jobs are not implemented.
+- [Production database backup candidate](./jobs/database/daily-backup.md) — optional production Compose backup profile; เป็น background job/service ที่พบใน repository. Application queue/worker jobs ยังไม่ถูก implement.
 
 ## Other Components
 
 - [Owner access gate](./operations/owner-access.md) — Basic credential gate, origin checks, middleware proof, owner resolution.
-- [Runtime operations](./operations/runtime.md) — start, health, logs and troubleshooting; links to existing Docker/DB runbooks.
-- [Database data model](./database/data-model.md) — relations and tables touched by current APIs.
-- [GitLab integration status](./integration/gitlab.md) — configuration validation versus actual integration behavior.
+- [Runtime operations](./operations/runtime.md) — start, health, logs และ troubleshooting; links ไปยัง Docker/DB runbooks.
+- [Database data model](./database/data-model.md) — relations และ tables ที่ current APIs ใช้.
+- [GitLab integration status](./integration/gitlab.md) — configuration validation เทียบกับ behavior ที่ implement จริง.
 
 ## Source references
 
@@ -58,7 +60,9 @@ Route Handler ปัจจุบันมีดังนี้:
 - [Prisma schema](../../prisma/schema.prisma)
 - [Runtime security](../RUNTIME_SECURITY.md)
 - [Database rollout runbook](../DATABASE_ROLLOUT.md)
-- [Company default profile](../../lib/dhas-company.json)
-- [Company service](../../lib/company.ts)
-- [Company collection handler](../../app/api/company/route.ts)
-- [Project collection handler](../../app/api/projects/route.ts)
+- [WorkItem collection handler](../../app/api/work-items/route.ts)
+- [WorkItem detail handler](../../app/api/work-items/[id]/route.ts)
+- [WorkItem import handler](../../app/api/work-items/import/route.ts)
+- [Shared WorkItem parser](../../lib/work-item-input.ts)
+- [WorkItem response serializer](../../lib/work-item-response.ts)
+- [WorkItem export UI helpers](../../components/page/work-items/work-item-export.ts)

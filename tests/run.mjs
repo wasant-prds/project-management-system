@@ -8,7 +8,9 @@ const suites = {
   "database-rollout-docker": { files: [join(testRoot, "database", "rollout-docker.test.mjs")] },
   seed: { files: [join(testRoot, "seed", "seed.test.mjs")] },
   "seed-docker": { files: [join(testRoot, "seed", "docker.test.mjs")] },
+  "work-item-schema-docker": { files: [join(testRoot, "seed", "docker.test.mjs")] },
   "runtime-docker": { files: [join(testRoot, "runtime", "docker.test.mjs")] },
+  "schema-rollout-gate": { files: [join(testRoot, "runtime", "schema-rollout-gate.test.mjs")] },
   "runtime-security": { files: [join(testRoot, "runtime", "security.test.mjs"), join(testRoot, "runtime", "launcher.test.mjs")] },
   "runtime-container": { files: [join(testRoot, "runtime", "container.test.mjs")] },
   contracts: { directory: join(testRoot, "contracts") },
@@ -25,6 +27,10 @@ if (requestedSuite === "database-rollout-docker") process.env.PMS_RUN_ROLLOUT_DO
 if (requestedSuite === "runtime-container") process.env.PMS_RUN_CONTAINER_TESTS = "1";
 if (requestedSuite === "runtime-docker") process.env.PMS_RUN_DOCKER_TESTS = "1";
 if (requestedSuite === "seed-docker") process.env.PMS_RUN_SEED_DOCKER_TESTS = "1";
+if (requestedSuite === "work-item-schema-docker") {
+  process.env.PMS_RUN_SEED_DOCKER_TESTS = "1";
+  process.env.PMS_SKIP_INSTALLATION_SEED_DOCKER = "1";
+}
 if (requestedSuite && !Object.hasOwn(suites, requestedSuite)) {
   throw new Error(`Unknown test suite: ${requestedSuite}. Available suites: ${Object.keys(suites).join(", ")}`);
 }

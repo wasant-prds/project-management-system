@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { createHash } from 'node:crypto'
 import vm from 'node:vm'
 
 const require = createRequire(import.meta.url)
@@ -25,6 +26,7 @@ function loadTs(path, mocks = {}) {
     Date,
     URL,
     URLSearchParams,
+    Buffer,
     console: { error() {} },
   }, { filename: path })
   return loaded.exports
@@ -41,8 +43,14 @@ function makeSystem() {
     writes: 0,
     updates: 0,
     lastWhere: null,
+    lastFindMany: null,
+    lastTransactionOptions: null,
     authError: null,
     failTitle: null,
+    failFindMany: false,
+    projectLookupFailures: 0,
+    workItemLookupFailures: 0,
+    lockedWorkItems: [],
   }
   const now = new Date(Date.UTC(2026, 8, 30, 9, 30, 0))
   const asResponseItem = (item, includeEntries = false) => ({
@@ -51,21 +59,72 @@ function makeSystem() {
     assignee: { id: item.assigneeId, name: owner.name, email: owner.email, avatar: null },
     ...(includeEntries ? { timeEntries: state.timeEntries.filter((entry) => entry.workItemId === item.id && entry.userId === owner.id) } : {}),
   })
+  const matchesFilter = (item, where) => {
+    const project = state.projects.get(item.projectId)
+    if (where.assigneeId && item.assigneeId !== where.assigneeId) return false
+    if (where.projectId && item.projectId !== where.projectId) return false
+    if (where.kind && item.kind !== where.kind) return false
+    if (where.status && typeof where.status === 'string' && item.status.replaceAll('-', '_') !== where.status) return false
+    if (where.status?.notIn && where.status.notIn.includes(item.status.replaceAll('-', '_'))) return false
+    if (where.priority && item.priority !== where.priority) return false
+    if ('role' in where && item.role !== where.role) return false
+    if (where.project?.is?.companyId && project?.companyId !== where.project.is.companyId) return false
+    if (where.project?.is?.name?.contains && !project?.name.toLowerCase().includes(where.project.is.name.contains.toLowerCase())) return false
+    if (where.types?.has && !item.types.includes(where.types.has)) return false
+
+    for (const field of ['workDate', 'dueDate', 'createdAt']) {
+      if (!(field in where)) continue
+      const condition = where[field]
+      const value = item[field]
+      if (condition === null) {
+        if (value !== null) return false
+        continue
+      }
+      if (condition.gte && (!value || value < condition.gte)) return false
+      if (condition.lt && (!value || value >= condition.lt)) return false
+      if (condition === null && value !== null) return false
+    }
+
+    if (where.id && typeof where.id === 'string' && item.id !== where.id) return false
+    if (where.id?.lt && item.id >= where.id.lt) return false
+    if (where.title?.contains && !item.title.toLowerCase().includes(where.title.contains.toLowerCase())) return false
+    if (where.description?.contains && !String(item.description ?? '').toLowerCase().includes(where.description.contains.toLowerCase())) return false
+    if (where.assignee?.is?.name?.contains && !owner.name.toLowerCase().includes(where.assignee.is.name.contains.toLowerCase())) return false
+    if (where.AND && !where.AND.every((clause) => matchesFilter(item, clause))) return false
+    if (where.OR && !where.OR.some((clause) => matchesFilter(item, clause))) return false
+    return true
+  }
   const prisma = {
     sql(strings, ...values) { return { strings, values } },
-    async $queryRaw() { return [] },
+    async $queryRaw(query) { state.lockedWorkItems.push(query); return [] },
+    async $transaction(callback, options) {
+      state.lastTransactionOptions = options
+      return callback(prisma)
+    },
     project: {
-      async findUnique({ where }) { return state.projects.get(where.id) ?? null },
+      async findUnique({ where }) {
+        if (state.projectLookupFailures > 0) {
+          state.projectLookupFailures -= 1
+          throw new Error('fixture project lookup failure')
+        }
+        return state.projects.get(where.id) ?? null
+      },
       async findMany() { return [...state.projects.values()] },
     },
     timeEntry: {
       async count({ where }) { return state.timeEntries.filter((entry) => entry.workItemId === where.workItemId).length },
     },
     workItem: {
-      async findMany({ where }) {
+      async count({ where }) { return [...state.workItems.values()].filter((item) => matchesFilter(item, where)).length },
+      async findMany(args) {
+        if (state.failFindMany) throw new Error('fixture list failure')
+        const { where } = args
+        state.lastFindMany = args
         state.lastWhere = where
         return [...state.workItems.values()]
-          .filter((item) => item.assigneeId === where.assigneeId && state.projects.has(item.projectId))
+          .filter((item) => state.projects.has(item.projectId) && matchesFilter(item, where))
+          .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime() || right.id.localeCompare(left.id))
+          .slice(0, args.take)
           .map((item) => asResponseItem(item))
       },
       async findFirst({ where, include }) {
@@ -74,6 +133,10 @@ function makeSystem() {
         return asResponseItem(item, Boolean(include?.timeEntries))
       },
       async findUnique({ where }) {
+        if (state.workItemLookupFailures > 0) {
+          state.workItemLookupFailures -= 1
+          throw new Error('fixture work item lookup failure')
+        }
         const item = state.workItems.get(where.id)
         return item ? { id: item.id } : null
       },
@@ -151,7 +214,11 @@ function makeSystem() {
       '@/lib/work-items': workItems,
       '@/lib/bangkok-datetime': bangkok,
     }),
-    '@prisma/client': { Prisma: { sql: prisma.sql } },
+    '@/lib/work-item-lock': loadTs('../../lib/work-item-lock.ts', {
+      '@prisma/client': { Prisma: { sql: prisma.sql } },
+    }),
+    'node:crypto': { createHash },
+    '@prisma/client': { Prisma: { sql: prisma.sql, TransactionIsolationLevel: { Serializable: 'Serializable' } } },
   }
   return {
     state,
@@ -286,6 +353,30 @@ test('invalid create and update inputs or missing Projects do not write partial 
   assert.equal(system.state.writes, writes)
 })
 
+test('Work Item Project changes run serializably and reject moves with linked Daily Work', async () => {
+  const system = makeSystem()
+  const created = await system.list.POST(request(validInput()))
+  const id = created.body.workItem.id
+  const entry = { id: 'time-1', workItemId: id, projectId: 'project-1', userId: owner.id }
+  system.state.timeEntries.push(entry)
+
+  const rejected = await system.detail.PATCH(request({ projectId: 'project-2' }), context(id))
+  assert.equal(rejected.status, 409)
+  assert.equal(rejected.body.error.code, 'RELATION_MISMATCH')
+  assert.equal(rejected.body.error.field, 'projectId')
+  assert.equal(system.state.workItems.get(id).projectId, 'project-1')
+  assert.equal(system.state.updates, 0)
+  assert.equal(system.state.lastTransactionOptions.isolationLevel, 'Serializable')
+  assert.equal(system.state.lockedWorkItems.length, 1)
+  assert.match(system.state.lockedWorkItems[0].strings.join(''), /FOR UPDATE/)
+  assert.deepEqual(Array.from(system.state.lockedWorkItems[0].values), [id, owner.id])
+
+  const unchangedProject = await system.detail.PATCH(request({ projectId: 'project-1' }), context(id))
+  assert.equal(unchangedProject.status, 200)
+  assert.equal(system.state.workItems.get(id).projectId, 'project-1')
+  assert.equal(system.state.lockedWorkItems.length, 2)
+})
+
 test('Work Item filters validate shared enums and apply owner, Project, Company, status, priority, and role filters', async () => {
   const system = makeSystem()
   const defaultPeriod = await system.list.GET({ url: 'http://local/api/work-items' })
@@ -311,6 +402,52 @@ test('Work Item filters validate shared enums and apply owner, Project, Company,
     assert.equal(invalid.status, 400, invalidFilter)
     assert.equal(invalid.body.error.code, 'VALIDATION_ERROR', invalidFilter)
   }
+})
+
+test('Work Item collection uses bounded stable cursor pages bound to its filters', async () => {
+  const system = makeSystem()
+  for (const id of ['work-a', 'work-b', 'work-c', 'work-d']) {
+    const created = await system.list.POST(request(validInput({ id, title: id })))
+    assert.equal(created.status, 201)
+  }
+
+  const first = await system.list.GET({ url: 'http://local/api/work-items?year=all&month=all&limit=2' })
+  assert.deepEqual(Array.from(first.body.workItems, (item) => item.id), ['work-4', 'work-3'])
+  assert.equal(first.body.page.limit, 2)
+  assert.equal(typeof first.body.page.nextCursor, 'string')
+  assert.equal(first.body.summary.total, 4)
+  assert.equal(first.body.summary.kinds.Issue, 4)
+  assert.equal(system.state.lastFindMany.take, 3)
+  assert.deepEqual(JSON.parse(JSON.stringify(system.state.lastFindMany.orderBy)), [{ createdAt: 'desc' }, { id: 'desc' }])
+
+  const second = await system.list.GET({
+    url: `http://local/api/work-items?year=all&month=all&limit=2&cursor=${encodeURIComponent(first.body.page.nextCursor)}`,
+  })
+  assert.deepEqual(Array.from(second.body.workItems, (item) => item.id), ['work-2', 'work-1'])
+  assert.equal(second.body.page.nextCursor, null)
+
+  const changedFilters = await system.list.GET({
+    url: `http://local/api/work-items?year=all&month=all&limit=2&projectId=project-1&cursor=${encodeURIComponent(first.body.page.nextCursor)}`,
+  })
+  assert.equal(changedFilters.status, 400)
+  assert.equal(changedFilters.body.error.field, 'cursor')
+  assert.equal((await system.list.GET({ url: 'http://local/api/work-items?limit=0' })).status, 400)
+  assert.equal((await system.list.GET({ url: 'http://local/api/work-items?limit=201' })).status, 400)
+  assert.equal((await system.list.GET({ url: 'http://local/api/work-items?cursor=broken' })).status, 400)
+})
+
+test('Work Item collection and create unexpected errors use the shared error envelope', async () => {
+  const system = makeSystem()
+  system.state.failFindMany = true
+  const getResult = await system.list.GET({ url: 'http://local/api/work-items?year=all&month=all' })
+  assert.equal(getResult.status, 500)
+  assert.deepEqual(JSON.parse(JSON.stringify(getResult.body.error)), { code: 'INTERNAL_ERROR', message: 'Failed to fetch work items' })
+
+  system.state.failFindMany = false
+  system.state.failTitle = 'Unexpected create failure'
+  const postResult = await system.list.POST(request(validInput({ title: system.state.failTitle })))
+  assert.equal(postResult.status, 500)
+  assert.deepEqual(JSON.parse(JSON.stringify(postResult.body.error)), { code: 'INTERNAL_ERROR', message: 'Failed to create work item' })
 })
 
 test('delete refuses linked Daily Work, retains history, and deletes an unreferenced WorkItem', async () => {
@@ -383,6 +520,27 @@ test('bulk import reports a Project foreign-key race per row and continues with 
   assert.equal(system.state.workItems.get('work-1').title, 'Still imported')
 })
 
+test('bulk import reports Project and duplicate-ID lookup failures per row and continues safely', async () => {
+  const system = makeSystem()
+  system.state.projectLookupFailures = 1
+  system.state.workItemLookupFailures = 1
+
+  const result = await system.importer.POST(request([
+    validInput({ title: 'Project lookup failure' }),
+    validInput({ title: 'Created after Project failure' }),
+    validInput({ title: 'ID lookup failure', id: 'lookup-id' }),
+    validInput({ title: 'Created after ID failure' }),
+  ]))
+
+  assert.equal(result.status, 200)
+  assert.equal(result.body.imported, 2)
+  assert.deepEqual(Array.from(result.body.rows, (row) => row.outcome), ['failed', 'created', 'failed', 'created'])
+  assert.equal(result.body.rows[0].error.code, 'IMPORT_FAILED')
+  assert.equal(result.body.rows[2].error.code, 'IMPORT_FAILED')
+  assert.equal(system.state.workItems.get('work-1').title, 'Created after Project failure')
+  assert.equal(system.state.workItems.get('work-2').title, 'Created after ID failure')
+})
+
 test('Work Items JSON export is importable and urgency uses the Bangkok calendar date', () => {
   const workItems = loadTs('../../components/page/work-items/work-item-export.ts', {
     '@/lib/work-items': {
@@ -421,6 +579,10 @@ test('Work Items detail and import UI expose Company, Daily Work, per-row reason
   assert.match(page, /setStatusFilter/)
   assert.match(page, /setPriorityFilter/)
   assert.match(page, /setRoleFilter/)
+  assert.match(page, /โหลดรายการเพิ่มเติม/)
+  assert.match(page, /fetchAllFilteredItems/)
+  assert.match(page, /yearOptionsLoadedRef\.current = false/)
+  assert.match(page, /page: \{ limit: 200, cursor \}/)
   assert.match(dialog, /Company:/)
   assert.match(dialog, /Daily Work/)
   assert.match(dialog, /entry\.hours/)

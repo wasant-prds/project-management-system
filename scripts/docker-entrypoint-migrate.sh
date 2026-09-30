@@ -77,6 +77,7 @@ case "${DB_MANAGE_MODE:-}" in
     ;;
   force-seed)
     echo "🌱 Pushing schema and reseeding database (${SEEDS_ROOT}/${SEED_PATH})"
+    node scripts/db-schema-rollout-gate.mjs
     pnpm prisma generate
     run_db_step "schema sync" sh scripts/db-push-safe.sh
     run_db_step "seed" pnpm prisma db seed
@@ -84,6 +85,7 @@ case "${DB_MANAGE_MODE:-}" in
     ;;
 esac
 
+node scripts/db-schema-rollout-gate.mjs
 pnpm prisma generate
 run_db_step "schema sync" sh scripts/db-push-safe.sh
 

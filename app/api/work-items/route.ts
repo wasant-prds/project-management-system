@@ -17,8 +17,25 @@ import { Prisma } from '@prisma/client'
 import { getOwner, ownerErrorResponse } from '@/lib/owner'
 import { currentBangkokCalendarDate, currentBangkokWallClockDate } from '@/lib/bangkok-datetime'
 import { serializeWorkItem, workItemInclude } from '@/lib/work-item-response'
+import { createHash } from 'node:crypto'
 
 type WorkItemYearRow = { year: number }
+type WorkItemCursor = { id: string; createdAt: Date }
+type WorkItemListQuery = {
+  ownerId: string
+  yearParam: string
+  monthParam: string
+  search: string
+  includeYears: boolean
+  limit: number
+  cursor: WorkItemCursor | null
+  filterHash: string
+  where: Prisma.WorkItemWhereInput
+}
+type WorkItemListQueryResult = { success: true; query: WorkItemListQuery } | { success: false; response: NextResponse }
+
+const DEFAULT_PAGE_LIMIT = 50
+const MAX_PAGE_LIMIT = 200
 
 function hasErrorCode(error: unknown, code: string) {
   return typeof error === 'object'
@@ -189,56 +206,181 @@ async function periodFilter(yearParam: string, monthParam: string, ownerId: stri
   return { clause, availableYears }
 }
 
+function parsePageLimit(value: string | null) {
+  if (value === null) return DEFAULT_PAGE_LIMIT
+  if (!/^\d+$/.test(value)) return null
+  const limit = Number(value)
+  return limit >= 1 && limit <= MAX_PAGE_LIMIT ? limit : null
+}
+
+function workItemFilterHash(searchParams: URLSearchParams, year: string, month: string, search: string) {
+  const filters = {
+    year,
+    month,
+    projectId: searchParams.get('projectId') ?? '',
+    companyId: searchParams.get('companyId') ?? '',
+    assigneeId: searchParams.get('assigneeId') ?? '',
+    kind: searchParams.get('kind') ?? '',
+    status: searchParams.get('status') ?? '',
+    priority: searchParams.get('priority') ?? '',
+    role: searchParams.get('role') ?? '',
+    search,
+    order: 'createdAt-desc-id-desc',
+  }
+  return createHash('sha256').update(JSON.stringify(filters)).digest('hex')
+}
+
+function encodeCursor(item: { id: string; createdAt: Date }, filterHash: string) {
+  return Buffer.from(JSON.stringify({
+    version: 1,
+    id: item.id,
+    createdAt: item.createdAt.toISOString(),
+    filterHash,
+  })).toString('base64url')
+}
+
+function decodeCursor(value: string, expectedFilterHash: string): WorkItemCursor | null {
+  try {
+    const payload: unknown = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'))
+    if (typeof payload !== 'object' || payload === null) return null
+    if (!('version' in payload) || payload.version !== 1) return null
+    if (!('id' in payload) || typeof payload.id !== 'string' || payload.id.length === 0) return null
+    if (!('createdAt' in payload) || typeof payload.createdAt !== 'string') return null
+    if (!('filterHash' in payload) || payload.filterHash !== expectedFilterHash) return null
+
+    const createdAt = new Date(payload.createdAt)
+    if (Number.isNaN(createdAt.getTime())) return null
+    return { id: payload.id, createdAt }
+  } catch {
+    return null
+  }
+}
+
+function cursorClause(cursor: WorkItemCursor): Prisma.WorkItemWhereInput {
+  return {
+    OR: [
+      { createdAt: { lt: cursor.createdAt } },
+      { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+    ],
+  }
+}
+
+function validationResponse(message: string, field?: string) {
+  return NextResponse.json({
+    error: { code: 'VALIDATION_ERROR', message, ...(field ? { field } : {}) },
+  }, { status: 400 })
+}
+
+function parseWorkItemListQuery(searchParams: URLSearchParams, ownerId: string): WorkItemListQueryResult {
+  const yearParam = searchParams.get('year') ?? currentBangkokCalendarDate().slice(0, 4)
+  const monthParam = searchParams.get('month') ?? 'all'
+  const search = searchParams.get('search')?.trim() ?? ''
+  const includeYears = searchParams.get('includeYears') === 'true'
+  const limit = parsePageLimit(searchParams.get('limit'))
+
+  if (limit === null) return { success: false, response: validationResponse('limit must be between 1 and 200', 'limit') }
+  if (yearParam !== 'all' && !/^\d{4}$/.test(yearParam)) {
+    return { success: false, response: validationResponse('Invalid year', 'year') }
+  }
+  if (monthParam !== 'all' && !/^(?:[1-9]|1[0-2])$/.test(monthParam)) {
+    return { success: false, response: validationResponse('Invalid month', 'month') }
+  }
+
+  // Ignore legacy seed rows whose required Project record is missing.
+  const filters = baseWorkItemFilter(searchParams, ownerId)
+  if ('error' in filters) {
+    return { success: false, response: validationResponse(filters.error) }
+  }
+
+  const filterHash = workItemFilterHash(searchParams, yearParam, monthParam, search)
+  const cursorParam = searchParams.get('cursor')
+  const cursor = cursorParam === null ? null : decodeCursor(cursorParam, filterHash)
+  if (cursorParam !== null && !cursor) {
+    return { success: false, response: validationResponse('Invalid cursor for the selected filters', 'cursor') }
+  }
+
+  return {
+    success: true,
+    query: {
+      ownerId,
+      yearParam,
+      monthParam,
+      search,
+      includeYears,
+      limit,
+      cursor,
+      filterHash,
+      where: filters.where,
+    },
+  }
+}
+
+async function queryWorkItemList({
+  ownerId,
+  yearParam,
+  monthParam,
+  search,
+  includeYears,
+  limit,
+  cursor,
+  filterHash,
+  where,
+}: WorkItemListQuery) {
+  const shouldIncludeYears = includeYears || (yearParam === 'all' && monthParam !== 'all')
+  const { clause, availableYears } = await periodFilter(yearParam, monthParam, ownerId)
+  const and: Prisma.WorkItemWhereInput[] = [
+    ...(clause ? [clause] : []),
+    ...(search ? [searchClause(search)] : []),
+  ]
+  const filteredWhere: Prisma.WorkItemWhereInput = and.length > 0 ? { ...where, AND: and } : where
+  const pageWhere: Prisma.WorkItemWhereInput = cursor
+    ? { ...filteredWhere, AND: [...and, cursorClause(cursor)] }
+    : filteredWhere
+  const todayStart = new Date(`${currentBangkokCalendarDate()}T00:00:00.000Z`)
+
+  const [rows, years, total, inProgress, completed, overdue, incident, issue, task] = await Promise.all([
+    prisma.workItem.findMany({
+      where: pageWhere,
+      include: workItemInclude,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+    }),
+    shouldIncludeYears && !availableYears ? getAvailableYears(ownerId) : Promise.resolve(availableYears),
+    prisma.workItem.count({ where: filteredWhere }),
+    prisma.workItem.count({ where: { AND: [filteredWhere, { status: 'in_progress' }] } }),
+    prisma.workItem.count({ where: { AND: [filteredWhere, { status: 'completed' }] } }),
+    prisma.workItem.count({
+      where: { AND: [filteredWhere, { dueDate: { lt: todayStart } }, { status: { notIn: ['completed', 'cancelled'] } }] },
+    }),
+    prisma.workItem.count({ where: { AND: [filteredWhere, { kind: 'Incident' }] } }),
+    prisma.workItem.count({ where: { AND: [filteredWhere, { kind: 'Issue' }] } }),
+    prisma.workItem.count({ where: { AND: [filteredWhere, { kind: 'Task' }] } }),
+  ])
+  const hasNextPage = rows.length > limit
+  const workItems = rows.slice(0, limit)
+  const nextCursor = hasNextPage ? encodeCursor(workItems[workItems.length - 1], filterHash) : null
+
+  return {
+    workItems: workItems.map(serializeWorkItem),
+    page: { limit, nextCursor },
+    summary: { total, inProgress, completed, overdue, kinds: { Incident: incident, Issue: issue, Task: task } },
+    ...(years ? { years } : {}),
+  }
+}
+
 // GET /api/work-items
 export async function GET(request: Request) {
   try {
     const owner = await getOwner()
-    const { searchParams } = new URL(request.url)
-    const yearParam = searchParams.get('year') ?? currentBangkokCalendarDate().slice(0, 4)
-    const monthParam = searchParams.get('month') ?? 'all'
-    const search = searchParams.get('search')?.trim() ?? ''
-    const includeYears = searchParams.get('includeYears') === 'true'
-
-    if (yearParam !== 'all' && !/^\d{4}$/.test(yearParam)) {
-      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid year', field: 'year' } }, { status: 400 })
-    }
-    if (monthParam !== 'all' && !/^(?:[1-9]|1[0-2])$/.test(monthParam)) {
-      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid month', field: 'month' } }, { status: 400 })
-    }
-
-    // Ignore legacy seed rows whose required Project record is missing.
-    const filters = baseWorkItemFilter(searchParams, owner.id)
-    if ('error' in filters) {
-      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: filters.error } }, { status: 400 })
-    }
-    const where = filters.where
-
-    const shouldIncludeYears = includeYears || (yearParam === 'all' && monthParam !== 'all')
-    const { clause, availableYears } = await periodFilter(yearParam, monthParam, owner.id)
-    const and: Prisma.WorkItemWhereInput[] = []
-    if (clause) and.push(clause)
-    if (search) and.push(searchClause(search))
-    if (and.length > 0) where.AND = and
-
-    const [workItems, years] = await Promise.all([
-      prisma.workItem.findMany({
-        where,
-        include: workItemInclude,
-        orderBy: { createdAt: 'desc' },
-      }),
-      shouldIncludeYears && !availableYears ? getAvailableYears(owner.id) : Promise.resolve(availableYears),
-    ])
-
-    return NextResponse.json(
-      { workItems: workItems.map(serializeWorkItem), ...(years ? { years } : {}) },
-      { status: 200 },
-    )
+    const parsed = parseWorkItemListQuery(new URL(request.url).searchParams, owner.id)
+    if (!parsed.success) return parsed.response
+    return NextResponse.json(await queryWorkItemList(parsed.query), { status: 200 })
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError
     console.error('Error fetching work items:')
     return NextResponse.json(
-      { error: 'Failed to fetch work items' },
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch work items' } },
       { status: 500 },
     )
   }
@@ -289,7 +431,7 @@ export async function POST(request: Request) {
     }
     console.error('Error creating work item:')
     return NextResponse.json(
-      { error: 'Failed to create work item' },
+      { error: { code: 'INTERNAL_ERROR', message: 'Failed to create work item' } },
       { status: 500 },
     )
   }

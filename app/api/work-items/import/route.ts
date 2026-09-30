@@ -34,32 +34,31 @@ async function processImportRow(value: unknown, row: number, ownerId: string) {
   }
 
   const { id, ...input } = parsed.data
-  const project = await prisma.project.findUnique({ where: { id: input.projectId }, select: { id: true } })
-  if (!project) {
-    return { result: rowError(row, 'NOT_FOUND', 'Project not found', 'projectId'), imported: false }
-  }
+  try {
+    const project = await prisma.project.findUnique({ where: { id: input.projectId }, select: { id: true } })
+    if (!project) {
+      return { result: rowError(row, 'NOT_FOUND', 'Project not found', 'projectId'), imported: false }
+    }
 
-  if (id) {
-    const existing = await prisma.workItem.findUnique({ where: { id }, select: { id: true } })
-    if (existing) {
-      return {
-        result: {
-          row,
-          outcome: 'skipped',
-          error: { code: 'DUPLICATE', message: 'Work Item ID already exists; existing data was left unchanged.' },
-        },
-        imported: false,
+    if (id) {
+      const existing = await prisma.workItem.findUnique({ where: { id }, select: { id: true } })
+      if (existing) {
+        return {
+          result: {
+            row,
+            outcome: 'skipped',
+            error: { code: 'DUPLICATE', message: 'Work Item ID already exists; existing data was left unchanged.' },
+          },
+          imported: false,
+        }
       }
     }
-  }
 
-  const now = currentBangkokWallClockDate()
-  try {
     const workItem = await prisma.workItem.create({
       data: {
         ...(id ? { id } : {}),
         ...input,
-        submittedAt: shouldStampSubmittedAt(input.status) ? now : null,
+        submittedAt: shouldStampSubmittedAt(input.status) ? currentBangkokWallClockDate() : null,
       },
       select: { id: true },
     })

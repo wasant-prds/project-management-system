@@ -4,10 +4,17 @@ import { shouldStampSubmittedAt } from '@/lib/work-items'
 import { parseWorkItemPatch } from '@/lib/work-item-input'
 import { currentBangkokWallClockDate } from '@/lib/bangkok-datetime'
 import { serializeWorkItem, workItemDetailInclude, workItemInclude } from '@/lib/work-item-response'
-import type { Prisma } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 import { getOwner, ownerErrorResponse } from '@/lib/owner'
+import { lockOwnedWorkItemForUpdate } from '@/lib/work-item-lock'
 
 type RouteContext = { params: Promise<{ id: string }> }
+type WorkItemPatchData = Extract<ReturnType<typeof parseWorkItemPatch>, { data: unknown }>['data']
+type WorkItemUpdateOutcome =
+  | { kind: 'missing' }
+  | { kind: 'history-conflict' }
+  | { kind: 'project-missing' }
+  | { kind: 'updated'; workItem: Awaited<ReturnType<typeof prisma.workItem.update>> }
 
 function validationError(message: string, field?: string) {
   return NextResponse.json({
@@ -28,11 +35,56 @@ function historyConflict() {
   }, { status: 409 })
 }
 
+function projectHistoryConflict() {
+  return NextResponse.json({
+    error: {
+      code: 'RELATION_MISMATCH',
+      message: 'Cannot move a Work Item that has linked Daily Work; its Project must stay consistent with the history.',
+      field: 'projectId',
+    },
+  }, { status: 409 })
+}
+
 function hasErrorCode(error: unknown, code: string) {
   return typeof error === 'object'
     && error !== null
     && 'code' in error
     && error.code === code
+}
+
+async function updateOwnedWorkItem(id: string, ownerId: string, changes: WorkItemPatchData): Promise<WorkItemUpdateOutcome> {
+  const { assigneeId, projectId, ...fields } = changes
+  delete fields.id
+
+  return prisma.$transaction(async (transaction) => {
+    await lockOwnedWorkItemForUpdate(transaction, id, ownerId)
+    const existing = await transaction.workItem.findFirst({
+      where: { id, assigneeId: ownerId },
+      select: { id: true, projectId: true, submittedAt: true },
+    })
+    if (!existing) return { kind: 'missing' }
+
+    const data: Prisma.WorkItemUpdateInput = { ...fields }
+    if (projectId && projectId !== existing.projectId) {
+      const project = await transaction.project.findUnique({ where: { id: projectId }, select: { id: true } })
+      if (!project) return { kind: 'project-missing' }
+
+      const linkedWork = await transaction.timeEntry.count({ where: { workItemId: id } })
+      if (linkedWork > 0) return { kind: 'history-conflict' }
+      data.project = { connect: { id: project.id } }
+    }
+    if (assigneeId) data.assignee = { connect: { id: assigneeId } }
+    if (fields.status && shouldStampSubmittedAt(fields.status) && !existing.submittedAt) {
+      data.submittedAt = currentBangkokWallClockDate()
+    }
+
+    const workItem = await transaction.workItem.update({
+      where: { id },
+      data,
+      include: workItemInclude,
+    })
+    return { kind: 'updated', workItem }
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
 }
 
 // GET /api/work-items/[id]
@@ -70,33 +122,13 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     const parsed = parseWorkItemPatch(body, owner.id)
     if ('error' in parsed) return validationError(parsed.error)
 
-    const existing = await prisma.workItem.findFirst({
-      where: { id, assigneeId: owner.id },
-      select: { id: true, submittedAt: true },
-    })
-    if (!existing) return notFound('Work item not found')
+    const outcome = await updateOwnedWorkItem(id, owner.id, parsed.data)
 
-    const { assigneeId, projectId, ...fields } = parsed.data
-    delete fields.id
-    const data: Prisma.WorkItemUpdateInput = { ...fields }
+    if (outcome.kind === 'missing') return notFound('Work item not found')
+    if (outcome.kind === 'history-conflict') return projectHistoryConflict()
+    if (outcome.kind === 'project-missing') return notFound('Project not found')
 
-    if (projectId) {
-      const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } })
-      if (!project) return notFound('Project not found')
-      data.project = { connect: { id: project.id } }
-    }
-    if (assigneeId) data.assignee = { connect: { id: assigneeId } }
-    if (fields.status && shouldStampSubmittedAt(fields.status) && !existing.submittedAt) {
-      data.submittedAt = currentBangkokWallClockDate()
-    }
-
-    const workItem = await prisma.workItem.update({
-      where: { id },
-      data,
-      include: workItemInclude,
-    })
-
-    return NextResponse.json({ workItem: serializeWorkItem(workItem) }, { status: 200 })
+    return NextResponse.json({ workItem: serializeWorkItem(outcome.workItem) }, { status: 200 })
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError

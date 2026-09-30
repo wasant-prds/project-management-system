@@ -88,6 +88,13 @@ import {
 const SORT_MENU_CLOSE_DELAY_MS = 150
 
 type KindTab = 'all' | WorkItemKindValue
+type WorkItemSummary = {
+  total: number
+  inProgress: number
+  completed: number
+  overdue: number
+  kinds: Record<WorkItemKindValue, number>
+}
 type ImportReport = { filename: string; imported: number; skipped: number; failed: number; rowMessages: string[] }
 
 function isKindTab(value: string): value is KindTab {
@@ -132,6 +139,7 @@ type WorkItemQueryOptions = {
   priority: string
   role: string
   includeYears: boolean
+  page?: { limit?: number; cursor?: string | null }
 }
 
 function workItemQuery({
@@ -143,14 +151,17 @@ function workItemQuery({
   priority,
   role,
   includeYears,
+  page,
 }: WorkItemQueryOptions) {
   const params = new URLSearchParams({ year, month })
+  params.set('limit', String(page?.limit ?? 50))
   if (project !== 'all') params.set('projectId', project)
   if (search.trim()) params.set('search', search.trim())
   if (status !== 'all') params.set('status', status)
   if (priority !== 'all') params.set('priority', priority)
   if (role !== 'all') params.set('role', role)
   if (includeYears) params.set('includeYears', 'true')
+  if (page?.cursor) params.set('cursor', page.cursor)
   return params.toString()
 }
 
@@ -235,6 +246,7 @@ function WorkItemSortMenu({
 
 export default function WorkItemsPage() {
   const [workItems, setWorkItems] = useState<WorkItem[]>([])
+  const [workItemSummary, setWorkItemSummary] = useState<WorkItemSummary | null>(null)
   const [projects, setProjects] = useState<ProjectOption[]>([])
   const [availableYears, setAvailableYears] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -266,6 +278,8 @@ export default function WorkItemsPage() {
   const [loadedFilterKey, setLoadedFilterKey] = useState<string | null>(null)
   const [loadingFilterKey, setLoadingFilterKey] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 250)
@@ -281,6 +295,9 @@ export default function WorkItemsPage() {
     setLoadingFilterKey(filterKey)
     setLoadedFilterKey(null)
     setWorkItems([])
+    setWorkItemSummary(null)
+    setNextCursor(null)
+    setIsLoadingMore(false)
     setLoadError(null)
 
     try {
@@ -296,10 +313,12 @@ export default function WorkItemsPage() {
       })
       const response = await fetch(`/api/work-items?${query}`, { signal: controller.signal })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Failed to load work items')
+      if (!response.ok) throw new Error(data.error?.message || data.error || 'Failed to load work items')
       if (generation !== loadGenerationRef.current) return
 
       setWorkItems(data.workItems || [])
+      setWorkItemSummary(data.summary ?? null)
+      setNextCursor(data.page?.nextCursor ?? null)
       if (Array.isArray(data.years)) {
         setAvailableYears(data.years)
         yearOptionsLoadedRef.current = true
@@ -318,6 +337,45 @@ export default function WorkItemsPage() {
       if (generation === loadGenerationRef.current) setLoadingFilterKey(null)
     }
   }, [yearFilter, monthFilter, projectFilter, statusFilter, priorityFilter, roleFilter, debouncedSearchQuery])
+
+  const refreshAfterMutation = useCallback(async () => {
+    yearOptionsLoadedRef.current = false
+    await load()
+  }, [load])
+
+  const loadMore = useCallback(async () => {
+    if (!nextCursor || isLoadingMore) return
+    const generation = loadGenerationRef.current
+    setIsLoadingMore(true)
+    try {
+      const query = workItemQuery({
+        year: yearFilter,
+        month: monthFilter,
+        project: projectFilter,
+        search: debouncedSearchQuery,
+        status: statusFilter,
+        priority: priorityFilter,
+        role: roleFilter,
+        includeYears: false,
+        page: { limit: 50, cursor: nextCursor },
+      })
+      const response = await fetch(`/api/work-items?${query}`)
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error?.message || data.error || 'Failed to load work items')
+      if (generation !== loadGenerationRef.current) return
+      setWorkItems((current) => [...current, ...(data.workItems || [])])
+      setNextCursor(data.page?.nextCursor ?? null)
+    } catch (error) {
+      if (generation !== loadGenerationRef.current) return
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to load more work items',
+        variant: 'destructive',
+      })
+    } finally {
+      if (generation === loadGenerationRef.current) setIsLoadingMore(false)
+    }
+  }, [nextCursor, isLoadingMore, yearFilter, monthFilter, projectFilter, debouncedSearchQuery, statusFilter, priorityFilter, roleFilter])
 
   useEffect(() => {
     void load()
@@ -402,10 +460,10 @@ export default function WorkItemsPage() {
   ].join('|')
 
   const stats = {
-    total: filtered.length,
-    inProgress: filtered.filter((item) => item.status === 'in-progress').length,
-    completed: filtered.filter((item) => item.status === 'completed').length,
-    overdue: filtered.filter((item) => urgencySubgroup(item) === 'overdue').length,
+    total: workItemSummary?.total ?? filtered.length,
+    inProgress: workItemSummary?.inProgress ?? filtered.filter((item) => item.status === 'in-progress').length,
+    completed: workItemSummary?.completed ?? filtered.filter((item) => item.status === 'completed').length,
+    overdue: workItemSummary?.overdue ?? filtered.filter((item) => urgencySubgroup(item) === 'overdue').length,
   }
 
   const openCreate = async () => {
@@ -464,7 +522,7 @@ export default function WorkItemsPage() {
       setViewItem(null)
       setDeleteItem(null)
       toast({ title: 'ลบ Work Item แล้ว', description: 'ลบรายการงานเรียบร้อย' })
-      await load()
+      await refreshAfterMutation()
     } catch (error) {
       toast({
         title: 'ลบ Work Item ไม่สำเร็จ',
@@ -482,31 +540,63 @@ export default function WorkItemsPage() {
     return `work_items_${kind}_${date}.${extension}`
   }
 
-  const exportCsv = () => {
-    if (visibleItems.length === 0) return
-    downloadTextFile(
-      generateWorkItemsCsv(visibleItems),
-      exportFilename('csv'),
-      'text/csv;charset=utf-8;',
-    )
+  const fetchAllFilteredItems = async () => {
+    const allItems: WorkItem[] = []
+    let cursor: string | null = null
+    const seenCursors = new Set<string>()
+    do {
+      const query = workItemQuery({
+        year: yearFilter,
+        month: monthFilter,
+        project: projectFilter,
+        search: debouncedSearchQuery,
+        status: statusFilter,
+        priority: priorityFilter,
+        role: roleFilter,
+        includeYears: false,
+        page: { limit: 200, cursor },
+      })
+      const response = await fetch(`/api/work-items?${query}`)
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error?.message || data.error || 'Failed to export work items')
+      allItems.push(...(data.workItems || []))
+      cursor = data.page?.nextCursor ?? null
+      if (cursor && seenCursors.has(cursor)) throw new Error('Work Item export cursor repeated')
+      if (cursor) seenCursors.add(cursor)
+    } while (cursor)
+
+    const scopedItems = kindTab === 'all' ? allItems : allItems.filter((item) => item.kind === kindTab)
+    return flattenProjectGroups(groupWorkItems(scopedItems, sortMode))
   }
 
-  const exportMarkdown = () => {
-    if (visibleItems.length === 0) return
-    downloadTextFile(
-      generateWorkItemsMarkdown(visibleItems, sortMode),
-      exportFilename('md'),
-      'text/markdown;charset=utf-8;',
-    )
+  const exportCsv = async () => {
+    try {
+      const exportItems = await fetchAllFilteredItems()
+      if (exportItems.length === 0) return
+      downloadTextFile(generateWorkItemsCsv(exportItems), exportFilename('csv'), 'text/csv;charset=utf-8;')
+    } catch (error) {
+      toast({ title: 'Export failed', description: error instanceof Error ? error.message : 'Failed to export work items', variant: 'destructive' })
+    }
   }
 
-  const exportJson = () => {
-    if (visibleItems.length === 0) return
-    downloadTextFile(
-      generateWorkItemsJson(visibleItems),
-      exportFilename('json'),
-      'application/json;charset=utf-8;',
-    )
+  const exportMarkdown = async () => {
+    try {
+      const exportItems = await fetchAllFilteredItems()
+      if (exportItems.length === 0) return
+      downloadTextFile(generateWorkItemsMarkdown(exportItems, sortMode), exportFilename('md'), 'text/markdown;charset=utf-8;')
+    } catch (error) {
+      toast({ title: 'Export failed', description: error instanceof Error ? error.message : 'Failed to export work items', variant: 'destructive' })
+    }
+  }
+
+  const exportJson = async () => {
+    try {
+      const exportItems = await fetchAllFilteredItems()
+      if (exportItems.length === 0) return
+      downloadTextFile(generateWorkItemsJson(exportItems), exportFilename('json'), 'application/json;charset=utf-8;')
+    } catch (error) {
+      toast({ title: 'Export failed', description: error instanceof Error ? error.message : 'Failed to export work items', variant: 'destructive' })
+    }
   }
 
   const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -558,7 +648,7 @@ export default function WorkItemsPage() {
         description: `เพิ่ม ${data.imported ?? 0} รายการ · ข้าม ${skipped} · ผิดพลาด ${failed}`,
         ...(failed > 0 ? { variant: 'destructive' as const } : {}),
       })
-      await load()
+      await refreshAfterMutation()
     } catch (error) {
       toast({
         title: 'Import failed',
@@ -786,21 +876,28 @@ export default function WorkItemsPage() {
               <div className={TAB_SCROLL_CLASS}>
                 <TabsList>
                   <TabsTrigger className={TAB_TRIGGER_CLASS} value="all">
-                    All ({filtered.length})
+                    All ({workItemSummary?.total ?? filtered.length})
                   </TabsTrigger>
                   <TabsTrigger className={TAB_TRIGGER_CLASS} value="Incident">
-                    Incidents ({filtered.filter((item) => item.kind === 'Incident').length})
+                    Incidents ({workItemSummary?.kinds.Incident ?? filtered.filter((item) => item.kind === 'Incident').length})
                   </TabsTrigger>
                   <TabsTrigger className={TAB_TRIGGER_CLASS} value="Issue">
-                    Issues ({filtered.filter((item) => item.kind === 'Issue').length})
+                    Issues ({workItemSummary?.kinds.Issue ?? filtered.filter((item) => item.kind === 'Issue').length})
                   </TabsTrigger>
                   <TabsTrigger className={TAB_TRIGGER_CLASS} value="Task">
-                    Tasks ({filtered.filter((item) => item.kind === 'Task').length})
+                    Tasks ({workItemSummary?.kinds.Task ?? filtered.filter((item) => item.kind === 'Task').length})
                   </TabsTrigger>
                 </TabsList>
               </div>
               <TabsContent value={kindTab}>
                 {listContent}
+                {nextCursor && resultsAreCurrent && (
+                  <div className="flex justify-center pt-4">
+                    <Button type="button" variant="outline" onClick={loadMore} disabled={isLoadingMore}>
+                      {isLoadingMore ? 'กำลังโหลด...' : 'โหลดรายการเพิ่มเติม'}
+                    </Button>
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </div>
@@ -851,7 +948,7 @@ export default function WorkItemsPage() {
           mode={dialogMode}
           initialValues={formValues}
           projects={projects}
-          onSaved={load}
+          onSaved={refreshAfterMutation}
         />
       </SidebarInset>
     </SidebarProvider>

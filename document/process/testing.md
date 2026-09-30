@@ -47,6 +47,13 @@ pnpm test:work-items
 node tests/run.mjs work-items
 ```
 
+Run schema rollout approval checks without connecting to a database:
+
+```powershell
+pnpm test:schema-rollout-gate
+node tests/run.mjs schema-rollout-gate
+```
+
 This focused suite executes the actual TypeScript Route Handler/parser code in an in-memory Prisma fixture. It does not connect to or migrate a database. Schema validation uses `pnpm exec prisma validate`; applying the WorkItem `DATE`/`TIMESTAMP` and relation constraints to an environment still requires that environment's verified backup and rollout checks.
 
 Run the local quality gates used before review:
@@ -95,12 +102,13 @@ node tests/run.mjs runtime-container
 
 `PMS_RUNTIME_TEST_IMAGE` override validation image ได้. Container smoke ใช้ network none หรือ network namespace ของ PostgreSQL ชั่วคราว, synthetic `.env` ชั่วคราว และไม่มี host ports; ตรวจ non-root image, owner gate หน้า Next standalone, health 200 กับ PostgreSQL ชั่วคราว และ health 503 แบบไม่เผย raw error, Bangkok timestamp, client JS และ application logs ที่ไม่มี token. Full `pnpm test` skip container smoke จนเรียก focused command. Windows local `pnpm build` อาจติด EACCES ของ optional sharp package; production Docker build ใช้ Linux toolchain จาก lockfile โดยไม่เปลี่ยน local dependencies.
 
-`pnpm test:runtime-docker` also runs the migrations entrypoint with fixture commands: missing/default `RUN_SEED` skips seeding; explicit `RUN_SEED=true` fails on missing config with an actionable message and without printing captured credentials. The test never modifies the installation database.
+`pnpm test:runtime-docker` also runs the migrations entrypoint with fixture commands: schema sync is blocked before Prisma/database commands without approval; approved fixtures then verify absent/default `RUN_SEED` skips seeding and explicit `RUN_SEED=true` fails on missing config with an actionable message and without printing captured credentials. The test never modifies the installation database.
 
 ### Per-table seed regression
 
 - `pnpm test:seed`: empty/populated/mixed tables, repeat runs, missing/malformed files, directory JSON, invalid config and rollback fixtures.
 - `docker build --target migrate -t pms-seed-validation .` then `pnpm test:seed-docker`: PostgreSQL/Prisma mixed tables, existing parent references, idempotency and transaction rollback. Uses disposable containers without installation volumes.
+- `pnpm test:work-item-schema-docker`: gated `prisma db push` on disposable PostgreSQL 16 and verifies WorkItem `DATE` columns, stored calendar days, and the `TimeEntry.workItem` `RESTRICT` foreign key.
 
 When `database/seeds/master/config.json` is available, `pnpm test:seed-docker` additionally runs the real migrations entrypoint with `RUN_SEED=true` against a fresh disposable database using the installation dataset. It then reruns seeding and verifies every existing record is unchanged. Row contents and raw errors are withheld; the test never uses installation volumes.
 

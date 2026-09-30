@@ -14,6 +14,7 @@
     "test": "node tests/run.mjs",
     "test:seed": "node tests/run.mjs seed",
     "test:seed-docker": "node tests/run.mjs seed-docker",
+    "test:work-item-schema-docker": "node tests/run.mjs work-item-schema-docker",
     "test:contracts": "node tests/run.mjs contracts",
     "test:api-contracts": "node tests/run.mjs api-contracts",
     "test:migration-contracts": "node tests/run.mjs migration-contracts",
@@ -27,6 +28,7 @@
     "test:runtime-security": "node tests/run.mjs runtime-security",
     "runtime:check": "node scripts/runtime-launch.mjs --check",
     "test:runtime-docker": "node tests/run.mjs runtime-docker",
+    "test:schema-rollout-gate": "node tests/run.mjs schema-rollout-gate",
     "test:runtime-container": "node tests/run.mjs runtime-container"
   },
   "prisma": {
