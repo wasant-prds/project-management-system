@@ -105,6 +105,8 @@ Baseline 2026-09-27: ผู้ใช้เปิด Work Items และ Daily W
 
 **ขอบเขต GitLab ระยะแรก:** นำเข้า Issues จาก GitLab ทางเดียวแบบ manual เท่านั้น; mapping สถานะคือ `opened → todo` และ `closed → completed`. ต้อง map GitLab Project กับ Project ในระบบก่อน sync และอนุมัติ first-sync policy. ใช้ [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) สำหรับ field ownership, labels, pagination และ retry. ยังไม่รวม Merge Requests, commits, CI, scheduled/webhook sync และการนำเข้า time tracking.
 
+**สถานะ Issue #20 (2026-09-30):** Work Items มี owner-only Project mapping และ manual GitLab sync; first sync ต้องมี approval. Sync results แสดง created/updated/skipped/failed พร้อม source link และ safe reason. การทดสอบใช้ GitLab/Prisma mocks; ยังไม่ได้กำหนดหรือเรียก GitLab instance จริง และยังไม่ได้ apply schema กับ database environment.
+
 ### 4.4 Management — Board (`/board`)
 
 **วัตถุประสงค์:** ดู workflow ของ Work Items ในรูปแบบ Kanban เพื่ออัปเดตงานได้รวดเร็ว
@@ -233,4 +235,4 @@ Metric ที่เป็นแนวโน้มตามเวลาไม่�
 
 ## Database operations ที่ implement ใน #16
 
-เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. Customer/GitLab target schema และ business API ยังไม่ถูก deploy ในงาน Infra นี้. เจ้าของกำหนด defaults เป็น BACKUP_DIR=./database/backups/postgres_data และ BACKUP_KEEP_DAYS=30 แล้ว. ผล isolated verification ยืนยันการเตรียมเครื่องมือของ #16; ยังไม่ได้ rollout หรือสร้าง backup ของ Dev/UAT/Production จริง ซึ่งต้องผ่าน runbook ก่อน schema changes.
+เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). #20 เพิ่ม GitLab schema source/API implementation; ยังไม่ apply schema หรือสร้าง backup สำหรับ GitLab rollout จริง. ใช้ verified gates ของ environment เป้าหมายก่อนเปิดใช้งาน.

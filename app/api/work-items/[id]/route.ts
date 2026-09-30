@@ -13,6 +13,7 @@ type WorkItemPatchData = Extract<ReturnType<typeof parseWorkItemPatch>, { data: 
 type WorkItemUpdateOutcome =
   | { kind: 'missing' }
   | { kind: 'history-conflict' }
+  | { kind: 'external-project-conflict' }
   | { kind: 'project-missing' }
   | { kind: 'updated'; workItem: Awaited<ReturnType<typeof prisma.workItem.update>> }
 
@@ -35,11 +36,30 @@ function historyConflict() {
   }, { status: 409 })
 }
 
+function importedWorkItemConflict() {
+  return NextResponse.json({
+    error: {
+      code: 'HISTORY_CONFLICT',
+      message: 'Work Item is linked to an imported GitLab Issue. Keep it to preserve the external identity.',
+    },
+  }, { status: 409 })
+}
+
 function projectHistoryConflict() {
   return NextResponse.json({
     error: {
       code: 'RELATION_MISMATCH',
       message: 'Cannot move a Work Item that has linked Daily Work; its Project must stay consistent with the history.',
+      field: 'projectId',
+    },
+  }, { status: 409 })
+}
+
+function externalProjectConflict() {
+  return NextResponse.json({
+    error: {
+      code: 'HISTORY_CONFLICT',
+      message: 'Work Item is linked to a GitLab Issue and must stay in its mapped Project.',
       field: 'projectId',
     },
   }, { status: 409 })
@@ -60,12 +80,13 @@ async function updateOwnedWorkItem(id: string, ownerId: string, changes: WorkIte
     await lockOwnedWorkItemForUpdate(transaction, id, ownerId)
     const existing = await transaction.workItem.findFirst({
       where: { id, assigneeId: ownerId },
-      select: { id: true, projectId: true, submittedAt: true },
+      select: { id: true, projectId: true, submittedAt: true, externalReference: { select: { provider: true } } },
     })
     if (!existing) return { kind: 'missing' }
 
     const data: Prisma.WorkItemUpdateInput = { ...fields }
     if (projectId && projectId !== existing.projectId) {
+      if (existing.externalReference?.provider === 'gitlab') return { kind: 'external-project-conflict' }
       const project = await transaction.project.findUnique({ where: { id: projectId }, select: { id: true } })
       if (!project) return { kind: 'project-missing' }
 
@@ -126,6 +147,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
     if (outcome.kind === 'missing') return notFound('Work item not found')
     if (outcome.kind === 'history-conflict') return projectHistoryConflict()
+    if (outcome.kind === 'external-project-conflict') return externalProjectConflict()
     if (outcome.kind === 'project-missing') return notFound('Project not found')
 
     return NextResponse.json({ workItem: serializeWorkItem(outcome.workItem) }, { status: 200 })
@@ -145,9 +167,10 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     const { id } = await params
     const workItem = await prisma.workItem.findFirst({
       where: { id, assigneeId: owner.id },
-      select: { id: true },
+      select: { id: true, externalReference: { select: { provider: true } } },
     })
     if (!workItem) return notFound('Work item not found')
+    if (workItem.externalReference?.provider === 'gitlab') return importedWorkItemConflict()
 
     const linkedWork = await prisma.timeEntry.count({ where: { workItemId: id } })
     if (linkedWork > 0) return historyConflict()

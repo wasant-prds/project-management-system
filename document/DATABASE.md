@@ -163,25 +163,25 @@ CustomerStatus = active | inactive
 
 Required business cardinality: Customer 1:N Project; **Project แต่ละรายการต้องผูกกับ Customer หนึ่งราย** และ Customer หนึ่งรายผูก Projects ได้หลายรายการ ตาม [Shared Data Model](./SHARED_DATA_MODEL.md). ขั้นต่ำคือ stable `id`, ชื่อที่ไม่ว่าง, `status` (`active`/`inactive`) และ audit timestamps; contact fields เป็น optional. Customer ที่ Project ใช้อยู่ห้าม hard-delete ให้ deactivate; Project ที่มี work/history ห้าม hard-delete. ระหว่าง migration `customerId` nullable ได้เฉพาะ staged backfill ก่อน map ทุก Project จาก approved register และตรวจ orphan. ห้ามใช้ชื่อลูกค้าจาก seed/sample เป็นข้อเท็จจริงโดยไม่มีการยืนยัน. ขั้นตอนสำคัญและ recovery gate อยู่ใน [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md).
 
-### 4.2 External reference สำหรับ GitLab Issues (target)
+### 4.2 External reference สำหรับ GitLab Issues (#20 Prisma source; ยังไม่ rollout)
 
 เพื่อ sync GitLab → PMS ซ้ำได้โดยไม่สร้าง WorkItem ซ้ำ ให้เพิ่มตารางเชื่อมภายนอกและ mapping GitLab Project กับ Project ใน PMS:
 
 ```text
 GitLabProjectMapping
   id, canonicalGitLabInstanceUrl, gitLabProjectId, projectId FK → Project.id
-  approvedLabelMap JSONB // exact GitLab label → supported WorkItem.types; owner-approved
+  approvedLabelMap JSONB, firstSyncApprovedAt
   unique(canonicalGitLabInstanceUrl, gitLabProjectId)
 
 ExternalWorkItemReference
   id, workItemId FK → WorkItem.id
   provider, canonicalGitLabInstanceUrl, gitLabProjectId, gitLabGlobalIssueId, gitLabIssueIid
-  externalUrl, remoteUpdatedAt, lastSyncedAt, createdAt, updatedAt
+  externalUrl, remoteCreatedAt, remoteUpdatedAt, lastSyncedAt
   unique(provider, canonicalGitLabInstanceUrl, gitLabProjectId, gitLabGlobalIssueId)
   unique(workItemId) // ระยะแรก: WorkItem หนึ่งรายการผูกแหล่งภายนอกได้หนึ่งรายการ
 ```
 
-ฟิลด์นี้เป็น target contract: identity คือ `(provider=gitlab, canonical instance URL, GitLab Project ID, global Issue ID)`. Normalize scheme/host และ trailing slash; preserve self-managed base path. `approvedLabelMap` เป็น JSONB ของ mapping ที่ owner ยืนยันและ validate target กับ supported `WorkItem.types` ทุกครั้ง. ใช้ global Issue ID เป็น deduplication key, เก็บ IID สำหรับ URL/diagnostics, และให้ unique constraint เป็น concurrent-upsert guard. `remoteUpdatedAt` เก็บ Bangkok local wall-clock source version เพื่อป้องกัน stale retry; `lastSyncedAt` ก็ใช้ Bangkok local wall-clock. GitLab token ห้ามเก็บในตารางนี้หรือส่งให้ client; ใช้ secret store/environment หรือ owner-scoped secret provider ที่เลือกแล้ว. รายละเอียด identity, transaction และ failure behavior อยู่ใน [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) และ [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md).
+Schema ใน `prisma/schema.prisma` implement ตาม #20 แต่ยังไม่ apply ลง database environment. Identity คือ `(provider=gitlab, canonical instance URL, GitLab Project ID, global Issue ID)`. Normalize scheme/host และ trailing slash; preserve self-managed base path. `approvedLabelMap` เป็น JSONB ของ mapping ที่ owner ยืนยันและ validate target กับ supported `WorkItem.types` ทุกครั้ง; `firstSyncApprovedAt` บันทึก first-sync gate ต่อ mapping. `remoteCreatedAt`, `remoteUpdatedAt` และ `lastSyncedAt` ใช้ Bangkok local wall-clock; remote updated time ป้องกัน stale retry. Mapping ไม่มี relation ไป External reference จึงลบ mapping แล้ว imported WorkItem/TimeEntry/reference ยังอยู่. GitLab token ไม่เก็บใน database หรือส่ง client; อ่านจาก server environment. ก่อน apply schema ต้องทำ verified backup/restore, review schema hash และผ่าน gates ตาม [Database Rollout](./DATABASE_ROLLOUT.md).
 
 ### 4.3 Data integrity ที่ควรประเมิน
 
@@ -227,7 +227,7 @@ ExternalWorkItemReference
 
 ## Database operations ที่ implement ใน #16
 
-เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. Customer/GitLab target schema และ business API ยังไม่ถูก deploy ในงาน Infra นี้. เจ้าของกำหนด defaults เป็น BACKUP_DIR=./database/backups/postgres_data และ BACKUP_KEEP_DAYS=30 แล้ว. ผล isolated verification ยืนยันการเตรียมเครื่องมือของ #16; ยังไม่ได้ rollout หรือสร้าง backup ของ Dev/UAT/Production จริง ซึ่งต้องผ่าน runbook ก่อน schema changes.
+เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). #20 เพิ่ม GitLab model ลง schema source เท่านั้น; ไม่มี schema/database rollout หรือ backup จริงในงานนี้. ใช้ approved gates ของ target environment ก่อน sync.
 
 ## Work Item schema ที่เพิ่มใน #19
 

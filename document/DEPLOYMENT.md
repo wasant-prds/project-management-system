@@ -115,6 +115,7 @@ Compose ปิด schema sync โดย default. สำหรับฐานข�
 - API ผ่าน private owner access gate ใน runtime launcher แล้ว; owner User/session ยังเป็น #17. Host ports เป็น loopback; remote access ต้องใช้ HTTPS proxy/private tunnel ตาม Runtime Security.
 - มี rollback image/config และ DB recovery plan; schema downgrade อัตโนมัติไม่ควรถูกสมมติ
 - GitLab sync ใช้ credential ฝั่ง server เท่านั้น; จำกัด token ให้เข้าถึงเฉพาะ Projects ที่ต้อง sync และ rotate/revoke ได้โดยไม่แก้ข้อมูล WorkItem ที่นำเข้าแล้ว; ทำตาม [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) และห้ามเปิด sync ก่อนผ่าน owner-access gate
+- Issue #20 เพิ่ม schema source/routes ใน repository แต่ไม่ได้ rollout schema หรือเชื่อม GitLab จริง. ก่อนเปิด sync ให้ติดตั้ง/ตรวจ backup และ isolated restore ของ target, ทบทวน schema SHA-256, ใช้ gated schema rollout, จากนั้นตรวจ migration exit, `/api/health`, owner-only status/mapping route และ manual sync ด้วย Project/labels ที่ owner อนุมัติ. Contract/service tests ใช้ synthetic token และ mock GitLab เท่านั้น.
 
 ## 9. Troubleshooting quick map
 
@@ -142,7 +143,7 @@ With an approved dataset at `database/seeds/master`, set `RUN_SEED=true` in root
 
 ## Database operations ที่ implement ใน #16
 
-เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. Customer/GitLab target schema และ business API ยังไม่ถูก deploy ในงาน Infra นี้. เจ้าของกำหนด defaults เป็น BACKUP_DIR=./database/backups/postgres_data และ BACKUP_KEEP_DAYS=30 แล้ว. ผล isolated verification ยืนยันการเตรียมเครื่องมือของ #16; ยังไม่ได้ rollout หรือสร้าง backup ของ Dev/UAT/Production จริง ซึ่งต้องผ่าน runbook ก่อน schema changes.
+เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). #20 เพิ่ม GitLab schema source/API implementation; schema ยังไม่ได้ apply หรือสร้าง backup rollout จริง. ก่อน deploy ใช้ verified gates ของ environment เป้าหมาย.
 
 ## Work Item schema rollout ที่ต้องใช้หลัง #19
 

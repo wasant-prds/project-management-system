@@ -25,7 +25,7 @@ Target mapping: ค่า default time zone ของระบบ, application �
 | Company / Project context | `Company` → `Project.companyId` | `Company.id` / `Project.id` | Company, Projects, Work Items, Dashboard, filters, Analysis | Company and Project APIs (#18); Work Items resolve Company through Project |
 | Owner identity | One `User` row | `User.id` | Work Items (assignee), Daily Work (logger), Settings | Issue #17: server `getOwner()` หลัง owner gate/middleware; ไม่รับ browser ID ที่ต่างจาก owner |
 | Work Item functional role | `WorkItem.role` | enum value | Work Items, Board, Analysis, Project summaries | Work Items API; values Developer / infra / SA |
-| GitLab Issue identity | Target `ExternalWorkItemReference` | provider + canonical instance URL + GitLab project ID + global issue ID | Work Items (source link/sync status) | GitLab connector only; database unique key plus transactional upsert prevents duplicate import |
+| GitLab Issue identity | Implemented Prisma source `ExternalWorkItemReference` (#20); not rolled out | provider + canonical instance URL + GitLab project ID + global issue ID | Work Items (source link/sync result) | Unique key plus per-Issue transactional upsert; schema apply requires environment rollout approval |
 | GitLab Project link | Target `GitLabProjectMapping` | GitLab instance/project ID → `Project.id`; owner-approved `approvedLabelMap` | Work Items sync setup; Project supplies Customer context | Owner-managed mapping; one GitLab Project maps to one PMS Project in phase one |
 | Company profile | `Company` | `Company.id` | Company, Projects, Work Item detail | Company API (#18) |
 | Project membership | Legacy `ProjectMember` relation | `ProjectMember.id` | As-Is Projects/Company counts only | No multi-member/team management in target scope |
@@ -138,11 +138,15 @@ Project/Company labels are context from relations, not copied text fields on Wor
 
 `POST /api/work-items`, `PATCH /api/work-items/{id}` และ import ใช้ `lib/work-item-input.ts`; update/import ไม่ข้าม enum, Bangkok date, owner หรือ Project validation. `GET /api/work-items` รองรับ `companyId`, `kind`, `status`, `priority`, `role`, `projectId`, `year`, `month` และ search; เมื่อไม่ส่ง year ใช้ปีปัจจุบันตาม `Asia/Bangkok`. JSON export ใช้ field shape ที่ import รับได้. Detail serialize Project/Company และ TimeEntries ของ owner พร้อม date-only `YYYY-MM-DD` และ timestamp `+07:00`. การลบที่มี TimeEntry ถูกปฏิเสธ และ FK ใช้ `Restrict`. Schema ยังต้องผ่าน database rollout ก่อน deploy environment.
 
+## GitLab Issue mapping ที่ implement ใน #20
+
+`GitLabProjectMapping` ชี้ `Project` ด้วย FK `Restrict`, เก็บ canonical server instance URL, numeric GitLab Project ID, exact approved label map และ nullable `firstSyncApprovedAt`. `ExternalWorkItemReference` เก็บ global identity, Project ID, IID, source URL, remote created/updated timestamps, `lastSyncedAt` และ unique `workItemId`; ไม่มี FK ไป mapping เพื่อให้ unmap รักษาประวัติ. All timestamp columns use `TIMESTAMP(3) WITHOUT TIME ZONE` / Prisma `@db.Timestamp(3)` and Bangkok local wall-clock values; `WorkItem.dueDate` remains PostgreSQL `DATE`. Schema source ยังไม่ได้ apply กับ Dev/UAT/Production; ต้องผ่าน verified backup, isolated restore, reviewed schema SHA-256 และ rollout gates ก่อน deploy.
+
 
 ## Runtime security ที่ implement ใน #15
 
-สถานะเพิ่มเติม ณ 2026-09-28: มี private owner access gate หน้า Next.js, server-only environment injection จาก root `.env` ของ Dev/UAT/Production, loopback host ports และ `Asia/Bangkok` สำหรับ app/PostgreSQL session แล้ว. รายละเอียดปัจจุบันและคำสั่งตรวจที่ไม่พิมพ์ secrets อยู่ใน [Runtime Security](./RUNTIME_SECURITY.md). Baseline เดิมที่กล่าวว่าไม่มี auth/session ยังใช้กับ owner User/session (#17); gate นี้ไม่ resolve User หรือเพิ่ม GitLab connector (#20), ไม่เปลี่ยน schema/records และไม่ยืนยันว่า installation จริง deploy แล้ว.
+ณ #15 (2026-09-28) มี private owner access gate, server-only environment injection จาก root `.env`, loopback host ports และ `Asia/Bangkok` สำหรับ app/PostgreSQL session. #20 เพิ่ม GitLab connector ใน code; ไม่มีการเปิดเผย credentials หรือยืนยันการ deploy/เชื่อม instance จริง. รายละเอียดอยู่ใน [Runtime Security](./RUNTIME_SECURITY.md).
 
 ## Database operations ที่ implement ใน #16
 
-เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. Customer/GitLab target schema และ business API ยังไม่ถูก deploy ในงาน Infra นี้. เจ้าของกำหนด defaults เป็น BACKUP_DIR=./database/backups/postgres_data และ BACKUP_KEEP_DAYS=30 แล้ว. ผล isolated verification ยืนยันการเตรียมเครื่องมือของ #16; ยังไม่ได้ rollout หรือสร้าง backup ของ Dev/UAT/Production จริง ซึ่งต้องผ่าน runbook ก่อน schema changes.
+เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). Issue #20 เพิ่ม schema source และ API implementation; ไม่มีการเปลี่ยนฐานข้อมูลจริงหรือการเรียก GitLab จริง. ใช้ verified rollout gates ของ target environment ก่อนเปิดใช้งาน.

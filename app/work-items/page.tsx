@@ -37,6 +37,7 @@ import {
 import { currentBangkokCalendarDate } from '@/lib/bangkok-datetime'
 import { WorkItemViewDialog } from '@/components/page/work-items/work-item-view-dialog'
 import { WorkItemGroupedList } from '@/components/page/work-items/work-item-grouped-list'
+import { GitLabImportPanel } from '@/components/page/work-items/gitlab-import-panel'
 import {
   MONTH_OPTIONS,
   workItemDateParts,
@@ -760,6 +761,8 @@ export default function WorkItemsPage() {
               </section>
             )}
 
+            <GitLabImportPanel projects={projects} onSynced={refreshAfterMutation} />
+
             <div className={STAT_GRID}>
               <SummaryStatCard label="Total" value={stats.total} />
               <SummaryStatCard
@@ -924,7 +927,7 @@ export default function WorkItemsPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>ยืนยันการลบ Work Item</AlertDialogTitle>
               <AlertDialogDescription>
-                ลบ “{deleteItem?.title}” ใช่หรือไม่? ระบบจะปฏิเสธการลบหากมี Daily Work ผูกอยู่ เพื่อเก็บประวัติไว้
+                ลบ “{deleteItem?.title}” ใช่หรือไม่? ระบบจะปฏิเสธการลบหากมี Daily Work หรือ GitLab Issue identity ผูกอยู่ เพื่อรักษาประวัติ
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

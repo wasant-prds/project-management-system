@@ -72,9 +72,19 @@ Run only the one-way GitLab Issue import contract checks:
 pnpm test:gitlab-contracts
 ```
 
+Run the GitLab Issue import service and API regression tests with an in-memory Prisma fixture and synthetic GitLab responses:
+
+```powershell
+pnpm test:gitlab
+node tests/run.mjs gitlab
+bash scripts/test-unit.sh gitlab
+```
+
+These tests never read real GitLab credentials or call a configured GitLab instance. They cover server-side owner gates, mapping and first-sync approval, exact identity upsert, field ownership, Bangkok dates/timestamps, pagination, rate limiting, partial failure, safe retry and mapping removal retention.
+
 Add reusable Node test files under `tests/` with the `.test.mjs` suffix. `pnpm test` runs the full suite; `pnpm test:contracts` uses the same root runner with the `contracts` suite filter; `pnpm test:migration-contracts` and `pnpm test:gitlab-contracts` run a focused contract file through the root runner without spawning a child process.
 
-The API and GitLab contract checks describe documentation and current route inventory; they do not claim that target endpoints without Route Handlers have been implemented. `pnpm test:api-contracts` (or `node tests/run.mjs api-contracts`) runs only `tests/contracts/menu-api-validation.test.mjs`; `pnpm test:gitlab-contracts` (or `node tests/run.mjs gitlab-contracts`) runs only `tests/contracts/gitlab-issue-import.test.mjs` through the shared root runner.
+The API and GitLab contract checks cover documentation and current route inventory. `pnpm test:api-contracts` (or `node tests/run.mjs api-contracts`) runs only `tests/contracts/menu-api-validation.test.mjs`; `pnpm test:gitlab-contracts` (or `node tests/run.mjs gitlab-contracts`) runs only `tests/contracts/gitlab-issue-import.test.mjs` through the shared root runner. `pnpm test:gitlab` covers the implemented #20 routes and service with synthetic mocks.
 
 ## Date and timezone checks
 

@@ -11,7 +11,7 @@
 
 This document describes **what the product must do**. Technical boundaries are in the [scope](./scope.en.md).
 
-> Note: The cases below describe the earlier UI scope; “done” applies only to those cases. The system-wide `Asia/Bangkok` default timezone is a target requirement whose implementation must be verified. One-way GitLab Issue import is a separate target enhancement and is not implemented. The consolidated [Thai business requirement](../../BUSINESS_REQUIREMENT.md) and [scope](../../SCOPE.md) are authoritative.
+> Note: The cases below describe the earlier UI scope; “done” applies only to those cases. One-way GitLab Issue import was implemented separately in Issue #20. The consolidated [Thai business requirement](../../BUSINESS_REQUIREMENT.md), [scope](../../SCOPE.md), and [GitLab contract](../../GITLAB_ISSUE_IMPORT.md) are authoritative for current data/API behavior.
 
 ---
 

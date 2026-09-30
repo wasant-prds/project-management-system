@@ -57,13 +57,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  assignedWorkItems  WorkItem[]          @relation("WorkItemAssignee")
+  assignedWorkItems  WorkItem[]      @relation("WorkItemAssignee")
   projectMemberships ProjectMember[]
   comments           Comment[]
   activityLogs       ActivityLog[]
   notifications      Notification[]
   timeEntries        TimeEntry[]
-  createdProjects    Project[]           @relation("ProjectCreator")
+  createdProjects    Project[]       @relation("ProjectCreator")
   documents          Document[]
 
   @@index([email])
@@ -71,9 +71,9 @@ model User {
 
 // Company Information
 model Company {
-  id          String   @id @default(cuid())
-  code        String?  @unique // Reserved stable code for Dhas; other Companies may leave it unset.
-  displayName String?  // Dhas
+  id          String    @id @default(cuid())
+  code        String?   @unique // Reserved stable code for Dhas; other Companies may leave it unset.
+  displayName String? // Dhas
   location    String?
   name        String
   industry    String?
@@ -83,9 +83,9 @@ model Company {
   website     String?
   logo        String?
   description String?
-  createdAt   DateTime @default(now()) @db.Timestamp(3)
-  updatedAt   DateTime @updatedAt @db.Timestamp(3)
-  projects  Project[]
+  createdAt   DateTime  @default(now()) @db.Timestamp(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamp(3)
+  projects    Project[]
 }
 
 // Project
@@ -104,16 +104,17 @@ model Project {
   createdAt    DateTime @default(now()) @db.Timestamp(3)
   updatedAt    DateTime @updatedAt @db.Timestamp(3)
 
-  creatorId    String?
-  companyId    String
-  company      Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  creator      User?           @relation("ProjectCreator", fields: [creatorId], references: [id])
-  members      ProjectMember[]
-  workItems    WorkItem[]
-  documents    Document[]
-  milestones   Milestone[]
-  activityLogs ActivityLog[]
-  timeEntries  TimeEntry[]
+  creatorId             String?
+  companyId             String
+  company               Company                @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  creator               User?                  @relation("ProjectCreator", fields: [creatorId], references: [id])
+  members               ProjectMember[]
+  workItems             WorkItem[]
+  documents             Document[]
+  milestones            Milestone[]
+  activityLogs          ActivityLog[]
+  timeEntries           TimeEntry[]
+  gitLabProjectMappings GitLabProjectMapping[]
 
   @@index([status])
   @@index([priority])
@@ -152,11 +153,12 @@ model WorkItem {
   createdAt   DateTime         @default(now()) @db.Timestamp(3)
   updatedAt   DateTime         @updatedAt @db.Timestamp(3)
 
-  projectId   String
-  project     Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
-  assigneeId  String
-  assignee    User    @relation("WorkItemAssignee", fields: [assigneeId], references: [id])
-  timeEntries TimeEntry[]
+  projectId         String
+  project           Project                    @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  assigneeId        String
+  assignee          User                       @relation("WorkItemAssignee", fields: [assigneeId], references: [id])
+  timeEntries       TimeEntry[]
+  externalReference ExternalWorkItemReference?
 
   @@index([projectId])
   @@index([assigneeId])
@@ -167,6 +169,43 @@ model WorkItem {
   @@index([dueDate])
   @@index([createdAt])
   @@map("work_items")
+}
+
+// Mapping is owner-managed. Deleting it never deletes imported WorkItems or references.
+model GitLabProjectMapping {
+  id                         String    @id @default(cuid())
+  canonicalGitLabInstanceUrl String
+  gitLabProjectId            String
+  projectId                  String
+  approvedLabelMap           Json      @default("{}") @db.JsonB
+  firstSyncApprovedAt        DateTime? @db.Timestamp(3)
+  createdAt                  DateTime  @default(now()) @db.Timestamp(3)
+  updatedAt                  DateTime  @updatedAt @db.Timestamp(3)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  @@unique([canonicalGitLabInstanceUrl, gitLabProjectId])
+  @@index([projectId])
+}
+
+// Kept independent of GitLabProjectMapping so unmapping retains external identity and history.
+model ExternalWorkItemReference {
+  id                         String   @id @default(cuid())
+  provider                   String   @default("gitlab")
+  canonicalGitLabInstanceUrl String
+  gitLabProjectId            String
+  gitLabGlobalIssueId        String
+  gitLabIssueIid             String
+  externalUrl                String
+  projectId                  String
+  remoteCreatedAt            DateTime @db.Timestamp(3)
+  remoteUpdatedAt            DateTime @db.Timestamp(3)
+  lastSyncedAt               DateTime @db.Timestamp(3)
+  workItemId                 String   @unique
+  workItem                   WorkItem @relation(fields: [workItemId], references: [id], onDelete: Restrict)
+
+  @@unique([provider, canonicalGitLabInstanceUrl, gitLabProjectId, gitLabGlobalIssueId])
+  @@index([projectId])
 }
 
 // Comment

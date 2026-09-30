@@ -28,7 +28,7 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 | --- | --- | --- |
 | Overview — Dashboard `/` | KPI, งานที่ต้องติดตาม, Project ล่าสุด, filter และ deep link จาก records จริง | ปัจจุบันเป็น sample data; เพิ่ม DB-backed queries |
 | Overview — Projects `/projects` | Project CRUD/detail, required Company relation, Work Item/role/hour summaries | #18 เพิ่ม Company relation, hours, consistent progress และ business rules |
-| Overview — Work Items `/work-items` | WorkItem list/create/edit/delete/filter/import/export; manual one-way GitLab Issue sync; owner is sole assignee; Developer/Infra/SA are functional roles | มี API/หน้าใช้งาน; ตรวจเติม validation, owner access control, external mapping และ sync contract |
+| Overview — Work Items `/work-items` | WorkItem list/create/edit/delete/filter/import/export; manual one-way GitLab Issue sync; owner is sole assignee; Developer/Infra/SA are functional roles | #19 Work Item CRUD/validation; #20 owner-only GitLab mapping/manual sync implementation; real instance setup and schema rollout remain environment steps |
 | Management — Board `/board` | Kanban ของ WorkItem จริง; persist status change | ปัจจุบันเป็น client sample state; เชื่อม WorkItem API และ status enum |
 | Management — Analysis `/analysis` | KPI/charts/tables จาก WorkItem และ TimeEntry จริง | ปัจจุบันเป็น sample arrays; เพิ่ม shared queries, metric definitions, export |
 | Management — Daily Work `/daily-work` | CRUD TimeEntry, period views, WorkItem/Project relation, hours | มี API/หน้าใช้งาน; เสริม auth, validation, date/time consistency |
@@ -173,11 +173,11 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 
 ## Runtime security ที่ implement ใน #15
 
-สถานะเพิ่มเติม ณ 2026-09-28: มี private owner access gate หน้า Next.js, server-only environment injection จาก root `.env` ของ Dev/UAT/Production, loopback host ports และ `Asia/Bangkok` สำหรับ app/PostgreSQL session แล้ว. รายละเอียดปัจจุบันและคำสั่งตรวจที่ไม่พิมพ์ secrets อยู่ใน [Runtime Security](./RUNTIME_SECURITY.md). Baseline เดิมที่กล่าวว่าไม่มี auth/session ยังใช้กับ owner User/session (#17); gate นี้ไม่ resolve User หรือเพิ่ม GitLab connector (#20), ไม่เปลี่ยน schema/records และไม่ยืนยันว่า installation จริง deploy แล้ว.
+ณ #15 (2026-09-28) มี private owner access gate หน้า Next.js, server-only environment injection, loopback host ports และ `Asia/Bangkok` สำหรับ app/PostgreSQL session. #17 ผูก owner resolver; #20 เพิ่ม GitLab connector ใน code โดยยังไม่ deploy หรือเชื่อม instance จริง. รายละเอียดอยู่ใน [Runtime Security](./RUNTIME_SECURITY.md).
 
 ## Database operations ที่ implement ใน #16
 
-เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. #16 เตรียมเครื่องมือเท่านั้น; #18 ได้ rollout Company → Project ไป Production แล้วตาม [Company/Project implementation](./COMPANY_PROJECT_IMPLEMENTATION.md). GitLab target schema และ business API ยังรอ Issue #20 และต้องผ่าน runbook ก่อน schema changes.
+เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). #16 เตรียมเครื่องมือ; #18 ได้ rollout Company → Project ไป Production แล้วตาม [Company/Project implementation](./COMPANY_PROJECT_IMPLEMENTATION.md). #20 เพิ่ม GitLab schema source และ APIs; ยังไม่มี database rollout หรือการเชื่อม instance จริง ต้องผ่าน runbook ของ environment เป้าหมายก่อนใช้งาน.
 
 ## ขอบเขตที่ส่งมอบใน Issue #19
 

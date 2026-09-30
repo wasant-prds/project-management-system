@@ -14,6 +14,9 @@ export const workItemInclude = {
       company: { select: { id: true, name: true, displayName: true } },
     },
   },
+  externalReference: {
+    select: { externalUrl: true, gitLabIssueIid: true },
+  },
 } as const
 
 export function workItemDetailInclude(ownerId: string) {
@@ -34,6 +37,7 @@ type WorkItemResponseRecord = {
   submittedAt: Date | null
   createdAt: Date
   updatedAt: Date
+  externalReference?: { externalUrl: string; gitLabIssueIid: string } | null
   timeEntries?: Array<{
     id: string
     date: Date
@@ -58,6 +62,11 @@ export function serializeWorkItem<T extends WorkItemResponseRecord>(item: T) {
     submittedAt: item.submittedAt ? serializeBangkokTimestamp(item.submittedAt) : null,
     createdAt: serializeBangkokTimestamp(item.createdAt),
     updatedAt: serializeBangkokTimestamp(item.updatedAt),
+    source: item.externalReference ? {
+      provider: 'gitlab',
+      url: item.externalReference.externalUrl,
+      issueIid: item.externalReference.gitLabIssueIid,
+    } : null,
     ...(timeEntries ? { timeEntries } : {}),
   }
 }

@@ -191,8 +191,12 @@ Development, UAT and production use Docker Compose files already present. The sh
 
 ## Database operations ที่ implement ใน #16
 
-เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. #16 เตรียมเครื่องมือ; #18 rollout Company/Project ใน Production แล้ว. GitLab target schema และ business API ยังไม่ถูก deploy และต้องผ่าน runbook สำหรับแต่ละ environment.
+เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). #16 เตรียมเครื่องมือ; #18 rollout Company/Project ใน Production แล้ว. #20 เพิ่ม GitLab schema source และ APIs ใน repository แต่ยังไม่ apply schema กับ environment; ต้องผ่าน runbook ของ environment เป้าหมายก่อน sync จริง.
 
 ## Work Item management ที่ implement ใน #19
 
 Route Handlers ใช้ shared WorkItem input parser สำหรับ create/update และตรวจ owner กับ Project ฝั่ง server. Work Item detail คืน Company ผ่าน Project และเฉพาะ Daily Work ของ owner ที่เชื่อมกับ WorkItem เดียวกัน. Import ประมวลผลแต่ละแถวแยกกันและไม่เขียนทับ ID ซ้ำ; การลบ WorkItem ที่มี TimeEntry ปฏิเสธด้วย `409 HISTORY_CONFLICT`, ขณะที่ Prisma `Restrict` ป้องกัน race ที่จะทำให้ history หลุดความสัมพันธ์. WorkItem date fields เป็น PostgreSQL `DATE`; timestamp fields เป็น Bangkok local wall-clock. Schema source เปลี่ยนแล้วแต่ยังไม่มี database rollout ในงานนี้.
+
+## GitLab Issue import ที่ implement ใน #20
+
+Owner-only mapping/status/sync routes อยู่ใน `app/api/integrations/gitlab/`; `lib/gitlab-issue-import.ts` ทำ server-only GET/pagination และ per-Issue serializable identity upsert. External identity แยกจาก mapping เพื่อให้ unmap เก็บ reference และประวัติ. First sync ต้องได้รับ explicit owner approval. GitLab เขียนได้เฉพาะ title, description, status, mapped types, dueDate และ external metadata; PMS owner/role/priority/workDate/TimeEntry คงเดิม. Tests ใช้ mock เท่านั้น; schema ยังต้องผ่าน verified rollout ก่อนใช้จริง.

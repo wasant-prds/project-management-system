@@ -1,6 +1,6 @@
 # Runtime security — Issue #15 (Infra)
 
-สถานะ: implement private owner access gate, server secret injection และ issue #17 ที่เชื่อม gate กับ Next.js middleware/owner User resolver แล้ว. GitLab connector (#20) ยังเป็นงานถัดไป. ไม่มีการ deploy หรือเปลี่ยนข้อมูลจริงจาก issue นี้.
+สถานะ: implement private owner access gate, server secret injection และ issue #17 ที่เชื่อม gate กับ Next.js middleware/owner User resolver แล้ว. Issue #20 เพิ่ม GitLab connector โดยใช้ `GITLAB_BASE_URL` และ `GITLAB_TOKEN` ที่ server เท่านั้น; ยังไม่มีการ deploy schema หรือเชื่อม GitLab instance จริง.
 
 ## Access boundary
 
@@ -49,7 +49,7 @@ node scripts/runtime-verify.mjs docker-compose.prod.yml
 
 1. สร้าง GitLab token ใหม่สำหรับ instance/Projects เดิม ด้วยสิทธิ์อ่านเดิมและ expiry ที่เหมาะสม; แก้ GITLAB_TOKEN ใน root `.env` ของ installation เดียว. ห้ามเปลี่ยน canonical URL เพื่อ rotate token.
 2. บันทึก root `.env` และ recreate **app only** เพื่อให้ Compose inject ค่าใหม่ (`docker compose -f <compose-file> up -d --no-deps --force-recreate app`); production ต้องผ่าน operator confirmation ตาม process. Restart เพียงอย่างเดียวไม่เปลี่ยน environment ของ container ที่สร้างไว้แล้ว. ไม่ recreate migrations/DB และไม่ใช้ reset/seed.
-3. รัน safe runtime verification; เมื่อ connector #20 พร้อมจึงตรวจ owner-triggered read/sync ที่อนุมัติ. จากนั้น revoke token เก่าใน GitLab. เหตุรั่วให้ revoke ทันที, disable integration (GITLAB_BASE_URL/GITLAB_TOKEN ว่างทั้งคู่), recreate app และตรวจระบบก่อนเปิดอีกครั้ง.
+3. รัน safe runtime verification; หลัง schema rollout และ owner อนุมัติ mapping แล้วจึงตรวจ owner-triggered sync. จากนั้น revoke token เก่าใน GitLab. เหตุรั่วให้ revoke ทันที, disable integration (GITLAB_BASE_URL/GITLAB_TOKEN ว่างทั้งคู่), recreate app และตรวจระบบก่อนเปิดอีกครั้ง.
 4. Owner gate rotation ใช้ credential ใหม่ใน root `.env` และ recreate app เช่นเดียวกัน; credential เก่าจะใช้ไม่ได้หลัง process เปลี่ยน. Browser อาจ cache Basic credential ให้ปิด session/browser แล้วกรอกค่าใหม่. Issue #17 ใช้ browser-managed Basic session; ไม่มี in-app logout.
 5. Imported WorkItems, external references, Project mappings และ TimeEntries ไม่ถูกแก้/ลบจาก rotation/revocation. Rollback ใช้ image/config เดิมที่ยังมี gate; ห้าม rollback ไป image ที่ bypass gate. ไม่ downgrade schema หรือคืน credential ที่ revoke แล้ว.
 
@@ -57,6 +57,6 @@ node scripts/runtime-verify.mjs docker-compose.prod.yml
 
 `pnpm test:runtime-security` ทดสอบ validation, root .env loading, fail-closed, HTTP owner gate/CSRF/WebSocket denial, safe responses/logs, child binding และ credential removal. `pnpm test:runtime-docker` ตรวจ effective Compose ทุก environment และ PostgreSQL/Prisma จริงใน disposable container ไม่มี host ports, production volumes หรือ migration. ใช้ image PostgreSQL 16 และ local migrations image ที่มี Prisma client; override ด้วย `PMS_PRISMA_TEST_IMAGE` ได้. `pnpm test` รวม tests ปกติและ skip Docker integration จนเรียก focused command.
 
-การผ่าน synthetic tests ไม่ยืนยัน provisioning, ACL ของ `.env`, TLS/proxy หรือ token permissions ของ installation จริง. Operator ต้อง provision ค่าจริงและรัน safe verification ก่อน deploy. Owner identity/access gate implement แล้วใน #17; GitLab import connector ยังเป็นงาน #20.
+การผ่าน synthetic tests ไม่ยืนยัน provisioning, ACL ของ `.env`, TLS/proxy หรือ token permissions ของ installation จริง. Operator ต้อง provision ค่าจริงและรัน safe verification ก่อน deploy. Owner identity/access gate implement ใน #17; GitLab import connector/API อยู่ใน code ตาม #20, แต่ยังต้อง rollout schema และตรวจ environment จริงก่อนใช้งาน.
 
 Production image smoke ใช้ `docker build --target production -t pms-issue15-validation .` แล้ว `pnpm test:runtime-container`; container ไม่มี host port, ใช้ network none หรือ network namespace ของ PostgreSQL ชั่วคราว และ ใช้ synthetic `.env` ผ่าน Docker --env-file เท่านั้น. ตรวจ gate หน้า Next standalone, health success/failure กับ PostgreSQL ชั่วคราว, client bundle/logs และ non-root image. ไม่ deploy หรือเชื่อมข้อมูลจริง.

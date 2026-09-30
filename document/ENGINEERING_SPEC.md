@@ -97,7 +97,7 @@ Company → Project → Work Item → Daily Work (Time Entry)
 
 ### 3.4.1 GitLab Issue import
 
-Target contract, exact mappings, manual sync flow, per-Issue transactions, response/error semantics, retry behavior, timezone handling and first-sync approval gates อยู่ใน [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md). สรุปคือ owner-triggered GitLab → PMS only, explicit GitLab Project → PMS Project mapping, identity-based upsert และ PMS-owned fields/TimeEntries ต้องคงเดิม. Contract นี้ยังไม่ใช่การยืนยันว่า connector/API/schema ถูก implement แล้ว.
+Issue #20 implements owner-triggered GitLab → PMS only, explicit GitLab Project → PMS Project mapping, identity-based upsert, per-Issue transaction, approved label mapping and first-sync owner approval. PMS-owned fields/TimeEntries stay unchanged. Exact API, field, pagination, retry and timezone contract อยู่ใน [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md); Prisma source is implemented but no environment schema rollout หรือ GitLab real connection ถูกทดสอบ.
 
 ก่อน sync จริงต้องยืนยัน instance, Project/label mapping, first-sync policy และ owner access. ระยะแรกไม่รวม write-back, webhooks, scheduled sync, Merge Requests, commits, CI หรือ GitLab time tracking.
 
@@ -156,7 +156,7 @@ Target contract, exact mappings, manual sync flow, per-Issue transactions, respo
 
 ## Database operations ที่ implement ใน #16
 
-เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. #16 เตรียมเครื่องมือ; #18 rollout Company/Project ใน Production แล้ว. GitLab target schema และ business API ยังไม่ถูก deploy และต้องผ่าน runbook สำหรับแต่ละ environment.
+เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). #16 เตรียมเครื่องมือ; #18 rollout Company/Project ใน Production แล้ว. #20 เพิ่ม GitLab schema source/API ใน repository; ยังไม่ apply schema กับ environment ใดและต้องผ่าน runbook ของ environment เป้าหมายก่อน sync จริง.
 
 ## Work Item management ที่ implement ใน #19
 

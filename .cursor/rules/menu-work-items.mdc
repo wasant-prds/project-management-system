@@ -11,6 +11,7 @@ alwaysApply: false
 - Filters: year/month (`workDate` else `dueDate` else `createdAt`), Project, kind, status, priority, search. `includeYears` optional. Default year = current `Asia/Bangkok` calendar year and always keep that year in the dropdown.
 - Import/export uses the same validation. Per-row errors. Do not wipe existing rows. Export the currently visible items.
 - GitLab: manual one-way Issue import (see gitlab-import rule). Show source link and created/updated/skipped/failed.
+- Keep a GitLab-linked WorkItem in the PMS Project selected by its Project mapping; block Project moves and report inconsistent imported identities during sync.
 - Stamp `submittedAt` when status becomes `sa-testing` or `completed`. List group "Complete" may include `cancelled`; metrics do not.
 - After mutate, other menus show the same record on refresh. Delete SetNulls `TimeEntry.workItemId` — confirm retention first.
 - Recency is `WorkItem.updatedAt` only — not Daily Work dates. Items without `updatedAt` sort as oldest.

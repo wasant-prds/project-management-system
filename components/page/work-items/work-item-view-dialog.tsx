@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Calendar, FileText, Flag } from 'lucide-react'
+import { Calendar, ExternalLink, FileText, Flag } from 'lucide-react'
 import {
   WORK_ITEM_PRIORITY_LABELS,
   WORK_ITEM_ROLE_LABELS,
@@ -129,6 +129,18 @@ export function WorkItemViewDialog({
               <Badge key={type} variant="secondary">{type}</Badge>
             ))}
           </div>
+          {item.source && (
+            <a
+              href={item.source.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex max-w-full items-center gap-1.5 text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={`Open GitLab Issue ${item.source.issueIid}`}
+            >
+              <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">GitLab Issue #{item.source.issueIid}</span>
+            </a>
+          )}
         </div>
 
         <section className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-3 sm:px-6 sm:py-4">

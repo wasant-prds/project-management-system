@@ -40,6 +40,7 @@ function makeSystem() {
     ]),
     workItems: new Map(),
     timeEntries: [],
+    externalReferences: new Map(),
     writes: 0,
     updates: 0,
     lastWhere: null,
@@ -57,6 +58,7 @@ function makeSystem() {
     ...item,
     project: state.projects.get(item.projectId),
     assignee: { id: item.assigneeId, name: owner.name, email: owner.email, avatar: null },
+    externalReference: state.externalReferences.get(item.id) ?? null,
     ...(includeEntries ? { timeEntries: state.timeEntries.filter((entry) => entry.workItemId === item.id && entry.userId === owner.id) } : {}),
   })
   const matchesFilter = (item, where) => {
@@ -388,6 +390,25 @@ test('Work Item Project changes run serializably and reject moves with linked Da
   assert.equal(system.state.lockedWorkItems.length, 2)
 })
 
+test('imported GitLab WorkItems cannot move outside their mapped Project', async () => {
+  const system = makeSystem()
+  const created = await system.list.POST(request(validInput()))
+  const id = created.body.workItem.id
+  system.state.externalReferences.set(id, {
+    id: 'external-reference-1',
+    provider: 'gitlab',
+    externalUrl: 'https://gitlab.example.test/group/project/-/issues/17',
+    gitLabIssueIid: '17',
+  })
+
+  const moved = await system.detail.PATCH(request({ projectId: 'project-2' }), context(id))
+  assert.equal(moved.status, 409)
+  assert.equal(moved.body.error.code, 'HISTORY_CONFLICT')
+  assert.equal(moved.body.error.field, 'projectId')
+  assert.equal(system.state.workItems.get(id).projectId, 'project-1')
+  assert.equal(system.state.updates, 0)
+})
+
 test('Work Item filters validate shared enums and apply owner, Project, Company, status, priority, and role filters', async () => {
   const system = makeSystem()
   const defaultPeriod = await system.list.GET({ url: 'http://local/api/work-items' })
@@ -543,6 +564,32 @@ test('delete refuses linked Daily Work, retains history, and deletes an unrefere
   assert.equal(removed.status, 200)
   assert.equal(system.state.workItems.has(id), false)
   assert.equal((await system.detail.DELETE({}, context(id))).status, 404)
+})
+
+test('delete refuses imported GitLab WorkItems to preserve their external identity', async () => {
+  const system = makeSystem()
+  const created = await system.list.POST(request(validInput({ title: 'Imported GitLab Issue' })))
+  const id = created.body.workItem.id
+  system.state.externalReferences.set(id, {
+    provider: 'gitlab',
+    externalUrl: 'https://gitlab.example.test/group/project/-/issues/17',
+    gitLabIssueIid: '17',
+  })
+
+  const detail = await system.detail.GET({}, context(id))
+  assert.equal(detail.status, 200)
+  assert.deepEqual(JSON.parse(JSON.stringify(detail.body.workItem.source)), {
+    provider: 'gitlab',
+    url: 'https://gitlab.example.test/group/project/-/issues/17',
+    issueIid: '17',
+  })
+
+  const blocked = await system.detail.DELETE({}, context(id))
+  assert.equal(blocked.status, 409)
+  assert.equal(blocked.body.error.code, 'HISTORY_CONFLICT')
+  assert.match(blocked.body.error.message, /preserve the external identity/)
+  assert.equal(system.state.workItems.has(id), true)
+  assert.equal(system.state.externalReferences.has(id), true)
 })
 
 test('bulk import reports each bad row and preserves valid and existing rows independently', async () => {

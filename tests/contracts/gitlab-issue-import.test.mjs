@@ -8,27 +8,37 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (path) => readFile(join(root, path), "utf8");
 const contract = await read("document/GITLAB_ISSUE_IMPORT.md");
 
-test("GitLab import contract is a target spec, not an implemented connector", async () => {
+test("GitLab import contract distinguishes implemented repository code from environment rollout", async () => {
+  const status = await read("app/api/integrations/gitlab/status/route.ts");
+  const mappingRoutes = await read("app/api/integrations/gitlab/projects/route.ts");
+  const syncRoute = await read("app/api/integrations/gitlab/sync/route.ts");
+  const service = await read("lib/gitlab-issue-import.ts");
   const schema = await read("prisma/schema.prisma");
   const api = await read("document/API.md");
   const inventory = api.split("## 1.")[1]?.split("## 2.")[0];
 
   assert.match(contract, /Role \| SA/);
-  assert.match(contract, /ยังไม่มี connector, route หรือ schema นี้ใน repository/);
-  assert.match(contract, /Target proposal/);
+  assert.match(contract, /implement ใน repository โดย Issue #20/);
+  assert.match(contract, /ยังไม่ได้เชื่อม\/ทดสอบกับ GitLab instance จริง/);
   assert.match(schema, /model WorkItem\s*\{/);
-  assert.doesNotMatch(schema, /model\s+(GitLabProjectMapping|ExternalWorkItemReference)\s*\{/);
-  assert.doesNotMatch(inventory ?? "", /\/api\/integrations\/gitlab/);
-  assert.match(api, /ไม่มี route เหล่านี้ใน As-Is inventory §1/);
+  assert.match(schema, /model GitLabProjectMapping\s*\{/);
+  assert.match(schema, /model ExternalWorkItemReference\s*\{/);
+  assert.match(schema, /remoteCreatedAt\s+DateTime\s+@db\.Timestamp/);
+  assert.match(status, /export async function GET/);
+  assert.match(mappingRoutes, /export async function POST/);
+  assert.match(syncRoute, /approveFirstSync/);
+  assert.match(service, /Serializable/);
+  assert.match(inventory ?? "", /\/api\/integrations\/gitlab\/sync/);
+  assert.match(api, /GitLab schema ยังไม่ได้ apply กับ environment/);
 });
 
 test("scope, owner access, and first-sync mapping gates are explicit", () => {
   assert.match(contract, /GitLab → PMS เท่านั้น/);
   assert.match(contract, /เจ้าของที่ยืนยันตัวตนแล้วเท่านั้นเป็นผู้เริ่ม sync แบบ manual/);
-  assert.match(contract, /ต้องมี owner authentication หรือ private access gate/);
+  assert.match(contract, /Route ทั้งหมดใช้ owner authentication ที่มีอยู่/);
   assert.match(contract, /GitLab Project หนึ่งรายการต่อ Project ใน PMS หนึ่งรายการ/);
   assert.match(contract, /เก็บ `approvedLabelMap` กับ mapping นั้น/);
-  assert.match(contract, /ก่อน sync ครั้งแรกของ instance ต้องยืนยัน/);
+  assert.match(contract, /ก่อน sync ครั้งแรกของ mapping ต้องยืนยัน/);
   assert.match(contract, /ห้ามจับคู่ด้วย title, IID, URL หรือ label/);
   assert.match(contract, /ต้องทำ exact identity reconciliation ที่ตรวจสอบได้ก่อน sync/);
   for (const excluded of ["Merge Requests", "commits", "CI", "webhook", "scheduled sync", "GitLab time tracking"]) {
@@ -97,7 +107,7 @@ test("pagination, transaction boundaries, partial failures, rate limits, and saf
   assert.match(contract, /per-Issue outcomes ให้คืน HTTP `200` พร้อมผล partial/);
 });
 
-test("proposed routes, safe response/errors, and secret handling are documented", () => {
+test("implemented routes, safe response/errors, and secret handling are documented", () => {
   for (const route of [
     "GET /api/integrations/gitlab/status",
     "GET`, `POST /api/integrations/gitlab/projects",
@@ -112,7 +122,8 @@ test("proposed routes, safe response/errors, and secret handling are documented"
   assert.match(contract, /ไม่คืน raw GitLab\/DB response, token, stack trace หรือ request headers/);
   assert.match(contract, /server-side secret\/environment/);
   assert.match(contract, /ไม่อยู่ใน Prisma, browser bundle, `NEXT_PUBLIC_\*`, API response, docs หรือ logs/);
-  assert.match(contract, /URL ของ GitLab ต้องมาจาก server configuration\/allowlist/);
+  assert.match(contract, /Token\/base URL มาจาก server configuration เท่านั้น/);
+  assert.match(contract, /ตรวจ origin\/path ของทุก pagination link/);
 });
 
 test("all primary EV docs point to the canonical contract", async () => {
@@ -138,9 +149,12 @@ test("focused GitLab test command uses the shared runner and is documented", asy
   const guide = await read("document/process/testing.md");
 
   assert.equal(packageJson.scripts["test:gitlab-contracts"], "node tests/run.mjs gitlab-contracts");
+  assert.equal(packageJson.scripts["test:gitlab"], "node tests/run.mjs gitlab");
   assert.match(runner, /"gitlab-contracts": \{ files:/);
   assert.match(runner, /gitlab-issue-import\.test\.mjs/);
   assert.match(guide, /pnpm test:gitlab-contracts/);
   assert.match(guide, /node tests\/run\.mjs gitlab-contracts/);
-  assert.match(contract, /Contract tests ยืนยันข้อความ\/การอ้างอิงเท่านั้น/);
+  assert.match(runner, /gitlab: \{ directory:/);
+  assert.match(guide, /pnpm test:gitlab/);
+  assert.match(contract, /Tests ใช้ synthetic credentials เท่านั้น/);
 });

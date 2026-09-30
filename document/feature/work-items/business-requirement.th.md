@@ -11,7 +11,7 @@
 
 เอกสารนี้บอก **สิ่งที่ผลิตภัณฑ์ต้องทำ** ขอบเขตทางเทคนิคอยู่ใน [ขอบเขตงาน](./scope.th.md)
 
-> หมายเหตุ: กรณีด้านล่างเป็นข้อกำหนด UI เดิม; สถานะ “เสร็จ” หมายถึงกรณีเดิมเท่านั้น. Default time zone `Asia/Bangkok` เป็น Target กลางและยังต้องตรวจ implementation. Requirement GitLab Issue sync ทางเดียวเป็นงานใหม่ที่ยังไม่ implemented และให้ยึดเอกสารรวมที่ [Business Requirement](../../BUSINESS_REQUIREMENT.md) และ [Scope](../../SCOPE.md)
+> หมายเหตุ: กรณีด้านล่างเป็นข้อกำหนด UI เดิม; สถานะ “เสร็จ” หมายถึงกรณีเดิมเท่านั้น. GitLab Issue sync ทางเดียว implement แยกใน #20; ให้ยึดเอกสารรวมที่ [Business Requirement](../../BUSINESS_REQUIREMENT.md), [Scope](../../SCOPE.md) และ [GitLab contract](../../GITLAB_ISSUE_IMPORT.md) สำหรับ data/API behavior และ rollout.
 
 ---
 

@@ -13,6 +13,7 @@ const suites = {
   "schema-rollout-gate": { files: [join(testRoot, "runtime", "schema-rollout-gate.test.mjs")] },
   "runtime-security": { files: [join(testRoot, "runtime", "security.test.mjs"), join(testRoot, "runtime", "launcher.test.mjs")] },
   "runtime-container": { files: [join(testRoot, "runtime", "container.test.mjs")] },
+  gitlab: { directory: join(testRoot, "gitlab") },
   contracts: { directory: join(testRoot, "contracts") },
   "api-contracts": { files: [join(testRoot, "contracts", "menu-api-validation.test.mjs")] },
   "migration-contracts": { files: [join(testRoot, "contracts", "customer-project-migration.test.mjs")] },

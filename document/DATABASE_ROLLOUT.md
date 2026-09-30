@@ -2,7 +2,7 @@
 
 สถานะ: เครื่องมือและ isolated PostgreSQL 16 rehearsal implement แล้ว. เจ้าของกำหนด defaults เป็น `BACKUP_DIR=./database/backups/postgres_data` และ `BACKUP_KEEP_DAYS=30` แล้ว. Issue #16 ครอบคลุมการเตรียมเครื่องมือ/runbook และ isolated verification; ไม่ใช่การยืนยันว่า rollout schema หรือสำรองฐานข้อมูล Dev/UAT/Production จริงแล้ว. ก่อน schema changes ทุกครั้งยังต้องสร้าง verified backup ของ environment เป้าหมายตาม runbook.
 
-สำหรับ #18 ให้ใช้ [Company → Project decision](./COMPANY_PROJECT_DECISION.md) และ [implementation/runbook](./COMPANY_PROJECT_IMPLEMENTATION.md) ซึ่งแทน Customer contract เดิม. ใช้ [Runtime Security](./RUNTIME_SECURITY.md) สำหรับ runtime secrets. GitLab connector เป็น scope ของ #20.
+สำหรับ #18 ให้ใช้ [Company → Project decision](./COMPANY_PROJECT_DECISION.md) และ [implementation/runbook](./COMPANY_PROJECT_IMPLEMENTATION.md) ซึ่งแทน Customer contract เดิม. ใช้ [Runtime Security](./RUNTIME_SECURITY.md) สำหรับ runtime secrets. #20 เพิ่ม GitLab schema source; ก่อนใช้ใน environment ให้ผ่าน verified backup, isolated restore และ rollout approval ตามขั้นตอนของเอกสารนี้.
 
 ## Configuration และขอบเขตความปลอดภัย
 
