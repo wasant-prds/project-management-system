@@ -275,6 +275,17 @@ test('shared input parser accepts Bangkok calendar dates and rejects invalid cal
   assert.match(system.parser.parseWorkItemPatch({ dueDate: {} }, owner.id).error, /YYYY-MM-DD/)
 })
 
+test('shared input validation rejects malformed bodies, missing fields, foreign assignees, and ID changes', () => {
+  const system = makeSystem()
+  assert.match(system.parser.parseWorkItemInput(null, owner.id).error, /object/)
+  assert.match(system.parser.parseWorkItemInput([], owner.id).error, /object/)
+  assert.match(system.parser.parseWorkItemInput({ projectId: 'project-1' }, owner.id).error, /required/)
+  assert.match(system.parser.parseWorkItemInput(validInput({ title: '   ' }), owner.id).error, /required/)
+  assert.match(system.parser.parseWorkItemInput(validInput({ projectId: '   ' }), owner.id).error, /required/)
+  assert.match(system.parser.parseWorkItemInput(validInput({ assigneeId: 'foreign-owner' }), owner.id).error, /authenticated owner/)
+  assert.match(system.parser.parseWorkItemPatch({ id: 'replacement-id' }, owner.id).error, /cannot be updated/)
+})
+
 test('create, update, and detail reads keep one owner WorkItem with Company and linked Daily Work', async () => {
   const system = makeSystem()
   const created = await system.list.POST(request(validInput({ status: 'sa-testing', role: 'infra' })))
@@ -450,6 +461,70 @@ test('Work Item collection and create unexpected errors use the shared error env
   assert.deepEqual(JSON.parse(JSON.stringify(postResult.body.error)), { code: 'INTERNAL_ERROR', message: 'Failed to create work item' })
 })
 
+test('foreign-owner WorkItems are hidden from collection and detail reads and cannot be changed or deleted', async () => {
+  const system = makeSystem()
+  const created = await system.list.POST(request(validInput({ title: 'Owned item' })))
+  const ownedItem = system.state.workItems.get(created.body.workItem.id)
+  const foreignItem = { ...ownedItem, id: 'foreign-item', title: 'Foreign item', assigneeId: 'legacy-owner' }
+  system.state.workItems.set(foreignItem.id, foreignItem)
+
+  const list = await system.list.GET({ url: 'http://local/api/work-items?year=all&month=all' })
+  assert.deepEqual(Array.from(list.body.workItems, (item) => item.id), [ownedItem.id])
+  assert.equal(list.body.summary.total, 1)
+
+  const detail = await system.detail.GET({}, context(foreignItem.id))
+  const update = await system.detail.PATCH(request({ title: 'Attempted takeover' }), context(foreignItem.id))
+  const remove = await system.detail.DELETE({}, context(foreignItem.id))
+  for (const result of [detail, update, remove]) {
+    assert.equal(result.status, 404)
+    assert.equal(result.body.error.code, 'NOT_FOUND')
+  }
+  assert.equal(system.state.workItems.get(foreignItem.id).title, 'Foreign item')
+})
+
+test('collection metrics do not count cancelled or completed overdue items as overdue', async () => {
+  const system = makeSystem()
+  const created = []
+  for (const status of ['in-progress', 'completed', 'cancelled']) {
+    created.push(await system.list.POST(request(validInput({ status }))))
+  }
+  const ids = created.map((result) => result.body.workItem.id)
+  for (const id of ids) system.state.workItems.get(id).dueDate = new Date(Date.UTC(2000, 0, 1))
+
+  const result = await system.list.GET({ url: 'http://local/api/work-items?year=all&month=all' })
+  assert.equal(result.body.summary.total, 3)
+  assert.equal(result.body.summary.completed, 1)
+  assert.equal(result.body.summary.overdue, 1)
+})
+
+test('detail API maps repository failures to safe internal errors', async () => {
+  const getSystem = makeSystem()
+  getSystem.prisma.workItem.findFirst = async () => { throw new Error('private database detail') }
+  const getResult = await getSystem.detail.GET({}, context('item-1'))
+  assert.equal(getResult.status, 500)
+  assert.deepEqual(JSON.parse(JSON.stringify(getResult.body.error)), {
+    code: 'INTERNAL_ERROR', message: 'Failed to fetch work item',
+  })
+
+  const patchSystem = makeSystem()
+  const patchItem = await patchSystem.list.POST(request(validInput()))
+  patchSystem.prisma.workItem.findFirst = async () => { throw new Error('private database detail') }
+  const patchResult = await patchSystem.detail.PATCH(request({ title: 'Updated' }), context(patchItem.body.workItem.id))
+  assert.equal(patchResult.status, 500)
+  assert.deepEqual(JSON.parse(JSON.stringify(patchResult.body.error)), {
+    code: 'INTERNAL_ERROR', message: 'Failed to update work item',
+  })
+
+  const deleteSystem = makeSystem()
+  const deleteItem = await deleteSystem.list.POST(request(validInput()))
+  deleteSystem.prisma.workItem.findFirst = async () => { throw new Error('private database detail') }
+  const deleteResult = await deleteSystem.detail.DELETE({}, context(deleteItem.body.workItem.id))
+  assert.equal(deleteResult.status, 500)
+  assert.deepEqual(JSON.parse(JSON.stringify(deleteResult.body.error)), {
+    code: 'INTERNAL_ERROR', message: 'Failed to delete work item',
+  })
+})
+
 test('delete refuses linked Daily Work, retains history, and deletes an unreferenced WorkItem', async () => {
   const system = makeSystem()
   const created = await system.list.POST(request(validInput()))
@@ -539,6 +614,16 @@ test('bulk import reports Project and duplicate-ID lookup failures per row and c
   assert.equal(result.body.rows[2].error.code, 'IMPORT_FAILED')
   assert.equal(system.state.workItems.get('work-1').title, 'Created after Project failure')
   assert.equal(system.state.workItems.get('work-2').title, 'Created after ID failure')
+})
+
+test('bulk import rejects an empty array before attempting any database writes', async () => {
+  const system = makeSystem()
+  const result = await system.importer.POST(request([]))
+  assert.equal(result.status, 400)
+  assert.deepEqual(JSON.parse(JSON.stringify(result.body.error)), {
+    code: 'VALIDATION_ERROR', message: 'A non-empty JSON array of work items is required',
+  })
+  assert.equal(system.state.writes, 0)
 })
 
 test('Work Items JSON export is importable and urgency uses the Bangkok calendar date', () => {
