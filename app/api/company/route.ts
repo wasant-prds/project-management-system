@@ -41,7 +41,7 @@ export async function GET(request: Request) {
           COUNT(w.id)::integer AS work_item_count,
           COALESCE(t.hours, 0) AS hours
         FROM "Project" p
-        LEFT JOIN "WorkItem" w ON w."projectId" = p.id
+        LEFT JOIN "work_items" w ON w."projectId" = p.id
         LEFT JOIN (
           SELECT te."projectId", SUM(te.hours) AS hours
           FROM "TimeEntry" te

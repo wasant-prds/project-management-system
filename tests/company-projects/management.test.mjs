@@ -153,6 +153,8 @@ test('Company list is paginated and returns bounded aggregate summaries', async 
   assert.equal(companyQueries[0].take, 2)
   assert.equal(JSON.stringify(companyQueries[0].orderBy), JSON.stringify([{ name: 'asc' }, { id: 'asc' }]))
   assert.equal(sqlCalls.length, 1)
+  assert.match(sqlCalls[0].text, /LEFT JOIN "work_items" w ON w\."projectId" = p\.id/)
+  assert.doesNotMatch(sqlCalls[0].text, /LEFT JOIN "WorkItem"/)
   assert.match(sqlCalls[0].text, /SUM\(te\.hours\)/)
   assert.match(sqlCalls[0].text, /COUNT\(w\.id\)/)
   assert.equal(JSON.stringify(result.body.companies[0].summary), JSON.stringify({ projects: 2, workItems: 5, hours: '8.75' }))
