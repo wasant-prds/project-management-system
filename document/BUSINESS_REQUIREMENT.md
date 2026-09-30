@@ -227,7 +227,7 @@ Metric ที่เป็นแนวโน้มตามเวลาไม่�
 
 ## Runtime security ที่ implement ใน #15
 
-สถานะเพิ่มเติม ณ 2026-09-28: Issue #17 เพิ่ม owner authentication จาก private gate ถึง Next.js และผูก WorkItem assignee/Daily Work logger กับ `User` เจ้าของหนึ่งคนที่ resolve ฝั่ง server. Browser ไม่มีสิทธิ์เลือก owner อื่น; ระบบปฏิเสธหากจำนวน `User` ไม่ใช่หนึ่ง. HTTP Basic เป็น access session ที่ browser จัดการ; การ logout ต้องปิด browser session หรือ rotate credential. ยังไม่ยืนยันว่า installation จริง deploy แล้ว.
+สถานะเพิ่มเติม ณ 2026-09-28: Issue #17 เพิ่ม owner authentication จาก private gate ถึง Next.js และผูก WorkItem assignee/Daily Work logger กับ owner `User` ที่ resolve ฝั่ง server. Browser ไม่มีสิทธิ์เลือก owner อื่น; หากมี legacy User rows หลายแถวให้ระบุ `OWNER_USER_ID` ของ owner ที่ผ่าน audit มิฉะนั้นต้องมี `User` หนึ่งแถวพอดี. Gate บันทึก outcome, method และ timestamp ของ protected access ตาม `Asia/Bangkok` โดยไม่บันทึก credential หรือ URL. HTTP Basic เป็น access session ที่ browser จัดการ; การ logout ต้องปิด browser session หรือ rotate credential. ยังไม่ยืนยันว่า installation จริง deploy แล้ว.
 
 ## Database operations ที่ implement ใน #16
 

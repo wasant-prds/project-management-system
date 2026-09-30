@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import http from 'node:http'
-import { createOwnerGate } from '../../scripts/owner-gate.mjs'
+import { createOwnerGate, formatBangkokTimestamp } from '../../scripts/owner-gate.mjs'
 
 const require = createRequire(import.meta.url)
 const ts = require('typescript')
@@ -12,12 +12,12 @@ const ts = require('typescript')
 function loadTs(path, mocks, runtimeProcess = process) {
   const source = readFileSync(new URL(path, import.meta.url), 'utf8')
   const output = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
-  const module = { exports: {} }
-  vm.runInNewContext(output, { module, exports: module.exports, require: (name) => {
+  const mockedModule = { exports: {} }
+  vm.runInNewContext(output, { module: mockedModule, exports: mockedModule.exports, require: (name) => {
     if (!(name in mocks)) throw new Error(`Unexpected import: ${name}`)
     return mocks[name]
   }, process: runtimeProcess, Headers, URL, Buffer, console }, { filename: path })
-  return module.exports
+  return mockedModule.exports
 }
 
 test('owner resolver requires middleware identity and exactly one User', async () => {
@@ -82,22 +82,46 @@ test('WorkItem input takes assignee from server owner and rejects a different ID
 })
 
 test('middleware denies direct API/page reads and accepts only the gate proof', () => {
-  const NextResponse = {
-    next: (value) => ({ status: 200, forwarded: value?.request?.headers }),
-    json: (body, value) => ({ status: value.status, body }),
+  class MockNextResponse {
+    constructor(body, value) {
+      this.status = value.status
+      this.body = body
+    }
+
+    static next(value) {
+      return { status: 200, forwarded: value?.request?.headers }
+    }
+
+    static json(body, value) {
+      return { status: value.status, body }
+    }
   }
-  const { middleware } = loadTs('../../middleware.ts', { 'next/server': { NextResponse } }, { env: { PMS_INTERNAL_OWNER_PROOF: 'server-only-proof' } })
+  const { middleware } = loadTs('../../middleware.ts', { 'next/server': { NextResponse: MockNextResponse } }, { env: { PMS_INTERNAL_OWNER_PROOF: 'server-only-proof' } })
   const request = (path, proof, method = 'GET') => ({
     nextUrl: { pathname: path }, method, headers: new Headers(proof ? { 'x-pms-owner-proof': proof } : {}),
   })
   assert.equal(middleware(request('/api/projects')).status, 401)
   assert.equal(middleware(request('/api/work-items', null, 'POST')).status, 401)
+  assert.equal(middleware(request('/work-items')).status, 401)
   assert.equal(middleware(request('/api/projects', 'forged')).status, 401)
   const accepted = middleware(request('/api/projects', 'server-only-proof'))
   assert.equal(accepted.status, 200)
   assert.equal(accepted.forwarded.get('x-pms-owner-proof'), 'server-only-proof')
   assert.equal(accepted.forwarded.get('x-pms-owner-authenticated'), '1')
+  assert.equal(middleware(request('/work-items', 'server-only-proof')).status, 200)
   assert.equal(middleware(request('/api/health')).status, 200)
+})
+
+test('owner access audit timestamps use Bangkok wall-clock independently of machine timezone', () => {
+  const previousTimezone = process.env.TZ
+  process.env.TZ = 'America/Los_Angeles'
+  try {
+    assert.equal(formatBangkokTimestamp(new Date('2026-09-29T00:00:00.000Z')), '2026-09-29T07:00:00.000+07:00')
+    assert.equal(formatBangkokTimestamp(new Date('2026-09-29T17:00:00.000Z')), '2026-09-30T00:00:00.000+07:00')
+  } finally {
+    if (previousTimezone === undefined) delete process.env.TZ
+    else process.env.TZ = previousTimezone
+  }
 })
 
 test('Daily Work create rejects a different user and persists the server owner', async () => {
@@ -306,6 +330,7 @@ test('WorkItem list keeps owner and period filters after refactor', async () => 
 
 test('gate replaces a forged internal proof only after owner credential check', async () => {
   const env = { OWNER_GATE_USERNAME: 'owner', OWNER_GATE_PASSWORD: 'a'.repeat(32), APP_ORIGIN: 'http://localhost:3777', PMS_INTERNAL_OWNER_PROOF: 'server-only-proof' }
+  const auditEvents = []
   const upstream = http.createServer((request, response) => {
     response.setHeader('content-type', 'application/json')
     response.end(JSON.stringify({
@@ -315,7 +340,10 @@ test('gate replaces a forged internal proof only after owner credential check', 
     }))
   }).listen(0, '127.0.0.1')
   await new Promise((resolve) => upstream.once('listening', resolve))
-  const gate = createOwnerGate(env, upstream.address().port).listen(0, '127.0.0.1')
+  const gate = createOwnerGate(env, upstream.address().port, {
+    audit: (event) => auditEvents.push(event),
+    now: () => new Date('2026-09-29T00:00:00.000Z'),
+  }).listen(0, '127.0.0.1')
   await new Promise((resolve) => gate.once('listening', resolve))
   try {
     const url = `http://127.0.0.1:${gate.address().port}/api/users`
@@ -328,6 +356,11 @@ test('gate replaces a forged internal proof only after owner credential check', 
     } })
     assert.equal(accepted.status, 200)
     assert.deepEqual(await accepted.json(), { proof: 'server-only-proof' })
+    assert.deepEqual(auditEvents, [
+      { event: 'owner_access', outcome: 'rejected', method: 'GET', timestamp: '2026-09-29T07:00:00.000+07:00' },
+      { event: 'owner_access', outcome: 'authorized', method: 'GET', timestamp: '2026-09-29T07:00:00.000+07:00' },
+    ])
+    assert.equal(JSON.stringify(auditEvents).includes(env.OWNER_GATE_PASSWORD), false)
   } finally {
     gate.close()
     upstream.close()

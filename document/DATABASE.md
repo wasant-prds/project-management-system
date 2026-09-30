@@ -223,7 +223,7 @@ ExternalWorkItemReference
 
 ## Runtime security ที่ implement ใน #15
 
-สถานะเพิ่มเติม ณ 2026-09-28: Issue #17 ไม่เปลี่ยน schema หรือ records. Runtime ต้องพบ `User` หนึ่งแถวเพื่อใช้เป็น owner identity; `WorkItem.assigneeId`, `TimeEntry.userId` และ Project creator ของรายการใหม่ใช้ ID นี้จาก server. `User.password` เดิมไม่ใช่ credential ของ gate และไม่มี session table ใหม่. HTTP Basic อยู่ที่ gate; เก็บ secret ใน environment ตาม [Runtime Security](./RUNTIME_SECURITY.md).
+สถานะเพิ่มเติม ณ 2026-09-28: Issue #17 ไม่เปลี่ยน schema หรือ records. Runtime ใช้ `OWNER_USER_ID` เลือก owner ที่ผ่าน audit เมื่อจำเป็นต้องคง legacy User rows หลายแถว; หากไม่กำหนดต้องพบ `User` หนึ่งแถวพอดี. `WorkItem.assigneeId`, `TimeEntry.userId` และ Project creator ของรายการใหม่ใช้ owner ID นี้จาก server. `User.password` เดิมไม่ใช่ credential ของ gate และไม่มี session table ใหม่. HTTP Basic อยู่ที่ gate; เก็บ secret ใน environment ตาม [Runtime Security](./RUNTIME_SECURITY.md).
 
 ## Database operations ที่ implement ใน #16
 

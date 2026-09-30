@@ -12,6 +12,31 @@ export function authorize(request, env) {
   return 200;
 }
 
+export function formatBangkokTimestamp(date) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    fractionalSecondDigits: 3,
+    hourCycle: 'h23',
+  }).formatToParts(date)
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]))
+  return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}:${values.second}.${values.fractionalSecond}+07:00`
+}
+
+function recordOwnerAccess(audit, now, method, status) {
+  audit({
+    event: 'owner_access',
+    outcome: status === 200 ? 'authorized' : 'rejected',
+    method,
+    timestamp: formatBangkokTimestamp(now()),
+  })
+}
+
 function reject(response, status) {
   const headers = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
   if (status === 401) headers['WWW-Authenticate'] = 'Basic realm="PMS owner", charset="UTF-8"';
@@ -64,17 +89,21 @@ function forwardUpgrade(request, socket, head, upstreamPort, internalProof) {
   upstream.end();
 }
 
-export function createOwnerGate(env, upstreamPort) {
+export function createOwnerGate(env, upstreamPort, options = {}) {
   const internalProof = env.PMS_INTERNAL_OWNER_PROOF || randomBytes(32).toString('hex');
+  const audit = options.audit ?? ((event) => console.info(JSON.stringify(event)));
+  const now = options.now ?? (() => new Date());
   const server = http.createServer((request, response) => {
     // Exact, read-only infrastructure exception; Next returns only generic status.
     const health = request.method === 'GET' && request.url === '/api/health';
     const status = health ? 200 : authorize(request, env);
+    if (!health) recordOwnerAccess(audit, now, request.method, status);
     if (status !== 200) return reject(response, status);
     return forwardHttp(request, response, upstreamPort, internalProof);
   });
   server.on('upgrade', (request, socket, head) => {
     const status = authorize(request, env);
+    recordOwnerAccess(audit, now, request.method, status);
     if (status !== 200) {
       socket.end(`HTTP/1.1 ${status} Access denied\r\nConnection: close\r\n\r\n`);
       return;
