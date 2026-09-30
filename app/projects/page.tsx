@@ -38,13 +38,17 @@ export default function ProjectsPage() {
     try {
       const [projectData, companyData] = await Promise.all([
         fetchCollection<Project>('/api/projects', 'projects'),
-        apiResponse(await fetch('/api/company')),
+        fetchCollection<Company>('/api/company', 'companies'),
       ])
-      setProjects(projectData); setCompanies(companyData.companies); setMessage('')
+      setProjects(projectData); setCompanies(companyData); setMessage('')
     } catch (error) { setMessage(error instanceof Error ? error.message : 'โหลดข้อมูลไม่สำเร็จ') }
     finally { setLoading(false) }
   }, [])
-  useEffect(() => { reload() }, [reload])
+  useEffect(() => {
+    const companyId = new URLSearchParams(window.location.search).get('companyId')
+    if (companyId) setCompanyFilter(companyId)
+    void reload()
+  }, [reload])
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault(); setSaving(true)

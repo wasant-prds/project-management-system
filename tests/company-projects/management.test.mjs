@@ -70,6 +70,13 @@ test('Project validation uses Bangkok calendar dates and requires a selected Com
   assert.equal(helper.bangkokTimestamp(new Date('2026-09-29T09:30:00Z')), '2026-09-29T09:30:00.000+07:00')
 })
 
+test('only Company foreign-key failures become Company conflicts', () => {
+  assert.equal(helper.companyRelationConflict({ code: 'P2003', meta: { field_name: 'Project_companyId_fkey' } }).status, 409)
+  assert.equal(helper.companyRelationConflict({ code: 'P2003', meta: { field_name: 'WorkItem_projectId_fkey' } }), null)
+  assert.equal(helper.companyRelationConflict({ code: 'P2003' }), null)
+  assert.equal(helper.companyRelationConflict({ code: 'P2025' }), null)
+})
+
 test('Project summary excludes cancelled from progress and sums role/hour source rows', () => {
   const summary = helper.projectSummary([
     { status: 'completed', role: 'Developer' }, { status: 'cancelled', role: 'SA' },
@@ -87,7 +94,7 @@ test('Project create checks selected Company and attaches server owner', async (
   const writes = []
   let relationConflict = false
   const route = loadTs('../../app/api/projects/route.ts', {
-    'next/server': { NextResponse: response }, '@/lib/db': { prisma: { company: { findUnique: async ({ where }) => where.id === 'dhas' ? { id: 'dhas' } : null }, project: { create: async ({ data }) => { if (relationConflict) throw Object.assign(new Error('foreign key'), { code: 'P2003' }); writes.push(data); return data } } } },
+    'next/server': { NextResponse: response }, '@/lib/db': { prisma: { company: { findUnique: async ({ where }) => where.id === 'dhas' ? { id: 'dhas' } : null }, project: { create: async ({ data }) => { if (relationConflict) throw Object.assign(new Error('foreign key'), { code: 'P2003', meta: { field_name: 'Project_companyId_fkey' } }); writes.push(data); return data } } } },
     '@/lib/owner': owner, '@/lib/project-management': helper, '@/lib/project-query': { projectListInclude: {}, serializeProject: (value) => value },
   })
   const body = { name: 'P', companyId: 'dhas', startDate: '2026-09-29', dueDate: '2026-10-01' }
@@ -99,6 +106,58 @@ test('Project create checks selected Company and attaches server owner', async (
   const conflict = await route.POST(request(body))
   assert.equal(conflict.status, 409)
   assert.equal(conflict.body.error.code, 'COMPANY_CONFLICT')
+})
+
+test('Project list rejects invalid status filters before querying', async () => {
+  const queries = []
+  const route = loadTs('../../app/api/projects/route.ts', {
+    'next/server': { NextResponse: response }, '@/lib/db': { prisma: { project: {
+      findMany: async (query) => { queries.push(query); return [] },
+    } } }, '@/lib/owner': owner, '@/lib/project-management': helper,
+    '@/lib/project-query': { projectListInclude: {}, serializeProject: (value) => value },
+  })
+  const invalid = await route.GET({ url: 'http://localhost/api/projects?status=not-a-status' })
+  assert.equal(invalid.status, 400)
+  assert.equal(invalid.body.error.code, 'VALIDATION_ERROR')
+  assert.equal(invalid.body.error.field, 'status')
+  assert.equal(queries.length, 0)
+  const invalidWithOptions = await route.GET({ url: 'http://localhost/api/projects?options=work-items&status=not-a-status' })
+  assert.equal(invalidWithOptions.status, 400)
+  assert.equal(queries.length, 0)
+  const valid = await route.GET({ url: 'http://localhost/api/projects?status=Planning' })
+  assert.equal(valid.status, 200)
+  assert.equal(queries[0].where.status, 'Planning')
+})
+
+test('Company list is paginated and returns bounded aggregate summaries', async () => {
+  const companyQueries = []
+  const sqlCalls = []
+  const companies = [
+    { id: 'company-1', name: 'Alpha', createdAt: new Date(), updatedAt: new Date() },
+    { id: 'company-2', name: 'Beta', createdAt: new Date(), updatedAt: new Date() },
+  ]
+  const route = loadTs('../../app/api/company/route.ts', {
+    'next/server': { NextResponse: response },
+    '@prisma/client': { Prisma: { join: (values) => values.join(',') } },
+    '@/lib/db': { prisma: {
+      company: { findMany: async (query) => { companyQueries.push(query); return companies } },
+      $queryRaw: async (strings, ...values) => {
+        sqlCalls.push({ text: strings.join('?'), values })
+        return [{ companyId: 'company-1', projectCount: 2, workItemCount: 5, hours: '8.75' }]
+      },
+    } },
+    '@/lib/owner': owner, '@/lib/project-management': helper, '@/lib/company': companyBoundary,
+  })
+  const result = await route.GET({ url: 'http://localhost/api/company?limit=1' })
+  assert.equal(result.status, 200)
+  assert.equal(companyQueries[0].take, 2)
+  assert.equal(JSON.stringify(companyQueries[0].orderBy), JSON.stringify([{ name: 'asc' }, { id: 'asc' }]))
+  assert.equal(sqlCalls.length, 1)
+  assert.match(sqlCalls[0].text, /SUM\(te\.hours\)/)
+  assert.match(sqlCalls[0].text, /COUNT\(w\.id\)/)
+  assert.equal(JSON.stringify(result.body.companies[0].summary), JSON.stringify({ projects: 2, workItems: 5, hours: '8.75' }))
+  assert.equal(result.body.page.limit, 1)
+  assert.ok(result.body.page.nextCursor)
 })
 
 test('Dhas backfill rejects another Company or Project link', () => {
@@ -146,7 +205,7 @@ test('Project update blocks unlinked legacy rows and invalid dates', async () =>
   const route = loadTs('../../app/api/projects/[id]/route.ts', {
     'next/server': { NextResponse: response }, '@/lib/db': { prisma: {
       company: { findUnique: async ({ where }) => ({ id: where.id }) },
-      project: { findUnique: async () => existing, update: async ({ data }) => { if (relationConflict) throw Object.assign(new Error('foreign key'), { code: 'P2003' }); updates.push(data); return data } },
+      project: { findUnique: async () => existing, update: async ({ data }) => { if (relationConflict) throw Object.assign(new Error('foreign key'), { code: 'P2003', meta: { field_name: 'Project_companyId_fkey' } }); updates.push(data); return data } },
     } }, '@/lib/owner': owner, '@/lib/work-items': { serializeWorkItemStatus: (value) => value },
     '@/lib/project-management': helper, '@/lib/project-query': { projectListInclude: {}, serializeProject: (value) => value },
   })
@@ -164,6 +223,7 @@ test('Project update blocks unlinked legacy rows and invalid dates', async () =>
 test('Company mutation rejects unauthenticated requests before parsing', async () => {
   const route = loadTs('../../app/api/company/route.ts', {
     'next/server': { NextResponse: response }, '@/lib/db': { prisma: {} },
+    '@prisma/client': { Prisma: { join: (values) => values.join(',') } },
     '@/lib/owner': { getOwner: async () => { throw new Error('denied') }, ownerErrorResponse: owner.ownerErrorResponse },
     '@/lib/project-management': helper, '@/lib/company': companyBoundary,
   })
@@ -177,6 +237,7 @@ test('Company registry validates creation and blocks deletion with linked Projec
   let created = null
   const list = loadTs('../../app/api/company/route.ts', {
     'next/server': { NextResponse: response },
+    '@prisma/client': { Prisma: { join: (values) => values.join(',') } },
     '@/lib/db': { prisma: { company: { create: async ({ data }) => { created = data; return { ...data, createdAt: new Date(), updatedAt: new Date() } } } } },
     '@/lib/owner': owner, '@/lib/project-management': helper, '@/lib/company': service,
   })

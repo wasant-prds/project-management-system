@@ -11,12 +11,12 @@ alwaysApply: false
 - Validate body, query, enum, date, numeric value, Company foreign key, and relation invariants server-side on every mutation.
 - Canonical target error envelope: `{ error: { code, message, field? } }`. Map invalid input/relation mismatch to 400, unauthenticated to 401, policy denial to 403, missing to 404, state/unique/history conflict to 409, unexpected error to safe 500, required dependency down to safe 503. Never return raw exceptions or secrets.
 - Create returns 201; successful reads/updates/deletes return 200. Health is an infrastructure probe exception; 503 must not expose database details.
-- Current API inventory: `/api/health`, `/api/users`, `/api/projects[/{id}]`, `/api/work-items[/{id}]`, `/api/work-items/import`, `/api/work-logs[/{id}]`. Current wrappers/errors and missing owner auth/pagination are As-Is gaps.
+- Current API inventory: `/api/health`, `/api/users`, `/api/company[/{id}]`, `/api/projects[/{id}]`, `/api/work-items[/{id}]`, `/api/work-items/import`, `/api/work-logs[/{id}]`. Company and Project collections use bounded pagination and owner access.
 - Target read/write contract covers Dashboard, Projects, Work Items, Board, Analysis, Daily Work, Company, and Settings in `document/API.md`. Summary responses use shared WorkItem/TimeEntry sources and include effective period, `Asia/Bangkok`, filters, and metric version.
 - Default API and persistence time zone is `Asia/Bangkok` in every environment. Date-only inputs, omitted period defaults, inclusive day boundaries, filters, groupings, and every date/time value written to the database use Bangkok semantics. Do not convert persisted values to UTC or infer timezone from the browser/device.
 - Every target API timestamp in a request must use ISO 8601 offset `+07:00`; timestamp fields in responses must also include `+07:00`. Reject missing or different offsets with `400 VALIDATION_ERROR`.
 - Board status mutation must call the same WorkItem service/validation as Work Items. Never add a Board-owned status or duplicate summary record.
 - Every TimeEntry create/update re-checks that its WorkItem exists and its Project agrees with the WorkItem's Project; target requires WorkItem and derives owner server-side.
-- Collection targets use default `limit=50`, max `200`, and opaque `cursor`; validate bounds and keep deterministic ordering. Current list handlers do not yet implement pagination.
+- Company and Project collections use default `limit=50`, max `200`, and opaque `cursor`; validate bounds and keep deterministic ordering. Other collection targets follow the same convention when implemented.
 - Work Item enums/status spelling and shared metrics are defined in `.cursor/rules/02-enums-metrics.mdc`; keep public statuses hyphenated.
 - GitLab target is owner-triggered and one-way; detailed import mapping/retry response belongs to issue #14. Never expose the token.

@@ -249,7 +249,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Archive Project?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to archive "{project.name}"? This will change the project status to "On Hold" 
+              Are you sure you want to archive &quot;{project.name}&quot;? This will change the project status to &quot;On Hold&quot;
               and it will no longer appear in active projects. You can always reactivate it later.
             </AlertDialogDescription>
           </AlertDialogHeader>

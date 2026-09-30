@@ -13,5 +13,5 @@ alwaysApply: true
 - EV source of truth: `document/BUSINESS_REQUIREMENT.md`, `SCOPE.md`, `ENGINEERING_SPEC.md`, `ARCHITECTURE.md`, `API.md`, `DATABASE.md`, `DATABASE_MAPPING.md`, `DEPLOYMENT.md`. Feature `document/feature/*` marked "done" is UI-only; data/API must follow EV.
 - One shared `WorkItem` and `TimeEntry` set. Dashboard, Board, and Analysis are read projections — never mock KPIs in production UI.
 - Developer / Infra / SA live only on `WorkItem.role`. They are not accounts, `User.role`, or permissions.
-- One Company profile per installation. One owner `User`. `ProjectMember` is legacy schema, not a product feature.
+- Multiple Company profiles may be managed per installation, and each Project belongs to one Company. There is one owner `User`; `ProjectMember` is legacy schema, not a product feature.
 - Implement in order: (1) server validation + owner access (2) Dhas Company + Project backfill (3) Board + Daily Work consistency (4) Dashboard aggregates (5) Analysis/export (6) Settings persist (7) GitLab import.

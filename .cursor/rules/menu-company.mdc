@@ -7,7 +7,7 @@ alwaysApply: false
 # Company `/company`
 
 - Support multiple Companies through `GET/POST /api/company` and `PATCH/DELETE /api/company/[id]`.
-- Dhas (D.H.A. Siamwalla Ltd.) is the default for existing Projects. Show each Company's Projects, WorkItem counts, and TimeEntry hours from the database. There is no Customer registry.
+- Dhas (D.H.A. Siamwalla Ltd.) is the default for existing Projects. Read Companies through the paginated API with database aggregates for Projects, WorkItems, and TimeEntry hours; link to each Company's filtered Project list. There is no Customer registry.
 - No member directory, invites, team management, or per-user permissions. Do not present `User` or `ProjectMember` as a team.
 - Every visible button persists or is hidden. Empty and error states only; Dhas default values come from the owner's approved details.
 - Use `STAT_GRID`, scrollable tabs, shared toolbar, and `PAGE_MAIN`. Later dialogs use `responsive-dialog.ts`.

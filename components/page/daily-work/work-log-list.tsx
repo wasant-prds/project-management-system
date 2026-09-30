@@ -110,25 +110,6 @@ const generateCSVRow = (log: WorkLog): string => {
   return fields.map(escapeCSVField).join(",")
 }
 
-const formatWorkLogMarkdownBlock = (log: WorkLog): string => {
-  const metaLines = [
-    `### ${getWorkTitle(log)}`,
-    "",
-    `- **User:** ${log.user.name} (${log.user.email})`,
-    `- **Hours:** ${log.hours}`,
-    `- **Date:** ${new Date(log.date).toLocaleDateString()}`,
-  ]
-  if (log.workItem) metaLines.push(`- **Work item:** ${log.workItem.title} (${log.workItem.kind})`)
-  if (log.status) metaLines.push(`- **Status:** ${log.status}`)
-  metaLines.push("")
-
-  const sections: string[] = [metaLines.join("\n")]
-  if (log.description) sections.push(["**Description**", "", log.description].join("\n"))
-  if (log.remarks) sections.push(["**Remarks**", "", log.remarks].join("\n"))
-  if (!log.description && !log.remarks) sections.push("_No description or remarks._")
-  return sections.join("\n\n")
-}
-
 const formatWorkLogMarkdownBlockGroupByProject = (log: WorkLog): string => {
   const sections: string[] = []
   if (log.description) sections.push(["**Description**", "", log.description].join("\n"))
@@ -152,7 +133,6 @@ const generateMarkdownDocument = (
 
 type WorkLogListProps = {
   workLogs: WorkLog[]
-  date?: Date
   searchQuery: string
   onSearchChange: (query: string) => void
   onWorkLogClick: (workLog: WorkLog) => void
@@ -162,7 +142,6 @@ type WorkLogListProps = {
 
 export function WorkLogList({
   workLogs,
-  date,
   searchQuery,
   onSearchChange,
   onWorkLogClick,

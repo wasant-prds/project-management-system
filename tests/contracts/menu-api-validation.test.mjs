@@ -12,6 +12,8 @@ test("API handbook separates the actual Route Handler inventory from target prop
   const handlers = [
     ["app/api/health/route.ts", ["GET"]],
     ["app/api/users/route.ts", ["GET"]],
+    ["app/api/company/route.ts", ["GET", "POST"]],
+    ["app/api/company/[id]/route.ts", ["PATCH", "DELETE"]],
     ["app/api/projects/route.ts", ["GET", "POST"]],
     ["app/api/projects/[id]/route.ts", ["GET", "PATCH", "DELETE"]],
     ["app/api/work-items/route.ts", ["GET", "POST"]],
@@ -40,14 +42,14 @@ test("API handbook separates the actual Route Handler inventory from target prop
   assert.match(api, /Endpoint ที่มีอยู่ใน repository \(As-Is\)/i);
   assert.match(api, /Target proposal/);
   for (const proposedPath of [
-    "/api/customers",
     "/api/dashboard/summary",
     "/api/analysis",
-    "/api/company",
     "/api/settings/me",
   ]) {
     assert.ok(api.includes(proposedPath), `Missing target endpoint ${proposedPath}`);
   }
+  assert.doesNotMatch(api, /`\/api\/customers/);
+  assert.match(api, /there is no Customer API or `customerId` contract/i);
 });
 
 test("all eight menus declare a consumer, canonical read source, and write behavior", () => {
@@ -78,7 +80,7 @@ test("shared HTTP errors, authentication, pagination, and response statuses are 
   }
   assert.ok(api.includes('ทุก error รวมถึง health `503` ใช้ `{ "error": { "code", "message", "field?" } }`'));
   assert.match(api, /`POST` ที่สร้าง resource คืน `201`/);
-  assert.match(api, /`limit`.*default `50`.*สูงสุด `200`/);
+  assert.match(api, /`limit`.*default `50`.*maximum `200`/);
   assert.match(api, /opaque `cursor`/);
   assert.match(api, /owner identity ฝั่ง server/);
   assert.match(api, /ห้ามคืน raw database error หรือ stack trace/);
@@ -127,19 +129,20 @@ test("target timestamps use the issue's +07:00 API contract and Bangkok persiste
 });
 
 test("resource contracts cover create/update guards and shared aggregate filters", () => {
-  assert.match(api, /`name`, `startDate`, `dueDate`, `customerId`/);
-  assert.match(api, /Customer ที่มีอยู่และ active/);
-  assert.match(api, /Customer ที่ inactive ตอบ `409 CONFLICT`/);
+  assert.match(api, /`name`, `companyId`, `startDate`, and `dueDate`/);
+  assert.match(api, /Company ที่มีอยู่/);
+  assert.match(api, /Project\.companyId/);
   assert.match(api, /`title`, `kind`, `projectId`/);
   assert.match(api, /`DELETE \/api\/work-items\/\{id\}` ตอบ `409 CONFLICT` เมื่อยังมี TimeEntry อ้างอยู่/);
   assert.match(api, /`workItemId`, business `date`, `hours`/);
   assert.match(api, /ตรวจ next-state ของ `workItemId` \+ `projectId` ทุกครั้ง/);
   assert.match(api, /`startDate`, `endDate` \(ทั้งคู่หรือไม่ส่งทั้งคู่/);
   assert.match(api, /เมื่อไม่ส่งใช้เดือนปัจจุบันใน default time zone `Asia\/Bangkok`/);
-  assert.match(api, /Customer registry\/portfolio/);
+  assert.match(api, /multiple Companies with Project, WorkItem, and TimeEntry aggregate summaries/);
+  assert.match(api, /Company collection\/create\/update\/delete contracts ของ #18/);
   assert.match(api, /Target preferences จำกัดที่ theme/);
   assert.match(api, /`profile` รองรับ `name`, `email`, `phone`, `avatar`/);
-  assert.match(api, /ถ้ายังไม่มี record ให้ PATCH สร้าง singleton และคืน `201`/);
+  assert.match(api, /GET \/api\/settings\/me.*หากยังไม่มี preferences ให้คืน default/);
   assert.match(api, /คืน default `theme=light`, `locale=th` และเพิ่ม `timezone=Asia\/Bangkok` จาก system config แบบ read-only/);
   assert.match(api, /ห้ามคืน raw database error หรือ stack trace/);
 });

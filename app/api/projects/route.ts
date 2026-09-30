@@ -1,18 +1,21 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getOwner, ownerErrorResponse } from '@/lib/owner'
-import { apiError, companyRelationConflict, parseProjectInput, parsePage, nextPage } from '@/lib/project-management'
+import { apiError, companyRelationConflict, parseProjectInput, parsePage, nextPage, PROJECT_STATUSES } from '@/lib/project-management'
 import { projectListInclude, serializeProject } from '@/lib/project-query'
 
 export async function GET(request: Request) {
   try {
     await getOwner()
     const params = new URL(request.url).searchParams
+    const status = params.get('status')
+    if (status !== null && !PROJECT_STATUSES.includes(status as typeof PROJECT_STATUSES[number])) {
+      return apiError(400, 'VALIDATION_ERROR', 'Invalid status', 'status')
+    }
     if (params.get('options') === 'work-items') {
       const projects = await prisma.project.findMany({ select: { id: true, name: true, colorProject: true }, orderBy: { createdAt: 'desc' } })
       return NextResponse.json({ projects })
     }
-    const status = params.get('status')
     const companyId = params.get('companyId')
     const search = params.get('search')
     const filterKey = JSON.stringify({ status, companyId, search })

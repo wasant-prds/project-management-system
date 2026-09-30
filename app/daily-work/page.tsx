@@ -90,17 +90,7 @@ export default function DailyWorkPage() {
   // Form state
   const [formData, setFormData] = useState<WorkLogFormData>(emptyWorkLogForm(formatDate(new Date())))
 
-  // Fetch work logs based on selected date and view period
-  useEffect(() => {
-    fetchWorkLogs()
-  }, [date, viewPeriod])
-
-  // Fetch projects on mount
-  useEffect(() => {
-    fetchProjects()
-  }, [])
-
-  const fetchWorkLogs = async () => {
+  const fetchWorkLogs = useCallback(async () => {
     try {
       const response = await fetch(`/api/work-logs${workLogQuery(date, viewPeriod)}`)
       const data = await response.json()
@@ -115,7 +105,17 @@ export default function DailyWorkPage() {
         variant: "destructive",
       })
     }
-  }
+  }, [date, viewPeriod])
+
+  // Fetch work logs based on selected date and view period.
+  useEffect(() => {
+    void fetchWorkLogs()
+  }, [fetchWorkLogs])
+
+  // Fetch projects on mount.
+  useEffect(() => {
+    fetchProjects()
+  }, [])
 
   const fetchProjects = async () => {
     try {
@@ -168,7 +168,7 @@ export default function DailyWorkPage() {
         description: `Work log ${selectedWorkLog ? "updated" : "created"} successfully`,
       })
       setIsDialogOpen(false)
-      fetchWorkLogs()
+      await fetchWorkLogs()
     } catch (error) {
       toast({
         title: "Error",
@@ -178,7 +178,7 @@ export default function DailyWorkPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [formData, selectedWorkLog])
+  }, [fetchWorkLogs, formData, selectedWorkLog])
 
   const handleDelete = useCallback(async (id: string) => {
     if (!confirm("Are you sure you want to delete this work log?")) {
@@ -196,18 +196,18 @@ export default function DailyWorkPage() {
           description: "Work log deleted successfully",
         })
         setIsDetailsDialogOpen(false)
-        fetchWorkLogs()
+        await fetchWorkLogs()
       } else {
         throw new Error("Failed to delete work log")
       }
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to delete work log",
         variant: "destructive",
       })
     }
-  }, [])
+  }, [fetchWorkLogs])
 
   const handleViewDetails = useCallback((workLog: WorkLog) => {
     setSelectedWorkLog(workLog)
@@ -315,7 +315,6 @@ export default function DailyWorkPage() {
               <div className="space-y-4 lg:col-span-2">
                 <WorkLogList
                   workLogs={filteredWorkLogs}
-                  date={date}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
                   onWorkLogClick={handleViewDetails}

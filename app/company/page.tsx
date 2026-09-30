@@ -11,15 +11,23 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { fetchCollection } from '@/lib/fetch-collection'
 
-type Project = { id: string; name: string; summary: { total: number; hours: string } }
-type Company = { id: string; code: string | null; name: string; displayName: string | null; location: string | null; address: string | null; phone: string | null; description: string | null; projects: Project[] }
+type Company = {
+  id: string; code: string | null; name: string; displayName: string | null; location: string | null;
+  address: string | null; phone: string | null; description: string | null;
+  summary: { projects: number; workItems: number; hours: string }
+}
 type CompanyForm = Pick<Company, 'name' | 'displayName' | 'location' | 'address' | 'phone' | 'description'>
 const emptyForm: CompanyForm = { name: '', displayName: '', location: '', address: '', phone: '', description: '' }
 
 async function readJson(response: Response) {
   const data = await response.json()
-  if (!response.ok) throw new Error(data.error?.message ?? 'คำขอไม่สำเร็จ')
+  if (!response.ok) throw new Error([data.error?.code, data.error?.message].filter(Boolean).join(': ') || 'คำขอไม่สำเร็จ')
   return data
 }
 
@@ -30,10 +38,11 @@ export default function CompanyPage() {
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [deleteCompany, setDeleteCompany] = useState<Company | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const reload = useCallback(async () => {
     try {
-      const result = await readJson(await fetch('/api/company'))
-      setCompanies(result.companies)
+      setCompanies(await fetchCollection<Company>('/api/company', 'companies'))
       setMessage('')
     } catch (error) { setMessage(error instanceof Error ? error.message : 'โหลด Company ไม่สำเร็จ') }
     finally { setLoading(false) }
@@ -56,12 +65,15 @@ export default function CompanyPage() {
     setForm({ name: company.name, displayName: company.displayName, location: company.location, address: company.address, phone: company.phone, description: company.description })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
-  const remove = async (company: Company) => {
-    if (!window.confirm(`ลบ Company ${company.name}?`)) return
+  const remove = async () => {
+    if (!deleteCompany) return
+    setDeleting(true)
     try {
-      await readJson(await fetch(`/api/company/${company.id}`, { method: 'DELETE' }))
+      await readJson(await fetch(`/api/company/${deleteCompany.id}`, { method: 'DELETE' }))
       await reload(); setMessage('ลบ Company แล้ว')
+      setDeleteCompany(null)
     } catch (error) { setMessage(error instanceof Error ? error.message : 'ลบ Company ไม่สำเร็จ') }
+    finally { setDeleting(false) }
   }
 
   return <SidebarProvider><AppSidebar /><SidebarInset><AppHeader /><main className={PAGE_MAIN}><div className={PAGE_INNER}>
@@ -74,10 +86,22 @@ export default function CompanyPage() {
     </form></CardContent></Card>
     {loading ? <p>กำลังโหลด...</p> : <div className="grid gap-5 lg:grid-cols-2">{companies.map((company) => <Card key={company.id}><CardHeader><CardTitle>{company.displayName ? `${company.displayName} — ${company.name}` : company.name}</CardTitle></CardHeader><CardContent className="space-y-3 text-sm">
       {company.location && <p>{company.location}</p>}{company.address && <p>{company.address}</p>}{company.phone && <p>โทร {company.phone}</p>}{company.description && <p className="whitespace-pre-wrap">{company.description}</p>}
-      <div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => edit(company)}>แก้ไข</Button>{company.code !== 'dhas' && company.projects.length === 0 && <Button variant="outline" size="sm" onClick={() => remove(company)}>ลบ</Button>}</div>
-      <h2 className="font-semibold">Projects ({company.projects.length})</h2>
-      {company.projects.length === 0 && <p className="text-muted-foreground">ยังไม่มี Project</p>}
-      {company.projects.map((project) => <Link key={project.id} href={`/projects/${project.id}`} className="block rounded border p-3 text-primary underline break-words">{project.name} · {project.summary.total} Work Items · {project.summary.hours} ชั่วโมง</Link>)}
+      <div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => edit(company)}>แก้ไข</Button>{company.code !== 'dhas' && company.summary.projects === 0 && <Button variant="outline" size="sm" onClick={() => setDeleteCompany(company)}>ลบ</Button>}</div>
+      <h2 className="font-semibold">Projects ({company.summary.projects})</h2>
+      <p>{company.summary.workItems} Work Items · {company.summary.hours} ชั่วโมง</p>
+      {company.summary.projects === 0 ? <p className="text-muted-foreground">ยังไม่มี Project</p> : <Link href={`/projects?companyId=${encodeURIComponent(company.id)}`} className="text-primary underline">เปิด Projects ของ Company นี้</Link>}
     </CardContent></Card>)}</div>}
+    <AlertDialog open={deleteCompany !== null} onOpenChange={(open) => { if (!open && !deleting) setDeleteCompany(null) }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>ยืนยันการลบ Company</AlertDialogTitle>
+          <AlertDialogDescription>ลบ {deleteCompany?.name} ใช่หรือไม่? Company ที่มี Project อ้างอิงจะถูกปฏิเสธ</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleting}>ยกเลิก</AlertDialogCancel>
+          <AlertDialogAction disabled={deleting} onClick={(event) => { event.preventDefault(); return remove() }}>{deleting ? 'กำลังลบ...' : 'ยืนยันลบ Company'}</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div></main></SidebarInset></SidebarProvider>
 }

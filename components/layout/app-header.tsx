@@ -51,7 +51,7 @@ export const AppHeader = memo(function AppHeader() {
                   <p className="text-sm font-medium">New task assigned</p>
                 </div>
                 <p className="text-xs text-muted-foreground pl-4">
-                  You have been assigned to "Update API documentation"
+                  You have been assigned to &quot;Update API documentation&quot;
                 </p>
               </DropdownMenuItem>
               <DropdownMenuItem className="flex-col items-start gap-1 py-3">

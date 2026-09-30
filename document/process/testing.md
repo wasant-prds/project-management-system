@@ -33,6 +33,22 @@ Run only the menu API and validation contract checks:
 pnpm test:api-contracts
 ```
 
+Run only the Company and Project management regression tests:
+
+```powershell
+pnpm test:company-projects
+```
+
+Run the local quality gates used before review:
+
+```powershell
+pnpm quality
+```
+
+`pnpm quality` runs ESLint, TypeScript type checking, Prisma schema validation, and the full Node test suite. Run `pnpm lint`, `pnpm typecheck`, or the focused `pnpm test:company-projects` separately while iterating.
+
+GitHub Actions runs `pnpm quality` and then the SonarQube quality gate. Configure repository variable `SONAR_HOST_URL` and repository secret `SONAR_TOKEN` before pushing; the scan waits for the server's quality-gate result. Fork pull requests run the local quality job without Sonar credentials.
+
 Run only the one-way GitLab Issue import contract checks:
 
 ```powershell

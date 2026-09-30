@@ -34,6 +34,9 @@ export function apiError(status: number, code: string, message: string, field?: 
 
 export function companyRelationConflict(error: unknown) {
   if (typeof error !== 'object' || error === null || !('code' in error) || error.code !== 'P2003') return null
+  const meta = 'meta' in error && typeof error.meta === 'object' && error.meta !== null ? error.meta : null
+  const field = meta && 'field_name' in meta ? String(meta.field_name) : ''
+  if (!field.toLowerCase().includes('companyid')) return null
   return apiError(409, 'COMPANY_CONFLICT', 'Company ถูกลบหรือใช้งานไม่ได้ กรุณาเลือก Company ใหม่', 'companyId')
 }
 

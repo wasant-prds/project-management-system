@@ -29,7 +29,7 @@
 | `GET`, `POST` | `/api/work-logs` | Daily Work อ่าน/สร้าง TimeEntry | `TimeEntry` พร้อม User/Project/WorkItem; wrapper `{ workLogs }` หรือ `{ workLog }` |
 | `GET`, `PATCH`, `DELETE` | `/api/work-logs/{id}` | Daily Work อ่าน/แก้/ลบ TimeEntry | TimeEntry เดียว; wrapper `{ workLog }` |
 
-ยังไม่พบ API route สำหรับ Dashboard aggregates, Analysis หรือ Settings persistence. Board ยังไม่มี API ของตัวเอง. Baseline วันที่ 2026-09-27 ยังไม่มี authentication middleware หรือ pagination; #17 เพิ่ม middleware/owner resolver และ #18 เพิ่ม pagination ให้ Projects แล้ว. Schema Company/Project ยังไม่ได้ยืนยันว่า rollout ไปยังฐานข้อมูลจริง.
+ยังไม่พบ API route สำหรับ Dashboard aggregates, Analysis หรือ Settings persistence. Board ยังไม่มี API ของตัวเอง. Baseline วันที่ 2026-09-27 ยังไม่มี authentication middleware หรือ pagination; #17 เพิ่ม middleware/owner resolver และ #18 เพิ่ม pagination ให้ Company และ Projects. Production rollout ที่บันทึกใน [Issue #18 implementation report](./COMPANY_PROJECT_IMPLEMENTATION.md) ผ่านการตรวจ Company/Project schema และ API smoke checks.
 
 **สถานะ #17:** owner gate ตรวจ HTTP Basic และ origin ก่อน Next.js; middleware ปฏิเสธ page/API ที่ไม่มี internal proof ด้วย `401 OWNER_UNAUTHENTICATED` (หรือ gate `403 ACCESS_DENIED` เมื่อ origin ไม่ผ่าน). `GET /api/health` เป็นข้อยกเว้น. Route Handlers ของ Projects, Users, Work Items และ Work Logs ตรวจ owner ฝั่ง server. `GET /api/users` คืน owner หนึ่งคน; WorkItem create/import/update และ TimeEntry create/update ไม่ยอมรับ `assigneeId`/`userId` ที่ต่างจาก owner (`400 VALIDATION_ERROR`); list ของ Work Items/Work Logs กรอง owner. Browser ยังอาจส่ง ID owner เดิมเพื่อ compatibility แต่ server เป็นผู้กำหนดค่าเขียนจริง. Error อื่นของ legacy routes ยังมีรูปแบบเดิมและจะปรับใน issue ที่เกี่ยวข้อง.
 
@@ -50,10 +50,10 @@ As-Is timestamp gap: current Route Handlers parse several date/time writes with 
 - ทุก target menu API ที่อ่านหรือแก้ข้อมูลธุรกิจต้องยืนยันตัวเจ้าของก่อนทำงาน; ไม่มี multi-user RBAC. `Developer`, `infra`, `SA` เป็น `WorkItem.role` ไม่ใช่ account หรือ permission.
 - Resolve `WorkItem.assigneeId` และ `TimeEntry.userId` จาก owner identity ฝั่ง server. ห้ามเชื่อ client `userId`/`assigneeId` เพื่อเปลี่ยนเจ้าของ; field ที่ส่งมาให้ละเว้นหรือปฏิเสธด้วย `400 VALIDATION_ERROR`.
 - Validate body, enum, date, numeric values, foreign keys และ cross-record relations ฝั่ง server ทุกครั้ง; UI validation เป็นเพียง UX.
-- Project ที่สร้างหรือย้ายต้องอ้าง Customer ที่มีอยู่และ active. Customer ที่ไม่มีอยู่ตอบ `404 NOT_FOUND`; Customer ที่ inactive ตอบ `409 CONFLICT`. Customer inactive เก็บไว้กับ Project เดิมได้ แต่ใช้กับ Project ใหม่หรือการย้าย Project ไม่ได้.
+- Project ที่สร้างหรือย้ายต้องอ้าง Company ที่มีอยู่. Company ที่ไม่มีอยู่ตอบ `400 VALIDATION_ERROR`; relation ที่ถูกลบระหว่างเขียนตอบ `409 COMPANY_CONFLICT`.
 - Daily Work ทุกครั้งที่ create/update ต้องอ้าง WorkItem ที่มีอยู่; Project ต้องตรงกับ Project ของ WorkItem หรือ derive จาก WorkItem. คู่ที่ไม่ตรงต้องถูกปฏิเสธและห้ามเขียนข้อมูล.
 - Board เปลี่ยน `WorkItem.status` ผ่าน WorkItem service/validation ชุดเดียวกับ Work Items. ห้ามสร้าง status field หรือ record แยกของ Board.
-- Summary เป็น read projection จาก `WorkItem`, `TimeEntry`, `Project`, `Customer`; ไม่รับ mutation และไม่ persist ยอดคำนวณซ้ำ.
+- Summary เป็น read projection จาก `WorkItem`, `TimeEntry`, `Project`, `Company`; ไม่รับ mutation และไม่ persist ยอดคำนวณซ้ำ.
 
 ### 2.2 รูปแบบ response และ HTTP status
 
@@ -88,7 +88,7 @@ Target errors ใช้ envelope เดียวและ stable machine code:
 
 ### 2.3 Pagination และ ordering
 
-Target collection reads ที่คืน Projects, Customers, WorkItems หรือ TimeEntries ใช้ `limit` และ opaque `cursor`: default `50`, ค่าสูงสุด `200`; ค่านอกช่วงตอบ `400`. Cursor ใช้ต่อจาก `page.nextCursor` และผูกกับ filter/order เดิม. Collection response เพิ่ม `page: { limit, nextCursor }` โดย `nextCursor: null` หมายถึงหน้าสุดท้าย. ใช้ deterministic tie-break ด้วย `id`; default order คือ Customer `name ASC`, Project `createdAt DESC`, WorkItem `updatedAt DESC`, TimeEntry `date DESC`. Dashboard/Analysis คืน aggregate และ preview ที่จำกัดจำนวน ไม่ใช้ pagination ของ resource list.
+Company, Project, WorkItem, and TimeEntry collection reads use `limit` and opaque `cursor`: default `50`, maximum `200`; invalid bounds return `400`. Cursors continue from `page.nextCursor` and bind to the original filters/order. Responses include `page: { limit, nextCursor }`, where a null cursor means the last page. Ordering uses a deterministic ID tie-breaker. Dashboard/Analysis return aggregates and bounded previews instead of paginated resource lists.
 
 Work Items, Projects และ Daily Work ที่เกินขนาดหน้าให้ UI ขอหน้าถัดไปแทนการคืนข้อมูลไม่จำกัด. Export ใช้ filter set และ records เดียวกับหน้ารายการ โดยไม่สร้างสำเนาข้อมูล.
 
@@ -102,7 +102,7 @@ Work Items, Projects และ Daily Work ที่เกินขนาดห�
 | `WorkItem.status` | `backlog`, `todo`, `in-progress`, `blocked`, `sa-testing`, `pm-testing`, `completed`, `cancelled` |
 | `Project.status` (legacy field) | `Planning`, `In Progress`, `Review`, `Completed`, `On Hold` |
 | `Project.priority` (legacy field) | `Low`, `Medium`, `High`, `Critical` |
-| `Customer.status` (target) | `active`, `inactive` |
+| Company registry | Multiple Companies; `Project.companyId` is required after the Dhas backfill |
 
 ทุก timestamp field ใน Target request ต้องส่ง ISO 8601 พร้อม offset `+07:00` และทุก timestamp field ใน Target response ต้องแสดง offset `+07:00`; timestamp ที่ไม่มี offset นี้หรือใช้ offset อื่นตอบ `400 VALIDATION_ERROR`. Business date ใช้ `YYYY-MM-DD` แยกจาก timestamp. Default time zone ของทั้งระบบ, application และ PostgreSQL session คือ `Asia/Bangkok`; ใช้กับ date-only input, วันเริ่ม/สิ้นสุด, period defaults, filter, grouping และทุกค่าที่เขียนลงฐานข้อมูล. บันทึก timestamp เป็น Bangkok local wall-clock semantics ห้าม normalize เป็น UTC และห้ามพึ่ง timezone ของ browser/device. Work Items ใช้ date anchor `workDate ?? dueDate ?? createdAt`; TimeEntries ใช้ `TimeEntry.date`. WorkItem completion/status ใช้ค่ากลางด้านบน; `TimeEntry.status` เป็น legacy และไม่ใช่ workflow status เป้าหมาย.
 
@@ -112,34 +112,35 @@ Dashboard/Analysis คืน `period`, `timezone`, `filters` และ `metricVe
 
 | Menu / consumer | Read contract และ data source | Write contract |
 | --- | --- | --- |
-| Dashboard `/` | `GET /api/dashboard/summary`; aggregate จาก WorkItem, TimeEntry, Project, Customer; มี KPI, recent/urgent/overdue lists และ active-filter metadata | ไม่มี mutation; card/chart links เปิด records หรือ list filter เดิม |
-| Projects `/projects` | `GET /api/projects`, `GET /api/projects/{id}`; Projects/Customer/WorkItem/TimeEntry; selector อ่าน `GET /api/customers` | `POST/PATCH/DELETE /api/projects[/{id}]`; ตรวจ Customer, fields และ history guard; progress/counts/hours เป็น read-only derived values |
-| Work Items `/work-items` | `GET /api/work-items`, `GET /api/work-items/{id}`; canonical WorkItem พร้อม Project/Customer, owner และ TimeEntries; list filters ใช้ query contract ด้านล่าง | `POST/PATCH/DELETE /api/work-items[/{id}]`; `POST /api/work-items/import`; shared validation สำหรับ CRUD/import. GitLab manual import เป็น Target ของ #14, ไม่ใช่ endpoint ที่มีอยู่ |
+| Dashboard `/` | `GET /api/dashboard/summary`; aggregate จาก WorkItem, TimeEntry, Project, Company; มี KPI, recent/urgent/overdue lists และ active-filter metadata | ไม่มี mutation; card/chart links เปิด records หรือ list filter เดิม |
+| Projects `/projects` | `GET /api/projects`, `GET /api/projects/{id}`; Projects/Company/WorkItem/TimeEntry; Company selector อ่าน `GET /api/company` | `POST/PATCH/DELETE /api/projects[/{id}]`; ตรวจ Company, fields และ history guard; progress/counts/hours เป็น read-only derived values |
+| Work Items `/work-items` | `GET /api/work-items`, `GET /api/work-items/{id}`; canonical WorkItem พร้อม Project/Company, owner และ TimeEntries; list filters ใช้ query contract ด้านล่าง | `POST/PATCH/DELETE /api/work-items[/{id}]`; `POST /api/work-items/import`; shared validation สำหรับ CRUD/import. GitLab manual import เป็น Target ของ #14, ไม่ใช่ endpoint ที่มีอยู่ |
 | Board `/board` | `GET /api/work-items` พร้อม filter; group canonical rows ตาม enum `WorkItem.status` | `PATCH /api/work-items/{id}` ส่ง `status`; ต้องใช้ WorkItem service เดียวกับเมนู Work Items |
 | Analysis `/analysis` | `GET /api/analysis`; query-time aggregate จาก WorkItem + TimeEntry; ใช้ filter, timezone และสูตรเดียวกับ Dashboard | ไม่มี mutation; export/drill-through ใช้ filtered result และ source IDs เดิม |
 | Daily Work `/daily-work` | `GET /api/work-logs`; TimeEntry พร้อม WorkItem, Project, owner; รองรับวัน/ช่วงวันที่และ pagination | `POST/PATCH/DELETE /api/work-logs[/{id}]`; owner server-resolved, ชั่วโมงบวก, WorkItem required และ Project consistency ตรวจทุกครั้ง |
-| Company `/company` | `GET /api/company`; singleton Company. Customer registry/portfolio ใช้ `/api/customers` และข้อมูล Projects/WorkItems/TimeEntries จริง | `PATCH /api/company`; Customer `POST/PATCH/DELETE` ตามกติกา registry; ไม่มี member/team administration |
+| Company `/company` | Paginated `GET /api/company`; multiple Companies with Project, WorkItem, and TimeEntry aggregate summaries | `POST/PATCH/DELETE /api/company[/{id}]`; protect Dhas and Companies referenced by Projects; ไม่มี member/team administration |
 | Settings `/settings` | `GET /api/settings/me`; authenticated owner's profile และ persisted preferences | `PATCH /api/settings/me`; persist เฉพาะ field ที่ UI ใช้และระบบรองรับ; ไม่มี password/2FA หรือ notification channel ที่ยังไม่เชื่อม provider |
 
 ตารางนี้เป็น target contract; endpoint ที่ไม่มีใน inventory section 1 เป็น proposal. Server Components สามารถเรียก shared read/service module โดยตรงได้โดยไม่สร้าง HTTP hop เพิ่ม แต่ต้องใช้ validation/query semantics เดียวกับ API.
 
 ## 4. Request/query contracts และ validation ตาม resource
 
-### 4.1 Projects และ Customers
+### 4.1 Projects และ Companies (#18 implementation)
 
-**Implementation #18 (code, rollout pending):** `GET/PATCH /api/company` และ Project CRUD ใช้ owner gate. Project create ผูก Company ฝั่ง server และปฏิเสธ client `companyId`; Project list คืน `{ page: { limit, nextCursor } }` โดย default 50 สูงสุด 200 และ cursor ผูกกับ filters. `GET /api/projects?options=work-items` ยังคงเป็น selector เดิม. Project list/detail คืน Company และ `summary` จาก WorkItem statuses/roles กับ TimeEntry hours; detail แสดงรายการ WorkItems/TimeEntries. Project `progress` เป็นค่าคำนวณ. Project ที่มีประวัติอ้างอิงตอบ `409 HISTORY_CONFLICT` เมื่อ DELETE. Legacy Project ที่ยังไม่ผูก Company อาจมี `companyId=null` ระหว่าง compatibility stage เท่านั้น; ใช้ Dhas backfill ก่อนบังคับ NOT NULL.
+Issue #18 is deployed. Company is the direct parent of Project; there is no Customer API or `customerId` contract. All existing Projects were assigned to Dhas, `Project.companyId` is required in production, and Company/Project writes use the owner gate.
 
-- `GET /api/projects`: target filters `customerId`, `status`, `search`, `limit`, `cursor`. Response `{ projects, page }`; Project list/detail ให้ include Customer และ derived WorkItem counts, role breakdown, progress และ TimeEntry hours โดยไม่ join จน hours ซ้ำ.
-- `POST /api/projects`: ต้องมี `name`, `startDate`, `dueDate`, `customerId`; fields optional ที่รองรับจาก Project model ได้แก่ `description`, `status`, `priority`, `colorProject`. Validate required strings, dates/enums และ Customer ที่ active. `creatorId` มาจาก owner server-side.
-- `PATCH /api/projects/{id}`: partial update ของ fields ที่รองรับ; Project และ Customer ต้องมีอยู่; เปลี่ยน Customer ได้เมื่อปลายทาง active. `progress` และยอด `WorkItem`/ชั่วโมงเป็น derived/read-only.
-- `DELETE /api/projects/{id}`: `409 CONFLICT` หากมี WorkItem, TimeEntry หรือ dependent business history ที่การลบจะ cascade ทำให้หาย; ลบได้เมื่อไม่มี dependency ที่ต้องรักษา. Retention/archive policy ยังเป็นข้อพิจารณาระดับระบบ.
-- `GET /api/customers`: target registry สำหรับ Company และ Project selector; filters `status`, `search`, `limit`, `cursor`; response `{ customers, page }`.
-- `POST /api/customers`: ต้องมี non-empty `name`; `status` default เป็น `active`; contact fields (`code`, `email`, `phone`, `address`, `website`, `notes`) optional ตาม target schema.
-- `GET/PATCH/DELETE /api/customers/{id}`: อ่าน/แก้/deactivate registry record. `PATCH status=inactive` เป็นวิธีหยุดการเลือกใช้; `DELETE` hard-delete ได้เมื่อไม่มี Project อ้างถึงเท่านั้น มิฉะนั้น `409 CONFLICT`. Inactive Customer ยังคงแสดงในประวัติ Project เดิม.
+- `GET /api/company`: accepts `search`, `limit` (default 50, maximum 200), and opaque `cursor`; returns `{ companies, page }`. Each Company includes an aggregate summary with Project count, WorkItem count, and TimeEntry hours. Ordering is deterministic by name and ID.
+- `POST /api/company`: requires a non-empty `name`; optional profile fields are `displayName`, `location`, `industry`, `email`, `phone`, `address`, `website`, `logo`, and `description`. Dhas identity is reserved.
+- `PATCH /api/company/{id}`: validates supplied profile fields and preserves Dhas's canonical name. `DELETE /api/company/{id}` is allowed only when no Project refers to the Company and never for Dhas; otherwise it returns `409 HISTORY_CONFLICT`.
+- `GET /api/projects`: accepts `companyId`, `status`, `search`, `limit` (default 50, maximum 200), and opaque `cursor`. `status` must be one of `Planning`, `In Progress`, `Review`, `Completed`, or `On Hold`; invalid values return `400 VALIDATION_ERROR`. Response is `{ projects, page }` with Company and derived WorkItem/TimeEntry summaries.
+- `GET /api/projects?options=work-items` remains the existing selector response.
+- `POST /api/projects`: requires `name`, `companyId`, `startDate`, and `dueDate`; optional fields are `description`, `status`, `priority`, and `colorProject`. The selected Company is checked server-side and `creatorId` comes from the owner. Project calendar dates use Bangkok dates and PostgreSQL `DATE`.
+- `PATCH /api/projects/{id}`: accepts partial supported fields, validates Company and dates, and keeps progress and work/hour totals derived from shared records.
+- `DELETE /api/projects/{id}`: returns `409 HISTORY_CONFLICT` while WorkItems, TimeEntries, or dependent business history exists. The UI confirms before submitting and displays the conflict returned by the API.
 
 ### 4.2 Work Items และ Board
 
-- `GET /api/work-items`: target filters `projectId`, `customerId`, `kind`, `status`, `priority`, `role`, `year`, `month`, `search`, `includeYears`, `limit`, `cursor`. `assigneeId` คงไว้ได้เฉพาะ compatibility ภายใน; ไม่ใช่ owner selector.
+- `GET /api/work-items`: target filters `projectId`, `companyId` (via Project), `kind`, `status`, `priority`, `role`, `year`, `month`, `search`, `includeYears`, `limit`, `cursor`. `assigneeId` คงไว้ได้เฉพาะ compatibility ภายใน; ไม่ใช่ owner selector.
 - `year`/`month` และ `includeYears` ใช้ calendar date ตาม `Asia/Bangkok`; date anchor คือ `workDate`, ถัดมา `dueDate`, แล้ว `createdAt`. เมื่อไม่ส่ง `year` ให้ใช้ปีปัจจุบันใน timezone นี้.
 - `POST /api/work-items` ต้องมี `title`, `kind`, `projectId`; defaults คือ `priority=none`, `role=null`, `status=backlog`, `types=[]`. Optional fields: `description`, `workDate`, `dueDate`. `assigneeId` ถูก resolve เป็น owner โดย server. Validate enum/date/Project FK; unknown public status → `400 VALIDATION_ERROR`, missing Project → `404 NOT_FOUND`.
 - `PATCH /api/work-items/{id}` รับ partial fields เดียวกับ create, validate ค่าใหม่และ relation ที่มีผลหลัง patch. `status` mutation จาก Board เรียก contract นี้; `submittedAt` ไม่ใช่ completion time และ target ต้องคง semantics ที่กำหนดใน WorkItem contract.
@@ -163,7 +164,7 @@ Dashboard/Analysis คืน `period`, `timezone`, `filters` และ `metricVe
 
 ### 4.4 Dashboard และ Analysis aggregates
 
-`GET /api/dashboard/summary` และ `GET /api/analysis` ใช้ query parameters ชุดเดียวกัน: `startDate`, `endDate` (ทั้งคู่หรือไม่ส่งทั้งคู่; เมื่อไม่ส่งใช้เดือนปัจจุบันใน default time zone `Asia/Bangkok`), `customerId`, `projectId`, `role`, `kind`. `startDate`/`endDate` เป็น inclusive business dates. หากส่งทั้ง `customerId` และ `projectId` ที่ไม่สัมพันธ์กัน ให้ตอบ `400 RELATION_MISMATCH`; resource ID ที่ไม่มีอยู่ตอบ `404`.
+`GET /api/dashboard/summary` และ `GET /api/analysis` ใช้ query parameters ชุดเดียวกัน: `startDate`, `endDate` (ทั้งคู่หรือไม่ส่งทั้งคู่; เมื่อไม่ส่งใช้เดือนปัจจุบันใน default time zone `Asia/Bangkok`), `companyId`, `projectId`, `role`, `kind`. `startDate`/`endDate` เป็น inclusive business dates. หากส่งทั้ง `companyId` และ `projectId` ที่ไม่สัมพันธ์กัน ให้ตอบ `400 RELATION_MISMATCH`; resource ID ที่ไม่มีอยู่ตอบ `404`.
 
 ใช้ date range กับ WorkItem date anchor และ `TimeEntry.date` ตามข้อ 2.4. Response ทั้งคู่ต้องบอก effective period, timezone, filters และ metric version เพื่อให้ UI/link/export ระบุฐานคำนวณเดิม. Dashboard `summary` คืน `total`, `open`, `completed`, `overdue`, `completionRate`, `loggedHours` และ bounded `recentWorkItems`, `urgentWorkItems`, `overdueWorkItems` lists พร้อม canonical IDs/deep links. Analysis คืน KPIs เดียวกัน พร้อม `statusBreakdown`, `kindBreakdown`, `priorityBreakdown`, time-series และ filtered source rows สำหรับ drill-through กลับ WorkItem/TimeEntry IDs. ทั้งสอง response ไม่เขียน metric ที่คำนวณได้ลงเป็นข้อมูลชุดใหม่. Historical throughput ต้องรอ status history หรือ completion timestamp ที่มีความหมายชัดเจน.
 
@@ -178,7 +179,7 @@ Dashboard/Analysis คืน `period`, `timezone`, `filters` และ `metricVe
     },
     "timezone": "Asia/Bangkok", // timezone สำหรับ date boundary และ grouping
     "filters": { // filters ที่มีผลจริง
-      "customerId": null, // Customer filter หรือ null
+      "companyId": null, // Company filter หรือ null
       "projectId": null, // Project filter หรือ null
       "role": null, // WorkItem role filter หรือ null
       "kind": null // WorkItem kind filter หรือ null
@@ -190,8 +191,7 @@ Dashboard/Analysis คืน `period`, `timezone`, `filters` และ `metricVe
 
 ### 4.5 Company และ Settings
 
-- `GET /api/company`: คืน Company profile เดียวของ installation; ไม่มีข้อมูลให้คืน `company: null` (ไม่ใช่ mock/sample record). `PATCH /api/company` รับ fields ที่มีใน Company model (`name`, `industry`, `email`, `phone`, `address`, `website`, `logo`, `description`); `name` ต้องไม่ว่าง. Target ต้อง enforce singleton semantics; ถ้ายังไม่มี record ให้ PATCH สร้าง singleton และคืน `201`, ถ้ามีแล้วคืน `200`.
-- Customer list/detail/create/update/deactivate ใช้ resource contract ในข้อ 4.1; summary ใต้ Customer มาจาก Project, WorkItem และ TimeEntry query.
+- Company collection/create/update/delete contracts ของ #18 ระบุไว้ในข้อ 4.1; Dhas เป็น Company หลักที่ห้ามลบ และ Company ที่มี Projects ใช้งานอยู่ลบไม่ได้.
 - `GET /api/settings/me`: คืน `{ profile, preferences }` ของเจ้าของที่ยืนยันแล้ว; หากยังไม่มี preferences ให้คืน default `theme=light`, `locale=th` และเพิ่ม `timezone=Asia/Bangkok` จาก system config แบบ read-only ไม่ใช่ค่าที่เจ้าของเลือก. ค่า timezone เป็นค่าระบบคงที่ทุก environment. ไม่มี identity selector. `PATCH` รับ partial updates ใน nested `profile` และ/หรือ `preferences` object เท่านั้น. `profile` รองรับ `name`, `email`, `phone`, `avatar`; `name` ต้องไม่ว่าง; email ต้องถูกต้องและ unique (`409 CONFLICT` เมื่อชน). Profile fields ที่ไม่มี backing field เช่น Bio หรือ first/last name แยกกันต้องไม่ถูกบันทึกเป็นข้อมูลใหม่.
 - Target preferences จำกัดที่ theme (`light`, `dark`, `special-dark`) และ locale (`th`, `en`). Timezone แสดงเป็น `Asia/Bangkok` แบบ read-only; ห้ามตั้ง preference ที่เปลี่ยน timezone ของการ parse, persistence หรือ business-date calculations. Unknown/unintegrated security หรือ notification fields ตอบ `400 VALIDATION_ERROR` และห้ามตอบสำเร็จโดยไม่ persist.
 - ตัวอย่าง target `PATCH /api/settings/me`:
@@ -217,8 +217,8 @@ Dashboard/Analysis คืน `period`, `timezone`, `filters` และ `metricVe
 | --- | --- | --- |
 | Invalid enum/date/hour, body หรือ query | `400 VALIDATION_ERROR` | ไม่เปลี่ยน local record/aggregate; แสดง field/message |
 | Project กับ WorkItem ไม่สัมพันธ์กัน | `400 RELATION_MISMATCH` | ไม่สร้าง/แก้ TimeEntry; เก็บค่าเดิมไว้ |
-| ไม่พบ WorkItem, TimeEntry, Project หรือ Customer ที่อ้าง | `404 NOT_FOUND` | แสดง not-found state; ไม่แทนด้วย empty success |
-| Customer/Project ถูกใช้งานหรือ unique/state conflict | `409 CONFLICT` | เก็บข้อมูลเดิม; อธิบายการ deactivate/archive/retry ที่ทำได้ |
+| ไม่พบ WorkItem, TimeEntry, Project หรือ Company ที่อ้าง | `404 NOT_FOUND` | แสดง not-found state; ไม่แทนด้วย empty success |
+| Company/Project ถูกใช้งานหรือ unique/state conflict | `409 CONFLICT` | เก็บข้อมูลเดิม; อธิบายการรักษา/archive/retry ที่ทำได้ |
 | ไม่มี owner session / access gate block | `401 OWNER_UNAUTHENTICATED` / `403 ACCESS_DENIED` | ไม่เปิดข้อมูลหรือ mutation; แสดง permission state |
 | Database หรือ required provider ใช้งานไม่ได้ | `503 DEPENDENCY_UNAVAILABLE` | รักษาข้อมูลเดิม; มี retry ที่ปลอดภัยเมื่อรองรับ |
 | Unexpected server error | `500 INTERNAL_ERROR` | แสดง generic error และ trace/reference ถ้ามี; ห้ามแสดง raw exception |
@@ -227,7 +227,7 @@ Mutation success คืน canonical resource หลัง server commit. UI อ
 
 ## 6. การพัฒนาตาม dependency และการตรวจ contract
 
-Route proposals ในเอกสารนี้ขึ้นกับ owner access, Customer/Project rollout, shared WorkItem/TimeEntry validation และ preference storage ตามลำดับใน [SCOPE.md](./SCOPE.md). ไม่ทำ live database migration หรือเปิด endpoint ที่พึ่ง Customer จนผ่าน [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md). GitLab Issue import details, mappings, retries และ response outcomes อยู่ใน [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md); route proposals ด้าน GitLab ไม่ใช่ current API.
+Route proposals ที่ยังไม่ implement ขึ้นกับ owner access, shared WorkItem/TimeEntry validation และ preference storage ตามลำดับใน [SCOPE.md](./SCOPE.md). Company/Project rollout ของ #18 ผ่านแล้ว; รายละเอียด migration เดิมเก็บไว้ใน [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) เพื่ออ้างอิงย้อนหลังเท่านั้น. GitLab Issue import details, mappings, retries และ response outcomes อยู่ใน [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md); route proposals ด้าน GitLab ไม่ใช่ current API.
 
 Contract regression tests ตรวจความครบของเอกสาร, route inventory ปัจจุบัน, target menu coverage และ reusable runner commands; tests เหล่านี้ไม่ได้ยืนยันว่า target endpoints ที่ยังไม่มีถูก implement แล้ว. คำสั่งดูที่ [Testing Commands](./process/testing.md): `pnpm test:api-contracts`, `pnpm test:contracts`, `pnpm test`; GitLab contract ใช้ `pnpm test:gitlab-contracts`.
 
@@ -237,4 +237,4 @@ Contract regression tests ตรวจความครบของเอกส
 
 ## Database operations ที่ implement ใน #16
 
-เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. Customer/GitLab target schema และ business API ยังไม่ถูก deploy ในงาน Infra นี้. เจ้าของกำหนด defaults เป็น BACKUP_DIR=./database/backups/postgres_data และ BACKUP_KEEP_DAYS=30 แล้ว. ผล isolated verification ยืนยันการเตรียมเครื่องมือของ #16; ยังไม่ได้ rollout หรือสร้าง backup ของ Dev/UAT/Production จริง ซึ่งต้องผ่าน runbook ก่อน schema changes.
+เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. Production Company/Project schema และ business API ของ #18 ผ่าน rollout แล้ว; ผลตรวจอยู่ใน [Issue #18 implementation report](./COMPANY_PROJECT_IMPLEMENTATION.md). Customer/GitLab contracts ที่เหลือเป็นข้อเสนอเก่าหรืออนาคต ไม่ใช่ current API.

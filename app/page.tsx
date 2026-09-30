@@ -130,7 +130,7 @@ export default function DashboardPage() {
             <div className={PAGE_TOOLBAR}>
               <div className="min-w-0">
                 <h1 className={PAGE_HEADING}>Dashboard</h1>
-                <p className={PAGE_LEAD}>Welcome back! Here's what's happening with your projects.</p>
+                <p className={PAGE_LEAD}>Welcome back! Here&apos;s what&apos;s happening with your projects.</p>
               </div>
               <div className="flex flex-wrap justify-end gap-2">
                 <Button variant="outline">

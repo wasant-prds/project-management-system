@@ -43,7 +43,7 @@ interface Column {
 }
 
 export default function BoardPage() {
-  const [columns, setColumns] = useState<Column[]>([
+  const [columns] = useState<Column[]>([
     {
       id: "backlog",
       title: "Backlog",

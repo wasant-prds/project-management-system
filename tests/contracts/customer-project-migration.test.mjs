@@ -88,7 +88,7 @@ test("GitLab identity is canonical, uniquely constrained, and safe under retries
   assert.match(mapping, /provider \+ canonical instance URL \+ GitLab project ID \+ global issue ID/);
 });
 
-test("primary EV docs and proposed APIs reference the migration contract", async () => {
+test("primary EV docs reference the migration contract and the API follows the Company decision", async () => {
   const paths = [
     "document/ENGINEERING_SPEC.md",
     "document/ARCHITECTURE.md",
@@ -104,8 +104,10 @@ test("primary EV docs and proposed APIs reference the migration contract", async
     assert.match(content, /\[Customer\/Project Migration Contract\]\(\.\/CUSTOMER_PROJECT_MIGRATION\.md\)/, `Missing contract reference in ${path}`);
   }
   const api = await read("document/API.md");
-  assert.match(api, /`DELETE` hard-delete ได้เมื่อไม่มี Project อ้างถึงเท่านั้น มิฉะนั้น `409 CONFLICT`/);
-  assert.match(api, /`DELETE \/api\/projects\/\{id\}`: `409 CONFLICT` หากมี WorkItem, TimeEntry หรือ dependent business history/);
+  assert.match(api, /there is no Customer API or `customerId` contract/i);
+  assert.doesNotMatch(api, /`\/api\/customers`/);
+  assert.match(api, /Company ที่มี Projects ใช้งานอยู่ลบไม่ได้/);
+  assert.match(api, /`DELETE \/api\/projects\/\{id\}`: returns `409 HISTORY_CONFLICT`/);
   const checklist = await read("design/projects/project-management-system/work_items/00_checklist.md");
   assert.ok(checklist.includes("- [x] **#12** [Specify Customer and Project Data Migration]"));
 });
