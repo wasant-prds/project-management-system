@@ -38,6 +38,13 @@ Route Handler ปัจจุบันมีดังนี้:
 - [WorkItem detail](./api/work-items/detail.md) — read, update, delete; detail read แสดง Company และ Daily Work
 - [WorkItem import](./api/work-items/import.md) — JSON bulk import พร้อมผลลัพธ์รายแถว
 
+### Integrations — GitLab Issue import — Issue #20
+
+- [GitLab configuration status](./api/integrations/gitlab-status.md) — owner-only configuration readiness
+- [GitLab Project mappings](./api/integrations/gitlab-projects.md) — list และ create PMS mappings
+- [GitLab Project mapping detail](./api/integrations/gitlab-project-mapping.md) — edit หรือถอน mapping
+- [Manual GitLab Issue sync](./api/integrations/gitlab-sync.md) — first-sync approval, outcomes และ partial failures
+
 ### Daily Work
 
 - [Work log collection](./api/daily-work/collection.md) — list, create
@@ -52,7 +59,7 @@ Route Handler ปัจจุบันมีดังนี้:
 - [Owner access gate](./operations/owner-access.md) — Basic credential gate, origin checks, middleware proof, owner resolution.
 - [Runtime operations](./operations/runtime.md) — start, health, logs และ troubleshooting; links ไปยัง Docker/DB runbooks.
 - [Database data model](./database/data-model.md) — relations และ tables ที่ current APIs ใช้.
-- [GitLab integration status](./integration/gitlab.md) — configuration validation เทียบกับ behavior ที่ implement จริง.
+- [GitLab integration](./integration/gitlab.md) — configuration, security, data ownership, sync behavior และ rollout readiness.
 
 ## Source references
 

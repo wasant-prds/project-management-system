@@ -35,7 +35,7 @@ function makeResponse(body, status = 200, headers = {}) {
   return { status, body, headers }
 }
 
-function makeOwnerMocks({ authorized = true } = {}) {
+function makeOwnerMocks({ authorized = true, gitLabConfigured = true } = {}) {
   let ownerCalls = 0
   let configurationCalls = 0
   return {
@@ -58,7 +58,7 @@ function makeOwnerMocks({ authorized = true } = {}) {
     'node:crypto': require('node:crypto'),
     '@/lib/bangkok-datetime': { serializeBangkokTimestamp: (value) => `${value.toISOString().slice(0, -1)}+07:00`, currentBangkokWallClockDate: () => new Date('2026-09-30T18:00:00.000Z') },
     '@/lib/gitlab-issue-import': {
-      getGitLabConfiguration() { configurationCalls += 1; return config },
+      getGitLabConfiguration() { configurationCalls += 1; return gitLabConfigured ? config : null },
       configurationCalls: () => configurationCalls,
       validateApprovedLabelMap: (value) => value && typeof value === 'object' && !Array.isArray(value)
         && Object.values(value).every((entry) => ['bug', 'feature'].includes(entry)) ? value : null,
@@ -86,6 +86,54 @@ test('owner authentication protects GitLab status before configuration details a
   assert.equal(mocks['@/lib/owner'].calls(), 1)
   assert.equal(mocks['@/lib/gitlab-issue-import'].configurationCalls(), 0)
   assert.equal(JSON.stringify(result.body).includes(config.token), false)
+})
+
+test('GitLab status returns only the configured flag for configured and unconfigured secrets', async () => {
+  for (const gitLabConfigured of [true, false]) {
+    const mocks = makeOwnerMocks({ gitLabConfigured })
+    const { GET } = loadTs('../../app/api/integrations/gitlab/status/route.ts', mocks)
+    const result = await GET()
+
+    assert.equal(result.status, 200)
+    assert.equal(result.body.configured, gitLabConfigured)
+    assert.deepEqual(Object.keys(result.body), ['configured'])
+    assert.equal(JSON.stringify(result.body).includes(config.token), false)
+    assert.equal(mocks['@/lib/gitlab-issue-import'].configurationCalls(), 1)
+  }
+})
+
+test('all GitLab mapping routes reject unauthenticated access before database reads or writes', async () => {
+  const mocks = makeOwnerMocks({ authorized: false })
+  const prisma = {
+    gitLabProjectMapping: {
+      async findMany() { assert.fail('must not list mappings before owner authorization') },
+      async create() { assert.fail('must not create mappings before owner authorization') },
+      async findUnique() { assert.fail('must not read a mapping before owner authorization') },
+      async update() { assert.fail('must not update mappings before owner authorization') },
+      async delete() { assert.fail('must not delete mappings before owner authorization') },
+    },
+    project: { async findUnique() { assert.fail('must not read Projects before owner authorization') } },
+    externalWorkItemReference: {
+      async findFirst() { assert.fail('must not read references before owner authorization') },
+      async count() { assert.fail('must not count references before owner authorization') },
+    },
+  }
+  mocks['@/lib/db'].prisma = prisma
+  const { GET, POST } = loadTs('../../app/api/integrations/gitlab/projects/route.ts', mocks)
+  const itemRoutes = loadTs('../../app/api/integrations/gitlab/projects/[mappingId]/route.ts', mocks)
+  const request = { json: async () => assert.fail('must not parse mapping bodies before owner authorization') }
+  const context = { params: Promise.resolve({ mappingId: mapping.id }) }
+  const results = [
+    await GET(),
+    await POST(request),
+    await itemRoutes.PATCH(request, context),
+    await itemRoutes.DELETE({}, context),
+  ]
+
+  assert.deepEqual(results.map((result) => result.status), [401, 401, 401, 401])
+  assert.ok(results.every((result) => result.body.error.code === 'OWNER_UNAUTHENTICATED'))
+  assert.equal(mocks['@/lib/owner'].calls(), 4)
+  assert.equal(mocks['@/lib/gitlab-issue-import'].configurationCalls(), 0)
 })
 
 test('mapping create uses only server-configured instance and rejects client URL or secret fields', async () => {
@@ -185,7 +233,11 @@ test('sync requires explicit first-sync approval and then calls only the configu
   let serviceCalls = 0
   mocks['@/lib/gitlab-issue-import'].syncGitLabProject = async ({ ownerId: sentOwnerId }) => {
     serviceCalls += 1
-    return { counts: { created: 1, updated: 0, skipped: 0, failed: 0 }, results: [], ownerId: sentOwnerId }
+    return {
+      counts: { created: 1, updated: 0, skipped: 0, failed: 0 },
+      results: [{ outcome: 'created', sourceUrl: 'https://gitlab.example.test/base/group/project/-/issues/17', workItemId: 'work-item-1' }],
+      ownerId: sentOwnerId,
+    }
   }
   mocks['@/lib/db'].prisma = {
     gitLabProjectMapping: {
@@ -202,6 +254,29 @@ test('sync requires explicit first-sync approval and then calls only the configu
   const authorized = await POST({ json: async () => ({ mappingId: mapping.id, approveFirstSync: true }) })
   assert.equal(authorized.status, 200)
   assert.equal(approveAt.toISOString(), '2026-09-30T18:00:00.000Z')
+  assert.equal(authorized.body.mappingId, mapping.id)
+  assert.equal(authorized.body.counts.created, 1)
+  assert.equal(authorized.body.counts.failed, 0)
+  assert.equal(authorized.body.results[0].outcome, 'created')
+  assert.equal(authorized.body.results[0].sourceUrl, 'https://gitlab.example.test/base/group/project/-/issues/17')
+  assert.equal(authorized.body.results[0].workItemId, 'work-item-1')
   assert.equal(authorized.body.ownerId, owner.id)
+  assert.equal(serviceCalls, 1)
   assert.equal(JSON.stringify(authorized.body).includes(config.token), false)
+})
+
+test('unauthenticated sync is rejected before reading the request, configuration, or mapping', async () => {
+  const mocks = makeOwnerMocks({ authorized: false })
+  mocks['@/lib/db'].prisma = {
+    gitLabProjectMapping: {
+      async findUnique() { assert.fail('must not read mapping before owner authorization') },
+    },
+  }
+  const { POST } = loadTs('../../app/api/integrations/gitlab/sync/route.ts', mocks)
+  const result = await POST({ json: async () => assert.fail('must not parse sync body before owner authorization') })
+
+  assert.equal(result.status, 401)
+  assert.equal(result.body.error.code, 'OWNER_UNAUTHENTICATED')
+  assert.equal(mocks['@/lib/owner'].calls(), 1)
+  assert.equal(mocks['@/lib/gitlab-issue-import'].configurationCalls(), 0)
 })

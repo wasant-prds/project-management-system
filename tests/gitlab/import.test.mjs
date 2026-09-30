@@ -98,7 +98,11 @@ function response(body, { status = 200, headers = {} } = {}) {
   return new Response(JSON.stringify(body), { status, headers })
 }
 
-function makeDatabase({ mapping = makeMapping(), items = [], references = [] } = {}) {
+function rawResponse(body, { status = 200, headers = {} } = {}) {
+  return new Response(body, { status, headers })
+}
+
+function makeDatabase({ mapping = makeMapping(), items = [], references = [], failReferenceCreate = false } = {}) {
   const state = {
     mapping,
     workItems: new Map(items.map((item) => [item.id, structuredClone(item)])),
@@ -127,6 +131,7 @@ function makeDatabase({ mapping = makeMapping(), items = [], references = [] } =
             return next.references.get(`${identity.provider}|${identity.canonicalGitLabInstanceUrl}|${identity.gitLabProjectId}|${identity.gitLabGlobalIssueId}`) ?? null
           },
           async create({ data }) {
+            if (failReferenceCreate) throw Object.assign(new Error('reference write failed'), { code: 'P2003' })
             const reference = { id: `reference-${next.nextId++}`, ...data }
             const key = referenceKey(reference)
             if (next.references.has(key)) throw Object.assign(new Error('unique'), { code: 'P2002' })
@@ -227,10 +232,86 @@ test('new Issues map fields, use Bangkok dates, and preserve owner-only identity
   assert.deepEqual(plain(result.results[0].warnings), ['Unmapped GitLab label: customer feedback'])
   assert.equal(requests[0].options.headers['PRIVATE-TOKEN'], config.token)
   assert.equal(requests[0].options.method, 'GET')
+  assert.equal(requests[0].options.redirect, 'manual')
   assert.match(requests[0].url, /scope=all/)
   assert.match(requests[0].url, /state=all/)
   assert.match(requests[0].url, /per_page=100/)
   assert.equal(state.transactionOptions[0].isolationLevel, 'Serializable')
+})
+
+test('cross-origin redirects are rejected without following them with the GitLab token', async () => {
+  const { prisma } = makeDatabase()
+  const requests = []
+  const result = await syncGitLabProject({
+    prisma,
+    mapping: makeMapping(),
+    ownerId,
+    config,
+    fetchImpl: async (url, options) => {
+      requests.push({ url, options })
+      return rawResponse('', { status: 302, headers: { Location: 'https://attacker.invalid/collect' } })
+    },
+    now: () => fixedNow,
+  })
+
+  assert.equal(requests.length, 1)
+  assert.equal(new URL(requests[0].url).origin, 'https://gitlab.example.test')
+  assert.equal(requests[0].options.redirect, 'manual')
+  assert.equal(result.runError.code, 'PROVIDER_UNAVAILABLE')
+  assert.equal(result.runError.retryable, false)
+  assert.equal(result.results.length, 0)
+})
+
+test('omitted optional description and due date are normalized to null', async () => {
+  const { prisma, state } = makeDatabase()
+  const created = await syncGitLabProject({
+    prisma,
+    mapping: makeMapping(),
+    ownerId,
+    config,
+    fetchImpl: clientForPages([{ issues: [makeIssue()] }]),
+    now: () => fixedNow,
+  })
+
+  assert.equal(created.counts.created, 1)
+  const resynced = await syncGitLabProject({
+    prisma,
+    mapping: makeMapping(),
+    ownerId,
+    config,
+    fetchImpl: clientForPages([{
+      issues: [makeIssue({ description: undefined, due_date: undefined, updated_at: '2026-09-30T12:30:00Z' })],
+    }]),
+    now: () => fixedNow,
+  })
+
+  assert.equal(resynced.counts.updated, 1)
+  assert.equal([...state.workItems.values()][0].description, null)
+  assert.equal([...state.workItems.values()][0].dueDate, null)
+})
+
+test('numeric GitLab IDs are preserved losslessly from the JSON source text', async () => {
+  const gitLabProjectId = '9007199254740997'
+  const mapping = makeMapping({ gitLabProjectId })
+  const { prisma, state } = makeDatabase({ mapping })
+  const exactIssueJson = JSON.stringify(makeIssue())
+    .replace('"id":701', '"id":9007199254740993')
+    .replace('"iid":17', '"iid":9007199254740995')
+    .replace('"project_id":42', `"project_id":${gitLabProjectId}`)
+    .replace('/issues/17', '/issues/9007199254740995')
+  const result = await syncGitLabProject({
+    prisma,
+    mapping,
+    ownerId,
+    config,
+    fetchImpl: async () => rawResponse(`[${exactIssueJson}]`),
+    now: () => fixedNow,
+  })
+
+  assert.deepEqual(plain(result.counts), { created: 1, updated: 0, skipped: 0, failed: 0 })
+  const reference = [...state.references.values()][0]
+  assert.equal(reference.gitLabGlobalIssueId, '9007199254740993')
+  assert.equal(reference.gitLabIssueIid, '9007199254740995')
 })
 
 test('closed Issues get a PMS submittedAt Bangkok timestamp without using GitLab closed_at', async () => {
@@ -412,6 +493,46 @@ test('bad Issue rows fail individually while other Issues still commit', async (
   assert.deepEqual(plain(result.counts), { created: 1, updated: 0, skipped: 0, failed: 1 })
   assert.equal(result.results.find((item) => item.outcome === 'failed').error.code, 'INVALID_REMOTE_ISSUE')
   assert.equal(state.workItems.size, 1)
+})
+
+test('malformed remote fields and invalid dates fail without writing an Issue', async () => {
+  const { prisma, state } = makeDatabase()
+  const invalidIssues = [
+    makeIssue({ id: 702, iid: 18, title: '   ', web_url: 'https://gitlab.example.test/base/group/project/-/issues/18' }),
+    makeIssue({ id: 703, iid: 19, due_date: '2026-02-30', web_url: 'https://gitlab.example.test/base/group/project/-/issues/19' }),
+    makeIssue({ id: 704, iid: 20, created_at: '2026-09-29T10:00:00', web_url: 'https://gitlab.example.test/base/group/project/-/issues/20' }),
+    makeIssue({ id: 705, iid: 21, labels: ['bug', 42], web_url: 'https://gitlab.example.test/base/group/project/-/issues/21' }),
+  ]
+  const result = await syncGitLabProject({
+    prisma,
+    mapping: makeMapping(),
+    ownerId,
+    config,
+    fetchImpl: clientForPages([{ issues: invalidIssues }]),
+    now: () => fixedNow,
+  })
+
+  assert.deepEqual(plain(result.counts), { created: 0, updated: 0, skipped: 0, failed: 4 })
+  assert.ok(result.results.every((item) => item.error.code === 'INVALID_REMOTE_ISSUE'))
+  assert.equal(state.workItems.size, 0)
+  assert.equal(state.references.size, 0)
+})
+
+test('failed external-reference persistence rolls back the Work Item transaction', async () => {
+  const { prisma, state } = makeDatabase({ failReferenceCreate: true })
+  const result = await syncGitLabProject({
+    prisma,
+    mapping: makeMapping(),
+    ownerId,
+    config,
+    fetchImpl: clientForPages([{ issues: [makeIssue()] }]),
+    now: () => fixedNow,
+  })
+
+  assert.deepEqual(plain(result.counts), { created: 0, updated: 0, skipped: 0, failed: 1 })
+  assert.equal(result.results[0].error.code, 'PERSISTENCE_FAILED')
+  assert.equal(state.workItems.size, 0)
+  assert.equal(state.references.size, 0)
 })
 
 test('remote labels matching JavaScript prototype keys are treated as unmapped strings', async () => {

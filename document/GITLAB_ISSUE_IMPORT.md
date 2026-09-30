@@ -92,7 +92,7 @@ Request-level errors ใช้ error envelope มาตรฐานตาม §2
 ## 7. Security, operational gates และ acceptance
 
 - Token ต้องเป็น server-side secret/environment ที่มีสิทธิ์อ่านเฉพาะ Project ที่อนุมัติ; ไม่อยู่ใน Prisma, browser bundle, `NEXT_PUBLIC_*`, API response, docs หรือ logs. URL ของ GitLab ต้องมาจาก server configuration/allowlist เพื่อป้องกัน client เลือก outbound host.
-- Token ถูกอ่านจาก `GITLAB_TOKEN`, base URL จาก `GITLAB_BASE_URL`; runtime ปฏิเสธ URL/token ที่ตั้งไม่ครบคู่และ URL ที่ไม่ใช่ HTTPS. Sync ตรวจ origin/path ของทุก pagination link และ Issue source URL ก่อนส่ง token หรือสร้างข้อมูล. ห้ามยิง request ไปยัง GitLab จริงในการทดสอบอัตโนมัติ.
+- Token ถูกอ่านจาก `GITLAB_TOKEN`, base URL จาก `GITLAB_BASE_URL`; runtime ปฏิเสธ URL/token ที่ตั้งไม่ครบคู่และ URL ที่ไม่ใช่ HTTPS. Sync ตรวจ origin/path ของทุก pagination link และ Issue source URL ก่อนส่ง token หรือสร้างข้อมูล และปิดการตาม HTTP redirects อัตโนมัติเพื่อไม่ให้ token ถูกส่งไป host อื่น. ห้ามยิง request ไปยัง GitLab จริงในการทดสอบอัตโนมัติ.
 - Repository นี้ไม่ได้ยืนยัน GitLab instance, Project mappings, label maps หรือ credentials จริง. ก่อนใช้กับข้อมูลจริง owner ต้องตรวจ target environment, backup/rollout gate และอนุมัติ first sync ใน UI.
 - **Acceptance:** มี mapping สำหรับ Project/Issue/fields/status/labels; sync ซ้ำ upsert identity เดิมและคง PMS-owned fields/TimeEntries; results แยก created/updated/skipped/failed พร้อมเหตุผล; pagination, rate limit, partial failure และ retry ไม่สร้าง duplicate; ยกเลิก mapping ไม่ลบ history; date/time และ token ตรงตาม policy ข้างต้น.
 - ใช้ `pnpm test:gitlab` สำหรับ service/API tests ที่ใช้ mocked GitLab/Prisma และ `pnpm test:gitlab-contracts` สำหรับ document/API inventory regressions. Tests ใช้ synthetic credentials เท่านั้นและไม่เชื่อม GitLab จริง.

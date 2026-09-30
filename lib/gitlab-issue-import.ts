@@ -6,6 +6,8 @@ export type GitLabConfiguration = { baseUrl: string; token: string }
 
 type RawIssue = Record<string, unknown>
 
+const GITLAB_ID_FIELDS = new Set(['id', 'iid', 'project_id'])
+
 type GitLabIssue = {
   id: string
   iid: string
@@ -74,7 +76,7 @@ function validPositiveId(value: unknown): string | null {
 }
 
 function validCalendarDate(value: unknown): Date | null {
-  if (value === null) return null
+  if (value === null || value === undefined) return null
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     throw new GitLabIssueError('INVALID_REMOTE_ISSUE', 'GitLab Issue due date is invalid')
   }
@@ -133,7 +135,7 @@ function parseIssue(value: unknown, mapping: GitLabProjectMapping, baseUrl: stri
   const webUrl = typeof issue.web_url === 'string' ? issue.web_url : ''
   if (!id || !iid || projectId !== mapping.gitLabProjectId
     || typeof issue.title !== 'string' || issue.title.trim() === '' || issue.title.length > 1000
-    || (issue.description !== null && typeof issue.description !== 'string')
+    || (issue.description !== null && issue.description !== undefined && typeof issue.description !== 'string')
     || (issue.state !== 'opened' && issue.state !== 'closed')
     || !Array.isArray(issue.labels) || !issue.labels.every((label) => typeof label === 'string')
     || !createdAt || !updatedAt || !sourceUrlMatchesInstance(webUrl, baseUrl, iid)) {
@@ -144,7 +146,7 @@ function parseIssue(value: unknown, mapping: GitLabProjectMapping, baseUrl: stri
     iid,
     projectId,
     title: issue.title,
-    description: issue.description as string | null,
+    description: issue.description == null ? null : issue.description as string,
     state: issue.state,
     labels: issue.labels as string[],
     dueDate: validCalendarDate(issue.due_date),
@@ -186,6 +188,7 @@ async function requestPage(
           method: 'GET',
           headers: { 'PRIVATE-TOKEN': config.token, Accept: 'application/json' },
           cache: 'no-store',
+          redirect: 'manual',
           signal: controller.signal,
         })
       } finally {
@@ -217,6 +220,18 @@ async function requestPage(
     throw new GitLabProviderError('PROVIDER_UNAVAILABLE', 'GitLab rejected the Issue request', retryable)
   }
   throw new GitLabProviderError('PROVIDER_UNAVAILABLE', 'GitLab could not complete the Issue request', true)
+}
+
+function parseGitLabJson(value: string): unknown {
+  return JSON.parse(value, (key, parsed, context?: { source?: string }) => {
+    if (!GITLAB_ID_FIELDS.has(key) || typeof parsed !== 'number') return parsed
+    const source = context?.source
+    if (source && /^[1-9]\d*$/.test(source)) return source
+    if (!Number.isSafeInteger(parsed)) {
+      throw new Error('GitLab returned a numeric ID that cannot be represented safely')
+    }
+    return parsed
+  })
 }
 
 function nextLink(linkHeader: string | null) {
@@ -271,7 +286,7 @@ async function listIssues(
     }
     let page: unknown
     try {
-      page = await response.json()
+      page = parseGitLabJson(await response.text())
     } catch {
       throw new GitLabPaginationError('GitLab returned unreadable Issue data', issues, pageUrl, true)
     }
