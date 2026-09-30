@@ -3,8 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
-import http from 'node:http'
-import { createOwnerGate, formatBangkokTimestamp } from '../../scripts/owner-gate.mjs'
+import { authorize, formatBangkokTimestamp } from '../../scripts/owner-gate.mjs'
 
 const require = createRequire(import.meta.url)
 const ts = require('typescript')
@@ -100,6 +99,25 @@ test('explicit owner ID selects one audited User while preserving legacy Users',
   }, { env: { PMS_INTERNAL_OWNER_PROOF: 'server-only-proof', OWNER_USER_ID: 'owner-1' } })
   assert.equal((await getOwner()).id, 'owner-1')
   assert.equal(queriedWhere.id, 'owner-1')
+})
+
+test('owner access is not granted or denied by legacy User roles', async () => {
+  let role = 'member'
+  const queries = []
+  const { getOwner } = loadTs('../../lib/owner.ts', {
+    'next/headers': { headers: async () => ({ get: (name) => name === 'x-pms-owner-authenticated' ? '1' : 'server-only-proof' }) },
+    'next/server': { NextResponse: { json: () => ({}) } },
+    'node:crypto': require('node:crypto'),
+    '@/lib/db': { prisma: { user: { findMany: async (query) => {
+      queries.push(query)
+      return [{ id: 'owner-1', role }]
+    } } } },
+  }, { env: { PMS_INTERNAL_OWNER_PROOF: 'server-only-proof' } })
+
+  for (role of ['member', 'admin', 'Developer', 'infra', 'SA']) {
+    assert.equal((await getOwner()).id, 'owner-1')
+  }
+  assert.ok(queries.every((query) => !query.where?.role))
 })
 
 test('WorkItem input takes assignee from server owner and rejects a different ID', () => {
@@ -557,41 +575,26 @@ test('WorkItem year options only include years from the authenticated owner', as
   assert.deepEqual(yearQuery.values, ['owner-1'])
 })
 
-test('gate replaces a forged internal proof only after owner credential check', async () => {
+test('owner gate rejects forged internal proof headers without valid Basic credentials', () => {
   const env = { OWNER_GATE_USERNAME: 'owner', OWNER_GATE_PASSWORD: 'a'.repeat(32), APP_ORIGIN: 'http://localhost:3777', PMS_INTERNAL_OWNER_PROOF: 'server-only-proof' }
-  const auditEvents = []
-  const upstream = http.createServer((request, response) => {
-    response.setHeader('content-type', 'application/json')
-    response.end(JSON.stringify({
-      proof: request.headers['x-pms-owner-proof'],
-      authorization: request.headers.authorization,
-      authenticated: request.headers['x-pms-owner-authenticated'],
-    }))
-  }).listen(0, '127.0.0.1')
-  await new Promise((resolve) => upstream.once('listening', resolve))
-  const gate = createOwnerGate(env, upstream.address().port, {
-    audit: (event) => auditEvents.push(event),
-    now: () => new Date('2026-09-29T00:00:00.000Z'),
-  }).listen(0, '127.0.0.1')
-  await new Promise((resolve) => gate.once('listening', resolve))
-  try {
-    const url = `http://127.0.0.1:${gate.address().port}/api/users`
-    const denied = await fetch(url, { headers: { 'x-pms-owner-proof': 'forged' } })
-    assert.equal(denied.status, 401)
-    const accepted = await fetch(url, { headers: {
-      authorization: `Basic ${Buffer.from(`owner:${env.OWNER_GATE_PASSWORD}`).toString('base64')}`,
-      'x-pms-owner-proof': 'forged',
-      'x-pms-owner-authenticated': '1',
-    } })
-    assert.equal(accepted.status, 200)
-    assert.deepEqual(await accepted.json(), { proof: 'server-only-proof' })
-    assert.deepEqual(auditEvents, [
-      { event: 'owner_access', outcome: 'rejected', method: 'GET', timestamp: '2026-09-29T07:00:00.000+07:00' },
-      { event: 'owner_access', outcome: 'authorized', method: 'GET', timestamp: '2026-09-29T07:00:00.000+07:00' },
-    ])
-    assert.equal(JSON.stringify(auditEvents).includes(env.OWNER_GATE_PASSWORD), false)
-  } finally {
-    gate.close()
-    upstream.close()
+  const forgedHeaders = {
+    'x-pms-owner-proof': env.PMS_INTERNAL_OWNER_PROOF,
+    'x-pms-owner-authenticated': '1',
   }
+  const request = (authorization) => ({ method: 'GET', headers: { ...forgedHeaders, authorization } })
+
+  assert.equal(authorize(request(undefined), env), 401)
+  assert.equal(authorize(request('Basic Zm9yZ2VkOmNyZWRlbnRpYWxz'), env), 401)
+})
+
+test('owner gate checks request Origin for writes and any supplied Origin', () => {
+  const env = { OWNER_GATE_USERNAME: 'owner', OWNER_GATE_PASSWORD: 'a'.repeat(32), APP_ORIGIN: 'http://localhost:3777' }
+  const authorization = `Basic ${Buffer.from(`owner:${env.OWNER_GATE_PASSWORD}`).toString('base64')}`
+  const request = (method, origin) => ({ method, headers: { authorization, ...(origin ? { origin } : {}) } })
+
+  assert.equal(authorize(request('GET'), env), 200)
+  assert.equal(authorize(request('GET', 'https://attacker.example'), env), 403)
+  assert.equal(authorize(request('POST'), env), 403)
+  assert.equal(authorize(request('POST', 'https://attacker.example'), env), 403)
+  assert.equal(authorize(request('POST', env.APP_ORIGIN), env), 200)
 })

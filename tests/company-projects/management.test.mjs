@@ -10,12 +10,12 @@ const ts = require('typescript')
 function loadTs(path, mocks) {
   const source = readFileSync(new URL(path, import.meta.url), 'utf8')
   const output = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
-  const module = { exports: {} }
-  vm.runInNewContext(output, { module, exports: module.exports, require: (name) => {
+  const testModule = { exports: {} }
+  vm.runInNewContext(output, { module: testModule, exports: testModule.exports, require: (name) => {
     if (!(name in mocks)) throw new Error(`Unexpected import: ${name}`)
     return mocks[name]
   }, Date, URL, Buffer, console }, { filename: path })
-  return module.exports
+  return testModule.exports
 }
 class Decimal {
   constructor(value) { this.value = Number(value) }
@@ -259,4 +259,161 @@ test('Company registry validates creation and blocks deletion with linked Projec
   record = { code: null, _count: { projects: 0 } }
   assert.equal((await detail.DELETE({}, { params: Promise.resolve({ id: 'other' }) })).status, 200)
   assert.equal(deleted, 1)
+})
+
+test('Company list requires owner access before provisioning Dhas or reading Companies', async () => {
+  const denied = new Error('denied')
+  let provisioningCalls = 0
+  let databaseCalls = 0
+  const route = loadTs('../../app/api/company/route.ts', {
+    'next/server': { NextResponse: response },
+    '@prisma/client': { Prisma: { join: (values) => values.join(',') } },
+    '@/lib/db': { prisma: { company: { findMany: async () => { databaseCalls++; return [] } }, $queryRaw: async () => { databaseCalls++; return [] } } },
+    '@/lib/owner': { getOwner: async () => { throw denied }, ownerErrorResponse: (error) => error === denied ? { status: 401 } : null },
+    '@/lib/project-management': helper,
+    '@/lib/company': { ...companyBoundary, getOrCreateDhasCompany: async () => { provisioningCalls++; return { id: 'dhas' } } },
+  })
+
+  const result = await route.GET({ url: 'http://localhost/api/company' })
+  assert.equal(result.status, 401)
+  assert.equal(provisioningCalls, 0)
+  assert.equal(databaseCalls, 0)
+})
+
+test('Company list returns a safe error when its database read fails', async () => {
+  const route = loadTs('../../app/api/company/route.ts', {
+    'next/server': { NextResponse: response },
+    '@prisma/client': { Prisma: { join: (values) => values.join(',') } },
+    '@/lib/db': { prisma: { company: { findMany: async () => { throw new Error('password=secret database unavailable') } } } },
+    '@/lib/owner': owner,
+    '@/lib/project-management': helper,
+    '@/lib/company': companyBoundary,
+  })
+
+  const result = await route.GET({ url: 'http://localhost/api/company' })
+  assert.equal(result.status, 500)
+  assert.equal(result.body.error.code, 'INTERNAL_ERROR')
+  assert.doesNotMatch(JSON.stringify(result.body), /password|secret|database unavailable/)
+})
+
+test('Company PATCH cannot rename the reserved Dhas Company', async () => {
+  let updates = 0
+  const service = loadTs('../../lib/company.ts', {
+    '@/lib/db': { prisma: {} }, '@/lib/dhas-company.json': { default: DHAS_COMPANY },
+  })
+  const route = loadTs('../../app/api/company/[id]/route.ts', {
+    'next/server': { NextResponse: response },
+    '@/lib/db': { prisma: { company: {
+      findUnique: async () => ({ id: 'dhas', code: 'dhas' }),
+      update: async () => { updates++; return {} },
+    } } },
+    '@/lib/owner': owner,
+    '@/lib/project-management': helper,
+    '@/lib/company': { ...service, DHAS_COMPANY },
+  })
+
+  const result = await route.PATCH(request({ name: 'Renamed Dhas' }), { params: Promise.resolve({ id: 'dhas' }) })
+  assert.equal(result.status, 409)
+  assert.equal(result.body.error.code, 'CONFLICT')
+  assert.equal(updates, 0)
+})
+
+test('Company PATCH trims supported fields and serializes returned timestamps', async () => {
+  const writes = []
+  const service = loadTs('../../lib/company.ts', {
+    '@/lib/db': { prisma: {} }, '@/lib/dhas-company.json': { default: DHAS_COMPANY },
+  })
+  const route = loadTs('../../app/api/company/[id]/route.ts', {
+    'next/server': { NextResponse: response },
+    '@/lib/db': { prisma: { company: {
+      findUnique: async () => ({ id: 'company-1', code: null }),
+      update: async ({ data }) => {
+        writes.push(data)
+        return { id: 'company-1', name: data.name, phone: data.phone, createdAt: new Date('2026-09-29T01:02:03.000Z'), updatedAt: new Date('2026-09-29T04:05:06.000Z') }
+      },
+    } } },
+    '@/lib/owner': owner,
+    '@/lib/project-management': helper,
+    '@/lib/company': { ...service, DHAS_COMPANY },
+  })
+
+  const result = await route.PATCH(request({ name: '  Updated Company  ', phone: '  02 123 4567  ' }), { params: Promise.resolve({ id: 'company-1' }) })
+  assert.equal(result.status, 200)
+  assert.equal(JSON.stringify(writes), JSON.stringify([{ name: 'Updated Company', phone: '02 123 4567' }]))
+  assert.equal(result.body.company.createdAt, '2026-09-29T01:02:03.000+07:00')
+  assert.equal(result.body.company.updatedAt, '2026-09-29T04:05:06.000+07:00')
+})
+
+test('Project list and detail reject unauthenticated reads before database access', async () => {
+  const denied = new Error('denied')
+  let reads = 0
+  const database = { project: {
+    findMany: async () => { reads++; return [] },
+    findUnique: async () => { reads++; return null },
+  } }
+  const routeMocks = {
+    'next/server': { NextResponse: response },
+    '@/lib/db': { prisma: database },
+    '@/lib/owner': { getOwner: async () => { throw denied }, ownerErrorResponse: (error) => error === denied ? { status: 401 } : null },
+    '@/lib/project-management': helper,
+    '@/lib/project-query': { projectListInclude: {}, serializeProject: (value) => value },
+    '@/lib/work-items': { serializeWorkItemStatus: (value) => value },
+  }
+  const list = loadTs('../../app/api/projects/route.ts', routeMocks)
+  const detail = loadTs('../../app/api/projects/[id]/route.ts', routeMocks)
+
+  assert.equal((await list.GET({ url: 'http://localhost/api/projects' })).status, 401)
+  assert.equal((await detail.GET({}, context)).status, 401)
+  assert.equal(reads, 0)
+})
+
+test('Project detail serializes Company, WorkItems, Bangkok dates, and derived hours', async () => {
+  const route = loadTs('../../app/api/projects/[id]/route.ts', {
+    'next/server': { NextResponse: response },
+    '@/lib/db': { prisma: { project: { findUnique: async () => ({
+      id: 'project-1', name: 'Project Alpha', companyId: 'dhas',
+      company: { id: 'dhas', name: DHAS_COMPANY.name, displayName: 'Dhas' },
+      startDate: new Date('2026-09-29T00:00:00.000Z'), dueDate: new Date('2026-10-01T00:00:00.000Z'),
+      createdAt: new Date('2026-09-28T01:02:03.000Z'), updatedAt: new Date('2026-09-29T04:05:06.000Z'),
+      workItems: [
+        { id: 'item-1', status: 'completed', role: 'Developer', workDate: new Date('2026-09-29T00:00:00.000Z'), dueDate: null, submittedAt: null, createdAt: new Date('2026-09-29T01:00:00.000Z'), updatedAt: new Date('2026-09-29T02:00:00.000Z') },
+        { id: 'item-2', status: 'cancelled', role: 'SA', workDate: null, dueDate: null, submittedAt: null, createdAt: new Date('2026-09-29T03:00:00.000Z'), updatedAt: new Date('2026-09-29T03:00:00.000Z') },
+        { id: 'item-3', status: 'in_progress', role: 'infra', workDate: new Date('2026-09-30T00:00:00.000Z'), dueDate: null, submittedAt: null, createdAt: new Date('2026-09-30T01:00:00.000Z'), updatedAt: new Date('2026-09-30T02:00:00.000Z') },
+      ],
+      timeEntries: [{ id: 'entry-1', hours: new Decimal('1.25'), date: new Date('2026-09-29T00:00:00.000Z'), workItemId: 'item-1' }],
+    }) } } },
+    '@/lib/owner': owner,
+    '@/lib/work-items': { serializeWorkItemStatus: (status) => status.replaceAll('_', '-') },
+    '@/lib/project-management': helper,
+    '@/lib/project-query': { projectListInclude: {}, serializeProject: (value) => value },
+  })
+
+  const result = await route.GET({}, context)
+  assert.equal(result.status, 200)
+  assert.equal(result.body.project.company.displayName, 'Dhas')
+  assert.equal(result.body.project.startDate, '2026-09-29')
+  assert.equal(result.body.project.createdAt, '2026-09-28T01:02:03.000+07:00')
+  assert.equal(result.body.project.workItems[0].status, 'completed')
+  assert.equal(result.body.project.workItems[0].workDate, '2026-09-29')
+  assert.equal(result.body.project.workItems[2].status, 'in-progress')
+  assert.equal(result.body.project.summary.progress, 50)
+  assert.equal(result.body.project.summary.cancelled, 1)
+  assert.equal(result.body.project.summary.statusCounts['in-progress'], 1)
+  assert.equal(result.body.project.timeEntries[0].date, '2026-09-29')
+  assert.equal(result.body.project.timeEntries[0].hours, '1.25')
+})
+
+test('Project detail returns NOT_FOUND for an unknown Project', async () => {
+  const route = loadTs('../../app/api/projects/[id]/route.ts', {
+    'next/server': { NextResponse: response },
+    '@/lib/db': { prisma: { project: { findUnique: async () => null } } },
+    '@/lib/owner': owner,
+    '@/lib/work-items': { serializeWorkItemStatus: (value) => value },
+    '@/lib/project-management': helper,
+    '@/lib/project-query': { projectListInclude: {}, serializeProject: (value) => value },
+  })
+
+  const result = await route.GET({}, context)
+  assert.equal(result.status, 404)
+  assert.equal(result.body.error.code, 'NOT_FOUND')
 })
