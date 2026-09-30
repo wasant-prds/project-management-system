@@ -37,7 +37,9 @@ export async function getOwner() {
   if (!authenticated || !validProof) {
     throw new OwnerUnavailableError('Owner access required', 401)
   }
+  const ownerId = process.env.OWNER_USER_ID?.trim()
   const users = await prisma.user.findMany({
+    ...(ownerId ? { where: { id: ownerId } } : {}),
     take: 2,
     select: { id: true, name: true, email: true, avatar: true, role: true, status: true },
   })

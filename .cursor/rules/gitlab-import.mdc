@@ -6,7 +6,7 @@ alwaysApply: false
 
 # GitLab Issue import
 
-- Direction: GitLab → PMS only. Manual, owner-triggered. Map each GitLab Project to one PMS Project before sync. Customer is inherited from that PMS Project.
+- Direction: GitLab → PMS only. Manual, owner-triggered. Map each GitLab Project to one PMS Project before sync. Company is inherited from that PMS Project.
 - Identity: instance URL + GitLab project ID + global Issue ID. Upsert; never duplicate. Store URL/IDs on `ExternalWorkItemReference`. Show a source link on the Work Item.
 - New import: `kind=Issue`, owner assignee, `priority=none`, empty `role` and `workDate`. Proposed status: `opened → todo`, `closed → completed`.
 - On resync GitLab owns title, description, status, mapped types, due date. PMS keeps role, priority, workDate, owner, and TimeEntries.

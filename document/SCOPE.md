@@ -1,5 +1,7 @@
 # SCOPE
 
+> **Owner decision 2026-09-29:** ขอบเขตที่ใช้ต่อจากนี้ไม่มี Customer; ใช้ Company Dhas → Projects ตาม [Company → Project decision](./COMPANY_PROJECT_DECISION.md). ข้อความ Customer ที่เหลือเป็นประวัติข้อเสนอเดิม.
+
 | รายการ | ค่า |
 | --- | --- |
 | ระบบ | Project Management System |
@@ -25,12 +27,12 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 | กลุ่ม/เมนู | In scope เป้าหมาย | ระบบปัจจุบันที่พบ / งานที่ต้องเติม |
 | --- | --- | --- |
 | Overview — Dashboard `/` | KPI, งานที่ต้องติดตาม, Project ล่าสุด, filter และ deep link จาก records จริง | ปัจจุบันเป็น sample data; เพิ่ม DB-backed queries |
-| Overview — Projects `/projects` | Project CRUD/detail, required Customer relation, Work Item/role/hour summaries | ใช้งานบางส่วน; เพิ่ม Customer, hours, consistent progress และ business rules |
+| Overview — Projects `/projects` | Project CRUD/detail, required Company relation, Work Item/role/hour summaries | #18 เพิ่ม Company relation, hours, consistent progress และ business rules |
 | Overview — Work Items `/work-items` | WorkItem list/create/edit/delete/filter/import/export; manual one-way GitLab Issue sync; owner is sole assignee; Developer/Infra/SA are functional roles | มี API/หน้าใช้งาน; ตรวจเติม validation, owner access control, external mapping และ sync contract |
 | Management — Board `/board` | Kanban ของ WorkItem จริง; persist status change | ปัจจุบันเป็น client sample state; เชื่อม WorkItem API และ status enum |
 | Management — Analysis `/analysis` | KPI/charts/tables จาก WorkItem และ TimeEntry จริง | ปัจจุบันเป็น sample arrays; เพิ่ม shared queries, metric definitions, export |
 | Management — Daily Work `/daily-work` | CRUD TimeEntry, period views, WorkItem/Project relation, hours | มี API/หน้าใช้งาน; เสริม auth, validation, date/time consistency |
-| Management — Company `/company` | Single company profile และ Customer registry ที่ Project ใช้ร่วมกัน | อ่าน DB บางส่วน; เพิ่ม company/customer mutations; ไม่มีสมาชิกหลายคน |
+| Management — Company `/company` | จัดการหลาย Companies และ Project portfolio | #18 เพิ่ม Company API/UI; ไม่มีสมาชิกหลายคนหรือ Customer registry |
 | Settings `/settings` | Profile/preferences/security ของ owner account เดียวที่ persist | ปัจจุบันเป็น form UI; เพิ่ม persistence และ owner access control |
 
 ## 3. Data scope และระบบที่เชื่อมกัน
@@ -42,17 +44,17 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 - `WorkItem`: แหล่งจริงสำหรับงาน สถานะ ประเภท priority, functional role, owner/assignee, Project และวันทำงาน
 - `WorkItem.role`: ระบุว่าเจ้าของกำลังทำงานในบทบาท Developer, Infra หรือ SA; ไม่ใช่ user account/permission
 - `TimeEntry`: แหล่งจริงสำหรับ Daily Work/ชั่วโมงจริง ผูกกับ WorkItem และเจ้าของระบบ
-- `Project`: จัดกลุ่ม Work Items; target เพิ่ม Customer relation และรวมข้อมูล Work/Time
-- `Customer`: target master ใหม่สำหรับลูกค้า; ยังไม่มีใน schema
+- `Project`: ทุกแถวผูก Company หนึ่งรายผ่าน `Project.companyId`; รายการเดิม 25 Projects ผูกกับ Dhas แล้ว
+- `Company`: รองรับหลายราย; Dhas เป็น Company ของ Projects เดิมและ Company เดิม `ProjectHub Inc.` ยังคงอยู่
 - `User`: เก็บ identity ของเจ้าของระบบหนึ่งคน; `ProjectMember` เป็น legacy schema ไม่ได้แปลว่าผลิตภัณฑ์ต้องรองรับสมาชิกหลายคน
-- `Company`: ข้อมูลบริษัทเดียวของ installation; `Customer`: ลูกค้าหลายรายที่ Projects เชื่อมโยง
+- `Customer`: ไม่มี model, API หรือ UI; Project เลือก Company โดยตรง
 - Dashboard/Analysis: read-only derived views จาก core records
 
 ### 3.2 Invariants ที่อยู่ใน scope
 
 - Board status = WorkItem status; ไม่มีสถานะซ้ำใน Board
 - Daily Work ต้องเชื่อม WorkItem; Project ID ต้องสอดคล้องกับ Project ของ WorkItem
-- Project Customer ต้องใช้ relation เดียวกันใน Project list/detail, filters, Dashboard และ Analysis
+- Project Company ต้องใช้ relation เดียวกันใน Project list/detail, filters, Dashboard และ Analysis
 - Summary counts/hours/progress ใช้สูตรชุดเดียวกันทุกหน้า
 - ใช้ `Asia/Bangkok` เป็น default time zone ของทุก environment รวม application และ PostgreSQL session; ทุกวันที่/เวลาที่บันทึกลง DB ใช้ Bangkok calendar/wall-clock semantics ไม่แปลง timestamp เป็น UTC. Parse/format ค่าอย่างชัดเจนและไม่พึ่ง timezone ของ browser/device
 
@@ -60,31 +62,31 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 
 ### Dashboard
 
-**In scope:** DB-backed KPIs, overdue/recent lists, selected period, Customer/Project filters, links ไปยังรายการต้นทาง, loading/empty/error states; responsive card/chart layout ที่ไม่ทำให้หน้า overflow.
+**In scope:** DB-backed KPIs, overdue/recent lists, selected period, Company/Project filters, links ไปยังรายการต้นทาง, loading/empty/error states; responsive card/chart layout ที่ไม่ทำให้หน้า overflow.
 
 **Out of scope เว้นแต่มี requirement เพิ่ม:** notification center, portfolio forecasting, configurable dashboard builder, cross-company BI warehouse.
 
 ### Projects
 
-**In scope:** Customer picker/filter, Project CRUD/detail, work item counts, functional role breakdown, progress formula, logged hours, guard against accidental data loss. Project แต่ละรายการต้องมี Customer หนึ่งราย; Customer หนึ่งรายเชื่อม Projects ได้หลายรายการ. Customer มีชื่อและสถานะ active/inactive; backfill ต้องใช้ approved per-Project mapping register และผ่าน backup/restore/validation gates ก่อนบังคับ relation ตาม [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md).
+**In scope:** Company picker/filter, Project CRUD/detail, work item counts, functional role breakdown, progress formula, logged hours, guard against accidental data loss. Project แต่ละรายการต้องมี Company หนึ่งราย; Company หนึ่งรายเชื่อม Projects ได้หลายรายการ. Project ใหม่เลือก Company ที่มีอยู่; Projects เดิมผูกกับ Dhas ผ่าน staged verified rollout.
 
 **Out of scope:** CRM pipeline/contract billing, invoice, budget ledger, project document versioning, unless explicitly prioritized later. Existing budget/spent fields may remain visible only if maintained and defined.
 
 ### Work Items
 
-**In scope:** existing type/status/priority/functional role, single-owner assignment, Project, dates, types, list/detail, filtering, import/export, shared mutation contract, manual one-way GitLab Issue import with explicit GitLab Project → PMS Project mapping, source link, deduplication and sync result summary. GitLab import creates/updates the same canonical `WorkItem`; Customer is inherited through the mapped PMS Project. Removing a mapping retains imported WorkItems and TimeEntries. Follow the [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) for first-sync approval, field ownership, supported labels, pagination, partial failures and retries. Filter/summary สำคัญคือ Developer/Infra/SA ไม่ใช่การเลือก account หลายคน.
+**In scope:** existing type/status/priority/functional role, single-owner assignment, Project, dates, types, list/detail, filtering, import/export, shared mutation contract, manual one-way GitLab Issue import with explicit GitLab Project → PMS Project mapping, source link, deduplication and sync result summary. GitLab import creates/updates the same canonical `WorkItem`; Company is inherited through the mapped PMS Project. Removing a mapping retains imported WorkItems and TimeEntries. Follow the [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) for first-sync approval, field ownership, supported labels, pagination, partial failures and retries. Filter/summary สำคัญคือ Developer/Infra/SA ไม่ใช่การเลือก account หลายคน.
 
 **Out of scope:** GitLab write-back/two-way sync, Merge Requests, commits, CI, webhooks/scheduled sync and GitLab time tracking import in phase one; new workflow statuses, custom fields, nested subtasks, dependency graph UI, attachment storage, comments workflow, unless separately specified (schema models for some legacy entities exist but are not in the primary menu contract).
 
 ### Board
 
-**In scope:** live WorkItem cards, status columns, filters by Customer/Project/functional role, open details, persisted status updates, responsive scrolling and error rollback.
+**In scope:** live WorkItem cards, status columns, filters by Company/Project/functional role, open details, persisted status updates, responsive scrolling and error rollback.
 
 **Out of scope:** user-defined columns/WIP policies, board-specific work item records, unrelated card actions such as comments/attachments without underlying API support.
 
 ### Analysis
 
-**In scope:** operational analytics from WorkItem/TimeEntry, documented formulas, period/filter consistency, Customer/Project/functional-role filters, export of visible result, drill-through; responsive charts whose axes, legend, tooltip and labels remain inside the chart component.
+**In scope:** operational analytics from WorkItem/TimeEntry, documented formulas, period/filter consistency, Company/Project/functional-role filters, export of visible result, drill-through; responsive charts whose axes, legend, tooltip and labels remain inside the chart component.
 
 **Out of scope:** predictive analytics, utilization/efficiency score unless denominator/working calendar is agreed, financial reporting from budget data without validated source, historical status charts before event history exists.
 
@@ -96,7 +98,7 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 
 ### Company
 
-**In scope:** edit the single company profile; CRUD/deactivate Customer records; show Customer-to-Project portfolio and Work Item/TimeEntry totals. No member directory, invites, team management, or per-user permissions.
+**In scope:** CRUD multiple Company records; show Company-to-Project portfolio and Work Item/TimeEntry totals. No Customer registry, member directory, invites, team management, or per-user permissions.
 
 **Out of scope:** HR lifecycle, payroll, recruitment, external identity directory synchronization. Multi-tenant administration is not assumed by the present schema.
 
@@ -112,9 +114,9 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 
 - shared server validation and consistent error contracts
 - single-owner authentication/access control before exposing the app beyond a trusted private environment; no multi-user role authorization
-- Customer schema/API/UI and Project backfill plan
+- Company schema/API/UI and Dhas Project backfill
 - aggregate queries for dashboard/analysis and consistent calculation helper(s)
-- DB integrity checks for WorkItem/TimeEntry and Project/customer relations
+- DB integrity checks for WorkItem/TimeEntry and Project/Company relations
 - GitLab Issue import connector, external-reference mapping, manual sync endpoint/UI, server-only token handling and idempotent upsert
 - consistent visual hierarchy, design tokens and shared components across all eight menus
 - system-wide Neumorphism visual language implemented through shared theme-aware tokens/components: restrained raised/inset surfaces and soft shadows across all eight menus and current light/dark/special-dark modes; retain readable typography, explicit boundaries and business states, contrast and visible keyboard focus; no separate Neumorphism theme toggle
@@ -122,7 +124,7 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 - short, purposeful motion for hover/focus (120–180 ms), dialog/dropdown (160–220 ms), loading and Board drag using existing CSS/utilities; no unnecessary animation dependency, no motion that delays saves or shifts layout; support keyboard focus and `prefers-reduced-motion`
 - responsive Dashboard/Analysis chart components that contain their axes, legend, tooltip and labels within the component frame
 - loading/empty/error UX and Thai-first labels
-- deployment/schema rollout and safe backup/rollback plan for Customer and GitLab mapping changes
+- deployment/schema rollout and safe backup/rollback plan for Company and GitLab mapping changes
 
 **Out of scope ใน scope ปัจจุบัน:**
 
@@ -135,13 +137,13 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 
 | ลำดับ | Dependency / output | เหตุผล |
 | --- | --- | --- |
-| 0 | ทบทวนเอกสารทั้งชุด; วาง mapping Projects เดิมไป Customer, ใช้ default time zone Asia/Bangkok, ยืนยัน owner access method, metric formulas และ retention | ป้องกัน schema/API เปลี่ยนซ้ำ |
+| 0 | ทบทวนเอกสารทั้งชุด; ยืนยัน Company Dhas สำหรับ Projects เดิม, ใช้ default time zone Asia/Bangkok, owner access method, metric formulas และ retention | ป้องกัน schema/API เปลี่ยนซ้ำ |
 | 1 | Validation, owner access-control foundation, error contract | ป้องกันข้อมูลผิดและป้องกัน instance ก่อนเปิด mutation |
-| 2 | Customer model/API + Project backfill + Project UI relation | ทำให้ Project มี customer context |
+| 2 | Company API + Dhas Project backfill + Project UI relation | ทำให้ Project มี Company context |
 | 3 | Board เชื่อม WorkItem และปรับ Daily Work consistency | ยืนยัน operational records ที่ใช้ร่วมกัน |
 | 4 | Dashboard shared query/aggregates | ใช้ข้อมูลแกนที่นิ่งแล้ว |
 | 5 | Analysis, historical event strategy, export | Metrics ต้องมีนิยามและ timestamp เชื่อถือได้ |
-| 6 | Company/Customer/Settings persistence สำหรับ owner account เดียว | ต้องพึ่ง owner identity ที่ตกลงแล้ว |
+| 6 | Company/Settings persistence สำหรับ owner account เดียว | ต้องพึ่ง owner identity ที่ตกลงแล้ว |
 | 7 | GitLab Issue sync แบบทางเดียว | ต้องมี WorkItem/Project mapping, credential handling และ external ID ก่อนเปิดใช้ |
 
 ## 7. Acceptance gate สำหรับระบบเป้าหมาย
@@ -149,7 +151,7 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 - ทุกเมนูในตาราง scope ใช้ database records จริงหรือแสดงข้อความว่า feature ยัง unavailable; ไม่มี sample metrics
 - WorkItem record เดียวกันแสดง status/project/functional role/owner ตรงกันใน Work Items, Board, Projects และ Dashboard
 - TimeEntry แสดงเจ้าของผู้บันทึก วันที่ ชั่วโมง Project และ Work Item ตรงกันใน Daily Work และ Analysis
-- เปลี่ยน Customer ของ Project แล้วทุก filter/summary แสดง Customer เดียวกัน
+- เปลี่ยน Company ของ Project แล้วทุก filter/summary แสดง Company เดียวกัน
 - Summary formula และ timezone ถูกบันทึกและใช้ร่วมกัน
 - ทุกเมนูใช้งานได้ตามขนาดหน้าจอที่กำหนดโดยไม่เกิด page-level horizontal overflow; Dashboard/Analysis chart elements อยู่ภายใน chart component
 - Motion ไม่ขัดจังหวะการทำงาน และรองรับ keyboard focus กับ `prefers-reduced-motion`
@@ -163,9 +165,9 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 1. เพิ่ม **current behavior / target behavior / data source / API / acceptance test** ในทุก menu
 2. Dashboard และ Analysis เพิ่ม metric formula, date basis, timezone, filters และการ drill-through
 3. Board ระบุ mapping 1:1 ระหว่าง status columns กับ WorkItem enum และ persistence behavior
-4. Projects เพิ่ม Customer relationship, migration/backfill, progress/hour formulas และ delete policy
+4. Projects เพิ่ม Company relationship, Dhas backfill, progress/hour formulas และ delete policy
 5. Daily Work เพิ่ม ownership, hour validation, project/work-item invariant และ duplicate submission handling
-6. Company/Settings ระบุ company/customer persistence และ owner account persistence; เอา role permissions/team-management requirements ที่ไม่ตรง single-owner scope ออก
+6. Company/Settings รองรับ Company persistence และ owner account persistence; เอา role permissions/team-management requirements ที่ไม่ตรง single-owner scope ออก
 7. ปรับสถานะเอกสารเดิมที่ระบุ “เสร็จ” ให้แยกงาน UI ที่เสร็จจาก data/API behavior ที่ยังไม่ implemented
 
 
@@ -175,4 +177,4 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 
 ## Database operations ที่ implement ใน #16
 
-เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. Customer/GitLab target schema และ business API ยังไม่ถูก deploy ในงาน Infra นี้. เจ้าของกำหนด defaults เป็น BACKUP_DIR=./database/backups/postgres_data และ BACKUP_KEEP_DAYS=30 แล้ว. ผล isolated verification ยืนยันการเตรียมเครื่องมือของ #16; ยังไม่ได้ rollout หรือสร้าง backup ของ Dev/UAT/Production จริง ซึ่งต้องผ่าน runbook ก่อน schema changes.
+เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. #16 เตรียมเครื่องมือเท่านั้น; #18 ได้ rollout Company → Project ไป Production แล้วตาม [Company/Project implementation](./COMPANY_PROJECT_IMPLEMENTATION.md). GitLab target schema และ business API ยังรอ Issue #20 และต้องผ่าน runbook ก่อน schema changes.

@@ -48,7 +48,7 @@ test("work views reuse persisted WorkItem and TimeEntry IDs", () => {
   assert.match(model, /ไม่ใช่ record สำเนาหรือสถานะที่แก้แยกได้/);
 });
 
-test("primary EV documents point to the canonical shared model", async () => {
+test("primary EV documents point to the owner's current Company relation", async () => {
   const documents = [
     "document/ENGINEERING_SPEC.md",
     "document/ARCHITECTURE.md",
@@ -61,7 +61,7 @@ test("primary EV documents point to the canonical shared model", async () => {
   ];
   for (const path of documents) {
     const content = await read(path);
-    assert.match(content, /\[Shared Data Model\]\(\.\/SHARED_DATA_MODEL\.md\)/, `Missing shared model link in ${path}`);
+    assert.match(content, /\[Company → Project decision\]\(\.\/COMPANY_PROJECT_DECISION\.md\)/, `Missing current decision link in ${path}`);
   }
 });
 

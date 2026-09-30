@@ -51,6 +51,21 @@ test('owner resolver requires middleware identity and exactly one User', async (
   assert.equal((await getOwner()).id, 'owner-1')
 })
 
+test('explicit owner ID selects one audited User while preserving legacy Users', async () => {
+  let queriedWhere
+  const { getOwner } = loadTs('../../lib/owner.ts', {
+    'next/headers': { headers: async () => ({ get: (name) => name === 'x-pms-owner-authenticated' ? '1' : 'server-only-proof' }) },
+    'next/server': { NextResponse: { json: () => ({}) } },
+    'node:crypto': require('node:crypto'),
+    '@/lib/db': { prisma: { user: { findMany: async ({ where }) => {
+      queriedWhere = where
+      return [{ id: 'owner-1' }]
+    } } } },
+  }, { env: { PMS_INTERNAL_OWNER_PROOF: 'server-only-proof', OWNER_USER_ID: 'owner-1' } })
+  assert.equal((await getOwner()).id, 'owner-1')
+  assert.equal(queriedWhere.id, 'owner-1')
+})
+
 test('WorkItem input takes assignee from server owner and rejects a different ID', () => {
   const validators = {
     isWorkItemKind: (value) => value === 'Task',

@@ -1,18 +1,18 @@
 ---
-description: Project CRUD, required Customer, and shared progress/hours
+description: Project CRUD, required Company, and shared progress/hours
 globs: app/projects/**,app/api/projects/**,components/page/projects/**
 alwaysApply: false
 ---
 
 # Projects `/projects`
 
-- Project CRUD and detail. Required: name, startDate, dueDate, and (target) `customerId`. One Customer per Project.
+- Project CRUD and detail. Required: name, selected companyId, startDate, dueDate. Server validates the selected Company.
 - Interpret and persist Project calendar dates and timestamps using the system default timezone `Asia/Bangkok`; do not convert persisted timestamps to UTC.
 - Counts from `WorkItem`. Hours = SUM(`TimeEntry.hours`) without duplicated joins. Progress = completed ÷ (total − cancelled); do not treat stored `progress` as independent truth unless kept in sync.
 - Summarize `WorkItem.role` (Developer / Infra / SA). Do not present `_count.members` or `project-team-modal` as a product feature.
-- Filters: Customer, status, text. Detail lists Work Items, roles, and hours with real foreign keys.
+- Filters: status, Company, and text. Detail lists Work Items, roles, and hours with real foreign keys.
 - Delete/archive must warn about WorkItems/TimeEntries. Schema currently cascades — block accidental history loss. Confirm-delete is an alert dialog.
-- Customer rollout: nullable FK → backfill every Project → no orphans → NOT NULL. Target list/create/update accept `customerId`.
+- Company rollout: nullable FK → attach every existing Project to Dhas → no orphans → NOT NULL. New Projects select an existing Company ID that the server validates.
 - Dialogs use `DIALOG_SHELL_SCROLL_CLASS` and opaque `bg-card`. List and detail use `PAGE_MAIN`.
-- Out: CRM, invoices, budget ledger as source of truth, Kanban on this route, new schema fields unless EV requires Customer.
+- Out: CRM, invoices, budget ledger as source of truth, Kanban on this route, or a Customer registry.
 - Budget/spent stay visible only if defined and maintained.

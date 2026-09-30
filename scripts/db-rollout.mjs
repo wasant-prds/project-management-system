@@ -32,7 +32,7 @@ export const inventorySQL = `CREATE TEMP TABLE inventory (name text, rows bigint
 BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;
 DO $$ DECLARE t text; BEGIN
  FOR t IN SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename LOOP
-  EXECUTE format('INSERT INTO inventory SELECT %L, count(*), md5(coalesce(string_agg(md5(to_jsonb(r)::text), '''' ORDER BY to_jsonb(r)::text), '''')), md5(coalesce(string_agg(md5((to_jsonb(r) - CASE WHEN %L = ''Project'' THEN ''customerId'' ELSE '''' END)::text), '''' ORDER BY (to_jsonb(r) - CASE WHEN %L = ''Project'' THEN ''customerId'' ELSE '''' END)::text), '''')) FROM public.%I r', t,t,t,t);
+  EXECUTE format('INSERT INTO inventory SELECT %L, count(*), md5(coalesce(string_agg(md5(to_jsonb(r)::text), '''' ORDER BY to_jsonb(r)::text), '''')), md5(coalesce(string_agg(md5((to_jsonb(r) - CASE WHEN %L = ''Project'' THEN ''companyId'' ELSE '''' END)::text), '''' ORDER BY (to_jsonb(r) - CASE WHEN %L = ''Project'' THEN ''companyId'' ELSE '''' END)::text), '''')) FROM public.%I r', t,t,t,t);
  END LOOP;
 END $$;
 SELECT json_build_object('tables', (SELECT json_object_agg(name,json_build_object('rows',rows,'hash',hash,'historyHash',history_hash)) FROM inventory),
@@ -60,7 +60,7 @@ export function compare(before, after, history = false) {
   }
   if (!history && JSON.stringify(before.columns) !== JSON.stringify(after.columns)) throw new Error('Restored column types differ');
   if (history) for (const column of before.columns.filter(c => names.includes(c.table))) {
-    if (column.table === 'Project' && column.column === 'customerId') continue;
+    if (column.table === 'Project' && column.column === 'companyId') continue;
     if (!after.columns.some(c => JSON.stringify(c) === JSON.stringify(column))) throw new Error('History column type or nullability changed');
   }
 }
@@ -148,17 +148,16 @@ export const relationsSQL = `SELECT json_build_object(
  'workProject', (SELECT count(*) FROM work_items w LEFT JOIN "Project" p ON p.id=w."projectId" WHERE p.id IS NULL),
  'workOwner', (SELECT count(*) FROM work_items w LEFT JOIN "User" u ON u.id=w."assigneeId" WHERE u.id IS NULL),
  'timeOwner', (SELECT count(*) FROM "TimeEntry" t LEFT JOIN "User" u ON u.id=t."userId" WHERE u.id IS NULL),
- 'timeWork', (SELECT count(*) FROM "TimeEntry" t LEFT JOIN work_items w ON w.id=t."workItemId" WHERE w.id IS NULL),
- 'timeProject', (SELECT count(*) FROM "TimeEntry" t LEFT JOIN work_items w ON w.id=t."workItemId" LEFT JOIN "Project" p ON p.id=t."projectId" WHERE p.id IS NULL OR t."projectId" IS DISTINCT FROM w."projectId"),
+ 'timeWork', (SELECT count(*) FROM "TimeEntry" t LEFT JOIN work_items w ON w.id=t."workItemId" WHERE t."workItemId" IS NOT NULL AND w.id IS NULL),
+ 'timeProject', (SELECT count(*) FROM "TimeEntry" t LEFT JOIN work_items w ON w.id=t."workItemId" LEFT JOIN "Project" p ON p.id=t."projectId" WHERE (t."projectId" IS NOT NULL AND p.id IS NULL) OR (t."workItemId" IS NOT NULL AND t."projectId" IS DISTINCT FROM w."projectId")),
  'invalidHours', (SELECT count(*) FROM "TimeEntry" WHERE hours <= 0 OR hours::text IN ('NaN','Infinity','-Infinity')));`;
 export function validateStage(state, stage) {
   if (!['baseline', 'additive', 'backfilled', 'required'].includes(stage)) throw new Error('Invalid rollout stage');
   verifyTimezone(state);
   if (stage === 'baseline') return;
-  for (const table of ['Customer', 'GitLabProjectMapping', 'ExternalWorkItemReference'])
-    if (!state.tables[table]) throw new Error(`Missing target table: ${table}`);
-  const customer = state.columns.find(c => c.table === 'Project' && c.column === 'customerId');
-  if (!customer || customer.nullable !== (stage === 'required' ? 'NO' : 'YES')) throw new Error('Unexpected customerId nullability');
+  if (!state.tables.Company) throw new Error('Missing target table: Company');
+  const company = state.columns.find(c => c.table === 'Project' && c.column === 'companyId');
+  if (!company || company.nullable !== (stage === 'required' ? 'NO' : 'YES')) throw new Error('Unexpected companyId nullability');
 }
 export async function verifyRollout(settings, file, stage, run = docker) {
   // Recheck the actual archive, not just a reusable success marker.
@@ -169,22 +168,19 @@ export async function verifyRollout(settings, file, stage, run = docker) {
   const relations = JSON.parse(sql(settings.container, relationsSQL, run));
   if (Object.values(relations).some(value => value !== 0)) throw new Error('Orphan, relation mismatch or invalid hours; stop rollout');
   if (stage !== 'baseline') {
-    const issues = Number(sql(settings.container, `SELECT count(*) FROM "Project" p LEFT JOIN "Customer" c ON c.id=p."customerId" WHERE ${stage === 'additive' ? 'p."customerId" IS NOT NULL AND' : ''} c.id IS NULL;`, run));
-    if (issues !== 0) throw new Error('Unmapped or orphan Customer; stop rollout');
+    const issues = Number(sql(settings.container, `SELECT count(*) FROM "Project" p LEFT JOIN "Company" c ON c.id=p."companyId" WHERE ${stage === 'additive' ? 'p."companyId" IS NOT NULL AND' : ''} c.id IS NULL;`, run));
+    if (issues !== 0) throw new Error('Unmapped or orphan Company; stop rollout');
     // Verify the database enforces the agreed uniqueness, not only current data.
     const keys = JSON.parse(sql(settings.container, `SELECT coalesce(json_agg(json_build_object('table',t.relname,'type',c.contype,'validated',c.convalidated,'delete',c.confdeltype,'target',rt.relname,'targetColumns',(SELECT json_agg(a.attname ORDER BY k.n) FROM unnest(c.confkey) WITH ORDINALITY k(num,n) JOIN pg_attribute a ON a.attrelid=c.confrelid AND a.attnum=k.num),'columns',(SELECT json_agg(a.attname ORDER BY k.n) FROM unnest(c.conkey) WITH ORDINALITY k(num,n) JOIN pg_attribute a ON a.attrelid=t.oid AND a.attnum=k.num))), '[]'::json) FROM pg_constraint c JOIN pg_class t ON t.oid=c.conrelid LEFT JOIN pg_class rt ON rt.oid=c.confrelid JOIN pg_namespace ns ON ns.oid=t.relnamespace WHERE ns.nspname='public';`, run));
-    for (const [table, columns] of [
-      ['GitLabProjectMapping', ['canonicalGitLabInstanceUrl','gitLabProjectId']],
-      ['ExternalWorkItemReference', ['provider','canonicalGitLabInstanceUrl','gitLabProjectId','gitLabGlobalIssueId']],
-      ['ExternalWorkItemReference', ['workItemId']],
-    ]) if (!keys.some(k => k.table === table && k.type === 'u' && JSON.stringify(k.columns) === JSON.stringify(columns))) throw new Error('Missing external identity unique constraint');
-    for (const [table, column, target] of [['Project','customerId','Customer'],['GitLabProjectMapping','projectId','Project'],['ExternalWorkItemReference','workItemId','work_items']])
+    for (const [table, column, target] of [['Project','companyId','Company']])
       if (!keys.some(k => k.table === table && k.type === 'f' && k.validated && ['a','r'].includes(k.delete) && k.target === target && JSON.stringify(k.targetColumns) === '["id"]' && JSON.stringify(k.columns) === JSON.stringify([column]))) throw new Error('Missing validated/history-safe target foreign key');
-    for (const [table, columns] of [
-      ['GitLabProjectMapping',['canonicalGitLabInstanceUrl','gitLabProjectId','projectId']],
-      ['ExternalWorkItemReference',['provider','canonicalGitLabInstanceUrl','gitLabProjectId','gitLabGlobalIssueId','workItemId']],
-    ]) for (const column of columns)
-      if (!state.columns.some(c => c.table === table && c.column === column && c.nullable === 'NO')) throw new Error('Nullable external identity or relation');
+    const companyCodeUnique = sql(settings.container, `SELECT EXISTS (SELECT 1 FROM pg_indexes WHERE schemaname='public' AND tablename='Company' AND indexname='Company_code_key' AND indexdef LIKE 'CREATE UNIQUE INDEX%');`, run);
+    if (companyCodeUnique !== 't')
+      throw new Error('Missing Company code unique index');
+    if (stage !== 'additive') {
+      const otherProjects = Number(sql(settings.container, `SELECT count(*) FROM "Project" p JOIN "Company" c ON c.id=p."companyId" WHERE c.code IS DISTINCT FROM 'dhas';`, run));
+      if (otherProjects !== 0) throw new Error('Existing Projects are not assigned to Dhas');
+    }
   }
   return { stage, result: 'passed', timezone: state.timezone, records: Object.fromEntries(Object.entries(state.tables).map(([t, v]) => [t, v.rows])) };
 }

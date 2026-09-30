@@ -5,8 +5,8 @@ alwaysApply: true
 
 # Data invariants
 
-- Path: Customer → Project → WorkItem → TimeEntry. Project/Customer labels come from relations, not copied text on child rows.
-- Every Project has exactly one Customer. Customer 1:N Projects. `Project.customerId` may be nullable only during backfill; no orphans before NOT NULL.
+- Path: Company → Project → WorkItem → TimeEntry. Project/Company labels come from relations, not copied text on child rows.
+- One Company profile per installation; every Project belongs to that Company. `Project.companyId` may be nullable only during the Dhas backfill; no orphans before NOT NULL.
 - TimeEntry must reference an existing WorkItem. `projectId` must equal that WorkItem's project (or be derived). Reject mismatch with 400/409; do not write the row.
 - Owner identity is resolved server-side. Never trust browser `userId` or `assigneeId` to switch users. Assignee and Daily Work logger are the same owner.
 - Board columns are `WorkItem.status`. No private board records. Status writes go through the WorkItem service used by `/work-items`.
@@ -15,5 +15,5 @@ alwaysApply: true
 - Database date-only values represent Bangkok calendar dates. Database timestamps represent Bangkok local wall-clock date/time; use explicit Bangkok conversions at API/UI boundaries and configure database sessions to `Asia/Bangkok` so database defaults such as `now()` follow the same rule.
 - Settings may display the fixed system timezone `Asia/Bangkok`; do not expose a timezone override preference.
 - Do not rely on implicit cascade for business history. Deleting a Project currently cascades WorkItems/TimeEntries. Confirm + retain/archive before destructive ops.
-- GitLab import upserts the same `WorkItem`. Customer comes from the mapped PMS Project. Removing a mapping keeps imported WorkItems and TimeEntries.
+- GitLab import upserts the same `WorkItem`. Company comes from the mapped PMS Project. Removing a mapping keeps imported WorkItems and TimeEntries.
 - Related-row mutations commit in one transaction. After success, refresh or invalidate every surface that reads those rows.

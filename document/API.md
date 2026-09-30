@@ -1,15 +1,17 @@
 # API
 
+> **Owner decision 2026-09-29:** Customer API และ `customerId` ที่กล่าวในสัญญาเดิมถูกยกเลิก ใช้ Company หลายรายกับ `Project.companyId`; Projects เดิมผูก Dhas. ดู [Company → Project decision](./COMPANY_PROJECT_DECISION.md). ข้อความ Customer ด้านล่างเป็นประวัติข้อเสนอเดิม ไม่ใช่ contract ที่ใช้พัฒนาใหม่.
+
 | รายการ | ค่า |
 | --- | --- |
 | Framework | Next.js 15 App Router Route Handlers |
 | Base URL | `http://localhost:<app-port>/api` |
 | รูปแบบ | JSON; methods ใช้ `GET`, `POST`, `PATCH`, `DELETE` เว้นแต่ระบุว่าเป็นไฟล์ |
 | สถานะเอกสาร | แยก endpoint ที่พบใน repository (As-Is) ออกจากสัญญาเป้าหมาย (Target proposal) |
-| ขอบเขตข้อมูล | ยึด [Shared Data Model](./SHARED_DATA_MODEL.md); Customer/Project rollout ยึด [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md); GitLab import ยึด [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) |
+| ขอบเขตข้อมูล | ยึด [Company → Project decision](./COMPANY_PROJECT_DECISION.md); GitLab import ยึด [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) |
 | เอกสารเชื่อมโยง | [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [BUSINESS_REQUIREMENT.md](./BUSINESS_REQUIREMENT.md) · [SCOPE.md](./SCOPE.md) · [DATABASE.md](./DATABASE.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [DEPLOYMENT.md](./DEPLOYMENT.md) |
 
-> **ขอบเขต As-Is:** inventory และพฤติกรรมปัจจุบันอิง source code ใน repository ณ 2026-09-27 ไม่ใช่ผลตรวจ production database. **Target:** endpoint ที่ระบุว่าเป้าหมายยังไม่ถือว่าถูก implement หรือเปิดใช้งานแล้ว.
+> **ขอบเขต As-Is:** inventory อิง source code ใน repository โดยมี baseline 2026-09-27 และส่วนที่ implement เพิ่มใน #17–#18; ไม่ใช่ผลตรวจ production database. **Target:** endpoint ที่ระบุว่าเป้าหมายยังไม่ถือว่าถูก implement หรือเปิดใช้งานแล้ว.
 
 ## 1. Endpoint ที่มีอยู่ใน repository (As-Is)
 
@@ -17,15 +19,17 @@
 | --- | --- | --- | --- |
 | `GET` | `/api/health` | Docker/monitoring ตรวจการเชื่อมต่อฐานข้อมูล; ไม่ใช่เมนูธุรกิจ | Prisma `SELECT 1`; คืน health fields, ปัจจุบัน error response มีข้อความ exception |
 | `GET` | `/api/users` | legacy user selector | `User`; wrapper `{ users }` |
-| `GET`, `POST` | `/api/projects` | Projects; `GET ?status=...` หรือ `?options=work-items` สำหรับ Project selector; `POST` สร้าง Project | `Project`, creator และ counts; wrapper `{ projects }` หรือ `{ project }` |
-| `GET`, `PATCH`, `DELETE` | `/api/projects/{id}` | Projects อ่าน/แก้/ลบ Project | `Project` และ relation ที่ handler เลือก; wrapper `{ project }` |
+| `GET`, `POST` | `/api/projects` | Projects; `GET` กรอง status/companyId/search พร้อม cursor หรือ `?options=work-items` สำหรับ selector; `POST` ตรวจ Company ที่เลือก | `{ projects, page }` / `{ project }`; Company กับ summary จาก WorkItem/TimeEntry (#18) |
+| `GET`, `PATCH`, `DELETE` | `/api/projects/{id}` | Projects อ่าน/แก้/ลบ Project; delete ปฏิเสธเมื่อมีประวัติอ้างอิง | `{ project }` หรือ error envelope (#18) |
+| `GET`, `POST` | `/api/company` | อ่านรายการ/เพิ่ม Company | `{ companies }` / `{ company }` (#18) |
+| `PATCH`, `DELETE` | `/api/company/{id}` | แก้ Company; ลบได้เมื่อไม่มี Project และไม่ใช่ Dhas | `{ company }` หรือ error envelope (#18) |
 | `GET`, `POST` | `/api/work-items` | Work Items; query/filter และสร้าง WorkItem | `WorkItem` พร้อม Project/assignee; wrapper `{ workItems, years? }` หรือ `{ workItem }` |
 | `GET`, `PATCH`, `DELETE` | `/api/work-items/{id}` | Work Items อ่าน/แก้/ลบ WorkItem | WorkItem เดียว; wrapper `{ workItem }` |
 | `POST` | `/api/work-items/import` | Work Items bulk import | ตรวจ WorkItem input และ Project/User references; ปัจจุบันสร้างรายการแบบ bulk |
 | `GET`, `POST` | `/api/work-logs` | Daily Work อ่าน/สร้าง TimeEntry | `TimeEntry` พร้อม User/Project/WorkItem; wrapper `{ workLogs }` หรือ `{ workLog }` |
 | `GET`, `PATCH`, `DELETE` | `/api/work-logs/{id}` | Daily Work อ่าน/แก้/ลบ TimeEntry | TimeEntry เดียว; wrapper `{ workLog }` |
 
-ไม่พบ API route สำหรับ Customer, Dashboard aggregates, Analysis, Company mutation หรือ Settings persistence. Board ยังไม่มี API ของตัวเอง; ใช้ UI sample data ใน As-Is. `/api/projects` เป็น Project API ที่มีอยู่ แม้หน้า Projects จะ query Prisma บน server ด้วย. Baseline วันที่ 2026-09-27 ยังไม่มี authentication middleware หรือ pagination; Issue #17 เพิ่ม middleware/owner resolver แล้ว แต่ pagination ยังไม่ถูก implement.
+ยังไม่พบ API route สำหรับ Dashboard aggregates, Analysis หรือ Settings persistence. Board ยังไม่มี API ของตัวเอง. Baseline วันที่ 2026-09-27 ยังไม่มี authentication middleware หรือ pagination; #17 เพิ่ม middleware/owner resolver และ #18 เพิ่ม pagination ให้ Projects แล้ว. Schema Company/Project ยังไม่ได้ยืนยันว่า rollout ไปยังฐานข้อมูลจริง.
 
 **สถานะ #17:** owner gate ตรวจ HTTP Basic และ origin ก่อน Next.js; middleware ปฏิเสธ page/API ที่ไม่มี internal proof ด้วย `401 OWNER_UNAUTHENTICATED` (หรือ gate `403 ACCESS_DENIED` เมื่อ origin ไม่ผ่าน). `GET /api/health` เป็นข้อยกเว้น. Route Handlers ของ Projects, Users, Work Items และ Work Logs ตรวจ owner ฝั่ง server. `GET /api/users` คืน owner หนึ่งคน; WorkItem create/import/update และ TimeEntry create/update ไม่ยอมรับ `assigneeId`/`userId` ที่ต่างจาก owner (`400 VALIDATION_ERROR`); list ของ Work Items/Work Logs กรอง owner. Browser ยังอาจส่ง ID owner เดิมเพื่อ compatibility แต่ server เป็นผู้กำหนดค่าเขียนจริง. Error อื่นของ legacy routes ยังมีรูปแบบเดิมและจะปรับใน issue ที่เกี่ยวข้อง.
 
@@ -37,7 +41,7 @@ As-Is gap ของ `GET /api/work-logs`: รองรับ `date=YYYY-MM-DD`, 
 
 As-Is timestamp gap: current Route Handlers parse several date/time writes with JavaScript `Date` and JSON serialization emits Prisma `DateTime` values as UTC `Z`; parsing and persistence do not enforce the target `+07:00`/Bangkok wall-clock contract. This is current behavior, not target behavior, and the target contract below has not been implemented in runtime routes.
 
-`GET /api/projects` รองรับ `status` และ `options=work-items`. Current handlers โดยรวมยังใช้ error body แบบ `{ "error": "..." }` และบาง mutation มี validation ไม่ครบ; นี่เป็นข้อเท็จจริง As-Is ไม่ใช่รูปแบบที่ endpoint เป้าหมายควรคัดลอก.
+`GET /api/projects` รองรับ `status`, `search`, `limit`, `cursor` และ `options=work-items`. Project/Company handlers ของ #18 ใช้ error envelope; legacy handlers อื่นบางตัวอาจยังใช้ `{ "error": "..." }` และมี validation ไม่ครบ.
 
 ## 2. กติกา API เป้าหมายร่วมกัน
 
@@ -122,6 +126,8 @@ Dashboard/Analysis คืน `period`, `timezone`, `filters` และ `metricVe
 ## 4. Request/query contracts และ validation ตาม resource
 
 ### 4.1 Projects และ Customers
+
+**Implementation #18 (code, rollout pending):** `GET/PATCH /api/company` และ Project CRUD ใช้ owner gate. Project create ผูก Company ฝั่ง server และปฏิเสธ client `companyId`; Project list คืน `{ page: { limit, nextCursor } }` โดย default 50 สูงสุด 200 และ cursor ผูกกับ filters. `GET /api/projects?options=work-items` ยังคงเป็น selector เดิม. Project list/detail คืน Company และ `summary` จาก WorkItem statuses/roles กับ TimeEntry hours; detail แสดงรายการ WorkItems/TimeEntries. Project `progress` เป็นค่าคำนวณ. Project ที่มีประวัติอ้างอิงตอบ `409 HISTORY_CONFLICT` เมื่อ DELETE. Legacy Project ที่ยังไม่ผูก Company อาจมี `companyId=null` ระหว่าง compatibility stage เท่านั้น; ใช้ Dhas backfill ก่อนบังคับ NOT NULL.
 
 - `GET /api/projects`: target filters `customerId`, `status`, `search`, `limit`, `cursor`. Response `{ projects, page }`; Project list/detail ให้ include Customer และ derived WorkItem counts, role breakdown, progress และ TimeEntry hours โดยไม่ join จน hours ซ้ำ.
 - `POST /api/projects`: ต้องมี `name`, `startDate`, `dueDate`, `customerId`; fields optional ที่รองรับจาก Project model ได้แก่ `description`, `status`, `priority`, `colorProject`. Validate required strings, dates/enums และ Customer ที่ active. `creatorId` มาจาก owner server-side.

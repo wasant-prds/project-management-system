@@ -12,9 +12,10 @@ test("migration contract separates repository facts from target and live data", 
   const schema = await read("prisma/schema.prisma");
   assert.match(migration, /Role \| SA/);
   assert.match(migration, /not yet applied to any database/);
-  assert.match(migration, /ยังไม่มี `Customer`, `Project\.customerId`, `GitLabProjectMapping` หรือ `ExternalWorkItemReference`/);
+  assert.match(migration, /Superseded for #18 on 2026-09-29/);
   assert.match(migration, /ห้ามใช้ seed\/sample data/);
   assert.doesNotMatch(schema, /model Customer\s*\{/);
+  assert.match(schema, /companyId\s+String\s/);
 });
 
 test("Customer minimum fields, status, and used-record deletion rules are explicit", () => {

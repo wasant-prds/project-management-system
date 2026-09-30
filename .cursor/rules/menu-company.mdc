@@ -1,14 +1,14 @@
 ---
-description: Single company profile and Customer registry
-globs: app/company/**,app/api/company/**,app/api/customers/**
+description: Company registry and Project portfolios
+globs: app/company/**,app/api/company/**
 alwaysApply: false
 ---
 
 # Company `/company`
 
-- One Company profile per installation. Persist via target `GET/PATCH /api/company`. `findFirst()` is As-Is, not a uniqueness guarantee — enforce one row.
-- Customer registry: create, read, update, deactivate. Projects pick from this registry. Show Customer → Projects → WorkItem counts and TimeEntry hours from the database.
+- Support multiple Companies through `GET/POST /api/company` and `PATCH/DELETE /api/company/[id]`.
+- Dhas (D.H.A. Siamwalla Ltd.) is the default for existing Projects. Show each Company's Projects, WorkItem counts, and TimeEntry hours from the database. There is no Customer registry.
 - No member directory, invites, team management, or per-user permissions. Do not present `User` or `ProjectMember` as a team.
-- Every visible button persists or is hidden. Empty and error states only — never treat seed/sample customers as facts.
+- Every visible button persists or is hidden. Empty and error states only; Dhas default values come from the owner's approved details.
 - Use `STAT_GRID`, scrollable tabs, shared toolbar, and `PAGE_MAIN`. Later dialogs use `responsive-dialog.ts`.
-- Out: HR, payroll, recruitment, IdP sync, multi-company or multi-tenant admin.
+- Out: HR, payroll, recruitment, IdP sync, and multi-tenant admin.

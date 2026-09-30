@@ -1,5 +1,7 @@
 # BUSINESS REQUIREMENT
 
+> **Owner decision 2026-09-29:** Customer registry ถูกยกเลิก; Company Dhas เป็น parent ของ Projects. ข้อความ Customer เดิมด้านล่างถูกแทนที่โดย [Company → Project decision](./COMPANY_PROJECT_DECISION.md).
+
 | รายการ | ค่า |
 | --- | --- |
 | ระบบ | Project Management System |
@@ -12,7 +14,7 @@
 
 ## 1. ปัญหาและเป้าหมายทางธุรกิจ
 
-ปัจจุบันผู้ใช้เปิด Work Items และ Daily Work เพื่อทำงานจริงได้ แต่ Dashboard, Board และ Analysis แสดงข้อมูลตัวอย่างที่ไม่สอดคล้องกับข้อมูลปฏิบัติงาน ข้อมูล Project ยังไม่มี Customer เชื่อมโยง และ Company/Settings ยังมี action ที่ไม่บันทึกข้อมูล
+Baseline 2026-09-27: ผู้ใช้เปิด Work Items และ Daily Work เพื่อทำงานจริงได้ แต่ Dashboard, Board และ Analysis แสดงข้อมูลตัวอย่าง; Company/Settings ยังมี action ที่ไม่บันทึกข้อมูล. #18 เพิ่ม Company/Project relation และ Company persistence ใน source แล้ว แต่ยังไม่ยืนยัน rollout/backfill จริง.
 
 เป้าหมาย:
 

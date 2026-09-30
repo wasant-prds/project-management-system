@@ -16,6 +16,7 @@ const suites = {
   "migration-contracts": { files: [join(testRoot, "contracts", "customer-project-migration.test.mjs")] },
   "gitlab-contracts": { files: [join(testRoot, "contracts", "gitlab-issue-import.test.mjs")] },
   auth: { directory: join(testRoot, "auth") },
+  "company-projects": { directory: join(testRoot, "company-projects") },
   runner: { directory: join(testRoot, "runner") },
 };
 const requestedSuite = process.argv[2];

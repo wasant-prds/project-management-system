@@ -6,8 +6,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
 import { docker, sql, inventory, backup, verifyRollout, rehearse, health, config } from '../../scripts/db-rollout.mjs';
+import { checkDhasBackfill, dhasBackfillSQL } from '../../scripts/company-project-backfill-docker.mjs';
+import { projectDateSnapshot, promoteProjectDatesSQL } from '../../scripts/project-date-promotion.mjs';
 
-test('real PostgreSQL backup/restore and staged Customer/external identity gates preserve exact history',
+test('real PostgreSQL backup/restore and staged Company relation preserve exact history',
   { skip: process.env.PMS_RUN_ROLLOUT_DOCKER_TESTS !== '1', timeout:180000 }, async () => {
     const name=`pms-issue16-${randomUUID()}`, folder=await mkdtemp(join(tmpdir(),'pms-issue16-'));
     const site=`issue16-${randomUUID()}`, app=`pms-app-${site}`, migration=`pms-migrations-${site}`;
@@ -19,6 +21,10 @@ test('real PostgreSQL backup/restore and staged Customer/external identity gates
       assert.ok(ready);
       const schema=execFileSync(process.execPath,['node_modules/prisma/build/index.js','migrate','diff','--from-empty','--to-schema-datamodel','prisma/schema.prisma','--script'],{ env:{ ...process.env,DATABASE_URL:'postgresql://synthetic@localhost/synthetic' },stdio:['ignore','pipe','pipe'] });
       sql(name,schema);
+      // Recreate the pre-#18 Project date types before taking the fixture baseline.
+      sql(name,`ALTER TABLE "Project" ALTER COLUMN "startDate" TYPE timestamp(3) without time zone USING "startDate"::timestamp,
+        ALTER COLUMN "dueDate" TYPE timestamp(3) without time zone USING "dueDate"::timestamp;`);
+      sql(name,'ALTER TABLE "Project" DROP COLUMN "companyId";');
       sql(name,`INSERT INTO "User" (id,email,name,password,"updatedAt") VALUES ('owner','owner@fixture.invalid','Fixture','synthetic',localtimestamp);
         INSERT INTO "Project" (id,name,"startDate","dueDate","updatedAt") VALUES ('p','Fixture','2026-09-28 00:00:00','2026-10-01 00:00:00',localtimestamp);
         INSERT INTO work_items (id,title,kind,"projectId","assigneeId","workDate","dueDate","updatedAt") VALUES ('w','Fixture','Task','p','owner',NULL,'2026-10-01 00:00:00',localtimestamp);
@@ -32,15 +38,14 @@ test('real PostgreSQL backup/restore and staged Customer/external identity gates
       assert.equal(JSON.parse(await readFile(`${file}.json`)).keepDays,30);
       assert.equal(JSON.parse(await readFile(`${file}.verified.json`)).result,'isolated-restore-passed');
       assert.equal((await verifyRollout(settings,file,'baseline')).result,'passed');
-      sql(name,`CREATE TABLE "Customer" (id text PRIMARY KEY, name text NOT NULL);
-        ALTER TABLE "Project" ADD COLUMN "customerId" text REFERENCES "Customer"(id) ON DELETE RESTRICT;
-        CREATE TABLE "GitLabProjectMapping" (id text PRIMARY KEY,"canonicalGitLabInstanceUrl" text NOT NULL,"gitLabProjectId" bigint NOT NULL,"projectId" text NOT NULL REFERENCES "Project"(id) ON DELETE RESTRICT, UNIQUE("canonicalGitLabInstanceUrl","gitLabProjectId"));
-        CREATE TABLE "ExternalWorkItemReference" (id text PRIMARY KEY,provider text NOT NULL,"canonicalGitLabInstanceUrl" text NOT NULL,"gitLabProjectId" bigint NOT NULL,"gitLabGlobalIssueId" bigint NOT NULL,"workItemId" text NOT NULL UNIQUE REFERENCES work_items(id) ON DELETE RESTRICT, UNIQUE(provider,"canonicalGitLabInstanceUrl","gitLabProjectId","gitLabGlobalIssueId"));`);
+      sql(name,await readFile(new URL('../../scripts/company-project-additive.sql', import.meta.url),'utf8'));
+      assert.equal(sql(name,`SELECT count(*) FROM pg_constraint WHERE contype='f' AND confrelid='"Project"'::regclass AND confdeltype='c';`),'0');
       assert.equal((await verifyRollout(settings,file,'additive')).result,'passed');
       await assert.rejects(verifyRollout(settings,file,'backfilled'),/Unmapped/);
-      sql(name,`INSERT INTO "Customer" VALUES ('c','Approved fixture'); UPDATE "Project" SET "customerId"='c' WHERE id='p';`);
+      assert.equal(checkDhasBackfill(name),1);
+      sql(name,dhasBackfillSQL('c'));
       assert.equal((await verifyRollout(settings,file,'backfilled')).result,'passed');
-      sql(name,`ALTER TABLE "Project" ALTER COLUMN "customerId" SET NOT NULL;`);
+      sql(name,`ALTER TABLE "Project" ALTER COLUMN "companyId" SET NOT NULL;`);
       assert.equal((await verifyRollout(settings,file,'required')).result,'passed');
       const envPath=join(folder,'.env');
       await writeFile(envPath,'APP_ENV=dev\nAPP_ORIGIN=http://localhost:3000\nRUNTIME_DOCKER=true\nPOSTGRES_HOST=127.0.0.1\nPOSTGRES_USER=postgres\nPOSTGRES_DB=postgres\nPOSTGRES_PASSWORD=synthetic\nOWNER_GATE_USERNAME=owner\nOWNER_GATE_PASSWORD=synthetic-owner-password-at-least-32\n');
@@ -58,9 +63,16 @@ test('real PostgreSQL backup/restore and staged Customer/external identity gates
       sql(name,`UPDATE "TimeEntry" SET hours=2 WHERE id='t';`);
       await assert.rejects(verifyRollout(settings,file,'required'),/History verification failed/);
       sql(name,`UPDATE "TimeEntry" SET hours=1.23456789 WHERE id='t';`);
-      sql(name,`INSERT INTO "Project" (id,name,"startDate","dueDate","updatedAt","customerId") SELECT 'p2',name,"startDate","dueDate","updatedAt","customerId" FROM "Project" WHERE id='p'; UPDATE "TimeEntry" SET "projectId"='p2';`);
+      sql(name,`INSERT INTO "Project" (id,name,"startDate","dueDate","updatedAt","companyId") SELECT 'p2',name,"startDate","dueDate","updatedAt","companyId" FROM "Project" WHERE id='p'; UPDATE "TimeEntry" SET "projectId"='p2';`);
       const mismatch=await backup(settings); // Backup preserves legacy defects; promotion must reject them.
       await assert.rejects(verifyRollout(settings,mismatch,'required'),/relation mismatch/);
+      sql(name,`UPDATE "Project" SET "dueDate"='2026-10-01 12:00:00' WHERE id='p';`);
+      assert.throws(() => sql(name,promoteProjectDatesSQL),/diagnostics withheld/);
+      sql(name,`UPDATE "Project" SET "dueDate"='2026-10-01 00:00:00' WHERE id='p';`);
+      const datesBefore=projectDateSnapshot(name);
+      sql(name,promoteProjectDatesSQL);
+      assert.deepEqual(projectDateSnapshot(name),datesBefore);
+      assert.equal(sql(name,`SELECT data_type FROM information_schema.columns WHERE table_name='Project' AND column_name='startDate';`),'date');
       const data=await readFile(file); await writeFile(file,data.subarray(0,30));
       await assert.rejects(rehearse(file,'dev'),/checksum/);
       const corrupted=data.subarray(0,30), manifest=JSON.parse(await readFile(`${file}.json`));

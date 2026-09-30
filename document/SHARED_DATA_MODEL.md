@@ -1,5 +1,7 @@
 # Shared Work and Customer Data Model
 
+> **Superseded for the Customer relation on 2026-09-29:** The owner chose Company Dhas → Project. WorkItem, TimeEntry, owner, status, metric, and Bangkok date rules below still apply. The current parent relation is in [Company → Project decision](./COMPANY_PROJECT_DECISION.md).
+
 | รายการ | ค่า |
 | --- | --- |
 | Issue | #11 — Define the Shared Work and Customer Data Model |

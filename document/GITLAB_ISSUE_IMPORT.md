@@ -1,5 +1,7 @@
 # GitLab Issue Import Contract
 
+> **Owner decision 2026-09-29:** GitLab Project mapping still targets a PMS Project, but its parent context is Company Dhas. Customer references in this historical contract are superseded by [Company → Project decision](./COMPANY_PROJECT_DECISION.md).
+
 | รายการ | ค่า |
 | --- | --- |
 | Issue | #14 — Specify One-Way GitLab Issue Import |

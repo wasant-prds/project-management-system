@@ -1,10 +1,12 @@
 # DATABASE
 
+> **Owner decision 2026-09-29:** ยกเลิก Customer model และใช้ `Company → Project.companyId` โดย Project เดิมโยงกับ Dhas ตาม [Company → Project decision](./COMPANY_PROJECT_DECISION.md). Customer target ด้านล่างเป็นประวัติข้อเสนอเดิม.
+
 | รายการ | ค่า |
 | --- | --- |
 | Database | PostgreSQL 16 |
 | ORM | Prisma 6 (`prisma/schema.prisma`) |
-| สถานะ | As-Is schema พร้อม target changes ที่เสนอ; ยังไม่มี Customer model |
+| สถานะ | #18 เพิ่ม Company relation และ Project.companyId nullable ใน source; ยังไม่ยืนยัน rollout จริงหรือ NOT NULL |
 | ภาษาหลัก | ภาษาไทย; คงชื่อ model/field ตาม code |
 | เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [API.md](./API.md) · [DEPLOYMENT.md](./DEPLOYMENT.md) |
 

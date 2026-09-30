@@ -7,8 +7,8 @@ alwaysApply: false
 # Dashboard `/`
 
 - DB-backed KPIs only: total, open, completed, overdue WorkItems and logged hours for the selected period. Remove sample arrays from `app/page.tsx` / `dashboard-charts.tsx`.
-- Lists: recent, urgent, and overdue rows show Project, Customer, functional role, status, and due date. Assignee is the sole owner.
-- Recent Projects show Customer plus the shared progress formula (completed ÷ (total − cancelled)).
+- Lists: recent, urgent, and overdue rows show Project, Company, functional role, status, and due date. Assignee is the sole owner.
+- Recent Projects show Company plus the shared progress formula (completed ÷ (total − cancelled)).
 - Clickable cards and charts deep-link to the source list with the same filters that produced the number.
 - Show period, Asia/Bangkok timezone, and metric definitions on the page. Empty state when no rows — never fake zeros as live data.
 - Default period/year and all business-date boundaries use the system default `Asia/Bangkok`, independent of browser or server timezone.

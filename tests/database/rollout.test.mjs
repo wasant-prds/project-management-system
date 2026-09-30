@@ -24,7 +24,7 @@ test('exact verification rejects deleted rows, same-count edits, changed decimal
     s => delete s.tables.Project, s => s.tables.extra={}, s => s.columns.push({ type: 'timestamp with time zone' })]) {
     const altered = structuredClone(state); mutate(altered); assert.throws(() => compare(state, altered));
   }
-  const additive = structuredClone(state); additive.tables.Project.hash='customer-change'; additive.tables.Customer={};
+  const additive = structuredClone(state); additive.tables.Project.hash='company-change'; additive.tables.Company={};
   compare(state, additive, true);
   additive.tables.TimeEntry.historyHash='changed-hours'; assert.throws(() => compare(state, additive, true));
 });
@@ -33,8 +33,8 @@ test('Bangkok database/session/default and staged nullable gates fail closed', (
   assert.throws(() => validateStage(state,'unknown'));
   assert.throws(() => validateStage(state,'additive'));
   const additive = structuredClone(state);
-  for (const t of ['Customer','GitLabProjectMapping','ExternalWorkItemReference']) additive.tables[t]={};
-  additive.columns.push({ table:'Project', column:'customerId', nullable:'YES' });
+  additive.tables.Company={};
+  additive.columns.push({ table:'Project', column:'companyId', nullable:'YES' });
   validateStage(additive,'additive'); validateStage(additive,'backfilled');
   assert.throws(() => validateStage(additive,'required'));
   additive.columns[0].nullable='NO'; validateStage(additive,'required');

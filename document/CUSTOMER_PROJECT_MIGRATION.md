@@ -1,5 +1,7 @@
 # Customer and Project Data Migration Contract
 
+> **Superseded for #18 on 2026-09-29:** Owner ยกเลิก Customer registry และเลือก Dhas Company → `Project.companyId`. เอกสารนี้เก็บไว้เป็นประวัติ SA เท่านั้น; แผนปัจจุบันอยู่ที่ [Company → Project decision](./COMPANY_PROJECT_DECISION.md).
+
 | รายการ | ค่า |
 | --- | --- |
 | Issue | #12 — Specify Customer and Project Data Migration |
@@ -11,7 +13,7 @@
 
 ## 1. As-Is baseline และขอบเขต
 
-- อ้างอิง `prisma/schema.prisma` ใน repository: ยังไม่มี `Customer`, `Project.customerId`, `GitLabProjectMapping` หรือ `ExternalWorkItemReference`.
+- อ้างอิง `prisma/schema.prisma` หลัง implement #18: มี `Customer` และ `Project.customerId` แบบ nullable compatibility stage ใน source แล้ว; ยังไม่มี `GitLabProjectMapping` หรือ `ExternalWorkItemReference`. การมี source code ไม่ได้ยืนยันว่า schema ถูก apply ในฐานข้อมูลจริง.
 - `Project.id` เป็น primary key; `WorkItem.projectId` required; `TimeEntry.projectId` และ `TimeEntry.workItemId` nullable ใน schema ปัจจุบัน.
 - การลบ Project ปัจจุบัน cascade ไป WorkItem และ TimeEntry; การลบ WorkItem ตั้ง `TimeEntry.workItemId` เป็น null. ต้องไม่ใช้ behavior นี้ระหว่าง backfill.
 - repository ใช้ guarded `prisma db push` ผ่าน `scripts/db-push-safe.sh` และยังไม่พบ versioned migration history. แผนนี้จึงใช้ schema rollout แบบ compatibility สองช่วง; ต้องตรวจ schema diff ที่จะ apply ทุกครั้ง.

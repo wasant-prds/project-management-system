@@ -1,5 +1,7 @@
 # DATABASE MAPPING
 
+> **Owner decision 2026-09-29:** Mapping ที่ใช้ต่อจากนี้คือ `Company → Project → WorkItem → TimeEntry`; ไม่มี Customer. รายการ Customer ด้านล่างเป็นประวัติข้อเสนอเดิม ดู [Company → Project decision](./COMPANY_PROJECT_DECISION.md).
+
 | รายการ | ค่า |
 | --- | --- |
 | วัตถุประสงค์ | เชื่อม Menu, UI field, API และ persistent model |
@@ -7,7 +9,7 @@
 | ภาษา | ภาษาไทยเป็นหลัก; ชื่อ code/schema คงภาษาอังกฤษ |
 | เอกสารเชื่อมโยง | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) · [DATABASE.md](./DATABASE.md) · [API.md](./API.md) · [BUSINESS_REQUIREMENT.md](./BUSINESS_REQUIREMENT.md) |
 
-> `Customer`, `Project.customerId` และ GitLab external references เป็น target; ยังไม่มีใน Prisma schema/API/UI ปัจจุบัน. ความสัมพันธ์และ metric เป้าหมายยึด [Shared Data Model](./SHARED_DATA_MODEL.md)
+> #18 เพิ่ม `Project.companyId` แบบ nullable พร้อม API/UI Company และ Projects ใน source แล้ว; ยังไม่ยืนยัน rollout จริงหรือ backfill ครบ. GitLab external references ยังเป็น target. สัญญาใหม่ยึด [Company → Project decision](./COMPANY_PROJECT_DECISION.md).
 
 การ backfill, mapping register, validation/rollback gates และ external identity uniqueness ใช้ [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) เป็นข้อกำหนดกลาง. GitLab fields, project mapping, upsert และ failure outcomes ใช้ [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md). Register จริงเป็น run artifact ของ environment และห้ามใส่ข้อมูลลูกค้าจริงใน repository.
 
@@ -112,7 +114,7 @@ Target mapping: ค่า default time zone ของระบบ, application �
 | Daily Work Project and Work Item match | POST checks the pair; PATCH checks only when `workItemId` is included. PATCH that changes only `projectId` can mismatch; DB doesn't enforce pair | Derive Project from Work Item and/or add composite DB integrity; validate on every mutation |
 | Work Item/TimeEntry enum validity | WorkItem enums and API parser; TimeEntry.status is free-form String | Keep WorkItem status canonical; TimeEntry has no separate target workflow status |
 | Project has Customer | Not modeled | Customer FK, staged backfill, required once verified |
-| Company singleton | Not enforced; page uses `findFirst()` | Enforce/select one Company row per installation; multi-company is out of current scope |
+| Company registry | Legacy page used `findFirst()` | Multiple Companies; Project selects one; existing Projects backfill to Dhas |
 | Historical completion time | `submittedAt` means sa-testing or completed | Add `completedAt` or status history for period analytics |
 | Owner identity on mutation | No session/auth enforcement found | Require authenticated owner; no manager/admin hierarchy under current scope |
 

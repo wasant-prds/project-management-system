@@ -1,116 +1,62 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getOwner, ownerErrorResponse } from '@/lib/owner'
+import { apiError, companyRelationConflict, parseProjectInput, parsePage, nextPage } from '@/lib/project-management'
+import { projectListInclude, serializeProject } from '@/lib/project-query'
 
-// GET /api/projects - Get all projects
 export async function GET(request: Request) {
   try {
     await getOwner()
-    const { searchParams } = new URL(request.url)
-    const status = searchParams.get('status')
-
-    if (searchParams.get('options') === 'work-items') {
-      const projects = await prisma.project.findMany({
-        select: {
-          id: true,
-          name: true,
-          colorProject: true,
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-      })
-
-      return NextResponse.json({ projects }, { status: 200 })
+    const params = new URL(request.url).searchParams
+    if (params.get('options') === 'work-items') {
+      const projects = await prisma.project.findMany({ select: { id: true, name: true, colorProject: true }, orderBy: { createdAt: 'desc' } })
+      return NextResponse.json({ projects })
     }
-
-    const where = status ? { status } : {}
-
+    const status = params.get('status')
+    const companyId = params.get('companyId')
+    const search = params.get('search')
+    const filterKey = JSON.stringify({ status, companyId, search })
+    const pagination = parsePage(params, filterKey)
+    if (pagination.error) return apiError(400, 'VALIDATION_ERROR', pagination.error, 'cursor')
     const projects = await prisma.project.findMany({
-      where,
-      include: {
-        _count: {
-          select: {
-            workItems: true,
-            members: true,
-          },
-        },
-        creator: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
+      where: {
+        ...(status ? { status } : {}),
+        ...(companyId ? { companyId } : {}),
+        ...(search ? { name: { contains: search, mode: 'insensitive' as const } } : {}),
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
+      include: projectListInclude,
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: pagination.limit! + 1,
+      ...(pagination.cursor ? { cursor: { id: pagination.cursor }, skip: 1 } : {}),
     })
-
-    return NextResponse.json({ projects }, { status: 200 })
+    const result = nextPage(projects, pagination.limit!, filterKey)
+    return NextResponse.json({ projects: result.items.map(serializeProject), page: result.page })
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError
-    console.error('Error fetching projects:')
-    return NextResponse.json(
-      { error: 'Failed to fetch projects' },
-      { status: 500 }
-    )
+    return apiError(500, 'INTERNAL_ERROR', 'ไม่สามารถอ่าน Projects ได้')
   }
 }
 
-// POST /api/projects - Create a new project
 export async function POST(request: Request) {
   try {
     const owner = await getOwner()
-    const body = await request.json()
-    const {
-      name,
-      description,
-      status,
-      priority,
-      startDate,
-      dueDate,
-      budget,
-    } = body
-
-    // Validate required fields
-    if (!name || !startDate || !dueDate) {
-      return NextResponse.json(
-        { error: 'Name, start date, and due date are required' },
-        { status: 400 }
-      )
-    }
-
+    const parsed = parseProjectInput(await request.json())
+    if (parsed.error) return apiError(400, 'VALIDATION_ERROR', parsed.error, parsed.field)
+    const data = parsed.data!
+    const company = await prisma.company.findUnique({ where: { id: data.companyId as string }, select: { id: true } })
+    if (!company) return apiError(400, 'VALIDATION_ERROR', 'Company does not exist', 'companyId')
     const project = await prisma.project.create({
-      data: {
-        name,
-        description,
-        status: status || 'Planning',
-        priority: priority || 'Medium',
-        startDate: new Date(startDate),
-        dueDate: new Date(dueDate),
-        budget: budget ? parseFloat(budget) : null,
-        creatorId: owner.id,
-      },
-      include: {
-        creator: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-      },
+      data: { ...data, creatorId: owner.id } as import('@prisma/client').Prisma.ProjectUncheckedCreateInput,
+      include: projectListInclude,
     })
-
-    return NextResponse.json({ project }, { status: 201 })
+    return NextResponse.json({ project: serializeProject(project) }, { status: 201 })
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError
-    console.error('Error creating project:')
-    return NextResponse.json(
-      { error: 'Failed to create project' },
-      { status: 500 }
-    )
+    const companyConflict = companyRelationConflict(error)
+    if (companyConflict) return companyConflict
+    if (error instanceof SyntaxError) return apiError(400, 'VALIDATION_ERROR', 'JSON ไม่ถูกต้อง')
+    return apiError(500, 'INTERNAL_ERROR', 'ไม่สามารถสร้าง Project ได้')
   }
 }

@@ -8,7 +8,7 @@ alwaysApply: false
 
 - `document/API.md` is the detailed contract. Keep current route facts separate from proposed endpoints; do not describe a target endpoint as implemented.
 - All target business API reads/mutations require the authenticated owner. Resolve `userId`/`assigneeId` server-side; `Developer`, `infra`, and `SA` are WorkItem functional roles, not permissions.
-- Validate body, query, enum, date, numeric value, foreign key, Customer status, and relation invariants server-side on every mutation.
+- Validate body, query, enum, date, numeric value, Company foreign key, and relation invariants server-side on every mutation.
 - Canonical target error envelope: `{ error: { code, message, field? } }`. Map invalid input/relation mismatch to 400, unauthenticated to 401, policy denial to 403, missing to 404, state/unique/history conflict to 409, unexpected error to safe 500, required dependency down to safe 503. Never return raw exceptions or secrets.
 - Create returns 201; successful reads/updates/deletes return 200. Health is an infrastructure probe exception; 503 must not expose database details.
 - Current API inventory: `/api/health`, `/api/users`, `/api/projects[/{id}]`, `/api/work-items[/{id}]`, `/api/work-items/import`, `/api/work-logs[/{id}]`. Current wrappers/errors and missing owner auth/pagination are As-Is gaps.

@@ -1,5 +1,7 @@
 # ARCHITECTURE (EV)
 
+> **Owner decision 2026-09-29:** canonical path เปลี่ยนเป็น `Company → Project → WorkItem → TimeEntry`; ไม่มี Customer registry. ดู [Company → Project decision](./COMPANY_PROJECT_DECISION.md) ก่อนใช้ target เก่าในเอกสารนี้.
+
 | รายการ | ค่า |
 | --- | --- |
 | ฉบับ | EV — Enhanced Version |
@@ -16,7 +18,7 @@
 - คงเป็น modular monolith บน Next.js App Router, Next.js Route Handlers, Prisma และ PostgreSQL
 - ให้ `WorkItem` และ `TimeEntry` เป็น operational records กลาง ไม่แยกสำเนางาน/เวลารายเมนู
 - ให้หน้า read model/aggregate เป็น query ที่คำนวณจาก record จริง ไม่ใช้ mock arrays หรือ state ที่ไม่ persist
-- เพิ่ม Customer เป็น master data ที่เชื่อม Project โดยใช้ approved Project-ID mapping register, backup/restore rehearsal, orphan validation และ recovery gate ก่อนบังคับ foreign key ตาม [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md)
+- ผูก Project กับ Company ผ่าน `Project.companyId`; รองรับหลาย Companies และใช้ Dhas กับ Projects เดิม. Company/Project rollout และ Production validation อยู่ใน [Company/Project implementation](./COMPANY_PROJECT_IMPLEMENTATION.md)
 - รวม validation, enum mapping, project/work-item consistency และ authorization ไว้ฝั่ง server
 
 ## 2. As-Is architecture
@@ -41,7 +43,7 @@ flowchart LR
 - Projects page ดึงข้อมูลผ่าน Prisma ฝั่ง server; Project API มี list/create และ detail read/update/delete
 - Company page อ่านบางข้อมูลผ่าน Prisma ฝั่ง server; ยังไม่พบ API สำหรับ Company/Customer persistence; ปุ่มสมาชิกปัจจุบันเป็น UI ที่ไม่ตรงกับ product scope แบบ single-owner
 - Settings เป็น form UI; ยังไม่พบ endpoint สำหรับบันทึก
-- ไม่มี Customer table/model, auth/session layer หรือ API aggregation/report layer ที่พบ
+- Baseline 2026-09-27 ไม่มี owner gate หรือ Project summary; #17 เพิ่ม owner gate/resolver และ #18 เพิ่ม Company relation/API กับ Project summary ใน source โดยยังไม่ยืนยัน database rollout
 
 ## 3. Target logical architecture
 
@@ -62,7 +64,7 @@ flowchart TB
     READ[Read queries and aggregates]
     WORK[WorkItem service]
     TIME[TimeEntry service]
-    MASTER[Customer / Project / Company service]
+    MASTER[Company / Project service]
     PREF[User preferences service]
     GITLAB[GitLab import connector]
   end
@@ -100,7 +102,7 @@ Logical services are modules inside the existing Next.js server, not separately 
 
 ```mermaid
 erDiagram
-  CUSTOMER ||--o{ PROJECT : serves
+  COMPANY ||--o{ PROJECT : owns
   PROJECT ||--o{ WORK_ITEM : contains
   OWNER ||--o{ WORK_ITEM : owns
   WORK_ITEM ||--o{ TIME_ENTRY : records
@@ -115,11 +117,11 @@ erDiagram
 | --- | --- | --- |
 | Create/update/change Work Item status | WorkItem service → `WorkItem` | Work Items, Board, Dashboard, Projects, Analysis |
 | Log/edit/delete hours | TimeEntry service → `TimeEntry` linked to WorkItem | Daily Work, Work Item details, Projects, Dashboard, Analysis |
-| Set a Project's Customer | Project/Customer service → `Project.customerId` | Projects, Dashboard, filters, Analysis |
-| Edit company/Customer data | Company/Customer service → `Company`, `Customer`, `Project.customerId` | Company, Projects, Dashboard, Analysis |
+| Set a Project's Company | Company/Project service → `Project.companyId` | Projects, Dashboard, filters, Analysis |
+| Edit Company data | Company service → `Company`, `Project.companyId` | Company, Projects, Dashboard, Analysis |
 | Change owner preferences | Settings service → owner preference store (target schema decision) | Settings and shared UI |
 
-GitLab sync uses a separate import path into `WorkItem` plus an external reference; the linked PMS Project supplies its Customer. GitLab owns imported title, description, status, mapped types and due date; the PMS owner retains functional role, priority, work date, assignee and Daily Work. Removing a project mapping must not delete imported WorkItems or TimeEntries. The full identity, pagination, partial-result and retry contract is in [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md). No menu owns a private copy of a Work Item or its status. Dashboard and Analysis are projections (query results), not write models. If one mutation changes related rows, commit the change transactionally and refresh/invalidate the affected query results.
+GitLab sync uses a separate import path into `WorkItem` plus an external reference; the linked PMS Project supplies its Company context. GitLab owns imported title, description, status, mapped types and due date; the PMS owner retains functional role, priority, work date, assignee and Daily Work. Removing a project mapping must not delete imported WorkItems or TimeEntries. The full identity, pagination, partial-result and retry contract is in [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md). No menu owns a private copy of a Work Item or its status. Dashboard and Analysis are projections (query results), not write models. If one mutation changes related rows, commit the change transactionally and refresh/invalidate the affected query results.
 
 ## 5. Component boundaries
 
@@ -147,7 +149,7 @@ Dashboard และ Analysis charts ต้องยืดตาม parent contai
 1. **Modular monolith:** match the existing deployable unit; introduce a service boundary in code rather than a new service fleet.
 2. **One WorkItem record:** Board status and list status are views of the same enum-backed field.
 3. **Daily Work belongs to a Work Item:** a time entry must not become an unrelated free-floating task; derive Project context from that Work Item or enforce consistency on the server and database.
-4. **Customer is a required Project master relation:** one Customer has many Projects; every Project has exactly one primary Customer. Use a staged nullable FK/backfill/validation/not-null rollout for existing Projects.
+4. **Company is a required Project relation:** multiple Companies are allowed; every Project has one Company, and existing Projects are assigned to Dhas. The Production rollout completed with a staged nullable FK/backfill/validation/NOT NULL sequence.
 5. **Analytics are query-time aggregates initially:** use PostgreSQL aggregates/indexes; add caching/materialized views only after measurement and with an invalidation strategy.
 6. **One date/time policy:** `Asia/Bangkok` is the system, application, and database-session default in every environment. All date/time values persisted by the application use Bangkok calendar/wall-clock semantics; do not convert stored timestamps to UTC. Convert inputs and outputs explicitly using `Asia/Bangkok`, independent of browser/device timezone. Settings shows the fixed system timezone and cannot change persistence or business-date calculations.
 7. **Security boundary:** browser-provided identity is not trusted; authenticate the single owner and resolve the owner record server-side. Developer/Infra/SA are WorkItem functional roles, not authorization roles. Add multi-user authorization only if product scope changes.
@@ -174,9 +176,9 @@ Development, UAT and production use Docker Compose files already present. The sh
 
 ## 9. Decisions still open
 
-- Environment-specific Project-to-Customer decisions and evidence must be completed in the approved migration register before that environment is changed; no mapping is inferred by this repository contract
+- Production Company/Project mapping and evidence are recorded in [Company/Project implementation](./COMPANY_PROJECT_IMPLEMENTATION.md); other environments must complete their own verified backup and rollout gates before schema changes.
 - Owner authentication method and whether this single-owner installation sits behind an additional private network/access gate
-- Whether Company remains one profile per installation (the current business requirement) or changes to a multi-company product later
+- Company multiplicity is decided for #18: the product supports multiple Companies, with one Company required per Project
 - Whether to add WorkItem status history and a dedicated `completedAt`
 - User preference persistence schema and whether Security settings are in current product scope
 - Retention/archive implementation for deleted Projects, Users, WorkItems and TimeEntries; until approved, reject deletion that would cascade into business history
@@ -189,4 +191,4 @@ Development, UAT and production use Docker Compose files already present. The sh
 
 ## Database operations ที่ implement ใน #16
 
-เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. Customer/GitLab target schema และ business API ยังไม่ถูก deploy ในงาน Infra นี้. เจ้าของกำหนด defaults เป็น BACKUP_DIR=./database/backups/postgres_data และ BACKUP_KEEP_DAYS=30 แล้ว. ผล isolated verification ยืนยันการเตรียมเครื่องมือของ #16; ยังไม่ได้ rollout หรือสร้าง backup ของ Dev/UAT/Production จริง ซึ่งต้องผ่าน runbook ก่อน schema changes.
+เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. #16 เตรียมเครื่องมือ; #18 rollout Company/Project ใน Production แล้ว. GitLab target schema และ business API ยังไม่ถูก deploy และต้องผ่าน runbook สำหรับแต่ละ environment.

@@ -1,5 +1,7 @@
 # DEPLOYMENT
 
+> **Owner decision 2026-09-29:** การ rollout #18 ใช้ Dhas Company → `Project.companyId` และ backfill แบบ stage ตาม [Company → Project decision](./COMPANY_PROJECT_DECISION.md); Customer migration เดิมไม่ใช่แผนที่ใช้ต่อ.
+
 | รายการ | ค่า |
 | --- | --- |
 | Runtime | Docker Compose; Next.js standalone container + PostgreSQL 16 |

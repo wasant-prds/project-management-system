@@ -1,5 +1,7 @@
 # ENGINEERING SPEC (EV)
 
+> **Owner decision 2026-09-29:** Company หลายรายแทน Customer registry; Projects เดิมทุกตัวผูก `companyId` กับ Dhas และ Projects ใหม่เลือก Company. ข้อกำหนด Customer เดิมในเอกสารนี้ถูกแทนที่โดย [Company → Project decision](./COMPANY_PROJECT_DECISION.md).
+
 | รายการ | ค่า |
 | --- | --- |
 | ระบบ | Project Management System |
@@ -19,7 +21,7 @@
 เส้นทางข้อมูลเป้าหมาย:
 
 ```text
-Customer → Project → Work Item → Daily Work (Time Entry)
+Company → Project → Work Item → Daily Work (Time Entry)
                          ↑                ↓
                     User/Assignee     ชั่วโมง/วันที่/ผู้บันทึก
 ```
@@ -31,9 +33,9 @@ Customer → Project → Work Item → Daily Work (Time Entry)
 - ระบบเป็น Next.js App Router + React + TypeScript, Prisma และ PostgreSQL โดยทำงานเป็น application เดียว
 - Work Items อ่าน/เขียน `WorkItem` ผ่าน `/api/work-items`; มีการกรองชนิด สถานะ ความสำคัญ โครงการ ผู้รับผิดชอบ ช่วงปี/เดือน และคำค้น รวมถึง import
 - Daily Work ใช้ `/api/work-logs` ซึ่งอ่าน/เขียนโมเดล `TimeEntry`; ฟอร์มเลือก Project และ Work Item และ API ตรวจว่า Work Item อยู่ใน Project ที่เลือก
-- Projects อ่าน `Project` และนับ/สรุป Work Items ได้แล้ว แต่ยังไม่มี Customer model หรือความสัมพันธ์กับลูกค้า
+- Baseline 2026-09-27: Projects อ่าน `Project` และนับ/สรุป Work Items ได้; #18 เพิ่ม Company relation และ summary จาก WorkItem/TimeEntry ใน source แล้ว โดย rollout/backfill จริงยังต้องผ่าน gate
 - Dashboard, Board และ Analysis มีข้อมูลตัวอย่างฝังในหน้า; จึงไม่ใช่รายงานที่เชื่อถือได้จากฐานข้อมูล
-- Company อ่าน `Company`, `User`, `Project` และ `WorkItem` จากฐานข้อมูลบางส่วน แต่ action จัดการ Customer และแก้ไขข้อมูลบริษัทยังไม่มี API ที่พบ; ความต้องการเป้าหมายมีเจ้าของระบบคนเดียว
+- Baseline 2026-09-27: Company อ่าน `Company`, `User`, `Project` และ `WorkItem` บางส่วนโดยไม่มี mutation; #18 เพิ่ม Company profile API และ UI ใน source แล้ว
 - Settings มีฟอร์มตัวอย่าง แต่ยังไม่พบ persistence/API สำหรับค่าที่แสดง
 - Prisma schema ปัจจุบันไม่มี authentication/session model หรือ Customer model; API ปัจจุบันไม่มีการบังคับตัวตนผู้เรียก
 - Schema ปัจจุบันมี `TimeEntry.projectId` และ `TimeEntry.workItemId` แยกกัน; application ตรวจความสอดคล้องของคู่ Project/Work Item ขณะบันทึก แต่ schema ไม่ได้บังคับความสัมพันธ์คู่นี้เอง
@@ -48,7 +50,7 @@ Customer → Project → Work Item → Daily Work (Time Entry)
 4. Work Items, Board, Dashboard, Projects และ Analysis ต้องอ่าน `WorkItem` ชุดเดียวกัน; Daily Work, ชั่วโมงใน Project และรายงานเวลาอ่าน `TimeEntry` ชุดเดียวกัน
 5. การแก้สถานะจาก Work Items หรือ Board ต้องเขียนกลับ WorkItem เดียวกันและสะท้อนในทุกหน้าหลัง refresh/query ใหม่
 6. ยอดรวมและกราฟต้องได้จาก database query/aggregation หรือข้อมูล API ที่คำนวณจากฐานข้อมูล ห้ามใช้ hard-coded sample values
-7. Project แต่ละรายการผูกกับ Customer หนึ่งราย; Customer หนึ่งรายมีหลาย Projects ได้. Customer ขั้นต่ำมี stable ID, required name และ active/inactive status; customer ที่ถูกใช้งานห้ามลบ. ใช้ approved mapping register ต่อ Project และทำ staged nullable/backfill/validation ก่อนบังคับ `customerId` ตาม [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md)
+7. Project แต่ละรายการผูกกับ Company หนึ่งราย และ Company หนึ่งรายมีหลาย Projects ได้. ระบบรองรับ Companies หลายราย; Project ใหม่เลือก Company ที่มีอยู่ และ Projects เดิมผูกกับ Dhas ตามการตัดสินใจของเจ้าของ. Company ที่มี Projects อ้างถึงห้ามลบ.
 8. การลบ/เก็บถาวรต้องไม่ทำให้ข้อมูลเวลาหรือประวัติงานหายโดยไม่ตั้งใจ; นโยบาย soft delete/retention ต้องสรุปก่อนพัฒนา destructive operation
 
 ### 3.2 Work Item workflow
@@ -83,13 +85,13 @@ Customer → Project → Work Item → Daily Work (Time Entry)
 
 | Menu | Contract เชิงเทคนิค |
 | --- | --- |
-| Dashboard `/` | อ่าน aggregates จาก WorkItem, TimeEntry, Project และ Customer; มี global filter และลิงก์ไปยังรายการต้นทาง |
-| Projects `/projects` | Project CRUD; ผูก Customer; progress/counts คำนวณจาก WorkItem; hours คำนวณจาก TimeEntry |
+| Dashboard `/` | อ่าน aggregates จาก WorkItem, TimeEntry, Project และ Company context; มี global filter และลิงก์ไปยังรายการต้นทาง |
+| Projects `/projects` | Project CRUD; ผูก Company; progress/counts คำนวณจาก WorkItem; hours คำนวณจาก TimeEntry |
 | Work Items `/work-items` | หน้าหลักสำหรับ query/filter/create/update/delete/import WorkItem; ดึง GitLab Issues เข้าระบบทางเดียวแบบ idempotent; คง enum และ validation กลาง |
 | Board `/board` | Query WorkItem ด้วย filter แล้ว group ตาม status; status mutation เรียก WorkItem API |
 | Analysis `/analysis` | อ่าน aggregation จาก WorkItem และ TimeEntry พร้อมช่วงเวลาและ filter ที่ระบุได้ |
 | Daily Work `/daily-work` | CRUD TimeEntry ที่อ้าง WorkItem; ช่วงวัน/สัปดาห์/เดือน/ปีใช้ timezone เดียวกัน |
-| Company `/company` | อ่าน/แก้ company profile ของเจ้าของและจัดการ Customer registry; สรุป Projects/Work Items/ชั่วโมงจาก DB; ไม่มี user/team administration |
+| Company `/company` | จัดการ Company หลายราย; สรุป Projects/Work Items/ชั่วโมงจาก DB; ไม่มี user/team administration หรือ Customer registry |
 | Settings `/settings` | แยก profile, preferences และ security; persist ตามเจ้าของ setting; ห้ามแสดงปุ่มบันทึกที่ไม่เกิดผล |
 
 ### 3.4.1 GitLab Issue import
@@ -131,14 +133,14 @@ Target contract, exact mappings, manual sync flow, per-Issue transactions, respo
 - Motion สื่อ feedback โดยไม่ทำให้ layout shift หรือชะลอการบันทึก; keyboard focus และ `prefers-reduced-motion` ทำงานถูกต้อง
 - UI ทั้ง 8 เมนูใช้ Neumorphism อย่างสม่ำเสมอผ่าน shared theme-aware tokens/components โดยไม่ทำให้ contrast, อ่านง่าย, semantic states หรือ visible focus แย่ลง; light/dark/special-dark แสดงพื้นผิวและเงาเหมาะกับแต่ละ theme
 - ทุก loading, empty, validation, not-found และ server-error state มีการตอบสนองที่ผู้ใช้เข้าใจ
-- Customer association สำหรับ Project และ migration/backfill ผ่านการ review ก่อนบังคับใช้
+- Company association สำหรับ Project ผ่าน verified backup, staged Dhas backfill และ NOT NULL rollout แล้วใน Production; รายละเอียดอยู่ใน [Company/Project implementation](./COMPANY_PROJECT_IMPLEMENTATION.md)
 - Owner authentication และ validation ฝั่ง server ครอบคลุมทุก mutation ก่อนเปิด production
 - Acceptance criteria ตาม [BUSINESS_REQUIREMENT.md](./BUSINESS_REQUIREMENT.md) ผ่านการทวนกับผู้ใช้ธุรกิจ
 
 ## 6. คำถามที่ต้องยืนยันก่อน migration/implementation
 
-1. ก่อน rollout จริง ให้สร้างและอนุมัติ environment-specific mapping register สำหรับทุก Project ตาม [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md); แถวที่ unmapped/ambiguous ต้อง block rollout และห้ามเดาค่าแทน
-2. ยืนยันหลักฐานและ Customer ID ของแต่ละ Project จากเจ้าของข้อมูลใน environment ที่กำลังย้าย; repository ไม่มีข้อมูลจริงให้กำหนด mapping ล่วงหน้า
+1. Company/Project rollout สำหรับ Production เสร็จตาม backup และ verification gates ที่บันทึกใน [Company/Project implementation](./COMPANY_PROJECT_IMPLEMENTATION.md); environment อื่นต้องทำ verified backup และ rollout gates ของตนก่อน schema change
+2. การเลือก Company ใหม่เป็นการตัดสินใจของเจ้าของตอนสร้าง Project; Company ID ต้องมาจาก Company ที่มีอยู่และ API ตรวจสอบฝั่ง server
 3. `submittedAt` หมายถึงส่งเข้า SA Testing หรือส่งงานเสร็จ; ควรเพิ่ม `completedAt`/status history เพื่อวัด throughput หรือไม่
 4. Daily Work อนุญาตหลายบันทึกต่อ Work Item ต่อวันหรือไม่ และจำกัดยอดรวมไม่เกิน 24 ชั่วโมงต่อเจ้าของต่อวันหรือไม่
 5. ยืนยันว่า Company profile มีหนึ่ง record ต่อ installation (ข้อกำหนดปัจจุบัน: ใช้หนึ่งบริษัท/เจ้าของต่อ installation)
@@ -153,4 +155,4 @@ Target contract, exact mappings, manual sync flow, per-Issue transactions, respo
 
 ## Database operations ที่ implement ใน #16
 
-เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. Customer/GitLab target schema และ business API ยังไม่ถูก deploy ในงาน Infra นี้. เจ้าของกำหนด defaults เป็น BACKUP_DIR=./database/backups/postgres_data และ BACKUP_KEEP_DAYS=30 แล้ว. ผล isolated verification ยืนยันการเตรียมเครื่องมือของ #16; ยังไม่ได้ rollout หรือสร้าง backup ของ Dev/UAT/Production จริง ซึ่งต้องผ่าน runbook ก่อน schema changes.
+เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. #16 เตรียมเครื่องมือ; #18 rollout Company/Project ใน Production แล้ว. GitLab target schema และ business API ยังไม่ถูก deploy และต้องผ่าน runbook สำหรับแต่ละ environment.

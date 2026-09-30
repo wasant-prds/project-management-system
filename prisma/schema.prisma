@@ -72,6 +72,9 @@ model User {
 // Company Information
 model Company {
   id          String   @id @default(cuid())
+  code        String?  @unique // Reserved stable code for Dhas; other Companies may leave it unset.
+  displayName String?  // Dhas
+  location    String?
   name        String
   industry    String?
   email       String?
@@ -80,8 +83,9 @@ model Company {
   website     String?
   logo        String?
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @db.Timestamp(3)
+  updatedAt   DateTime @updatedAt @db.Timestamp(3)
+  projects  Project[]
 }
 
 // Project
@@ -91,16 +95,18 @@ model Project {
   description  String?
   status       String   @default("Planning") // Planning, In Progress, Review, Completed, On Hold
   priority     String   @default("Medium") // Low, Medium, High, Critical
-  startDate    DateTime
-  dueDate      DateTime
+  startDate    DateTime @db.Date
+  dueDate      DateTime @db.Date
   budget       Decimal?
   spent        Decimal? @default(0)
   progress     Int      @default(0) // 0-100
   colorProject String? // Project color for visual identification
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now()) @db.Timestamp(3)
+  updatedAt    DateTime @updatedAt @db.Timestamp(3)
 
   creatorId    String?
+  companyId    String
+  company      Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
   creator      User?           @relation("ProjectCreator", fields: [creatorId], references: [id])
   members      ProjectMember[]
   workItems    WorkItem[]
@@ -112,6 +118,7 @@ model Project {
   @@index([status])
   @@index([priority])
   @@index([creatorId])
+  @@index([companyId, status])
 }
 
 // Project Members
@@ -121,7 +128,7 @@ model ProjectMember {
   joinedAt DateTime @default(now())
 
   projectId String
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
   userId    String
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -146,7 +153,7 @@ model WorkItem {
   updatedAt   DateTime         @updatedAt
 
   projectId   String
-  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
   assigneeId  String
   assignee    User    @relation("WorkItemAssignee", fields: [assigneeId], references: [id])
   timeEntries TimeEntry[]
@@ -186,7 +193,7 @@ model Milestone {
   updatedAt   DateTime @updatedAt
 
   projectId String
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
 
   @@index([projectId])
 }
@@ -203,7 +210,7 @@ model Document {
   updatedAt   DateTime @updatedAt
 
   projectId  String?
-  project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: Restrict)
   uploaderId String?
   uploader   User?    @relation(fields: [uploaderId], references: [id])
 
@@ -225,7 +232,7 @@ model TimeEntry {
   userId     String
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   projectId  String?
-  project    Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project    Project?  @relation(fields: [projectId], references: [id], onDelete: Restrict)
   workItemId String?
   workItem   WorkItem? @relation(fields: [workItemId], references: [id], onDelete: SetNull)
 
@@ -248,7 +255,7 @@ model ActivityLog {
   userId    String?
   user      User?    @relation(fields: [userId], references: [id])
   projectId String?
-  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Restrict)
 
   @@index([userId])
   @@index([projectId])
