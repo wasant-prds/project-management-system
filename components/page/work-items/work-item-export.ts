@@ -3,6 +3,7 @@ import {
   WORK_ITEM_ROLE_LABELS,
   WORK_ITEM_STATUS_LABELS,
 } from '@/lib/work-items'
+import { currentBangkokCalendarDate } from '@/lib/bangkok-datetime'
 import { formatDisplayDate } from './work-item-presentation'
 import type { WorkItem } from './types'
 
@@ -93,8 +94,9 @@ function parseIsoDateParts(value: string | null | undefined): DateParts | null {
   return { y, m, d }
 }
 
-function localDateParts(date: Date): DateParts {
-  return { y: date.getFullYear(), m: date.getMonth() + 1, d: date.getDate() }
+function bangkokDateParts(date: Date): DateParts {
+  const value = currentBangkokCalendarDate(date)
+  return { y: Number(value.slice(0, 4)), m: Number(value.slice(5, 7)), d: Number(value.slice(8, 10)) }
 }
 
 function ymdValue(parts: DateParts): number {
@@ -113,7 +115,7 @@ export function urgencySubgroup(item: WorkItem, today = new Date()): UrgencySubg
   if (isFinished(item)) return 'complete'
   const due = parseIsoDateParts(item.dueDate)
   if (!due) return 'on-track'
-  const now = localDateParts(today)
+  const now = bangkokDateParts(today)
   if (compareDateParts(due, now) < 0) return 'overdue'
   if (due.y === now.y && due.m === now.m) return 'near-due'
   return 'on-track'
@@ -322,6 +324,23 @@ export function generateWorkItemsCsv(items: WorkItem[]) {
   return `\uFEFF${[CSV_HEADER, ...items.map(generateCsvRow)].join('\n')}`
 }
 
+export function generateWorkItemsJson(items: WorkItem[]) {
+  const rows = items.map((item) => ({
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    kind: item.kind,
+    priority: item.priority,
+    role: item.role,
+    status: item.status,
+    types: item.types,
+    workDate: item.workDate,
+    dueDate: item.dueDate,
+    projectId: item.project.id,
+  }))
+  return JSON.stringify(rows, null, 2)
+}
+
 function formatWorkItemMarkdown(item: WorkItem, includeProject: boolean) {
   const lines = [
     `### ${item.title}`,
@@ -364,7 +383,7 @@ function sortDescription(mode: WorkItemSortMode) {
 }
 
 export function generateWorkItemsMarkdown(items: WorkItem[], mode: WorkItemSortMode) {
-  const exported = new Date().toISOString().slice(0, 10)
+  const exported = currentBangkokCalendarDate()
   const header = [
     '# Work Items',
     '',

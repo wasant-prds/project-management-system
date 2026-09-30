@@ -32,6 +32,7 @@ Company → Project → Work Item → Daily Work (Time Entry)
 
 - ระบบเป็น Next.js App Router + React + TypeScript, Prisma และ PostgreSQL โดยทำงานเป็น application เดียว
 - Work Items อ่าน/เขียน `WorkItem` ผ่าน `/api/work-items`; มีการกรองชนิด สถานะ ความสำคัญ โครงการ ผู้รับผิดชอบ ช่วงปี/เดือน และคำค้น รวมถึง import
+- Issue #19 (2026-09-30) เติม shared validation สำหรับ create/update/import, filters ตาม Company/status/priority/functional role และข้อมูล Company/Daily Work ใน Work Item detail; import แยกผลแต่ละแถว
 - Daily Work ใช้ `/api/work-logs` ซึ่งอ่าน/เขียนโมเดล `TimeEntry`; ฟอร์มเลือก Project และ Work Item และ API ตรวจว่า Work Item อยู่ใน Project ที่เลือก
 - Baseline 2026-09-27: Projects อ่าน `Project` และนับ/สรุป Work Items ได้; #18 เพิ่ม Company relation และ summary จาก WorkItem/TimeEntry ใน source แล้ว โดย rollout/backfill จริงยังต้องผ่าน gate
 - Dashboard, Board และ Analysis มีข้อมูลตัวอย่างฝังในหน้า; จึงไม่ใช่รายงานที่เชื่อถือได้จากฐานข้อมูล
@@ -156,3 +157,7 @@ Target contract, exact mappings, manual sync flow, per-Issue transactions, respo
 ## Database operations ที่ implement ใน #16
 
 เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. #16 เตรียมเครื่องมือ; #18 rollout Company/Project ใน Production แล้ว. GitLab target schema และ business API ยังไม่ถูก deploy และต้องผ่าน runbook สำหรับแต่ละ environment.
+
+## Work Item management ที่ implement ใน #19
+
+`POST/PATCH /api/work-items` และ import ใช้ shared validation ของ enum, required fields, Bangkok calendar dates, Project reference และ owner. List/detail อ่านและเขียน canonical `WorkItem`; Company แสดงผ่าน Project relation และ Daily Work detail แสดงเฉพาะ TimeEntry ของ owner. Import ส่งผลลัพธ์ต่อแถว (`created`/`skipped`/`failed`) เพื่อให้ข้อมูลแถวที่ถูกต้องดำเนินต่อได้. `cancelled` ยังคงไม่ใช่ `completed`. `DELETE` ตอบ `409 HISTORY_CONFLICT` เมื่อมี Daily Work และ relation ใช้ `Restrict`.

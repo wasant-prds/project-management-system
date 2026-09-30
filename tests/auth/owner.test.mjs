@@ -13,9 +13,34 @@ function loadTs(path, mocks, runtimeProcess = process) {
   const source = readFileSync(new URL(path, import.meta.url), 'utf8')
   const output = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
   const mockedModule = { exports: {} }
+  const fallbackMocks = {
+    '@/lib/bangkok-datetime': {
+      currentBangkokCalendarDate: () => '2026-09-30',
+      currentBangkokWallClockDate: () => new Date('2026-09-30T12:00:00.000Z'),
+      parseBangkokCalendarDate: (value) => {
+        if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
+        const date = new Date(`${value}T00:00:00.000Z`)
+        return date.toISOString().slice(0, 10) === value ? date : null
+      },
+    },
+    '@/lib/work-item-response': {
+      workItemInclude: {},
+      workItemDetailInclude: () => ({}),
+      serializeWorkItem: (workItem) => workItem,
+    },
+    '@/lib/work-item-input': {
+      parseWorkItemPatch: (value, ownerId) => {
+        if (value.assigneeId && value.assigneeId !== ownerId) {
+          return { error: 'assigneeId must match the authenticated owner' }
+        }
+        return { data: { ...value, assigneeId: ownerId } }
+      },
+    },
+  }
   vm.runInNewContext(output, { module: mockedModule, exports: mockedModule.exports, require: (name) => {
-    if (!(name in mocks)) throw new Error(`Unexpected import: ${name}`)
-    return mocks[name]
+    if (name in mocks) return mocks[name]
+    if (name in fallbackMocks) return fallbackMocks[name]
+    throw new Error(`Unexpected import: ${name}`)
   }, process: runtimeProcess, Headers, URL, Buffer, console }, { filename: path })
   return mockedModule.exports
 }
@@ -332,7 +357,7 @@ test('WorkItem update rejects a foreign assignee ID before reading or writing', 
   const { PATCH } = loadTs('../../app/api/work-items/[id]/route.ts', {
     'next/server': { NextResponse: { json: (body, options) => ({ status: options.status, body }) } },
     '@/lib/db': { prisma: { workItem: {
-      findUnique: async (query) => { reads.push(query); return { assigneeId: 'legacy-2' } },
+      findFirst: async (query) => { reads.push(query); return null },
       update: async (query) => { writes.push(query); return query.data },
     } } },
     '@/lib/owner': { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: () => null },
@@ -358,17 +383,16 @@ test('WorkItem update rejects a foreign assignee ID before reading or writing', 
   assert.equal(writes.length, 0)
 })
 
-test('WorkItem import accepts supported row shapes and validates rows before bulk creation', async () => {
+test('WorkItem import accepts supported row shapes and processes rows independently', async () => {
   const imports = []
   let availableProjects = ['project-1']
   const resolvedOwners = []
   const { POST } = loadTs('../../app/api/work-items/import/route.ts', {
     'next/server': { NextResponse: { json: (body, options) => ({ status: options.status, body }) } },
     '@/lib/db': { prisma: {
-      project: { findMany: async ({ where }) => availableProjects
-        .filter((id) => where.id.in.includes(id))
-        .map((id) => ({ id })) },
-      workItem: { createMany: async ({ data }) => { imports.push(data); return { count: data.length } } },
+      project: { findUnique: async ({ where }) => availableProjects.includes(where.id) ? { id: where.id } : null },
+      workItem: { findUnique: async () => null,
+        create: async ({ data }) => { imports.push(data); return { id: data.id ?? `item-${imports.length}` } } },
     } },
     '@/lib/work-items': { shouldStampSubmittedAt: (status) => status === 'completed' },
     '@/lib/work-item-input': { parseWorkItemInput: (value, ownerId) => {
@@ -383,27 +407,29 @@ test('WorkItem import accepts supported row shapes and validates rows before bul
 
   assert.equal((await POST(request({ workItems: {} }))).status, 400)
   const invalidRow = await POST(request([{ title: 'First', projectId: 'project-1' }, { invalid: true }]))
-  assert.equal(invalidRow.status, 400)
-  assert.equal(invalidRow.body.row, 2)
+  assert.equal(invalidRow.status, 200)
+  assert.equal(invalidRow.body.imported, 1)
+  assert.equal(invalidRow.body.rows[1].outcome, 'failed')
   const foreignAssignee = await POST(request([{ title: 'Spoofed', projectId: 'project-1', assigneeId: 'legacy-2' }]))
-  assert.equal(foreignAssignee.status, 400)
-  assert.equal(foreignAssignee.body.row, 1)
+  assert.equal(foreignAssignee.status, 200)
+  assert.equal(foreignAssignee.body.rows[0].outcome, 'failed')
   assert.equal(resolvedOwners.at(-1), 'owner-1')
   const missingProject = await POST(request([{ title: 'Missing', projectId: 'project-2' }]))
-  assert.equal(missingProject.status, 404)
-  assert.equal(missingProject.body.row, 1)
-  assert.equal(imports.length, 0)
+  assert.equal(missingProject.status, 200)
+  assert.equal(missingProject.body.rows[0].error.code, 'NOT_FOUND')
 
   const imported = await POST(request({ workItems: [
     { id: 'item-1', title: 'Completed', projectId: 'project-1', status: 'completed' },
   ] }))
-  assert.equal(imported.status, 201)
-  assert.equal(imports[0][0].assigneeId, 'owner-1')
-  assert.equal(Number.isNaN(imports[0][0].submittedAt.getTime()), false)
-  assert.equal((await POST(request([
+  assert.equal(imported.status, 200)
+  assert.equal(imported.body.rows[0].outcome, 'created')
+  assert.equal(imports.at(-1).assigneeId, 'owner-1')
+  assert.equal(Number.isNaN(imports.at(-1).submittedAt.getTime()), false)
+  const todo = await POST(request([
     { title: 'Todo', projectId: 'project-1', status: 'todo' },
-  ]))).status, 201)
-  assert.equal(imports[1][0].submittedAt, null)
+  ]))
+  assert.equal(todo.status, 200)
+  assert.equal(imports.at(-1).submittedAt, null)
 })
 
 test('WorkItem API returns owner access error before reading input', async () => {

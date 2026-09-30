@@ -9,6 +9,15 @@ export type WorkItemProject = {
   id: string
   name: string
   colorProject: string | null
+  company?: { id: string; name: string; displayName: string | null } | null
+}
+
+export type WorkItemTimeEntry = {
+  id: string
+  date: string
+  hours: string
+  description: string | null
+  remarks: string | null
 }
 
 export type WorkItem = {
@@ -27,6 +36,7 @@ export type WorkItem = {
   updatedAt?: string
   project: WorkItemProject
   assignee: { id: string; name: string; avatar: string | null }
+  timeEntries?: WorkItemTimeEntry[]
 }
 
 export type ProjectOption = {

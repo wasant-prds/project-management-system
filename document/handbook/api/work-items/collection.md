@@ -2,7 +2,7 @@
 
 ## Overview
 
-อ่าน WorkItems ของ owner พร้อม Project/assignee, ค้นหาและกรองตาม period หรือสร้าง WorkItem ใหม่.
+อ่าน WorkItems ของ owner พร้อม Project/Company/assignee, ค้นหาและกรองตาม period, kind, status, priority, functional role หรือสร้าง WorkItem ใหม่.
 
 | Method | Endpoint | Behavior |
 | --- | --- | --- |
@@ -28,11 +28,13 @@
 | Parameter | Type | Required | Validation / behavior |
 | --- | --- | --- | --- |
 | `projectId` | string | No | filter Project ID |
+| `companyId` | string | No | filter Company ผ่าน Project |
 | `assigneeId` | string | No | legacy; หากส่งต้องเท่ากับ owner ID มิฉะนั้น 400 |
 | `kind` | enum | No | `Incident`, `Issue`, `Task` |
 | `status` | enum | No | `backlog`, `todo`, `in-progress`, `blocked`, `sa-testing`, `pm-testing`, `completed`, `cancelled` |
 | `priority` | enum | No | `none`, `low`, `medium`, `high`, `urgent` |
-| `year` | `YYYY` or `all` | No | default `all`; ใช้ร่วมกับ month |
+| `role` | enum or `none` | No | `Developer`, `infra`, `SA`; `none` กรอง role ว่าง |
+| `year` | `YYYY` or `all` | No | default = ปีปัจจุบันใน `Asia/Bangkok`; `all` แสดงทุกปี |
 | `month` | `1`–`12` or `all` | No | default `all` |
 | `search` | string | No | ค้น title, description, Project name, assignee name และ substring ของ kind/status |
 | `includeYears` | boolean text | No | `true` ขอ year options; กรณี year=all + month เฉพาะเดือนจะรวม years โดยอัตโนมัติ |
@@ -56,7 +58,7 @@ curl -u "$OWNER_GATE_USERNAME:$OWNER_GATE_PASSWORD" \
 | `role` | enum \| null | No | `Developer`, `infra`, `SA` หรือ null |
 | `types` | string[] | No | default `[]`; แต่ละค่าเป็น `bug`, `data`, `documentation`, `epic`, `feature`, `maintenance`, `opl`, `ops`, `support`, `task`; duplicates ถูกตัดออก |
 | `description` | string \| null | No | description; ว่าง normalize เป็น null |
-| `workDate`, `dueDate` | date-like string \| null | No | ส่งค่าให้ JavaScript `Date` parse; empty/null กลายเป็น null |
+| `workDate`, `dueDate` | `YYYY-MM-DD` \| null | No | วันที่ปฏิทิน `Asia/Bangkok`; ปฏิเสธวันที่ผิด/รูปแบบอื่น; empty/null กลายเป็น null |
 | `assigneeId` | string \| null | No | legacy compatibility; หากส่งค่าอื่นที่ไม่ใช่ owner จะถูกปฏิเสธ; ค่าเขียนจริงมาจาก owner |
 | `id` | string | No | parser รับ non-empty ID แต่ POST ลบ field นี้ก่อน insert จึงไม่ได้ใช้ ID จาก request |
 
@@ -68,14 +70,15 @@ curl -u "$OWNER_GATE_USERNAME:$OWNER_GATE_PASSWORD" \
 
 ## Response
 
-GET ตอบ `200` `{workItems, years?}`; POST ตอบ `201` `{workItem}`. WorkItem object มี scalar fields ตาม Prisma model และ relation สองชุด:
+GET ตอบ `200` `{workItems, years?}`; POST ตอบ `201` `{workItem}`. WorkItem object มี scalar fields ตาม Prisma model และ relation:
 
 | Field | Description |
 | --- | --- |
 | `workItems` / `workItem` | WorkItem records หรือ record เดียว |
 | `id`, `title`, `description`, `kind`, `priority`, `role`, `types` | ID และ business fields; description/role nullable; `types` เป็น array |
 | `status` | Public status; underscore Prisma enums ถูก serialize เป็น hyphen |
-| `workDate`, `dueDate`, `submittedAt`, `createdAt`, `updatedAt` | Prisma DateTime fields; JSON date serialization ของ route นี้เป็น ISO `Z`; nullable dates อาจเป็น null |
+| `workDate`, `dueDate` | business date `YYYY-MM-DD`; null ได้; ไม่มีการเลื่อนวันตาม timezone ของ browser |
+| `submittedAt`, `createdAt`, `updatedAt` | timestamp ที่แสดง Bangkok local wall-clock พร้อม offset `+07:00`; nullable `submittedAt` ได้ |
 | `projectId`, `assigneeId` | Foreign keys |
 | `assignee` | User relation ของ owner |
 | `assignee.id` | User primary key |
@@ -86,15 +89,16 @@ GET ตอบ `200` `{workItems, years?}`; POST ตอบ `201` `{workItem}`. Wo
 | `project.id` | Project primary key |
 | `project.name` | ชื่อ Project |
 | `project.colorProject` | สี Project หรือ null |
+| `project.company` | Company ของ Project: `id`, `name`, `displayName` |
 | `years` | Optional array ของปีเป็น string, มาจาก owner WorkItem date anchor |
 
-เมื่อ status เป็น `sa-testing` หรือ `completed`, create จะกำหนด `submittedAt` เป็นเวลาปัจจุบัน. Response ส่ง WorkItem fields ที่ Prisma include คืนมา.
+เมื่อ status เป็น `sa-testing` หรือ `completed`, create จะกำหนด `submittedAt` เป็น Bangkok local wall-clock. Collection ไม่รวม TimeEntries; ใช้ detail endpoint เพื่ออ่าน Daily Work ที่ผูกกับ WorkItem.
 
 ## Error Responses
 
 | HTTP | Body/code | Cause |
 | ---: | --- | --- |
-| `400` | `{error: ...}` | invalid year/month/kind/status/priority/types/title/project/assignee input |
+| `400` | `VALIDATION_ERROR` | invalid year/month/kind/status/priority/role/types/title/date/assignee input |
 | `401` | `OWNER_UNAUTHENTICATED` | owner access ไม่ผ่าน |
 | `403` | `ACCESS_DENIED` | origin policy ปฏิเสธ request |
 | `404` | `{ "error": "Project not found" }` | Project ID ที่ส่งไม่มีอยู่ |
@@ -107,4 +111,8 @@ GET: resolve owner → validate filters/period → build owner-scoped query → 
 
 ## Verification
 
-`pnpm test:auth`. ตรวจ owner scoping, invalid enum/year/month, foreign `assigneeId`, Project ไม่มี และ default values. Date serialization ที่เห็นจริงเป็น `Z`; Bangkok policy ของ WorkItem timestamps ยังไม่ถูกทำให้สม่ำเสมอกับ WorkLog API.
+`pnpm test:work-items` ตรวจ owner scoping, invalid enum/year/month/role/date, foreign `assigneeId`, Project ไม่มี, defaults และ Bangkok serialization. `pnpm test:auth` ตรวจ owner access contract ร่วม.
+
+## Import
+
+`POST /api/work-items/import` รับ JSON array หรือ `{ "workItems": [...] }`. เมื่อ envelope ถูกต้องจะตอบ `200` พร้อม `imported` และ `rows[]`; แต่ละผลมี `row` (เริ่ม 1), `outcome` (`created`, `skipped` หรือ `failed`) และ `workItemId?` หรือ `error: { code, message, field? }`. Invalid enum/date/Project เป็นผลรายแถวและไม่หยุดแถวอื่น; duplicate ID ถูก skip โดยไม่แก้ข้อมูลเดิม. JSON/envelope ที่ผิดตอบ `400`.

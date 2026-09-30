@@ -25,7 +25,16 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ArrowUpDown, Download, FileText, Plus, Search, Upload } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-import { type WorkItemKindValue } from '@/lib/work-items'
+import {
+  WORK_ITEM_PRIORITIES,
+  WORK_ITEM_PRIORITY_LABELS,
+  WORK_ITEM_ROLES,
+  WORK_ITEM_ROLE_LABELS,
+  WORK_ITEM_STATUSES,
+  WORK_ITEM_STATUS_LABELS,
+  type WorkItemKindValue,
+} from '@/lib/work-items'
+import { currentBangkokCalendarDate } from '@/lib/bangkok-datetime'
 import { WorkItemViewDialog } from '@/components/page/work-items/work-item-view-dialog'
 import { WorkItemGroupedList } from '@/components/page/work-items/work-item-grouped-list'
 import {
@@ -37,6 +46,7 @@ import {
   downloadTextFile,
   flattenProjectGroups,
   generateWorkItemsCsv,
+  generateWorkItemsJson,
   generateWorkItemsMarkdown,
   groupWorkItems,
   isWorkItemSortMode,
@@ -64,10 +74,21 @@ import {
   TAB_SCROLL_CLASS,
   TAB_TRIGGER_CLASS,
 } from '@/components/layout/page-layout'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 const SORT_MENU_CLOSE_DELAY_MS = 150
 
 type KindTab = 'all' | WorkItemKindValue
+type ImportReport = { filename: string; imported: number; skipped: number; failed: number; rowMessages: string[] }
 
 function isKindTab(value: string): value is KindTab {
   return value === 'all' || value === 'Incident' || value === 'Issue' || value === 'Task'
@@ -102,10 +123,33 @@ function matchesYearMonth(item: WorkItem, year: string, month: string) {
   return true
 }
 
-function workItemQuery(year: string, month: string, project: string, search: string, includeYears: boolean) {
+type WorkItemQueryOptions = {
+  year: string
+  month: string
+  project: string
+  search: string
+  status: string
+  priority: string
+  role: string
+  includeYears: boolean
+}
+
+function workItemQuery({
+  year,
+  month,
+  project,
+  search,
+  status,
+  priority,
+  role,
+  includeYears,
+}: WorkItemQueryOptions) {
   const params = new URLSearchParams({ year, month })
   if (project !== 'all') params.set('projectId', project)
   if (search.trim()) params.set('search', search.trim())
+  if (status !== 'all') params.set('status', status)
+  if (priority !== 'all') params.set('priority', priority)
+  if (role !== 'all') params.set('role', role)
   if (includeYears) params.set('includeYears', 'true')
   return params.toString()
 }
@@ -195,9 +239,12 @@ export default function WorkItemsPage() {
   const [availableYears, setAvailableYears] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
-  const [yearFilter, setYearFilter] = useState(() => String(new Date().getFullYear()))
+  const [yearFilter, setYearFilter] = useState(() => currentBangkokCalendarDate().slice(0, 4))
   const [monthFilter, setMonthFilter] = useState('all')
   const [projectFilter, setProjectFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [priorityFilter, setPriorityFilter] = useState('all')
+  const [roleFilter, setRoleFilter] = useState('all')
   const [kindTab, setKindTab] = useState<KindTab>('all')
   const [sortMode, setSortMode] = useState<WorkItemSortMode>(DEFAULT_WORK_ITEM_SORT_MODE)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -205,11 +252,16 @@ export default function WorkItemsPage() {
   const [formValues, setFormValues] = useState<WorkItemFormValues>(emptyWorkItemForm())
   const [viewItem, setViewItem] = useState<WorkItem | null>(null)
   const [isImporting, setIsImporting] = useState(false)
+  const [importReport, setImportReport] = useState<ImportReport | null>(null)
+  const [viewLoading, setViewLoading] = useState(false)
+  const [deleteItem, setDeleteItem] = useState<WorkItem | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const importInputRef = useRef<HTMLInputElement>(null)
   const yearOptionsLoadedRef = useRef(false)
   const projectsLoadedRef = useRef(false)
   const projectsRequestRef = useRef<Promise<ProjectOption[]> | null>(null)
   const loadGenerationRef = useRef(0)
+  const viewGenerationRef = useRef(0)
   const loadControllerRef = useRef<AbortController | null>(null)
   const [loadedFilterKey, setLoadedFilterKey] = useState<string | null>(null)
   const [loadingFilterKey, setLoadingFilterKey] = useState<string | null>(null)
@@ -222,7 +274,7 @@ export default function WorkItemsPage() {
 
   const load = useCallback(async () => {
     const generation = ++loadGenerationRef.current
-    const filterKey = [yearFilter, monthFilter, projectFilter, debouncedSearchQuery.trim()].join('|')
+    const filterKey = [yearFilter, monthFilter, projectFilter, statusFilter, priorityFilter, roleFilter, debouncedSearchQuery.trim()].join('|')
     loadControllerRef.current?.abort()
     const controller = new AbortController()
     loadControllerRef.current = controller
@@ -232,7 +284,16 @@ export default function WorkItemsPage() {
     setLoadError(null)
 
     try {
-      const query = workItemQuery(yearFilter, monthFilter, projectFilter, debouncedSearchQuery, !yearOptionsLoadedRef.current)
+      const query = workItemQuery({
+        year: yearFilter,
+        month: monthFilter,
+        project: projectFilter,
+        search: debouncedSearchQuery,
+        status: statusFilter,
+        priority: priorityFilter,
+        role: roleFilter,
+        includeYears: !yearOptionsLoadedRef.current,
+      })
       const response = await fetch(`/api/work-items?${query}`, { signal: controller.signal })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to load work items')
@@ -256,7 +317,7 @@ export default function WorkItemsPage() {
     } finally {
       if (generation === loadGenerationRef.current) setLoadingFilterKey(null)
     }
-  }, [yearFilter, monthFilter, projectFilter, debouncedSearchQuery])
+  }, [yearFilter, monthFilter, projectFilter, statusFilter, priorityFilter, roleFilter, debouncedSearchQuery])
 
   useEffect(() => {
     void load()
@@ -289,7 +350,7 @@ export default function WorkItemsPage() {
   }, [ensureProjectsLoaded])
 
   const yearOptions = useMemo(() => {
-    const years = new Set<string>([String(new Date().getFullYear()), ...availableYears])
+    const years = new Set<string>([currentBangkokCalendarDate().slice(0, 4), ...availableYears])
     return [...years].sort((left, right) => Number(right) - Number(left))
   }, [availableYears])
 
@@ -298,12 +359,28 @@ export default function WorkItemsPage() {
     return workItems.filter((item) => {
       if (projectFilter !== 'all' && item.project.id !== projectFilter) return false
       if (!matchesYearMonth(item, yearFilter, monthFilter)) return false
+      if (statusFilter !== 'all' && item.status !== statusFilter) return false
+      if (priorityFilter !== 'all' && item.priority !== priorityFilter) return false
+      if (roleFilter === 'none' && item.role !== null) return false
+      if (roleFilter !== 'all' && roleFilter !== 'none' && item.role !== roleFilter) return false
       if (!query) return true
-      return [item.title, item.description, item.project.name, item.assignee.name, item.kind, item.status]
+      return [
+        item.title,
+        item.description,
+        item.project.name,
+        item.project.company?.name,
+        item.project.company?.displayName,
+        item.assignee.name,
+        item.kind,
+        item.status,
+        item.priority,
+        item.role,
+        ...item.types,
+      ]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query))
     })
-  }, [workItems, debouncedSearchQuery, yearFilter, monthFilter, projectFilter])
+  }, [workItems, debouncedSearchQuery, yearFilter, monthFilter, projectFilter, statusFilter, priorityFilter, roleFilter])
 
   const visibleGroups = useMemo(() => {
     const scoped = kindTab === 'all' ? filtered : filtered.filter((item) => item.kind === kindTab)
@@ -316,6 +393,9 @@ export default function WorkItemsPage() {
     yearFilter,
     monthFilter,
     projectFilter,
+    statusFilter,
+    priorityFilter,
+    roleFilter,
     searchQuery.trim(),
     kindTab,
     sortMode,
@@ -330,38 +410,74 @@ export default function WorkItemsPage() {
 
   const openCreate = async () => {
     if (!(await ensureProjectsLoaded())) return
+    viewGenerationRef.current += 1
+    setViewLoading(false)
     setViewItem(null)
     setDialogMode('create')
     setFormValues(emptyWorkItemForm())
     setDialogOpen(true)
   }
 
-  const openView = (item: WorkItem) => {
+  const openView = async (item: WorkItem) => {
+    const generation = ++viewGenerationRef.current
     setViewItem(item)
+    setViewLoading(true)
+    try {
+      const response = await fetch(`/api/work-items/${item.id}`)
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error?.message || data.error || 'Failed to load work item details')
+      if (generation === viewGenerationRef.current && data.workItem?.id === item.id) {
+        setViewItem(data.workItem)
+      }
+    } catch (error) {
+      if (generation !== viewGenerationRef.current) return
+      toast({
+        title: 'โหลดรายละเอียดไม่สำเร็จ',
+        description: error instanceof Error ? error.message : 'กรุณาลองอีกครั้ง',
+        variant: 'destructive',
+      })
+      setViewItem(null)
+    } finally {
+      if (generation === viewGenerationRef.current) setViewLoading(false)
+    }
   }
 
   const openEdit = async (item: WorkItem) => {
     if (!(await ensureProjectsLoaded())) return
+    viewGenerationRef.current += 1
+    setViewLoading(false)
     setViewItem(null)
     setDialogMode('edit')
     setFormValues(toFormValues(item))
     setDialogOpen(true)
   }
 
-  const handleDelete = async (item: WorkItem) => {
-    if (!confirm(`Delete "${item.title}"?`)) return
-    const response = await fetch(`/api/work-items/${item.id}`, { method: 'DELETE' })
-    if (!response.ok) {
-      toast({ title: 'Error', description: 'Failed to delete work item', variant: 'destructive' })
-      return
+  const handleDelete = (item: WorkItem) => setDeleteItem(item)
+
+  const confirmDelete = async () => {
+    if (!deleteItem) return
+    setIsDeleting(true)
+    try {
+      const response = await fetch(`/api/work-items/${deleteItem.id}`, { method: 'DELETE' })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error?.message || data.error || 'Failed to delete work item')
+      setViewItem(null)
+      setDeleteItem(null)
+      toast({ title: 'ลบ Work Item แล้ว', description: 'ลบรายการงานเรียบร้อย' })
+      await load()
+    } catch (error) {
+      toast({
+        title: 'ลบ Work Item ไม่สำเร็จ',
+        description: error instanceof Error ? error.message : 'กรุณาลองอีกครั้ง',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeleting(false)
     }
-    setViewItem(null)
-    toast({ title: 'Deleted', description: 'Work item removed' })
-    load()
   }
 
-  const exportFilename = (extension: 'csv' | 'md') => {
-    const date = new Date().toISOString().slice(0, 10)
+  const exportFilename = (extension: 'csv' | 'md' | 'json') => {
+    const date = currentBangkokCalendarDate()
     const kind = kindTab === 'all' ? 'all' : kindTab.toLowerCase()
     return `work_items_${kind}_${date}.${extension}`
   }
@@ -381,6 +497,15 @@ export default function WorkItemsPage() {
       generateWorkItemsMarkdown(visibleItems, sortMode),
       exportFilename('md'),
       'text/markdown;charset=utf-8;',
+    )
+  }
+
+  const exportJson = () => {
+    if (visibleItems.length === 0) return
+    downloadTextFile(
+      generateWorkItemsJson(visibleItems),
+      exportFilename('json'),
+      'application/json;charset=utf-8;',
     )
   }
 
@@ -407,6 +532,7 @@ export default function WorkItemsPage() {
     }
 
     setIsImporting(true)
+    setImportReport(null)
     try {
       const response = await fetch('/api/work-items/import', {
         method: 'POST',
@@ -414,11 +540,23 @@ export default function WorkItemsPage() {
         body: JSON.stringify(rows),
       })
       const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Failed to import work items')
+      if (!response.ok) throw new Error(data.error?.message || data.error || 'Failed to import work items')
 
+      const outcomes = Array.isArray(data.rows) ? data.rows : []
+      const skipped = outcomes.filter((item: { outcome?: string }) => item.outcome === 'skipped').length
+      const failed = outcomes.filter((item: { outcome?: string }) => item.outcome === 'failed').length
+      const rowMessages = outcomes
+        .filter((item: { outcome?: string }) => item.outcome !== 'created')
+        .map((item: { row?: unknown; outcome?: string; error?: { message?: unknown } }) => {
+          const rowLabel = typeof item.row === 'number' ? item.row : '?'
+          const reason = typeof item.error?.message === 'string' ? item.error.message : 'ไม่ทราบสาเหตุ'
+          return `แถว ${rowLabel}: ${reason}`
+        })
+      setImportReport({ filename: file.name, imported: data.imported ?? 0, skipped, failed, rowMessages })
       toast({
-        title: 'Import complete',
-        description: `${data.imported} work items imported from ${file.name}.`,
+        title: failed > 0 ? 'นำเข้าเสร็จพร้อมข้อผิดพลาด' : 'นำเข้าเสร็จแล้ว',
+        description: `เพิ่ม ${data.imported ?? 0} รายการ · ข้าม ${skipped} · ผิดพลาด ${failed}`,
+        ...(failed > 0 ? { variant: 'destructive' as const } : {}),
       })
       await load()
     } catch (error) {
@@ -432,7 +570,7 @@ export default function WorkItemsPage() {
     }
   }
 
-  const filterKey = [yearFilter, monthFilter, projectFilter, debouncedSearchQuery.trim()].join('|')
+  const filterKey = [yearFilter, monthFilter, projectFilter, statusFilter, priorityFilter, roleFilter, debouncedSearchQuery.trim()].join('|')
   const resultsAreCurrent = loadedFilterKey === filterKey
   const isListLoading = loadingFilterKey === filterKey || (!resultsAreCurrent && !loadError)
 
@@ -501,6 +639,16 @@ export default function WorkItemsPage() {
                   <FileText className="h-4 w-4" />
                   <span className={ACTION_LABEL_CLASS}>Export Markdown</span>
                 </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={exportJson}
+                  disabled={visibleItems.length === 0}
+                  aria-label="Export importable JSON"
+                >
+                  <Download className="h-4 w-4" />
+                  <span className={ACTION_LABEL_CLASS}>Export JSON</span>
+                </Button>
                 <Button onClick={openCreate}>
                   <Plus className="h-4 w-4" />
                   <span className="sm:hidden">New</span>
@@ -508,6 +656,19 @@ export default function WorkItemsPage() {
                 </Button>
               </div>
             </div>
+
+            {importReport && (
+              <section className="space-y-2 rounded-lg border bg-card p-3 text-sm" aria-live="polite">
+                <p className="font-medium">
+                  {importReport.filename}: เพิ่ม {importReport.imported} · ข้าม {importReport.skipped} · ผิดพลาด {importReport.failed}
+                </p>
+                {importReport.rowMessages.length > 0 && (
+                  <ul className="max-h-40 space-y-1 overflow-y-auto text-destructive" aria-label="Import row results">
+                    {importReport.rowMessages.map((message, index) => <li key={`${index}-${message}`}>{message}</li>)}
+                  </ul>
+                )}
+              </section>
+            )}
 
             <div className={STAT_GRID}>
               <SummaryStatCard label="Total" value={stats.total} />
@@ -578,6 +739,40 @@ export default function WorkItemsPage() {
                 <div className="col-span-2 sm:col-auto">
                   <WorkItemSortMenu value={sortMode} onChange={setSortMode} />
                 </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full bg-secondary/50 sm:w-[150px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    {WORK_ITEM_STATUSES.map((status) => (
+                      <SelectItem key={status} value={status}>{WORK_ITEM_STATUS_LABELS[status]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                  <SelectTrigger className="w-full bg-secondary/50 sm:w-[150px]">
+                    <SelectValue placeholder="Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All priorities</SelectItem>
+                    {WORK_ITEM_PRIORITIES.map((priority) => (
+                      <SelectItem key={priority} value={priority}>{WORK_ITEM_PRIORITY_LABELS[priority]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                  <SelectTrigger className="w-full bg-secondary/50 sm:w-[150px]">
+                    <SelectValue placeholder="Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All roles</SelectItem>
+                    <SelectItem value="none">No role</SelectItem>
+                    {WORK_ITEM_ROLES.map((role) => (
+                      <SelectItem key={role} value={role}>{WORK_ITEM_ROLE_LABELS[role]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -614,11 +809,41 @@ export default function WorkItemsPage() {
         <WorkItemViewDialog
           open={Boolean(viewItem)}
           item={viewItem}
+          isLoading={viewLoading}
           onOpenChange={(open) => {
-            if (!open) setViewItem(null)
+            if (!open) {
+              viewGenerationRef.current += 1
+              setViewLoading(false)
+              setViewItem(null)
+            }
           }}
           onEdit={openEdit}
         />
+
+        <AlertDialog open={deleteItem !== null} onOpenChange={(open) => {
+          if (!open && !isDeleting) setDeleteItem(null)
+        }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>ยืนยันการลบ Work Item</AlertDialogTitle>
+              <AlertDialogDescription>
+                ลบ “{deleteItem?.title}” ใช่หรือไม่? ระบบจะปฏิเสธการลบหากมี Daily Work ผูกอยู่ เพื่อเก็บประวัติไว้
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>ยกเลิก</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={isDeleting}
+                onClick={(event) => {
+                  event.preventDefault()
+                  return confirmDelete()
+                }}
+              >
+                {isDeleting ? 'กำลังลบ...' : 'ยืนยันลบ Work Item'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <WorkItemDialog
           open={dialogOpen}

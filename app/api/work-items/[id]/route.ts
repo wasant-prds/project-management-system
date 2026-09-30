@@ -1,249 +1,134 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import {
-  isWorkItemKind,
-  isWorkItemPriority,
-  isWorkItemRole,
-  parseWorkItemStatus,
-  parseWorkItemTypes,
-  serializeWorkItemStatus,
-  shouldStampSubmittedAt,
-} from '@/lib/work-items'
-import type { Prisma, WorkItemStatus } from '@prisma/client'
+import { shouldStampSubmittedAt } from '@/lib/work-items'
+import { parseWorkItemPatch } from '@/lib/work-item-input'
+import { currentBangkokWallClockDate } from '@/lib/bangkok-datetime'
+import { serializeWorkItem, workItemDetailInclude, workItemInclude } from '@/lib/work-item-response'
+import type { Prisma } from '@prisma/client'
 import { getOwner, ownerErrorResponse } from '@/lib/owner'
 
-const workItemInclude = {
-  assignee: {
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      avatar: true,
+type RouteContext = { params: Promise<{ id: string }> }
+
+function validationError(message: string, field?: string) {
+  return NextResponse.json({
+    error: { code: 'VALIDATION_ERROR', message, ...(field ? { field } : {}) },
+  }, { status: 400 })
+}
+
+function notFound(message: string) {
+  return NextResponse.json({ error: { code: 'NOT_FOUND', message } }, { status: 404 })
+}
+
+function historyConflict() {
+  return NextResponse.json({
+    error: {
+      code: 'HISTORY_CONFLICT',
+      message: 'Work Item has linked Daily Work. Keep the Work Item to preserve its history.',
     },
-  },
-  project: {
-    select: {
-      id: true,
-      name: true,
-      colorProject: true,
-    },
-  },
-} as const
-
-function serializeWorkItem<T extends { status: WorkItemStatus }>(item: T) {
-  return {
-    ...item,
-    status: serializeWorkItemStatus(item.status),
-  }
+  }, { status: 409 })
 }
 
-type WorkItemPatchBody = {
-  title?: unknown
-  description?: unknown
-  kind?: unknown
-  priority?: unknown
-  role?: unknown
-  status?: unknown
-  types?: unknown
-  workDate?: unknown
-  dueDate?: unknown
-  projectId?: unknown
-  assigneeId?: unknown
-}
-
-type WorkItemUpdateResult =
-  | { ok: true; data: Prisma.WorkItemUpdateInput }
-  | { ok: false; error: string }
-
-function invalidUpdate(error: string): WorkItemUpdateResult {
-  return { ok: false, error }
-}
-
-function toNullableDate(value: unknown): Date | null {
-  if (!value) return null
-  return new Date(value as string | number | Date)
-}
-
-function applyKind(kind: unknown): WorkItemUpdateResult {
-  if (kind === undefined) return { ok: true, data: {} }
-  if (!isWorkItemKind(kind)) return invalidUpdate('Invalid kind')
-  return { ok: true, data: { kind } }
-}
-
-function applyPriority(priority: unknown): WorkItemUpdateResult {
-  if (priority === undefined) return { ok: true, data: {} }
-  if (!isWorkItemPriority(priority)) return invalidUpdate('Invalid priority')
-  return { ok: true, data: { priority } }
-}
-
-function applyRole(role: unknown): WorkItemUpdateResult {
-  if (role === undefined) return { ok: true, data: {} }
-  if (role === null || role === '') return { ok: true, data: { role: null } }
-  if (!isWorkItemRole(role)) return invalidUpdate('Invalid role')
-  return { ok: true, data: { role } }
-}
-
-function applyStatus(
-  statusParam: unknown,
-  submittedAt: Date | null,
-): WorkItemUpdateResult {
-  if (statusParam === undefined) return { ok: true, data: {} }
-
-  const status = parseWorkItemStatus(statusParam)
-  if (!status) return invalidUpdate('Invalid status')
-
-  const data: Prisma.WorkItemUpdateInput = { status }
-  if (shouldStampSubmittedAt(status) && !submittedAt) {
-    data.submittedAt = new Date()
-  }
-  return { ok: true, data }
-}
-
-function applyTypes(types: unknown): WorkItemUpdateResult {
-  if (types === undefined) return { ok: true, data: {} }
-  const parsedTypes = parseWorkItemTypes(types)
-  if (parsedTypes === null) return invalidUpdate('Invalid types')
-  return { ok: true, data: { types: parsedTypes } }
-}
-
-function applyOptionalScalars(body: WorkItemPatchBody): Prisma.WorkItemUpdateInput {
-  const data: Prisma.WorkItemUpdateInput = {}
-  if (body.title !== undefined) data.title = body.title as string
-  if (body.description !== undefined) data.description = body.description as string | null
-  if (body.workDate !== undefined) data.workDate = toNullableDate(body.workDate)
-  if (body.dueDate !== undefined) data.dueDate = toNullableDate(body.dueDate)
-  if (body.projectId !== undefined) {
-    data.project = { connect: { id: body.projectId as string } }
-  }
-  return data
-}
-
-function buildWorkItemUpdate(
-  body: WorkItemPatchBody,
-  submittedAt: Date | null,
-): WorkItemUpdateResult {
-  const data = applyOptionalScalars(body)
-  const patches = [
-    applyKind(body.kind),
-    applyPriority(body.priority),
-    applyRole(body.role),
-    applyStatus(body.status, submittedAt),
-    applyTypes(body.types),
-  ]
-
-  for (const patch of patches) {
-    if (!patch.ok) return patch
-    Object.assign(data, patch.data)
-  }
-
-  return { ok: true, data }
+function hasErrorCode(error: unknown, code: string) {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && error.code === code
 }
 
 // GET /api/work-items/[id]
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(_request: Request, { params }: RouteContext) {
   try {
     const owner = await getOwner()
     const { id } = await params
     const workItem = await prisma.workItem.findFirst({
       where: { id, assigneeId: owner.id, project: { is: {} } },
-      include: workItemInclude,
+      include: workItemDetailInclude(owner.id),
     })
 
-    if (!workItem) {
-      return NextResponse.json({ error: 'Work item not found' }, { status: 404 })
-    }
-
-    return NextResponse.json(
-      { workItem: serializeWorkItem(workItem) },
-      { status: 200 },
-    )
+    if (!workItem) return notFound('Work item not found')
+    return NextResponse.json({ workItem: serializeWorkItem(workItem) }, { status: 200 })
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError
     console.error('Error fetching work item:')
-    return NextResponse.json(
-      { error: 'Failed to fetch work item' },
-      { status: 500 },
-    )
+    return NextResponse.json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch work item' } }, { status: 500 })
   }
 }
 
 // PATCH /api/work-items/[id]
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(request: Request, { params }: RouteContext) {
   try {
     const owner = await getOwner()
     const { id } = await params
-    const body = (await request.json()) as WorkItemPatchBody
-    if (body.assigneeId !== undefined && body.assigneeId !== owner.id) {
-      return NextResponse.json(
-        { error: { code: 'VALIDATION_ERROR', message: 'assigneeId ต้องเป็นเจ้าของระบบ' } },
-        { status: 400 },
-      )
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch {
+      return validationError('Request body must be valid JSON')
     }
-    const existing = await prisma.workItem.findUnique({
-      where: { id },
-      select: { id: true, submittedAt: true, assigneeId: true },
+
+    const parsed = parseWorkItemPatch(body, owner.id)
+    if ('error' in parsed) return validationError(parsed.error)
+
+    const existing = await prisma.workItem.findFirst({
+      where: { id, assigneeId: owner.id },
+      select: { id: true, submittedAt: true },
     })
+    if (!existing) return notFound('Work item not found')
 
-    if (!existing || existing.assigneeId !== owner.id) {
-      return NextResponse.json({ error: 'Work item not found' }, { status: 404 })
+    const { assigneeId, projectId, ...fields } = parsed.data
+    delete fields.id
+    const data: Prisma.WorkItemUpdateInput = { ...fields }
+
+    if (projectId) {
+      const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } })
+      if (!project) return notFound('Project not found')
+      data.project = { connect: { id: project.id } }
     }
-
-    const result = buildWorkItemUpdate(body, existing.submittedAt)
-    if (!result.ok) {
-      return NextResponse.json({ error: result.error }, { status: 400 })
+    if (assigneeId) data.assignee = { connect: { id: assigneeId } }
+    if (fields.status && shouldStampSubmittedAt(fields.status) && !existing.submittedAt) {
+      data.submittedAt = currentBangkokWallClockDate()
     }
 
     const workItem = await prisma.workItem.update({
       where: { id },
-      data: result.data,
+      data,
       include: workItemInclude,
     })
 
-    return NextResponse.json(
-      { workItem: serializeWorkItem(workItem) },
-      { status: 200 },
-    )
+    return NextResponse.json({ workItem: serializeWorkItem(workItem) }, { status: 200 })
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError
+    if (hasErrorCode(error, 'P2003')) return notFound('Project not found')
     console.error('Error updating work item:')
-    return NextResponse.json(
-      { error: 'Failed to update work item' },
-      { status: 500 },
-    )
+    return NextResponse.json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to update work item' } }, { status: 500 })
   }
 }
 
 // DELETE /api/work-items/[id]
-export async function DELETE(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function DELETE(_request: Request, { params }: RouteContext) {
   try {
     const owner = await getOwner()
     const { id } = await params
+    const workItem = await prisma.workItem.findFirst({
+      where: { id, assigneeId: owner.id },
+      select: { id: true },
+    })
+    if (!workItem) return notFound('Work item not found')
+
+    const linkedWork = await prisma.timeEntry.count({ where: { workItemId: id } })
+    if (linkedWork > 0) return historyConflict()
+
     const result = await prisma.workItem.deleteMany({ where: { id, assigneeId: owner.id } })
-    if (!result.count) {
-      return NextResponse.json({ error: 'Work item not found' }, { status: 404 })
-    }
-    return NextResponse.json(
-      { message: 'Work item deleted successfully' },
-      { status: 200 },
-    )
+    if (!result.count) return notFound('Work item not found')
+
+    return NextResponse.json({ message: 'Work item deleted successfully' }, { status: 200 })
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError
+    if (hasErrorCode(error, 'P2003')) return historyConflict()
     console.error('Error deleting work item:')
-    return NextResponse.json(
-      { error: 'Failed to delete work item' },
-      { status: 500 },
-    )
+    return NextResponse.json({ error: { code: 'INTERNAL_ERROR', message: 'Failed to delete work item' } }, { status: 500 })
   }
 }

@@ -81,9 +81,9 @@ Relations: creator, `ProjectMember[]`, `WorkItem[]`, documents, milestones, acti
 | `role` | Enum `WorkItemRole`? | functional role ที่เจ้าของทำงานใน Work Item นี้: Developer / infra / SA; ไม่ใช่ account role/permission |
 | `status` | Enum `WorkItemStatus`, default `backlog` | backlog, todo, in-progress, blocked, sa-testing, pm-testing, completed, cancelled |
 | `types` | String[], default `[]`, column `labels_types` | labels/types |
-| `workDate`, `dueDate` | DateTime? (As-Is); Target PostgreSQL `DATE` / Prisma `@db.Date` | วันทำงานและกำหนดเสร็จตามปฏิทิน `Asia/Bangkok` |
-| `submittedAt` | DateTime?; Target PostgreSQL `TIMESTAMP(3) WITHOUT TIME ZONE` / Prisma `@db.Timestamp(3)` | เวลาเปลี่ยนสถานะตาม Bangkok local wall-clock; ปัจจุบัน stamp สำหรับ sa-testing/completed |
-| `createdAt`, `updatedAt` | DateTime | เวลาสร้าง/แก้ไข |
+| `workDate`, `dueDate` | DateTime?; PostgreSQL `DATE` / Prisma `@db.Date` | วันทำงานและกำหนดเสร็จตามปฏิทิน `Asia/Bangkok` |
+| `submittedAt` | DateTime?; PostgreSQL `TIMESTAMP(3) WITHOUT TIME ZONE` / Prisma `@db.Timestamp(3)` | เวลาเปลี่ยนสถานะตาม Bangkok local wall-clock; ปัจจุบัน stamp สำหรับสถานะ sa-testing/completed |
+| `createdAt`, `updatedAt` | DateTime; PostgreSQL `TIMESTAMP(3) WITHOUT TIME ZONE` / Prisma `@db.Timestamp(3)` | เวลาสร้าง/แก้ไขแบบ Bangkok local wall-clock |
 | `projectId` | String, required FK → Project.id | Project เจ้าของงาน; delete Project cascade ลบ WorkItem |
 | `assigneeId` | String, required FK → User.id | ผู้รับผิดชอบ; target คือ owner `User` record เดียว |
 
@@ -101,7 +101,7 @@ Indexes: projectId, assigneeId, kind, status, priority, workDate, dueDate, creat
 | `createdAt`, `updatedAt` | DateTime | เวลาสร้าง/แก้ไข |
 | `userId` | String, required FK → User.id | ผู้บันทึก; delete User cascade ลบ TimeEntry |
 | `projectId` | String? FK → Project.id | Project context; delete Project cascade ลบ TimeEntry |
-| `workItemId` | String? FK → WorkItem.id | Work Item context; delete WorkItem เปลี่ยนเป็น null (`SetNull`) |
+| `workItemId` | String? FK → WorkItem.id (`Restrict`) | Work Item context; ลบ WorkItem ที่มี Daily Work อ้างอยู่ไม่ได้ |
 
 Indexes: userId, projectId, workItemId, date. API/หน้า Daily Work กำหนด Project และ Work Item เป็น required สำหรับการสร้าง แต่ database อนุญาตให้เป็น null และไม่บังคับว่า Project ของ TimeEntry ตรงกับ Project ของ WorkItem. Target มีผู้บันทึกเพียงเจ้าของระบบ
 
@@ -132,7 +132,7 @@ erDiagram
   USER o|--o{ DOCUMENT : uploads
 ```
 
-Customer relation ยังไม่มี ส่วน relation ระหว่าง TimeEntry กับ Project/WorkItem เป็น optional และไม่มี composite constraint ตรวจ consistency ของทั้งคู่
+`Project.companyId` เชื่อม Project กับ Company ตามการตัดสินใจ #18; ไม่มี Customer model. Relation ระหว่าง TimeEntry กับ Project/WorkItem ยังเป็น optional และไม่มี composite constraint ตรวจ consistency ของทั้งคู่. `TimeEntry.workItemId` ใช้ `Restrict` เพื่อรักษา history.
 
 ## 4. Target schema changes ที่เสนอ
 
@@ -202,12 +202,12 @@ ExternalWorkItemReference
 
 - `User.email` unique; `ProjectMember(projectId,userId)` unique
 - Foreign keys ใช้ relation Prisma ตาม schema; Project delete cascades WorkItems, ProjectMembers, Documents, Milestones, ActivityLogs, TimeEntries
-- WorkItem delete ทำให้ TimeEntry.workItemId เป็น null; User delete cascade ลบ TimeEntries และ memberships/comments/notifications
+- WorkItem delete ถูกปฏิเสธเมื่อ TimeEntry ยังอ้างอยู่ (`Restrict`); User delete cascade ลบ TimeEntries และ memberships/comments/notifications
 - Indexes หลักอยู่บน filter fields ตามที่ระบุใน model sections; ไม่พบ composite index สำหรับ query แบบ project+status+date หรือ user+date
 
 ### Target review
 
-เลือก composite indexes จาก query จริง เช่น `WorkItem(projectId,status)`, `WorkItem(role,status)`, `TimeEntry(date)`, `TimeEntry(workItemId,date)` และ `Project(customerId,status)` หลังดู `EXPLAIN ANALYZE` บนข้อมูลที่เป็นตัวแทน ไม่เพิ่ม index ทุก combination โดยไม่วัดผล
+เลือก composite indexes จาก query จริง เช่น `WorkItem(projectId,status)`, `WorkItem(role,status)`, `TimeEntry(date)`, `TimeEntry(workItemId,date)` และ `Project(companyId,status)` หลังดู `EXPLAIN ANALYZE` บนข้อมูลที่เป็นตัวแทน ไม่เพิ่ม index ทุก combination โดยไม่วัดผล
 
 ## 6. Schema change process
 
@@ -228,3 +228,7 @@ ExternalWorkItemReference
 ## Database operations ที่ implement ใน #16
 
 เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. Customer/GitLab target schema และ business API ยังไม่ถูก deploy ในงาน Infra นี้. เจ้าของกำหนด defaults เป็น BACKUP_DIR=./database/backups/postgres_data และ BACKUP_KEEP_DAYS=30 แล้ว. ผล isolated verification ยืนยันการเตรียมเครื่องมือของ #16; ยังไม่ได้ rollout หรือสร้าง backup ของ Dev/UAT/Production จริง ซึ่งต้องผ่าน runbook ก่อน schema changes.
+
+## Work Item schema ที่เพิ่มใน #19
+
+Prisma schema ปัจจุบันกำหนด `WorkItem.workDate` และ `dueDate` เป็น PostgreSQL `DATE`; `submittedAt`, `createdAt` และ `updatedAt` เป็น `TIMESTAMP(3) WITHOUT TIME ZONE`. `TimeEntry.workItem` ใช้ `onDelete: Restrict`. API date values เป็น `YYYY-MM-DD`; timestamps serialize พร้อม `+07:00`. Schema validation ผ่านใน source, แต่ #19 ไม่ได้ push schema, สร้าง production migration, backup, หรือ deploy database ใด. ก่อน rollout, ทำ verified backup/restore rehearsal และตรวจ conversion ของ `workDate`/`dueDate` ตาม [Database Rollout](./DATABASE_ROLLOUT.md).

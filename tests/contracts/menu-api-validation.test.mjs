@@ -133,7 +133,7 @@ test("resource contracts cover create/update guards and shared aggregate filters
   assert.match(api, /Company ที่มีอยู่/);
   assert.match(api, /Project\.companyId/);
   assert.match(api, /`title`, `kind`, `projectId`/);
-  assert.match(api, /`DELETE \/api\/work-items\/\{id\}` ตอบ `409 CONFLICT` เมื่อยังมี TimeEntry อ้างอยู่/);
+  assert.match(api, /`DELETE \/api\/work-items\/\{id\}` ตอบ `409 HISTORY_CONFLICT` เมื่อมี TimeEntry อ้างอยู่/);
   assert.match(api, /`workItemId`, business `date`, `hours`/);
   assert.match(api, /ตรวจ next-state ของ `workItemId` \+ `projectId` ทุกครั้ง/);
   assert.match(api, /`startDate`, `endDate` \(ทั้งคู่หรือไม่ส่งทั้งคู่/);

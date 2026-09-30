@@ -2,43 +2,30 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import {
   WORK_ITEM_KINDS,
+  WORK_ITEM_PRIORITIES,
+  WORK_ITEM_ROLES,
   WORK_ITEM_STATUSES,
+  WORK_ITEM_TYPES,
   isWorkItemKind,
   isWorkItemPriority,
+  isWorkItemRole,
   parseWorkItemStatus,
-  serializeWorkItemStatus,
   shouldStampSubmittedAt,
 } from '@/lib/work-items'
 import { parseWorkItemInput } from '@/lib/work-item-input'
-import { Prisma, type WorkItemStatus } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 import { getOwner, ownerErrorResponse } from '@/lib/owner'
-
-const workItemInclude = {
-  assignee: {
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      avatar: true,
-    },
-  },
-  project: {
-    select: {
-      id: true,
-      name: true,
-      colorProject: true,
-    },
-  },
-} as const
-
-function serializeWorkItem<T extends { status: WorkItemStatus }>(item: T) {
-  return {
-    ...item,
-    status: serializeWorkItemStatus(item.status),
-  }
-}
+import { currentBangkokCalendarDate, currentBangkokWallClockDate } from '@/lib/bangkok-datetime'
+import { serializeWorkItem, workItemInclude } from '@/lib/work-item-response'
 
 type WorkItemYearRow = { year: number }
+
+function hasErrorCode(error: unknown, code: string) {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && error.code === code
+}
 
 async function getAvailableYears(ownerId: string) {
   const rows = await prisma.$queryRaw<WorkItemYearRow[]>(Prisma.sql`
@@ -65,53 +52,123 @@ function dateRangeFor(year: number, month: number | null) {
   ] satisfies Prisma.WorkItemWhereInput[]
 }
 
+function matchingWorkItemSearchClauses<T>(
+  values: readonly T[],
+  normalizedQuery: string,
+  getSearchText: (value: T) => string,
+  toClause: (value: T) => Prisma.WorkItemWhereInput | null,
+): Prisma.WorkItemWhereInput[] {
+  return values
+    .filter((value) => getSearchText(value).includes(normalizedQuery))
+    .map(toClause)
+    .filter((clause): clause is Prisma.WorkItemWhereInput => clause !== null)
+}
+
 function searchClause(query: string): Prisma.WorkItemWhereInput {
+  const normalizedQuery = query.toLowerCase()
   const clauses: Prisma.WorkItemWhereInput[] = [
     { title: { contains: query, mode: 'insensitive' } },
     { description: { contains: query, mode: 'insensitive' } },
     { project: { is: { name: { contains: query, mode: 'insensitive' } } } },
+    { project: { is: { company: { is: { name: { contains: query, mode: 'insensitive' } } } } } },
+    { project: { is: { company: { is: { displayName: { contains: query, mode: 'insensitive' } } } } } },
     { assignee: { is: { name: { contains: query, mode: 'insensitive' } } } },
+    ...matchingWorkItemSearchClauses(
+      WORK_ITEM_KINDS,
+      normalizedQuery,
+      (kind) => kind.toLowerCase(),
+      (kind) => ({ kind }),
+    ),
+    ...matchingWorkItemSearchClauses(
+      WORK_ITEM_STATUSES,
+      normalizedQuery,
+      (status) => status.toLowerCase(),
+      (statusValue) => {
+        const status = parseWorkItemStatus(statusValue)
+        return status ? { status } : null
+      },
+    ),
+    ...matchingWorkItemSearchClauses(
+      WORK_ITEM_PRIORITIES,
+      normalizedQuery,
+      (priority) => priority.toLowerCase(),
+      (priority) => ({ priority }),
+    ),
+    ...matchingWorkItemSearchClauses(
+      WORK_ITEM_ROLES,
+      normalizedQuery,
+      (role) => role.toLowerCase(),
+      (role) => ({ role }),
+    ),
+    ...matchingWorkItemSearchClauses(
+      WORK_ITEM_TYPES,
+      normalizedQuery,
+      (type) => type,
+      (type) => ({ types: { has: type } }),
+    ),
   ]
-
-  const normalizedQuery = query.toLowerCase()
-  for (const kind of WORK_ITEM_KINDS) {
-    if (kind.toLowerCase().includes(normalizedQuery)) clauses.push({ kind })
-  }
-  for (const statusValue of WORK_ITEM_STATUSES) {
-    if (statusValue.toLowerCase().includes(normalizedQuery)) {
-      const status = parseWorkItemStatus(statusValue)
-      if (status) clauses.push({ status })
-    }
-  }
 
   return { OR: clauses }
 }
 
-function baseWorkItemFilter(searchParams: URLSearchParams, ownerId: string) {
+type WorkItemFilterResult = { where: Prisma.WorkItemWhereInput } | { error: string }
+
+function validateAssigneeFilter(assigneeId: string | null, ownerId: string) {
+  return assigneeId && assigneeId !== ownerId ? 'assigneeId ต้องเป็นเจ้าของระบบ' : null
+}
+
+function applyKindFilter(where: Prisma.WorkItemWhereInput, kind: string | null) {
+  if (!kind) return null
+  if (!isWorkItemKind(kind)) return 'Invalid kind'
+  where.kind = kind
+  return null
+}
+
+function applyStatusFilter(where: Prisma.WorkItemWhereInput, statusParam: string | null) {
+  if (!statusParam) return null
+  const status = parseWorkItemStatus(statusParam)
+  if (!status) return 'Invalid status'
+  where.status = status
+  return null
+}
+
+function applyPriorityFilter(where: Prisma.WorkItemWhereInput, priority: string | null) {
+  if (!priority) return null
+  if (!isWorkItemPriority(priority)) return 'Invalid priority'
+  where.priority = priority
+  return null
+}
+
+function applyRoleFilter(where: Prisma.WorkItemWhereInput, role: string | null) {
+  if (!role) return null
+  if (role === 'none') {
+    where.role = null
+    return null
+  }
+  if (!isWorkItemRole(role)) return 'Invalid role'
+  where.role = role
+  return null
+}
+
+function baseWorkItemFilter(searchParams: URLSearchParams, ownerId: string): WorkItemFilterResult {
   const where: Prisma.WorkItemWhereInput = { project: { is: {} }, assigneeId: ownerId }
   const projectId = searchParams.get('projectId')
   const assigneeId = searchParams.get('assigneeId')
   const kind = searchParams.get('kind')
   const statusParam = searchParams.get('status')
   const priority = searchParams.get('priority')
+  const role = searchParams.get('role')
+  const companyId = searchParams.get('companyId')
 
-  if (assigneeId && assigneeId !== ownerId) {
-    return { error: { code: 'VALIDATION_ERROR', message: 'assigneeId ต้องเป็นเจ้าของระบบ' } }
-  }
+  const validationError = validateAssigneeFilter(assigneeId, ownerId)
+    ?? applyKindFilter(where, kind)
+    ?? applyStatusFilter(where, statusParam)
+    ?? applyPriorityFilter(where, priority)
+    ?? applyRoleFilter(where, role)
+  if (validationError) return { error: validationError }
+
   if (projectId) where.projectId = projectId
-  if (kind) {
-    if (!isWorkItemKind(kind)) return { error: 'Invalid kind' }
-    where.kind = kind
-  }
-  if (statusParam) {
-    const status = parseWorkItemStatus(statusParam)
-    if (!status) return { error: 'Invalid status' }
-    where.status = status
-  }
-  if (priority) {
-    if (!isWorkItemPriority(priority)) return { error: 'Invalid priority' }
-    where.priority = priority
-  }
+  if (companyId) where.project = { is: { companyId } }
   return { where }
 }
 
@@ -137,22 +194,22 @@ export async function GET(request: Request) {
   try {
     const owner = await getOwner()
     const { searchParams } = new URL(request.url)
-    const yearParam = searchParams.get('year') ?? 'all'
+    const yearParam = searchParams.get('year') ?? currentBangkokCalendarDate().slice(0, 4)
     const monthParam = searchParams.get('month') ?? 'all'
     const search = searchParams.get('search')?.trim() ?? ''
     const includeYears = searchParams.get('includeYears') === 'true'
 
     if (yearParam !== 'all' && !/^\d{4}$/.test(yearParam)) {
-      return NextResponse.json({ error: 'Invalid year' }, { status: 400 })
+      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid year', field: 'year' } }, { status: 400 })
     }
     if (monthParam !== 'all' && !/^(?:[1-9]|1[0-2])$/.test(monthParam)) {
-      return NextResponse.json({ error: 'Invalid month' }, { status: 400 })
+      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: 'Invalid month', field: 'month' } }, { status: 400 })
     }
 
     // Ignore legacy seed rows whose required Project record is missing.
     const filters = baseWorkItemFilter(searchParams, owner.id)
     if ('error' in filters) {
-      return NextResponse.json({ error: filters.error }, { status: 400 })
+      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: filters.error } }, { status: 400 })
     }
     const where = filters.where
 
@@ -191,9 +248,15 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const owner = await getOwner()
-    const result = parseWorkItemInput(await request.json(), owner.id)
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: 'Request body must be valid JSON' } }, { status: 400 })
+    }
+    const result = parseWorkItemInput(body, owner.id)
     if ('error' in result) {
-      return NextResponse.json({ error: result.error }, { status: 400 })
+      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: result.error } }, { status: 400 })
     }
 
     const input = { ...result.data }
@@ -202,13 +265,14 @@ export async function POST(request: Request) {
     const project = await prisma.project.findUnique({ where: { id: input.projectId }, select: { id: true } })
 
     if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+      return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'Project not found', field: 'projectId' } }, { status: 404 })
     }
 
+    const now = currentBangkokWallClockDate()
     const workItem = await prisma.workItem.create({
       data: {
         ...input,
-        submittedAt: shouldStampSubmittedAt(input.status) ? new Date() : null,
+        submittedAt: shouldStampSubmittedAt(input.status) ? now : null,
       },
       include: workItemInclude,
     })
@@ -220,6 +284,9 @@ export async function POST(request: Request) {
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError
+    if (hasErrorCode(error, 'P2003')) {
+      return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'Project not found', field: 'projectId' } }, { status: 404 })
+    }
     console.error('Error creating work item:')
     return NextResponse.json(
       { error: 'Failed to create work item' },

@@ -22,12 +22,12 @@ Target mapping: ค่า default time zone ของระบบ, application �
 | Work Item / status / assignment | `WorkItem` / `work_items` | `WorkItem.id` | Work Items, Board, Dashboard, Projects, Analysis, Daily Work selector | Work Items API; target Board mutation ผ่าน WorkItem service |
 | Daily Work / actual hours | `TimeEntry` | `TimeEntry.id` | Daily Work, Work Item detail, Project, Dashboard, Analysis | Work Logs API (`/api/work-logs`) |
 | Project | `Project` | `Project.id` | Projects, selectors, Work Items, Daily Work, Dashboard, Analysis | Projects page/API |
-| Customer | Target `Customer` | `Customer.id` | Company registry, Projects, Dashboard, filters, Analysis | Target Customer/Project API |
+| Company / Project context | `Company` → `Project.companyId` | `Company.id` / `Project.id` | Company, Projects, Work Items, Dashboard, filters, Analysis | Company and Project APIs (#18); Work Items resolve Company through Project |
 | Owner identity | One `User` row | `User.id` | Work Items (assignee), Daily Work (logger), Settings | Issue #17: server `getOwner()` หลัง owner gate/middleware; ไม่รับ browser ID ที่ต่างจาก owner |
 | Work Item functional role | `WorkItem.role` | enum value | Work Items, Board, Analysis, Project summaries | Work Items API; values Developer / infra / SA |
 | GitLab Issue identity | Target `ExternalWorkItemReference` | provider + canonical instance URL + GitLab project ID + global issue ID | Work Items (source link/sync status) | GitLab connector only; database unique key plus transactional upsert prevents duplicate import |
 | GitLab Project link | Target `GitLabProjectMapping` | GitLab instance/project ID → `Project.id`; owner-approved `approvedLabelMap` | Work Items sync setup; Project supplies Customer context | Owner-managed mapping; one GitLab Project maps to one PMS Project in phase one |
-| Company profile | One `Company` row per installation | `Company.id` | Company | Target Company API; current page read-only query |
+| Company profile | `Company` | `Company.id` | Company, Projects, Work Item detail | Company API (#18) |
 | Project membership | Legacy `ProjectMember` relation | `ProjectMember.id` | As-Is Projects/Company counts only | No multi-member/team management in target scope |
 | Owner preferences | Target owner-scoped preference record or selected provider | owner key | Settings | Target Settings API |
 
@@ -37,7 +37,7 @@ Target mapping: ค่า default time zone ของระบบ, application �
 | --- | --- | --- | --- |
 | Dashboard `/` | hard-coded arrays; `DashboardCharts` | sample project stats, work item counts, activity and chart values | Query WorkItem statuses/dates, TimeEntry.hours/date, Project/customer; remove mock arrays; link totals to filtered list |
 | Projects `/projects` | Prisma `Project.findMany`; counts WorkItems/Members; detail uses Project API | Project status/priority/date/budget/spent/progress; `_count.workItems`, legacy `_count.members`; WorkItem status summary | Add required Project.customer relation; hours = `SUM(TimeEntry.hours)`; one shared progress formula; summarize WorkItem functional roles, not team members |
-| Work Items `/work-items` | `/api/work-items`, `/api/projects?options=work-items`, `/api/users`; proposed `/api/integrations/gitlab/*` | `WorkItem` core fields; nested Project; GitLab source reference | Target has one owner assignee; add Project.customer projection; show Daily Work through `TimeEntry`; manual one-way GitLab Issue sync with deduplication |
+| Work Items `/work-items` | `/api/work-items`, `/api/projects?options=work-items`, `/api/users`; proposed `/api/integrations/gitlab/*` | `WorkItem` core fields; nested Project/Company; GitLab source reference | #19 validates shared CRUD/import, filters Company/status/priority/role, shows owner Daily Work; GitLab sync remains a separate target |
 | Board `/board` | hard-coded React `useState` columns/cards | No persistent mapping today | `WorkItem.status` defines column; card maps WorkItem fields; mutation patches same `WorkItem`; filters resolve Project/Customer/functional role |
 | Analysis `/analysis` | hard-coded chart datasets and metric constants | Current displayed values do not map reliably to DB | Aggregate `WorkItem` and `TimeEntry` grouped by consistent period, Customer/Project and `WorkItem.role`; include metric definitions and drill-through IDs |
 | Daily Work `/daily-work` | `/api/work-logs`; API persists to `TimeEntry` | `TimeEntry.date/hours/description/remarks/status/userId/projectId/workItemId`; nested User, Project, WorkItem | Derive `projectId` from WorkItem or enforce equality; resolve the sole owner identity server-side; summary uses exact rows |
@@ -57,8 +57,8 @@ Target mapping: ค่า default time zone ของระบบ, application �
 | `role` | `role` | Work Item functional role: Developer/infra/SA or null; not an account role |
 | `status` | `status` | API serializes `in_progress` ↔ `in-progress`, `sa_testing` ↔ `sa-testing`, `pm_testing` ↔ `pm-testing` |
 | `types` | `types` → DB `labels_types` | String array validated against supported types |
-| `workDate`, `dueDate` | same | Target PostgreSQL `DATE` / Prisma `@db.Date`; persist and compare as calendar dates in `Asia/Bangkok` |
-| `submittedAt` | same | Target `TIMESTAMP WITHOUT TIME ZONE` / Prisma `@db.Timestamp`; Bangkok local wall-clock; currently stamp for `sa-testing` and `completed`, not an unambiguous completedAt |
+| `workDate`, `dueDate` | same | PostgreSQL `DATE` / Prisma `@db.Date`; persist and compare as calendar dates in `Asia/Bangkok` |
+| `submittedAt` | same | `TIMESTAMP WITHOUT TIME ZONE` / Prisma `@db.Timestamp(3)`; Bangkok local wall-clock; currently stamp for `sa-testing` and `completed`, not an unambiguous completedAt |
 | `projectId` | `projectId` | required FK; relation supplies Project label/color |
 | `assigneeId` | `assigneeId` | required FK; target resolves to the sole owner User row |
 
@@ -113,8 +113,8 @@ Target mapping: ค่า default time zone ของระบบ, application �
 | Daily Work references valid user | Required FK; POST API checks user exists | Use the sole owner's authenticated identity; retain FK |
 | Daily Work Project and Work Item match | POST checks the pair; PATCH checks only when `workItemId` is included. PATCH that changes only `projectId` can mismatch; DB doesn't enforce pair | Derive Project from Work Item and/or add composite DB integrity; validate on every mutation |
 | Work Item/TimeEntry enum validity | WorkItem enums and API parser; TimeEntry.status is free-form String | Keep WorkItem status canonical; TimeEntry has no separate target workflow status |
-| Project has Customer | Not modeled | Customer FK, staged backfill, required once verified |
-| Company registry | Legacy page used `findFirst()` | Multiple Companies; Project selects one; existing Projects backfill to Dhas |
+| Project has Company | Required `Project.companyId` FK; API checks selected Company | Keep Company FK and validate selection |
+| Company registry | Company API and owner UI (#18); Project selects Company | Multiple Companies; Project selects one; existing Projects backfill to Dhas |
 | Historical completion time | `submittedAt` means sa-testing or completed | Add `completedAt` or status history for period analytics |
 | Owner identity on mutation | No session/auth enforcement found | Require authenticated owner; no manager/admin hierarchy under current scope |
 
@@ -122,7 +122,7 @@ Target mapping: ค่า default time zone ของระบบ, application �
 
 ```mermaid
 flowchart LR
-  C[Customer] --> P[Project]
+  C[Company] --> P[Project]
   P --> W[WorkItem]
   O[Owner User] --> W
   W --> T[TimeEntry / Daily Work]
@@ -132,7 +132,11 @@ flowchart LR
   P --> D
 ```
 
-Project/Customer labels are context from relations, not copied text fields on WorkItem or TimeEntry. Keep stable IDs for joins; serialize display names for UI only. Developer/Infra/SA belong to `WorkItem.role`; they do not create separate User rows or access permissions.
+Project/Company labels are context from relations, not copied text fields on WorkItem or TimeEntry. Keep stable IDs for joins; serialize display names for UI only. Developer/Infra/SA belong to `WorkItem.role`; they do not create separate User rows or access permissions.
+
+## Work Item mapping ที่ implement ใน #19
+
+`POST /api/work-items`, `PATCH /api/work-items/{id}` และ import ใช้ `lib/work-item-input.ts`; update/import ไม่ข้าม enum, Bangkok date, owner หรือ Project validation. `GET /api/work-items` รองรับ `companyId`, `kind`, `status`, `priority`, `role`, `projectId`, `year`, `month` และ search; เมื่อไม่ส่ง year ใช้ปีปัจจุบันตาม `Asia/Bangkok`. JSON export ใช้ field shape ที่ import รับได้. Detail serialize Project/Company และ TimeEntries ของ owner พร้อม date-only `YYYY-MM-DD` และ timestamp `+07:00`. การลบที่มี TimeEntry ถูกปฏิเสธ และ FK ใช้ `Restrict`. Schema ยังต้องผ่าน database rollout ก่อน deploy environment.
 
 
 ## Runtime security ที่ implement ใน #15

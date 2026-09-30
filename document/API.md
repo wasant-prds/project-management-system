@@ -23,9 +23,9 @@
 | `GET`, `PATCH`, `DELETE` | `/api/projects/{id}` | Projects อ่าน/แก้/ลบ Project; delete ปฏิเสธเมื่อมีประวัติอ้างอิง | `{ project }` หรือ error envelope (#18) |
 | `GET`, `POST` | `/api/company` | อ่านรายการ/เพิ่ม Company | `{ companies }` / `{ company }` (#18) |
 | `PATCH`, `DELETE` | `/api/company/{id}` | แก้ Company; ลบได้เมื่อไม่มี Project และไม่ใช่ Dhas | `{ company }` หรือ error envelope (#18) |
-| `GET`, `POST` | `/api/work-items` | Work Items; query/filter และสร้าง WorkItem | `WorkItem` พร้อม Project/assignee; wrapper `{ workItems, years? }` หรือ `{ workItem }` |
-| `GET`, `PATCH`, `DELETE` | `/api/work-items/{id}` | Work Items อ่าน/แก้/ลบ WorkItem | WorkItem เดียว; wrapper `{ workItem }` |
-| `POST` | `/api/work-items/import` | Work Items bulk import | ตรวจ WorkItem input และ Project/User references; ปัจจุบันสร้างรายการแบบ bulk |
+| `GET`, `POST` | `/api/work-items` | Work Items; filter และสร้าง WorkItem ด้วย validation กลาง | WorkItem พร้อม Project/Company/owner; wrapper `{ workItems, years? }` หรือ `{ workItem }` |
+| `GET`, `PATCH`, `DELETE` | `/api/work-items/{id}` | Work Items อ่าน/แก้/ลบ WorkItem; detail คืน Daily Work ที่ผูกอยู่ | WorkItem เดียว; wrapper `{ workItem }`; DELETE ปฏิเสธเมื่อมีประวัติเวลา |
+| `POST` | `/api/work-items/import` | Work Items bulk import แบบแยกผลรายแถว | ตรวจ WorkItem input และ Project/owner references; valid rows ทำต่อได้เมื่อแถวอื่นผิด |
 | `GET`, `POST` | `/api/work-logs` | Daily Work อ่าน/สร้าง TimeEntry | `TimeEntry` พร้อม User/Project/WorkItem; wrapper `{ workLogs }` หรือ `{ workLog }` |
 | `GET`, `PATCH`, `DELETE` | `/api/work-logs/{id}` | Daily Work อ่าน/แก้/ลบ TimeEntry | TimeEntry เดียว; wrapper `{ workLog }` |
 
@@ -35,11 +35,11 @@
 
 ### 1.1 Query parameters ปัจจุบัน
 
-`GET /api/work-items` รองรับ `projectId`, `assigneeId` (legacy), `kind`, `status`, `priority`, `year`, `month`, `search` และ `includeYears`. `year`/`month` กรองตาม `workDate`, ถัดมา `dueDate`, แล้ว `createdAt`; enum ที่ไม่รู้จักและปี/เดือนผิดรูปแบบตอบ 400. Public status ใช้ hyphen เช่น `in-progress`, แม้ Prisma enum บางค่าจะมี underscore.
+`GET /api/work-items` รองรับ `projectId`, `companyId`, `assigneeId` (legacy; ต้องเป็น owner), `kind`, `status`, `priority`, `role` (`none` ใช้กรอง role ว่าง), `year`, `month`, `search` และ `includeYears`. เมื่อไม่ส่ง `year` ใช้ปีปัจจุบันของ `Asia/Bangkok`; `year=all` ขอทุกปี. ปี/เดือนกรองตาม `workDate`, ถัดมา `dueDate`, แล้ว `createdAt`. Enum ที่ไม่รู้จักและปี/เดือนผิดรูปแบบตอบ 400. Public status ใช้ hyphen เช่น `in-progress`, แม้ Prisma enum บางค่าจะมี underscore.
 
 As-Is gap ของ `GET /api/work-logs`: รองรับ `date=YYYY-MM-DD`, `startDate=YYYY-MM-DD&endDate=YYYY-MM-DD` แบบรวมวันปลายช่วง และ `userId` (legacy) แต่ handler ปัจจุบันสร้างขอบเขตวันจาก timezone ของ process จึงยังไม่รับประกัน `Asia/Bangkok`. Target implementation ต้องใช้ policy Bangkok ในข้อ 2.4; ปัจจุบันยังไม่มี cursor/limit.
 
-As-Is timestamp gap: current Route Handlers parse several date/time writes with JavaScript `Date` and JSON serialization emits Prisma `DateTime` values as UTC `Z`; parsing and persistence do not enforce the target `+07:00`/Bangkok wall-clock contract. This is current behavior, not target behavior, and the target contract below has not been implemented in runtime routes.
+Issue #19 ทำให้ Work Item API รับ `workDate`/`dueDate` เป็น business date `YYYY-MM-DD`, ใช้ Prisma `DATE`, คืน business date ในรูปแบบเดิม และคืน timestamps เป็น Bangkok `+07:00`. `submittedAt` ใช้ Bangkok local wall-clock. WorkItem GET/PATCH/POST/import ใช้ owner-side validation ชุดเดียวกัน; endpoint อื่นให้ตรวจตามสถานะ implementation ของแต่ละ issue.
 
 `GET /api/projects` รองรับ `status`, `search`, `limit`, `cursor` และ `options=work-items`. Project/Company handlers ของ #18 ใช้ error envelope; legacy handlers อื่นบางตัวอาจยังใช้ `{ "error": "..." }` และมี validation ไม่ครบ.
 
@@ -142,11 +142,11 @@ Issue #18 is deployed. Company is the direct parent of Project; there is no Cust
 
 - `GET /api/work-items`: target filters `projectId`, `companyId` (via Project), `kind`, `status`, `priority`, `role`, `year`, `month`, `search`, `includeYears`, `limit`, `cursor`. `assigneeId` คงไว้ได้เฉพาะ compatibility ภายใน; ไม่ใช่ owner selector.
 - `year`/`month` และ `includeYears` ใช้ calendar date ตาม `Asia/Bangkok`; date anchor คือ `workDate`, ถัดมา `dueDate`, แล้ว `createdAt`. เมื่อไม่ส่ง `year` ให้ใช้ปีปัจจุบันใน timezone นี้.
-- `POST /api/work-items` ต้องมี `title`, `kind`, `projectId`; defaults คือ `priority=none`, `role=null`, `status=backlog`, `types=[]`. Optional fields: `description`, `workDate`, `dueDate`. `assigneeId` ถูก resolve เป็น owner โดย server. Validate enum/date/Project FK; unknown public status → `400 VALIDATION_ERROR`, missing Project → `404 NOT_FOUND`.
-- `PATCH /api/work-items/{id}` รับ partial fields เดียวกับ create, validate ค่าใหม่และ relation ที่มีผลหลัง patch. `status` mutation จาก Board เรียก contract นี้; `submittedAt` ไม่ใช่ completion time และ target ต้องคง semantics ที่กำหนดใน WorkItem contract.
-- `DELETE /api/work-items/{id}` ตอบ `409 CONFLICT` เมื่อยังมี TimeEntry อ้างอยู่จนกว่าจะมี archive/retention path ที่รักษาความสัมพันธ์; As-Is `TimeEntry.workItemId` ใช้ `SetNull`, ดังนั้น target ต้องไม่ทำให้ Daily Work กลายเป็นข้อมูล orphan โดยไม่ตั้งใจ.
-- `POST /api/work-items/import`: request ที่ถูกต้องมี rows; validate ทุก row ด้วย schema เดียวกับ create และตรวจ Project references ก่อนเขียน. คืน `imported` count และ `rows[]` ที่มี row `index`, outcome (`created`/`skipped`/`failed`), canonical `workItemId?` และ safe `error?`; row ที่ invalid ห้ามแก้หรือลบข้อมูลเดิม. Import contract ต้องระบุ transaction boundary ให้ผล partial/retry ทำงานตามที่แสดง.
-- Export เป็น read-only projection ของ filter set ปัจจุบัน; ไม่เปลี่ยน WorkItem และไม่เป็นแหล่งข้อมูลอีกชุด.
+- `POST /api/work-items` ต้องมี `title`, `kind`, `projectId`; defaults คือ `priority=none`, `role=null`, `status=backlog`, `types=[]`. Optional fields: `description`, `workDate`, `dueDate`. Business dates ต้องเป็นวันที่ถูกต้อง `YYYY-MM-DD`. `assigneeId` ถูก resolve เป็น owner โดย server. Invalid enum/date → `400 VALIDATION_ERROR`, missing Project → `404 NOT_FOUND`.
+- `PATCH /api/work-items/{id}` รับ partial fields เดียวกับ create ผ่าน shared parser, ตรวจ input และ Project FK ก่อนเขียน. Missing WorkItem/Project → `404 NOT_FOUND`; invalid input → `400 VALIDATION_ERROR`. `status` mutation จาก Board ใช้ record เดียวกัน; `submittedAt` ไม่ใช่ completion time.
+- `DELETE /api/work-items/{id}` ตอบ `409 HISTORY_CONFLICT` เมื่อมี TimeEntry อ้างอยู่; Prisma relation ใช้ `Restrict` เพื่อป้องกันการทำ Daily Work orphan แม้มีคำขอพร้อมกัน.
+- `POST /api/work-items/import`: รับ JSON array หรือ `{ "workItems": [...] }`; ทุกแถวใช้ shared create validation แยกจากกัน. คืน HTTP `200` พร้อม `imported` และ `rows[]` ที่มี `row` (เริ่มนับ 1), outcome (`created`/`skipped`/`failed`), `workItemId?`, และ safe `error?`. แถว enum/Project ผิดแจ้งสาเหตุโดยแถวที่ถูกต้องยังทำต่อ; duplicate ID ถูก skip โดยไม่แก้ข้อมูลเดิม. Request envelope/JSON ที่ผิดตอบ `400`.
+- Export CSV, Markdown และ importable JSON เป็น read-only projection ของชุดรายการที่มองเห็นตาม filters; ไม่เปลี่ยน WorkItem และไม่เป็นแหล่งข้อมูลอีกชุด.
 
 #### 4.2.1 GitLab Issue import (Target proposal)
 

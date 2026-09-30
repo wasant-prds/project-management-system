@@ -96,10 +96,12 @@ Baseline 2026-09-27: ผู้ใช้เปิด Work Items และ Daily W
 - เชื่อม GitLab Project กับ Project ในระบบ แล้วสั่งดึง GitLab Issues เข้ามาเป็น Work Items ได้ทางเดียว; แสดงผล sync และลิงก์กลับไปยัง Issue ต้นทาง
 - Sync ซ้ำแล้วไม่สร้างรายการซ้ำ; ปรับข้อมูลที่กำหนดให้มาจาก GitLab โดยคงข้อมูลเฉพาะในระบบ เช่น functional role, priority, work date และ Daily Work
 - แสดง labels/status/priority ตาม enum กลาง; ไม่แปลงเป็นตัวเลือกเฉพาะหน้า
-- เปิดรายละเอียดแล้วดูข้อมูล Project/Customer, owner และ Daily Work ที่ผูกอยู่
+- เปิดรายละเอียดแล้วดูข้อมูล Project/Company, owner และ Daily Work ที่ผูกอยู่
 - แก้ไขข้อมูล/สถานะแล้ว refresh ค่าที่ใช้งานร่วมกันบน Board, Project, Dashboard และ Analysis
 
 **เกณฑ์ยอมรับ:** รายการจาก API ตรงกับ DB; invalid enum/foreign key ถูกปฏิเสธ; Work Item เดียวกันมี ID เดียวในทุกทางเข้า; import ที่ผิดแสดงสาเหตุโดยไม่ทำให้ข้อมูลเดิมเสียหาย; GitLab Issue ที่ sync ซ้ำอ้างถึง WorkItem เดิม มีลิงก์กลับต้นทาง ไม่มีการเขียนข้อมูลกลับ GitLab และการยกเลิก Project mapping ไม่ลบประวัติงานหรือเวลา. Mapping/status/label/retry details ใช้ [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md).
+
+**สถานะ Issue #19 (2026-09-30):** create/update/import ใช้ shared server validation; list กรอง Company, status, priority และ functional role ได้; รายละเอียดแสดง Company ผ่าน Project และ Daily Work ที่ผูกกับ WorkItem. Import คืนผลและเหตุผลแยกแต่ละแถว โดยไม่เขียนทับ record ที่มีอยู่. การลบ WorkItem ที่มี Daily Work ตอบ `409 HISTORY_CONFLICT` เพื่อเก็บประวัติ.
 
 **ขอบเขต GitLab ระยะแรก:** นำเข้า Issues จาก GitLab ทางเดียวแบบ manual เท่านั้น; mapping สถานะคือ `opened → todo` และ `closed → completed`. ต้อง map GitLab Project กับ Project ในระบบก่อน sync และอนุมัติ first-sync policy. ใช้ [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) สำหรับ field ownership, labels, pagination และ retry. ยังไม่รวม Merge Requests, commits, CI, scheduled/webhook sync และการนำเข้า time tracking.
 

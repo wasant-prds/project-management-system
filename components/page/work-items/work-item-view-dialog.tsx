@@ -22,7 +22,7 @@ import { WorkItemDescription } from './work-item-description'
 import { ProjectIdentity } from './project-identity'
 import { ScrollablePanel } from '@/components/ui/scrollable-panel'
 import { WORK_ITEM_DIALOG_SHELL_CLASS } from './work-item-dialog-shell'
-import type { WorkItem } from './types'
+import type { WorkItem, WorkItemTimeEntry } from './types'
 import {
   formatDisplayDate,
   kindClass,
@@ -33,6 +33,7 @@ import {
 type WorkItemViewDialogProps = {
   open: boolean
   item: WorkItem | null
+  isLoading?: boolean
   onOpenChange: (open: boolean) => void
   onEdit: (item: WorkItem) => void
 }
@@ -46,9 +47,38 @@ function Detail({ label, children }: Readonly<{ label: string; children: ReactNo
   )
 }
 
+function DailyWorkEntries({ isLoading, entries }: Readonly<{
+  isLoading: boolean
+  entries: WorkItemTimeEntry[] | undefined
+}>) {
+  if (isLoading) return <output className="block text-sm text-muted-foreground">กำลังโหลด Daily Work...</output>
+  if (!entries || entries.length === 0) {
+    return <p className="text-sm italic text-muted-foreground">ยังไม่มี Daily Work ที่ผูกกับ Work Item นี้</p>
+  }
+
+  return (
+    <ul className="space-y-2">
+      {entries.map((entry) => (
+        <li key={entry.id} className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+            <time dateTime={entry.date}>{entry.date}</time>
+            <span className="font-medium tabular-nums">{entry.hours} h</span>
+          </div>
+          {(entry.description || entry.remarks) && (
+            <p className="mt-1 whitespace-pre-wrap text-muted-foreground">
+              {[entry.description, entry.remarks].filter(Boolean).join(' · ')}
+            </p>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function WorkItemViewDialog({
   open,
   item,
+  isLoading = false,
   onOpenChange,
   onEdit,
 }: Readonly<WorkItemViewDialogProps>) {
@@ -64,6 +94,13 @@ export function WorkItemViewDialog({
             size="md"
             className="px-4 py-3 pr-12 sm:px-6 sm:py-3.5"
           />
+          {item.project.company && (
+            <p className="px-4 pb-2 text-xs text-muted-foreground sm:px-6">
+              Company: {item.project.company.displayName
+                ? `${item.project.company.displayName} — ${item.project.company.name}`
+                : item.project.company.name}
+            </p>
+          )}
         </div>
 
         <div className="shrink-0 space-y-3 px-4 pt-4 sm:px-6 sm:pt-5">
@@ -100,14 +137,23 @@ export function WorkItemViewDialog({
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em]">Details</p>
           </div>
           <ScrollablePanel className="min-h-[8rem] min-w-0 flex-1 rounded-xl border border-border/70 bg-muted/30 shadow-inner">
-            {item.description ? (
-              <WorkItemDescription
-                text={item.description}
-                className="rounded-none border-0 bg-transparent px-4 py-3 break-words"
-              />
-            ) : (
-              <p className="px-4 py-6 text-sm italic text-muted-foreground">No description</p>
-            )}
+            <div className="divide-y divide-border/60">
+              {item.description ? (
+                <WorkItemDescription
+                  text={item.description}
+                  className="rounded-none border-0 bg-transparent px-4 py-3 break-words"
+                />
+              ) : (
+                <p className="px-4 py-6 text-sm italic text-muted-foreground">No description</p>
+              )}
+              <section className="space-y-2 px-4 py-3" aria-label="Daily Work">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-sm font-semibold">Daily Work</h2>
+                  {!isLoading && <span className="text-xs text-muted-foreground">{item.timeEntries?.length ?? 0} entries</span>}
+                </div>
+                <DailyWorkEntries isLoading={isLoading} entries={item.timeEntries} />
+              </section>
+            </div>
           </ScrollablePanel>
         </section>
 

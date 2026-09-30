@@ -146,11 +146,11 @@ model WorkItem {
   role        WorkItemRole?
   status      WorkItemStatus   @default(backlog)
   types       String[]         @default([]) @map("labels_types")
-  workDate    DateTime?
-  dueDate     DateTime?
-  submittedAt DateTime?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  workDate    DateTime?        @db.Date
+  dueDate     DateTime?        @db.Date
+  submittedAt DateTime?        @db.Timestamp(3)
+  createdAt   DateTime         @default(now()) @db.Timestamp(3)
+  updatedAt   DateTime         @updatedAt @db.Timestamp(3)
 
   projectId   String
   project     Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
@@ -234,7 +234,7 @@ model TimeEntry {
   projectId  String?
   project    Project?  @relation(fields: [projectId], references: [id], onDelete: Restrict)
   workItemId String?
-  workItem   WorkItem? @relation(fields: [workItemId], references: [id], onDelete: SetNull)
+  workItem   WorkItem? @relation(fields: [workItemId], references: [id], onDelete: Restrict)
 
   @@index([userId])
   @@index([projectId])

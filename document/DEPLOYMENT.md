@@ -140,3 +140,7 @@ With an approved dataset at `database/seeds/master`, set `RUN_SEED=true` in root
 ## Database operations ที่ implement ใน #16
 
 เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. Customer/GitLab target schema และ business API ยังไม่ถูก deploy ในงาน Infra นี้. เจ้าของกำหนด defaults เป็น BACKUP_DIR=./database/backups/postgres_data และ BACKUP_KEEP_DAYS=30 แล้ว. ผล isolated verification ยืนยันการเตรียมเครื่องมือของ #16; ยังไม่ได้ rollout หรือสร้าง backup ของ Dev/UAT/Production จริง ซึ่งต้องผ่าน runbook ก่อน schema changes.
+
+## Work Item schema rollout ที่ต้องใช้หลัง #19
+
+Source schema เปลี่ยน `WorkItem.workDate`/`dueDate` เป็น PostgreSQL `DATE`, ระบุ `TIMESTAMP(3) WITHOUT TIME ZONE` สำหรับ WorkItem timestamps และเปลี่ยน `TimeEntry.workItem` เป็น `Restrict`. Issue #19 ตรวจ Prisma schema ใน source แต่ไม่ได้ apply schema กับ Dev/UAT/Production. ก่อน deploy image ที่ใช้ schema นี้ ให้สร้าง verified backup และ isolated restore rehearsal ตาม [Database Rollout](./DATABASE_ROLLOUT.md), ตรวจ date conversion/history และ health/API checks ใน environment เป้าหมาย. ห้ามใช้ Production `db push` ก่อน review ผลกระทบต่อข้อมูลเดิมและ restore path.

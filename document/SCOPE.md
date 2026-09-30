@@ -178,3 +178,7 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 ## Database operations ที่ implement ใน #16
 
 เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). ใช้ Asia/Bangkok และตรวจ exact history โดยไม่แปลง timestamp เป็น UTC. #16 เตรียมเครื่องมือเท่านั้น; #18 ได้ rollout Company → Project ไป Production แล้วตาม [Company/Project implementation](./COMPANY_PROJECT_IMPLEMENTATION.md). GitLab target schema และ business API ยังรอ Issue #20 และต้องผ่าน runbook ก่อน schema changes.
+
+## ขอบเขตที่ส่งมอบใน Issue #19
+
+Work Items รองรับ shared create/update validation, Company/status/priority/functional-role filters, detail ของ Project/Company/owner/Daily Work, import แบบรายแถวพร้อมเหตุผล, และ export CSV/Markdown/JSON ที่ JSON นำกลับเข้า import ได้. ทุกทางใช้ `WorkItem` ID เดิม; `cancelled` แยกจาก `completed`. ลบ WorkItem ไม่ได้เมื่อ TimeEntry อ้างอยู่. Schema source กำหนด WorkItem business dates เป็น `DATE` และ timestamp เป็น Bangkok local wall-clock; การนำ schema ไปใช้กับ database environment ยังต้องทำตาม backup/restore gate ของ [Database Rollout](./DATABASE_ROLLOUT.md).

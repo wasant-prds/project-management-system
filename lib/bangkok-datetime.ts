@@ -56,6 +56,32 @@ export function parseBangkokDateTime(value: unknown): Date | null {
   )
 }
 
+export function parseBangkokCalendarDate(value: unknown): Date | null {
+  if (typeof value !== 'string' || !DATE_ONLY_PATTERN.test(value)) return null
+
+  const match = DATE_ONLY_PATTERN.exec(value)
+  if (!match) return null
+  return wallClockDate(Number(match[1]), Number(match[2]), Number(match[3]))
+}
+
+export function serializeBangkokCalendarDate(value: Date): string {
+  const year = String(value.getUTCFullYear()).padStart(4, '0')
+  const month = String(value.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(value.getUTCDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+export function currentBangkokCalendarDate(now = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now)
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]))
+  return `${values.year}-${values.month}-${values.day}`
+}
+
 export function currentBangkokWallClockDate(now = new Date()): Date {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Bangkok',

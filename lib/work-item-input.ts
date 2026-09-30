@@ -11,6 +11,7 @@ import {
   parseWorkItemStatus,
   parseWorkItemTypes,
 } from '@/lib/work-items'
+import { parseBangkokCalendarDate } from '@/lib/bangkok-datetime'
 
 export type ParsedWorkItemInput = {
   id?: string
@@ -28,14 +29,19 @@ export type ParsedWorkItemInput = {
 }
 
 type ParseResult = { data: ParsedWorkItemInput } | { error: string }
+type PatchParseResult = { data: Partial<ParsedWorkItemInput> } | { error: string }
 
 function parseDate(value: unknown, field: string): Date | null | string {
   if (value === undefined || value === null || value === '') return null
-  if (typeof value !== 'string') return `${field} must be a date string`
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return `${field} must be a valid date`
+  const date = parseBangkokCalendarDate(value)
+  if (!date) return `${field} must use a valid YYYY-MM-DD value`
   return date
+}
+
+function parseDescription(value: unknown): { data: string | null } | { error: string } {
+  if (value === undefined || value === null) return { data: null }
+  if (typeof value !== 'string') return { error: 'Description must be a string' }
+  return { data: value.trim() || null }
 }
 
 function parseClassification(body: Record<string, unknown>):
@@ -63,11 +69,8 @@ function parseClassification(body: Record<string, unknown>):
 function parseOptionalFields(body: Record<string, unknown>, ownerId: string):
   | { data: Pick<ParsedWorkItemInput, 'description' | 'workDate' | 'dueDate' | 'assigneeId' | 'id'> }
   | { error: string } {
-  const descriptionValue = body.description ?? null
-  if (descriptionValue !== null && typeof descriptionValue !== 'string') {
-    return { error: 'Description must be a string' }
-  }
-  const description = descriptionValue || null
+  const description = parseDescription(body.description)
+  if ('error' in description) return description
 
   const workDate = parseDate(body.workDate, 'workDate')
   if (typeof workDate === 'string') return { error: workDate }
@@ -91,7 +94,7 @@ function parseOptionalFields(body: Record<string, unknown>, ownerId: string):
     return { error: 'assigneeId must match the authenticated owner' }
   }
 
-  return { data: { ...(id ? { id } : {}), description, workDate, dueDate, assigneeId: ownerId } }
+  return { data: { ...(id ? { id } : {}), description: description.data, workDate, dueDate, assigneeId: ownerId } }
 }
 
 export function parseWorkItemInput(value: unknown, ownerId: string): ParseResult {
@@ -117,4 +120,113 @@ export function parseWorkItemInput(value: unknown, ownerId: string): ParseResult
       projectId,
     },
   }
+}
+
+function parsePatchBasics(body: Record<string, unknown>): PatchParseResult {
+  const data: Partial<ParsedWorkItemInput> = {}
+  if (body.title !== undefined) {
+    if (typeof body.title !== 'string' || !body.title.trim()) return { error: 'Title is required' }
+    data.title = body.title.trim()
+  }
+  if (body.description !== undefined) {
+    const description = parseDescription(body.description)
+    if ('error' in description) return description
+    data.description = description.data
+  }
+  return { data }
+}
+
+function mergePatchResults(results: readonly PatchParseResult[]): PatchParseResult {
+  const data: Partial<ParsedWorkItemInput> = {}
+  for (const result of results) {
+    if ('error' in result) return result
+    Object.assign(data, result.data)
+  }
+  return { data }
+}
+
+function parsePatchKind(body: Record<string, unknown>): PatchParseResult {
+  if (body.kind === undefined) return { data: {} }
+  if (!isWorkItemKind(body.kind)) return { error: 'kind must be Incident, Issue, or Task' }
+  return { data: { kind: body.kind } }
+}
+
+function parsePatchStatus(body: Record<string, unknown>): PatchParseResult {
+  if (body.status === undefined) return { data: {} }
+  const status = parseWorkItemStatus(body.status)
+  if (!status) return { error: 'Invalid status' }
+  return { data: { status } }
+}
+
+function parsePatchPriority(body: Record<string, unknown>): PatchParseResult {
+  if (body.priority === undefined) return { data: {} }
+  if (!isWorkItemPriority(body.priority)) return { error: 'Invalid priority' }
+  return { data: { priority: body.priority } }
+}
+
+function parsePatchRole(body: Record<string, unknown>): PatchParseResult {
+  if (body.role === undefined) return { data: {} }
+  const role = body.role === '' ? null : body.role
+  if (role !== null && !isWorkItemRole(role)) return { error: 'Invalid role' }
+  return { data: { role } }
+}
+
+function parsePatchTypes(body: Record<string, unknown>): PatchParseResult {
+  if (body.types === undefined) return { data: {} }
+  const types = parseWorkItemTypes(body.types)
+  if (!types) return { error: 'Invalid types' }
+  return { data: { types } }
+}
+
+function parsePatchClassification(body: Record<string, unknown>): PatchParseResult {
+  return mergePatchResults([
+    parsePatchKind(body),
+    parsePatchStatus(body),
+    parsePatchPriority(body),
+    parsePatchRole(body),
+    parsePatchTypes(body),
+  ])
+}
+
+function parsePatchDates(body: Record<string, unknown>): PatchParseResult {
+  const data: Partial<ParsedWorkItemInput> = {}
+  for (const field of ['workDate', 'dueDate'] as const) {
+    if (body[field] === undefined) continue
+    const date = parseDate(body[field], field)
+    if (typeof date === 'string') return { error: date }
+    data[field] = date
+  }
+  return { data }
+}
+
+function parsePatchRelations(body: Record<string, unknown>, ownerId: string): PatchParseResult {
+  const data: Partial<ParsedWorkItemInput> = {}
+  if (body.projectId !== undefined) {
+    if (typeof body.projectId !== 'string' || !body.projectId.trim()) {
+      return { error: 'Project ID is required' }
+    }
+    data.projectId = body.projectId.trim()
+  }
+  if (body.assigneeId !== undefined) {
+    if (body.assigneeId !== ownerId) return { error: 'assigneeId must match the authenticated owner' }
+    data.assigneeId = ownerId
+  }
+  return { data }
+}
+
+export function parseWorkItemPatch(value: unknown, ownerId: string): PatchParseResult {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return { error: 'Work item must be an object' }
+  }
+
+  const body = value as Record<string, unknown>
+  if (body.id !== undefined) return { error: 'id cannot be updated' }
+
+  const results = [
+    parsePatchBasics(body),
+    parsePatchClassification(body),
+    parsePatchDates(body),
+    parsePatchRelations(body, ownerId),
+  ]
+  return mergePatchResults(results)
 }

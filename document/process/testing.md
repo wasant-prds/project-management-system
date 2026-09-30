@@ -11,6 +11,7 @@ To print the test results as a package → file → test tree, use the reusable 
 ```bash
 bash scripts/test-unit.sh
 bash scripts/test-unit.sh auth
+bash scripts/test-unit.sh work-items
 ```
 
 The wrapper uses Node's TAP reporter and the existing `tests/run.mjs` suite selection; it does not discover or execute tests independently. Verify the formatter itself with `pnpm test:runner` or `bash scripts/test-unit.sh runner`.
@@ -38,6 +39,15 @@ Run only the Company and Project management regression tests:
 ```powershell
 pnpm test:company-projects
 ```
+
+Run the Work Item management, validation, import, history-retention, and Bangkok date regressions:
+
+```powershell
+pnpm test:work-items
+node tests/run.mjs work-items
+```
+
+This focused suite executes the actual TypeScript Route Handler/parser code in an in-memory Prisma fixture. It does not connect to or migrate a database. Schema validation uses `pnpm exec prisma validate`; applying the WorkItem `DATE`/`TIMESTAMP` and relation constraints to an environment still requires that environment's verified backup and rollout checks.
 
 Run the local quality gates used before review:
 
