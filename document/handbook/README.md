@@ -6,6 +6,8 @@
 
 ระบบเป็น Next.js App Router + Prisma + PostgreSQL สำหรับ owner หนึ่งคน ใช้ Company → Project → WorkItem → TimeEntry และยึด `Asia/Bangkok` สำหรับเวลา อ่านเรื่อง [Owner access](./operations/owner-access.md), [Database model](./database/data-model.md) และ [Runtime operations](./operations/runtime.md) ก่อนเปลี่ยนแปลงระบบ
 
+สำหรับ Issue #18 ระบบรองรับหลาย Company แต่ Project แต่ละรายการต้องอ้าง Company หนึ่งรายการผ่าน `companyId`. Prisma schema ปัจจุบันไม่มี `Customer` model; รายละเอียด Dhas, Company APIs และ Project APIs อยู่ในหน้า Company/Projects และ [Database model](./database/data-model.md). Handbook ยืนยันพฤติกรรมจาก repository; สถานะข้อมูลในฐานข้อมูล environment จริงต้องตรวจจาก environment นั้นแยกต่างหาก.
+
 ## API
 
 Route Handler ปัจจุบันมีดังนี้:
@@ -56,3 +58,7 @@ Route Handler ปัจจุบันมีดังนี้:
 - [Prisma schema](../../prisma/schema.prisma)
 - [Runtime security](../RUNTIME_SECURITY.md)
 - [Database rollout runbook](../DATABASE_ROLLOUT.md)
+- [Company default profile](../../lib/dhas-company.json)
+- [Company service](../../lib/company.ts)
+- [Company collection handler](../../app/api/company/route.ts)
+- [Project collection handler](../../app/api/projects/route.ts)

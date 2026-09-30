@@ -11,7 +11,7 @@
 
 ## สิทธิ์ที่มองเห็น
 
-ต้องผ่าน owner gate และ `getOwner()`. ไม่มี role เพิ่มเติม.
+ต้องผ่าน owner proof middleware และ `getOwner()`; resolver ต้องพบ owner User เพียงหนึ่งคน. ไม่มี role หรือ permission เพิ่มเติม.
 
 ## ดึงข้อมูลจากตารางไหน
 
@@ -31,7 +31,7 @@
 
 ### PATCH body
 
-ส่งอย่างน้อยหนึ่ง fieldจาก [Company field list](./collection.md#post). Field ที่ไม่ส่งคงค่าเดิม; unknown field และ body ว่างถูกปฏิเสธ. `name` หากส่งมาต้องเป็น string หลัง trim ที่ไม่ว่าง. Field อื่นรับ string หรือ null. เปลี่ยนชื่อ Dhas Company ไม่ได้ และ Company อื่นใช้ชื่อสงวน Dhas ไม่ได้. Body field ที่รับ: `name`, `displayName`, `location`, `industry`, `email`, `phone`, `address`, `website`, `logo`, `description`.
+ส่งอย่างน้อยหนึ่ง field จาก [Company field list](./collection.md#post). ทุก field ในรายการเป็น optional สำหรับ PATCH; field ที่ไม่ส่งคงค่าเดิม. `name` ที่ส่งมาต้องเป็น string หลัง trim ที่ไม่ว่าง. Field อื่นรับ string หรือ `null`; string ว่างถูกเก็บเป็น `null`. Unknown field และ body ว่างถูกปฏิเสธ. เปลี่ยนชื่อ Dhas Company ไม่ได้ และ Company อื่นใช้ชื่อสงวน Dhas ไม่ได้.
 
 ```json
 {"phone":"02-000-0000"}
@@ -41,13 +41,13 @@ DELETE ไม่มี body.
 
 ## Response
 
-PATCH ตอบ `200` `{ "company": ... }`. Object มี Company fields ที่ระบุไว้ใน [Company collection response](./collection.md#response); timestamp เป็น `+07:00`.
+PATCH ตอบ `200` `{ "company": ... }`. `company` เป็น object ที่มี Company model fields ตามตาราง [Company collection GET response](./collection.md#get-response); ไม่มี `summary`. Timestamp เป็น ISO string ต่อท้าย `+07:00`.
 
 DELETE ตอบ `200`:
 
-| Field | คำอธิบาย |
-| --- | --- |
-| `message` | ข้อความยืนยัน `ลบ Company แล้ว` |
+| Field | Type | คำอธิบาย |
+| --- | --- | --- |
+| `message` | string | ข้อความยืนยัน `ลบ Company แล้ว` |
 
 ```jsonc
 {"message":"ลบ Company แล้ว" // ข้อความยืนยันการลบสำเร็จ}
@@ -58,13 +58,14 @@ DELETE ตอบ `200`:
 | HTTP | Code | Cause |
 | ---: | --- | --- |
 | `400` | `VALIDATION_ERROR` | body/field/JSON ไม่ถูกต้อง หรือ body ว่าง |
-| `401` | `OWNER_UNAUTHENTICATED` | owner authentication ขาดหาย |
-| `403` | `ACCESS_DENIED` | Origin policy ไม่ผ่าน |
+| `401` | `OWNER_UNAUTHENTICATED` | middleware หรือ `getOwner()` ไม่ได้รับ owner proof ที่ถูกต้อง |
 | `404` | `NOT_FOUND` | ไม่มี Company ID นี้ |
 | `409` | `CONFLICT` | เปลี่ยนชื่อ Dhas หรือใช้ชื่อ Dhas กับ Company อื่น |
 | `409` | `HISTORY_CONFLICT` | ลบ Dhas Company/Company ที่มี Projects หรือ FK conflict |
 | `500` | `INTERNAL_ERROR` | DB operation ที่ไม่คาดหมายล้มเหลว |
 | `503` | `DEPENDENCY_UNAVAILABLE` | resolve owner ไม่สำเร็จ |
+
+Error body ใช้ `{ "error": { "code", "message", "field?" } }`: `error` คือ object ข้อผิดพลาด, `code` คือรหัส error, `message` คือข้อความ, และ `field` เป็นชื่อ request field เมื่อระบุได้. `field` ไม่มีใน error ทุกกรณี.
 
 ## Processing Flow
 
