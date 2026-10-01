@@ -16,6 +16,10 @@ bash scripts/test-unit.sh work-items
 
 The wrapper uses Node's TAP reporter and the existing `tests/run.mjs` suite selection; it does not discover or execute tests independently. Verify the formatter itself with `pnpm test:runner` or `bash scripts/test-unit.sh runner`.
 
+The full suite requires Node.js 22 or newer. When launched from WSL with an older Linux Node, the wrapper uses the installed Windows `node.exe` if it is available; otherwise it stops with a version hint instead of printing a partial report.
+
+Use `bash scripts/test-unit.sh local` to name the complete local unit run explicitly; it is equivalent to running the wrapper without a suite name.
+
 Run all documentation/data contract suites:
 
 ```powershell

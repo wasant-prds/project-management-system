@@ -177,9 +177,10 @@ async function requestPage(
   config: GitLabConfiguration,
   fetchImpl: typeof fetch,
   wait: (ms: number) => Promise<void>,
-): Promise<Response> {
+): Promise<{ response: Response; body: string }> {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     let response: Response
+    let body: string | undefined
     try {
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 15_000)
@@ -191,6 +192,7 @@ async function requestPage(
           redirect: 'manual',
           signal: controller.signal,
         })
+        if (response.ok) body = await response.text()
       } finally {
         clearTimeout(timeout)
       }
@@ -202,7 +204,7 @@ async function requestPage(
       throw new GitLabProviderError('PROVIDER_UNAVAILABLE', 'GitLab could not be reached', true)
     }
 
-    if (response.ok) return response
+    if (response.ok) return { response, body: body! }
     const retryable = response.status === 429 || response.status >= 500
     if (retryable && attempt < 2) {
       const requestedWait = response.status === 429
@@ -276,8 +278,11 @@ async function listIssues(
     }
     seenPages.add(pageUrl)
     let response: Response
+    let responseBody: string
     try {
-      response = await requestPage(pageUrl, config, fetchImpl, wait)
+      const pageResponse = await requestPage(pageUrl, config, fetchImpl, wait)
+      response = pageResponse.response
+      responseBody = pageResponse.body
     } catch (error) {
       if (error instanceof GitLabProviderError) {
         throw new GitLabPaginationError(error.message, issues, pageUrl, error.retryable, error.code)
@@ -286,7 +291,7 @@ async function listIssues(
     }
     let page: unknown
     try {
-      page = parseGitLabJson(await response.text())
+      page = parseGitLabJson(responseBody)
     } catch {
       throw new GitLabPaginationError('GitLab returned unreadable Issue data', issues, pageUrl, true)
     }
@@ -584,11 +589,14 @@ export async function syncGitLabProject(options: {
       const safe = error instanceof GitLabIssueError
         ? { code: error.code, message: error.message, retryable: error.code === 'PERSISTENCE_CONFLICT' }
         : { code: 'PERSISTENCE_FAILED', message: 'The Issue could not be saved', retryable: true }
+      const rawRecord = typeof rawIssue === 'object' && rawIssue !== null && !Array.isArray(rawIssue)
+        ? rawIssue as RawIssue
+        : {}
       results.push(issueOutcome(issue ?? {
-        id: validPositiveId(rawIssue.id) ?? 'unknown',
-        iid: validPositiveId(rawIssue.iid) ?? 'unknown',
-        title: typeof rawIssue.title === 'string' ? rawIssue.title : 'Invalid GitLab Issue',
-        webUrl: typeof rawIssue.web_url === 'string' && sourceUrlMatchesInstance(rawIssue.web_url, config.baseUrl, validPositiveId(rawIssue.iid) ?? '') ? rawIssue.web_url : '',
+        id: validPositiveId(rawRecord.id) ?? 'unknown',
+        iid: validPositiveId(rawRecord.iid) ?? 'unknown',
+        title: typeof rawRecord.title === 'string' ? rawRecord.title : 'Invalid GitLab Issue',
+        webUrl: typeof rawRecord.web_url === 'string' && sourceUrlMatchesInstance(rawRecord.web_url, config.baseUrl, validPositiveId(rawRecord.iid) ?? '') ? rawRecord.web_url : '',
       } as GitLabIssue, 'failed', null, { error: safe }))
     }
   }

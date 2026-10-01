@@ -40,10 +40,17 @@ export async function POST(request: Request) {
       if (body.approveFirstSync !== true) {
         return requestError('FIRST_SYNC_APPROVAL_REQUIRED', 'ต้องยืนยันการนำเข้า Issue ครั้งแรกก่อนเริ่ม sync', 409)
       }
-      mappingToSync = await prisma.gitLabProjectMapping.update({
-        where: { id: mapping.id },
-        data: { firstSyncApprovedAt: currentBangkokWallClockDate() },
-      })
+      try {
+        mappingToSync = await prisma.gitLabProjectMapping.update({
+          where: { id: mapping.id, updatedAt: mapping.updatedAt },
+          data: { firstSyncApprovedAt: currentBangkokWallClockDate() },
+        })
+      } catch (error) {
+        if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2025') {
+          return requestError('CONFLICT', 'mapping เปลี่ยนก่อนบันทึกการอนุมัติ กรุณาโหลดข้อมูลแล้วตรวจสอบอีกครั้ง', 409)
+        }
+        throw error
+      }
     }
 
     const result = await syncGitLabProject({ prisma, mapping: mappingToSync, ownerId: owner.id, config })

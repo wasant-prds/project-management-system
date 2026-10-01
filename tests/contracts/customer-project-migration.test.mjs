@@ -124,7 +124,10 @@ test("reusable test runner documents all-suite, contract-suite, and focused comm
   assert.match(runner, /Object\.hasOwn\(suites, requestedSuite\)/);
   assert.match(runner, /"migration-contracts": \{ files:/);
   assert.match(runner, /runner: \{ directory:/);
-  assert.match(reportRunner, /node --test-reporter=tap tests\/run\.mjs/);
+  assert.match(reportRunner, /"\$\{NODE_RUNNER\}" --test-reporter=tap "\$\{TEST_RUNNER_PATH\}"/);
+  assert.match(reportRunner, /\[\[ "\$\{1:-\}" == "local" \]\]/);
+  assert.match(reportRunner, /node\.exe/);
+  assert.match(reportRunner, /NODE_MAJOR < 22/);
   assert.match(reportRunner, /database-rollout-docker\|runtime-container\|runtime-docker\|seed-docker/);
   assert.match(testing, /bash scripts\/test-unit\.sh/);
   assert.match(testing, /pnpm test:migration-contracts/);

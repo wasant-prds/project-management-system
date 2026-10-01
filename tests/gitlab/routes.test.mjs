@@ -242,7 +242,11 @@ test('sync requires explicit first-sync approval and then calls only the configu
   mocks['@/lib/db'].prisma = {
     gitLabProjectMapping: {
       async findUnique() { return mapping },
-      async update({ data }) { approveAt = data.firstSyncApprovedAt; return { ...mapping, ...data } },
+      async update({ where, data }) {
+        assert.equal(where.updatedAt.getTime(), mapping.updatedAt.getTime())
+        approveAt = data.firstSyncApprovedAt
+        return { ...mapping, ...data }
+      },
     },
   }
   const { POST } = loadTs('../../app/api/integrations/gitlab/sync/route.ts', mocks)
@@ -263,6 +267,30 @@ test('sync requires explicit first-sync approval and then calls only the configu
   assert.equal(authorized.body.ownerId, owner.id)
   assert.equal(serviceCalls, 1)
   assert.equal(JSON.stringify(authorized.body).includes(config.token), false)
+})
+
+test('first-sync approval stops if the mapping changed after it was read', async () => {
+  const mocks = makeOwnerMocks()
+  let serviceCalls = 0
+  mocks['@/lib/db'].prisma = {
+    gitLabProjectMapping: {
+      async findUnique() { return mapping },
+      async update({ where }) {
+        assert.equal(where.updatedAt.getTime(), mapping.updatedAt.getTime())
+        throw Object.assign(new Error('record changed'), { code: 'P2025' })
+      },
+    },
+  }
+  mocks['@/lib/gitlab-issue-import'].syncGitLabProject = async () => {
+    serviceCalls += 1
+    return { counts: { created: 0, updated: 0, skipped: 0, failed: 0 }, results: [] }
+  }
+  const { POST } = loadTs('../../app/api/integrations/gitlab/sync/route.ts', mocks)
+  const result = await POST({ json: async () => ({ mappingId: mapping.id, approveFirstSync: true }) })
+
+  assert.equal(result.status, 409)
+  assert.equal(result.body.error.code, 'CONFLICT')
+  assert.equal(serviceCalls, 0)
 })
 
 test('unauthenticated sync is rejected before reading the request, configuration, or mapping', async () => {

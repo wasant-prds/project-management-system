@@ -11,7 +11,7 @@ const config = { baseUrl, token: 'synthetic-private-token' }
 const ownerId = 'owner-1'
 const fixedNow = new Date('2026-09-30T11:00:00.000Z')
 
-function loadTs(path, mocks = {}) {
+function loadTs(path, mocks = {}, globals = {}) {
   const source = readFileSync(new URL(path, import.meta.url), 'utf8')
   const output = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -34,6 +34,7 @@ function loadTs(path, mocks = {}) {
     clearTimeout,
     process,
     console: { error() {} },
+    ...globals,
   }, { filename: path })
   return loaded.exports
 }
@@ -487,12 +488,45 @@ test('bad Issue rows fail individually while other Issues still commit', async (
   const { prisma, state } = makeDatabase()
   const result = await syncGitLabProject({
     prisma, mapping: makeMapping(), ownerId, config,
-    fetchImpl: clientForPages([{ issues: [makeIssue(), makeIssue({ id: 702, iid: 18, project_id: 99 })] }]),
+    fetchImpl: clientForPages([{ issues: [null, makeIssue(), makeIssue({ id: 702, iid: 18, project_id: 99 })] }]),
     now: () => fixedNow,
   })
-  assert.deepEqual(plain(result.counts), { created: 1, updated: 0, skipped: 0, failed: 1 })
-  assert.equal(result.results.find((item) => item.outcome === 'failed').error.code, 'INVALID_REMOTE_ISSUE')
+  assert.deepEqual(plain(result.counts), { created: 1, updated: 0, skipped: 0, failed: 2 })
+  assert.ok(result.results.filter((item) => item.outcome === 'failed').every((item) => item.error.code === 'INVALID_REMOTE_ISSUE'))
   assert.equal(state.workItems.size, 1)
+})
+
+test('GitLab response body timeout aborts the request and uses bounded retries', async () => {
+  const timedService = loadTs('../../lib/gitlab-issue-import.ts', {
+    '@/lib/bangkok-datetime': bangkok,
+    '@/lib/work-items': workItemRules,
+  }, {
+    setTimeout: (callback, ms) => setTimeout(callback, ms === 15_000 ? 5 : ms),
+  })
+  let calls = 0
+  const outcome = await Promise.race([
+    timedService.syncGitLabProject({
+      prisma: {}, mapping: makeMapping(), ownerId, config, wait: async () => {},
+      fetchImpl: async (_url, { signal }) => {
+        calls += 1
+        return {
+          ok: true,
+          headers: new Headers(),
+          text: () => new Promise((resolve, reject) => {
+            if (signal.aborted) reject(new Error('aborted'))
+            else signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true })
+          }),
+        }
+      },
+    }),
+    new Promise((resolve) => setTimeout(() => resolve('timed-out'), 100)),
+  ])
+
+  assert.notEqual(outcome, 'timed-out')
+  assert.equal(calls, 3)
+  assert.equal(outcome.runError.code, 'PROVIDER_UNAVAILABLE')
+  assert.equal(outcome.runError.retryable, true)
+  assert.deepEqual(plain(outcome.counts), { created: 0, updated: 0, skipped: 0, failed: 0 })
 })
 
 test('malformed remote fields and invalid dates fail without writing an Issue', async () => {
