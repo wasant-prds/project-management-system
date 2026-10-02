@@ -113,6 +113,49 @@ export function bangkokDateRange(value: unknown): { start: Date; end: Date } | n
   return { start, end: new Date(start.getTime() + 24 * 60 * 60 * 1000) }
 }
 
+export type BangkokCalendarPeriod = 'week' | 'month' | 'year'
+
+export function bangkokCalendarPeriodRange(
+  value: unknown,
+  period: BangkokCalendarPeriod,
+): { startDate: string; endDate: string } | null {
+  const selectedDate = parseBangkokCalendarDate(value)
+  if (!selectedDate) return null
+
+  const start = new Date(selectedDate)
+  const end = new Date(selectedDate)
+  if (period === 'week') {
+    start.setUTCDate(start.getUTCDate() - start.getUTCDay())
+    end.setTime(start.getTime())
+    end.setUTCDate(end.getUTCDate() + 6)
+  } else if (period === 'month') {
+    start.setUTCDate(1)
+    end.setUTCDate(1)
+    end.setUTCMonth(end.getUTCMonth() + 1)
+    end.setUTCDate(0)
+  } else {
+    start.setUTCMonth(0, 1)
+    end.setUTCDate(1)
+    end.setUTCMonth(11)
+    end.setUTCDate(31)
+  }
+
+  return {
+    startDate: serializeBangkokCalendarDate(start),
+    endDate: serializeBangkokCalendarDate(end),
+  }
+}
+
+export function bangkokRollingDateRange(days: number, now = new Date()): { startDate: string; endDate: string } | null {
+  if (!Number.isInteger(days) || days < 1 || days > 366) return null
+
+  const endDate = currentBangkokCalendarDate(now)
+  const start = parseBangkokCalendarDate(endDate)
+  if (!start) return null
+  start.setUTCDate(start.getUTCDate() - (days - 1))
+  return { startDate: serializeBangkokCalendarDate(start), endDate }
+}
+
 export function serializeBangkokTimestamp(value: Date): string {
   return `${value.toISOString().slice(0, -1)}+07:00`
 }

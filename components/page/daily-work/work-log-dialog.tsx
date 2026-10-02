@@ -25,6 +25,7 @@ import { WorkItemDescription } from "@/components/page/work-items/work-item-desc
 import { Project, WorkLogFormData, WorkLog, WorkLogWorkItem, workLogStatuses } from "./types"
 import { SearchSelect } from "./work-log-search-select"
 import { ScrollablePanel } from "@/components/ui/scrollable-panel"
+import { fetchCollection } from "@/lib/fetch-collection"
 
 type WorkLogDialogProps = {
   open: boolean
@@ -256,12 +257,13 @@ function useProjectWorkItems(open: boolean, projectId: string, enabled: boolean)
 
     let cancelled = false
     setLoadingWorkItems(true)
-    fetch(`/api/work-items?projectId=${encodeURIComponent(projectId)}`)
-      .then(async (response) => {
-        const data = await response.json()
-        if (!cancelled && response.ok) {
-          setProjectWorkItems(data.workItems || [])
-        }
+    setProjectWorkItems([])
+    fetchCollection<WorkLogWorkItem>(
+      `/api/work-items?projectId=${encodeURIComponent(projectId)}&year=all`,
+      "workItems",
+    )
+      .then((workItems) => {
+        if (!cancelled) setProjectWorkItems(workItems)
       })
       .catch(() => {
         if (!cancelled) setProjectWorkItems([])
@@ -411,9 +413,8 @@ export function WorkLogDialog({
                     <Input
                       id="hours"
                       type="number"
-                      min="0.5"
-                      max="24"
-                      step="0.5"
+                      min="0.0000000001"
+                      step="any"
                       value={formData?.hours || ""}
                       onChange={(event) => onFormDataChange?.({ ...formData!, hours: event.target.value })}
                       disabled={isLoading}

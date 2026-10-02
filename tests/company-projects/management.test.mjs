@@ -7,6 +7,7 @@ import { DHAS_COMPANY, validateCompanyBackfill, applyDhasBackfill } from '../../
 
 const require = createRequire(import.meta.url)
 const ts = require('typescript')
+const decimal = (value) => ({ toString: () => String(value) })
 function loadTs(path, mocks) {
   const source = readFileSync(new URL(path, import.meta.url), 'utf8')
   const output = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
@@ -17,14 +18,10 @@ function loadTs(path, mocks) {
   }, Date, URL, Buffer, console }, { filename: path })
   return testModule.exports
 }
-class Decimal {
-  constructor(value) { this.value = Number(value) }
-  plus(other) { return new Decimal(this.value + Number(other)) }
-  toString() { return String(this.value) }
-}
 const response = { json: (body, options = {}) => ({ status: options.status ?? 200, body }) }
 const helper = loadTs('../../lib/project-management.ts', {
-  'next/server': { NextResponse: response }, '@prisma/client': { Prisma: { Decimal } },
+  'next/server': { NextResponse: response },
+  '@/lib/decimal-hours': loadTs('../../lib/decimal-hours.ts', {}),
 })
 const owner = { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: (error) => error.message === 'denied' ? { status: 401 } : null }
 const companyBoundary = { getOrCreateDhasCompany: async () => ({ id: 'dhas' }), parseCompanyInput: () => ({ data: { name: 'Dhas' } }), CompanyConflictError: class CompanyConflictError extends Error {} }
@@ -81,13 +78,26 @@ test('Project summary excludes cancelled from progress and sums role/hour source
   const summary = helper.projectSummary([
     { status: 'completed', role: 'Developer' }, { status: 'cancelled', role: 'SA' },
     { status: 'in_progress', role: 'infra' },
-  ], [{ hours: new Decimal('1.25') }, { hours: new Decimal('2.5') }])
+  ], [{ hours: decimal('1.25') }, { hours: decimal('2.5') }])
   assert.equal(summary.progress, 50)
   assert.equal(summary.open, 1)
   assert.equal(summary.statusCounts['in-progress'], 1)
   assert.equal(summary.roles.infra, 1)
   assert.equal(summary.hours, '3.75')
   assert.equal(helper.projectSummary([{ status: 'cancelled', role: null }], []).progress, 0)
+})
+
+test('Project and Company summaries preserve the exact TimeEntry decimal totals', () => {
+  const entries = [
+    { hours: { toString: () => '0.12345678901234567890123456789' } },
+    { hours: { toString: () => '0.00000000000000000000000000001' } },
+  ]
+  const expected = '0.1234567890123456789012345679'
+  assert.equal(helper.projectSummary([], entries).hours, expected)
+  assert.equal(helper.companySummary([
+    { summary: { total: 0, hours: '0.12345678901234567890123456789' } },
+    { summary: { total: 0, hours: '0.00000000000000000000000000001' } },
+  ]).hours, expected)
 })
 
 test('Project create checks selected Company and attaches server owner', async () => {
@@ -382,7 +392,7 @@ test('Project detail serializes Company, WorkItems, Bangkok dates, and derived h
         { id: 'item-2', status: 'cancelled', role: 'SA', workDate: null, dueDate: null, submittedAt: null, createdAt: new Date('2026-09-29T03:00:00.000Z'), updatedAt: new Date('2026-09-29T03:00:00.000Z') },
         { id: 'item-3', status: 'in_progress', role: 'infra', workDate: new Date('2026-09-30T00:00:00.000Z'), dueDate: null, submittedAt: null, createdAt: new Date('2026-09-30T01:00:00.000Z'), updatedAt: new Date('2026-09-30T02:00:00.000Z') },
       ],
-      timeEntries: [{ id: 'entry-1', hours: new Decimal('1.25'), date: new Date('2026-09-29T00:00:00.000Z'), workItemId: 'item-1' }],
+      timeEntries: [{ id: 'entry-1', hours: decimal('1.25'), date: new Date('2026-09-29T00:00:00.000Z'), workItemId: 'item-1' }],
     }) } } },
     '@/lib/owner': owner,
     '@/lib/work-items': { serializeWorkItemStatus: (status) => status.replaceAll('_', '-') },

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { Prisma, type WorkItemStatus, type WorkItemRole } from '@prisma/client'
+import { type WorkItemStatus, type WorkItemRole } from '@prisma/client'
+import { sumDecimalHours } from '@/lib/decimal-hours'
 
 export const PROJECT_STATUSES = ['Planning', 'In Progress', 'Review', 'Completed', 'On Hold'] as const
 export const PROJECT_PRIORITIES = ['Low', 'Medium', 'High', 'Critical'] as const
@@ -127,13 +128,12 @@ export function projectSummary(
   const completed = statusCounts.completed ?? 0
   const cancelled = statusCounts.cancelled ?? 0
   const total = workItems.length
-  // Decimal strings are summed without rounding each row.
-  const totalHours = hours.reduce((sum, entry) => sum.plus(entry.hours.toString()), new Prisma.Decimal(0))
+  const totalHours = sumDecimalHours(hours.map((entry) => entry.hours.toString()))
   return {
     statusCounts, roles, total, completed, cancelled,
     open: total - completed - cancelled,
     progress: total === cancelled ? 0 : completed / (total - cancelled) * 100,
-    hours: totalHours.toString(),
+    hours: totalHours,
   }
 }
 
@@ -141,6 +141,6 @@ export function companySummary(projects: ReadonlyArray<{ summary: { total: numbe
   return {
     projects: projects.length,
     workItems: projects.reduce((sum, project) => sum + project.summary.total, 0),
-    hours: projects.reduce((sum, project) => sum.plus(project.summary.hours), new Prisma.Decimal(0)).toString(),
+    hours: sumDecimalHours(projects.map((project) => project.summary.hours)),
   }
 }

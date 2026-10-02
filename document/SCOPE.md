@@ -182,3 +182,7 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 ## ขอบเขตที่ส่งมอบใน Issue #19
 
 Work Items รองรับ shared create/update validation, Company/status/priority/functional-role filters, detail ของ Project/Company/owner/Daily Work, import แบบรายแถวพร้อมเหตุผล, และ export CSV/Markdown/JSON ที่ JSON นำกลับเข้า import ได้. ทุกทางใช้ `WorkItem` ID เดิม; `cancelled` แยกจาก `completed`. ลบ WorkItem ไม่ได้เมื่อ TimeEntry อ้างอยู่. Schema source กำหนด WorkItem business dates เป็น `DATE` และ timestamp เป็น Bangkok local wall-clock; การนำ schema ไปใช้กับ database environment ยังต้องทำตาม backup/restore gate ของ [Database Rollout](./DATABASE_ROLLOUT.md).
+
+## ขอบเขตที่ส่งมอบใน Issue #21
+
+Daily Work รองรับ owner-only CRUD, Work Item ที่ owner เป็นเจ้าของ, Project ที่ derive จาก Work Item, positive `DECIMAL(65,30)` hours และ Bangkok calendar date/local timestamp. ตัวกรอง day/week/month/year ใช้ Bangkok calendar boundaries; Work Item options อ่านทุกหน้าและทุกปี. การแก้ไขและลบคำนวณยอดใหม่จาก TimeEntry ล่าสุดด้วย exact decimal arithmetic; Work Item detail, Project summary และ logged-hours metric ของ Dashboard/Analysis อ่านข้อมูลจริง. Dashboard/Analysis ส่วนอื่นยังเป็น scope ของ #23/#24. GitLab ไม่สร้าง TimeEntry. Schema source เปลี่ยน precision ของ hours, `TimeEntry.date` เป็น PostgreSQL `DATE` และ timestamp เป็น `TIMESTAMP(3) WITHOUT TIME ZONE`; ยังไม่มี database rollout ในงานนี้.

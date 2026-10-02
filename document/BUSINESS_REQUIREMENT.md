@@ -236,3 +236,7 @@ Metric ที่เป็นแนวโน้มตามเวลาไม่�
 ## Database operations ที่ implement ใน #16
 
 เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). #20 เพิ่ม GitLab schema source/API implementation; ยังไม่ apply schema หรือสร้าง backup สำหรับ GitLab rollout จริง. ใช้ verified gates ของ environment เป้าหมายก่อนเปิดใช้งาน.
+
+## Daily Work consistency ที่ implement ใน #21
+
+Daily Work ใช้ owner ที่ resolve จาก server, ต้องระบุ Work Item ที่ owner เป็นเจ้าของ และ derive Project จาก Work Item; Project ID ที่ส่งมาเพื่อ compatibility ต้องตรงกัน. ชั่วโมงต้องเป็น Decimal มากกว่าศูนย์ที่เก็บได้ใน `DECIMAL(65,30)` และทุก summary ต้องรวมแบบ exact decimal. `date` ใช้ Bangkok calendar date (`YYYY-MM-DD`); ตัวกรองวัน/สัปดาห์/เดือน/ปีใช้ Bangkok calendar boundaries ไม่ขึ้นกับ timezone ของ browser; timestamps เป็น Bangkok local wall-clock. Work Item, Project, Dashboard และ Analysis อ่านยอด logged hours ล่าสุดจาก TimeEntry; Dashboard/Analysis เปลี่ยนเฉพาะ logged-hours metric ในขอบเขต #21. GitLab time tracking ไม่สร้าง TimeEntry. Prisma schema source ระบุชนิด date/timestamp/Decimal แล้วแต่ยังไม่ได้ rollout ไป database environment.

@@ -8,6 +8,8 @@
 
 Issue #19 ใช้ WorkItem record เดียวร่วมกันระหว่างเมนู Work Items, Board, Projects, Dashboard และ Analysis; มี CRUD, filters, cursor pagination, JSON import แบบรายแถว และ CSV/Markdown/JSON export ที่สร้างใน browser. Detail API แสดง Company ผ่าน Project และ Daily Work ที่ผูกกับ WorkItem.
 
+Issue #21 บังคับให้ Daily Work ที่สร้าง/แก้ไขผูกกับ WorkItem ของ owner และ derive Project จาก WorkItem; ชั่วโมงเป็น positive Decimal, date เป็น Bangkok calendar day และ summary ใช้ exact Decimal aggregate. Dashboard/Analysis แสดงเฉพาะ logged-hours metric ที่อ่านจาก TimeEntry ตามขอบเขต issue. Prisma schema source เปลี่ยนแล้วแต่ยังต้องผ่าน verified environment rollout ก่อน sync.
+
 สำหรับ Issue #18 ระบบรองรับหลาย Company แต่ Project แต่ละรายการต้องอ้าง Company หนึ่งรายการผ่าน companyId. Prisma schema ปัจจุบันไม่มี Customer model; รายละเอียด Dhas, Company APIs และ Project APIs อยู่ในหน้า Company/Projects และ [Database model](./database/data-model.md). Handbook ยืนยันพฤติกรรมจาก repository; สถานะข้อมูลในฐานข้อมูล environment จริงต้องตรวจจาก environment นั้นแยกต่างหาก.
 
 ## API
@@ -49,6 +51,7 @@ Route Handler ปัจจุบันมีดังนี้:
 
 - [Work log collection](./api/daily-work/collection.md) — list, create
 - [Work log detail](./api/daily-work/detail.md) — read, update, delete
+- [Work log summary](./api/daily-work/summary.md) — รวมชั่วโมงของ owner ทั้งหมดหรือช่วง Bangkok calendar dates (Issue #21)
 
 ## Jobs
 

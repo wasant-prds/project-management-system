@@ -262,11 +262,11 @@ model TimeEntry {
   id          String   @id @default(cuid())
   description String?
   remarks     String?
-  hours       Decimal
-  date        DateTime @default(now())
+  hours       Decimal  @db.Decimal(65, 30)
+  date        DateTime @default(now()) @db.Date
   status      String? // To Do, In Progress, Review, Completed, Blocked
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @db.Timestamp(3)
+  updatedAt   DateTime @updatedAt @db.Timestamp(3)
 
   userId     String
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)

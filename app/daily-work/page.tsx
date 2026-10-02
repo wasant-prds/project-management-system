@@ -17,8 +17,11 @@ import { Plus } from "lucide-react"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { toast } from "@/hooks/use-toast"
-import { formatDate } from "@/lib/utils"
+import { dateOnlyToPickerDate, formatDate } from "@/lib/utils"
+import { bangkokCalendarPeriodRange, currentBangkokCalendarDate } from "@/lib/bangkok-datetime"
+import { parsePositiveDecimalHours, sumDecimalHours } from "@/lib/decimal-hours"
 import { readWorkLogsResponse } from "@/lib/work-log-response"
+import { fetchCollection } from "@/lib/fetch-collection"
 import { WorkLog, Project, WorkLogFormData, emptyWorkLogForm } from "@/components/page/daily-work/types"
 import { WorkLogList } from "@/components/page/daily-work/work-log-list"
 import { WorkLogDialog } from "@/components/page/daily-work/work-log-dialog"
@@ -30,28 +33,16 @@ function workLogQuery(date: Date | undefined, period: ViewPeriod) {
   if (!date) return ""
   if (period === "day") return `?date=${formatDate(date)}`
 
-  const startDate = new Date(date)
-  const endDate = new Date(date)
-  if (period === "week") {
-    const day = startDate.getDay()
-    startDate.setDate(startDate.getDate() - day)
-    endDate.setDate(startDate.getDate() + 6)
-  } else if (period === "month") {
-    startDate.setDate(1)
-    endDate.setMonth(endDate.getMonth() + 1)
-    endDate.setDate(0)
-  } else if (period === "year") {
-    startDate.setMonth(0, 1)
-    endDate.setMonth(11, 31)
-  }
-  return `?startDate=${formatDate(startDate)}&endDate=${formatDate(endDate)}`
+  const range = bangkokCalendarPeriodRange(formatDate(date), period)
+  if (!range) return ""
+  return `?startDate=${range.startDate}&endDate=${range.endDate}`
 }
 
 function workLogFormError(form: WorkLogFormData) {
-  if (!form.hours || !form.description || !form.projectId || !form.workItemId) {
+  if (!form.date || !form.hours || !form.description || !form.projectId || !form.workItemId) {
     return "Please fill in date, hours, project, work item, and description"
   }
-  if (Number.parseFloat(form.hours) > 24) return "Hours cannot exceed 24"
+  if (parsePositiveDecimalHours(form.hours) === null) return "Hours must be a positive decimal number"
   return null
 }
 
@@ -78,7 +69,7 @@ async function saveWorkLog(form: WorkLogFormData, selected: WorkLog | null) {
 }
 
 export default function DailyWorkPage() {
-  const [date, setDate] = useState<Date | undefined>(new Date())
+  const [date, setDate] = useState<Date | undefined>(() => dateOnlyToPickerDate(currentBangkokCalendarDate()) ?? undefined)
   const [workLogs, setWorkLogs] = useState<WorkLog[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -89,7 +80,7 @@ export default function DailyWorkPage() {
   const [viewPeriod, setViewPeriod] = useState<ViewPeriod>("day")
 
   // Form state
-  const [formData, setFormData] = useState<WorkLogFormData>(emptyWorkLogForm(formatDate(new Date())))
+  const [formData, setFormData] = useState<WorkLogFormData>(() => emptyWorkLogForm(currentBangkokCalendarDate()))
 
   const fetchWorkLogs = useCallback(async () => {
     try {
@@ -127,11 +118,8 @@ export default function DailyWorkPage() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch("/api/projects")
-      const data = await response.json()
-      if (response.ok) {
-        setProjects(data.projects)
-      }
+      const projectRows = await fetchCollection<Project>("/api/projects", "projects")
+      setProjects(projectRows)
     } catch (error) {
       console.error("Error fetching projects:", error)
     }
@@ -151,7 +139,7 @@ export default function DailyWorkPage() {
       })
     } else {
       setSelectedWorkLog(null)
-      setFormData(emptyWorkLogForm(date ? formatDate(date) : formatDate(new Date())))
+      setFormData(emptyWorkLogForm(date ? formatDate(date) : currentBangkokCalendarDate()))
     }
     setIsDialogOpen(true)
   }, [date])
@@ -241,7 +229,7 @@ export default function DailyWorkPage() {
     })
   }, [workLogs, searchQuery])
 
-  const totalHours = filteredWorkLogs.reduce((sum, log) => sum + Number(log.hours), 0)
+  const totalHours = sumDecimalHours(filteredWorkLogs.map((log) => log.hours))
   const totalTasks = filteredWorkLogs.length
 
   // Generate button label based on view period

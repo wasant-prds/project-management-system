@@ -1,6 +1,7 @@
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { AppHeader } from "@/components/layout/app-header"
 import { DashboardCharts } from "@/components/layout/dashboard-charts"
+import { LoggedHoursStat } from "@/components/layout/logged-hours-stat"
 import {
   ACTION_LABEL_CLASS,
   PAGE_HEADING,
@@ -168,6 +169,7 @@ export default function DashboardPage() {
                   }
                 />
               ))}
+              <LoggedHoursStat label="ชั่วโมงสะสม" />
             </div>
 
             <DashboardCharts />

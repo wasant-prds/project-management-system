@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db'
 import { serializeWorkItemStatus } from '@/lib/work-items'
-import { serializeBangkokTimestamp } from '@/lib/bangkok-datetime'
+import { serializeBangkokCalendarDate, serializeBangkokTimestamp } from '@/lib/bangkok-datetime'
 import type { Prisma, WorkItemStatus } from '@prisma/client'
 
 export const workLogInclude = {
@@ -30,29 +30,20 @@ export const workLogInclude = {
   },
 } as const
 
-export async function resolveWorkItemId(
-  projectId: string | null | undefined,
+export async function resolveOwnedWorkItem(
   workItemId: unknown,
   ownerId: string,
   database: Pick<Prisma.TransactionClient, 'workItem'> = prisma,
 ) {
-  if (workItemId === undefined) return undefined
   if (typeof workItemId !== 'string' || workItemId.trim() === '') {
-    throw new Error('A work item is required before saving Daily Work')
-  }
-
-  if (!projectId) {
-    throw new Error('A project is required before assigning a work item')
+    return null
   }
 
   const workItem = await database.workItem.findFirst({
-    where: { id: workItemId, projectId, assigneeId: ownerId },
-    select: { id: true },
+    where: { id: workItemId.trim(), assigneeId: ownerId },
+    select: { id: true, projectId: true },
   })
-  if (!workItem) {
-    throw new Error('Work item does not belong to the selected project')
-  }
-  return workItem.id
+  return workItem
 }
 
 function serializeOwnedWorkItem(
@@ -71,6 +62,7 @@ function serializeOwnedWorkItem(
 export function serializeWorkLog<
   T extends {
     date: Date
+    hours: { toString(): string }
     createdAt?: Date
     updatedAt?: Date
     workItem: { id: string; title: string; kind: string; status: WorkItemStatus; assigneeId: string } | null
@@ -78,7 +70,8 @@ export function serializeWorkLog<
 >(workLog: T, ownerId: string) {
   return {
     ...workLog,
-    date: serializeBangkokTimestamp(workLog.date),
+    hours: workLog.hours.toString(),
+    date: serializeBangkokCalendarDate(workLog.date),
     ...(workLog.createdAt ? { createdAt: serializeBangkokTimestamp(workLog.createdAt) } : {}),
     ...(workLog.updatedAt ? { updatedAt: serializeBangkokTimestamp(workLog.updatedAt) } : {}),
     workItem: serializeOwnedWorkItem(workLog.workItem, ownerId),

@@ -200,3 +200,7 @@ Route Handlers ใช้ shared WorkItem input parser สำหรับ create/
 ## GitLab Issue import ที่ implement ใน #20
 
 Owner-only mapping/status/sync routes อยู่ใน `app/api/integrations/gitlab/`; `lib/gitlab-issue-import.ts` ทำ server-only GET/pagination และ per-Issue serializable identity upsert. External identity แยกจาก mapping เพื่อให้ unmap เก็บ reference และประวัติ. First sync ต้องได้รับ explicit owner approval. GitLab เขียนได้เฉพาะ title, description, status, mapped types, dueDate และ external metadata; PMS owner/role/priority/workDate/TimeEntry คงเดิม. Tests ใช้ mock เท่านั้น; schema ยังต้องผ่าน verified rollout ก่อนใช้จริง.
+
+## Daily Work consistency ที่ implement ใน #21
+
+TimeEntry mutations resolve owner server-side, serialize writes for the selected WorkItem, validate WorkItem ownership and any compatibility `projectId`, then persist the WorkItem's Project ID. Hours are positive Decimal strings within `DECIMAL(65,30)` and every summary uses exact Decimal arithmetic. Calendar dates and day/week/month/year filters use Bangkok calendar boundaries; timestamps use Bangkok local wall-clock. `/api/work-logs/summary` is the shared latest-hours read for the WorkItem detail and logged-hours cards on Dashboard/Analysis, while Project summaries use the same TimeEntry source. Daily Work option lists follow every cursor and include all WorkItem years. GitLab import remains separate and cannot create TimeEntry rows. The Prisma schema change is source-only until the target environment passes the verified rollout gate.

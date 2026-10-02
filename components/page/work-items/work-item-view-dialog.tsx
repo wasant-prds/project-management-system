@@ -23,6 +23,7 @@ import { ProjectIdentity } from './project-identity'
 import { ScrollablePanel } from '@/components/ui/scrollable-panel'
 import { WORK_ITEM_DIALOG_SHELL_CLASS } from './work-item-dialog-shell'
 import type { WorkItem, WorkItemTimeEntry } from './types'
+import { sumDecimalHours } from '@/lib/decimal-hours'
 import {
   formatDisplayDate,
   kindClass,
@@ -56,8 +57,14 @@ function DailyWorkEntries({ isLoading, entries }: Readonly<{
     return <p className="text-sm italic text-muted-foreground">ยังไม่มี Daily Work ที่ผูกกับ Work Item นี้</p>
   }
 
+  const totalHours = sumDecimalHours(entries.map((entry) => entry.hours))
+
   return (
     <ul className="space-y-2">
+      <li className="flex items-center justify-between border-b border-border/50 pb-2 text-sm">
+        <span className="text-muted-foreground">Total logged</span>
+        <strong className="tabular-nums">{totalHours} h</strong>
+      </li>
       {entries.map((entry) => (
         <li key={entry.id} className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">

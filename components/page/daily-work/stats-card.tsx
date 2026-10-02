@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatDate } from "@/lib/utils"
 
 type StatsCardProps = {
-  totalHours: number
+  totalHours: string
   totalLogs: number
   date?: Date
 }
@@ -16,7 +16,7 @@ export function StatsCard({ totalHours, totalLogs, date }: Readonly<StatsCardPro
       <CardContent className="space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Total Hours</span>
-          <span className="text-lg font-bold">{totalHours.toFixed(1)}</span>
+          <span className="text-lg font-bold">{totalHours}</span>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Work Logs</span>

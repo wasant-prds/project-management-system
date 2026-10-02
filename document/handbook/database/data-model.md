@@ -16,7 +16,7 @@ Issue #18 ใช้ `Company → Project`: schema ปัจจุบันไม
 | `Company` / `Company` | เก็บ `code`, `name`, `displayName`, ที่ตั้ง, ข้อมูลติดต่อ และรายละเอียด; `code` unique แต่ nullable เพื่อสงวน `dhas`. หนึ่ง Company มีหลาย Projects. Company collection คำนวณจำนวน Project, WorkItem และชั่วโมง TimeEntry |
 | `Project` / `Project` | เก็บชื่อ, สถานะ, priority, date และ required `companyId`; Project แต่ละรายการอ้าง Company หนึ่งรายการ และ relation ใช้ `onDelete: Restrict`. Project เป็น parent ของ WorkItem และ TimeEntry |
 | `WorkItem` / `work_items` | ต้องอ้าง Project และ assignee User; มี status, priority, type, role และ date. API list/detail/create/update/import กรองหรือกำหนด assignee จาก owner |
-| `TimeEntry` / `TimeEntry` | เก็บชั่วโมง, วันทำงาน, User และ relation ไป Project/WorkItem. WorkLog APIs scope ด้วย `userId` ของ owner; `projectId` และ `workItemId` nullable ตาม schema แต่ POST API กำหนดให้มีทั้งคู่ |
+| `TimeEntry` / `TimeEntry` | เก็บชั่วโมง `Decimal(65,30)`, Bangkok calendar date, timestamps และ relation ไป Project/WorkItem. WorkLog APIs scope ด้วย `userId` ของ owner; API บังคับ WorkItem และ derive Project สำหรับ create/update แต่คอลัมน์ relation ยัง nullable เพื่อรักษา legacy rows ก่อน rollout audit |
 | `ProjectMember`, `Comment`, `Document`, `Milestone`, `ActivityLog`, `Notification` | มีอยู่ใน schema แต่ไม่ใช่ user-facing API ปัจจุบัน. Project deletion ตรวจจำนวน `members`, `documents`, `milestones`, `activityLogs` ด้วย |
 
 เส้นทางข้อมูลหลักคือ `Company → Project → WorkItem → TimeEntry`. Project summary คำนวณจาก WorkItem และ TimeEntry ตอนอ่าน; Company summary รวมค่าจาก Projects ของ Company. ค่าชั่วโมงใช้ Decimal และรวมโดยไม่ปัดแต่ละแถวก่อน
@@ -35,8 +35,9 @@ Issue #18 ใช้ `Company → Project`: schema ปัจจุบันไม
 
 - Runtime และ PostgreSQL session กำหนด `Asia/Bangkok`.
 - Project date fields เป็น PostgreSQL `DATE`; API ใช้ `YYYY-MM-DD`.
-- WorkItem date fields และ TimeEntry date เป็น Prisma `DateTime`.
-- WorkLog APIs parse date-only หรือ timestamp ที่ลงท้าย `+07:00`, query วันด้วยช่วงเริ่มรวม/วันถัดไปไม่รวม และ serialize วันที่/เวลาเป็น `+07:00`.
+- WorkItem date fields และ TimeEntry `date` ใช้ PostgreSQL `DATE` / Prisma `@db.Date`.
+- TimeEntry `createdAt`/`updatedAt` ใช้ PostgreSQL `TIMESTAMP(3) WITHOUT TIME ZONE` / Prisma `@db.Timestamp(3)` และเขียนค่า Bangkok local wall-clock.
+- WorkLog APIs parse date-only หรือ timestamp ที่ลงท้าย `+07:00`, query วันด้วยช่วงเริ่มรวม/วันถัดไปไม่รวม, serialize `date` เป็น `YYYY-MM-DD`, และ serialize timestamps เป็น `+07:00`.
 - Company/Project API serialize timestamp ด้วย `+07:00`; date-only ของ Project ส่งเป็น `YYYY-MM-DD`.
 
 การ parse/serialize WorkItem timestamp ให้ตรวจ route และ schema ปัจจุบันโดยตรง เนื่องจาก API ใช้ JSON serialization ของ Prisma DateTime และไม่ได้ใช้ Bangkok serializer เดียวกับ WorkLog. อย่าสมมติว่า contract เป้าหมายใน [API.md](../../API.md) มีผลกับทุก route แล้ว
@@ -45,7 +46,7 @@ Issue #18 ใช้ `Company → Project`: schema ปัจจุบันไม
 
 - Project ต้องมี Company; `onDelete: Restrict`.
 - WorkItem ต้องมี Project และ assignee; Project deletion ใช้ restrict.
-- TimeEntry มี User เสมอ; Project restrict; WorkItem deletion ตั้ง relation เป็น `SetNull`.
+- TimeEntry มี User เสมอ; Project/WorkItem deletion ตั้ง relation เป็น `Restrict`; legacy relation columns ยัง nullable แต่ WorkLog API ปฏิเสธการสร้างและอัปเดตแถวที่ไม่มี WorkItem.
 - Project API ปฏิเสธการลบเมื่อมี WorkItems, TimeEntries หรือ child history ที่นับใน handler.
 - Company API ปฏิเสธการลบ Dhas Company และ Company ที่ยังมี Projects.
 - WorkItem/TimeEntry ownership เป็น owner ID ที่ resolve ฝั่ง server ไม่ใช่ค่าที่ client ใช้เลือกเจ้าของ.

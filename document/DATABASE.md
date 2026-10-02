@@ -95,10 +95,10 @@ Indexes: projectId, assigneeId, kind, status, priority, workDate, dueDate, creat
 | --- | --- | --- |
 | `id` | String, PK, cuid | รหัสบันทึกเวลา |
 | `description`, `remarks` | String? | รายละเอียดและหมายเหตุ |
-| `hours` | Decimal | ชั่วโมง; ไม่มี precision/scale/check ระบุ |
-| `date` | DateTime, default now (As-Is); Target PostgreSQL `DATE` / Prisma `@db.Date` | วันที่บันทึกตามปฏิทิน `Asia/Bangkok` |
+| `hours` | Decimal | As-Is baseline ยังไม่กำหนด precision/scale/check; Issue #21 ระบุ schema ปัจจุบันเป็น `DECIMAL(65,30)` และ API ตรวจขอบเขตก่อนบันทึก |
+| `date` | DateTime, PostgreSQL `DATE` / Prisma `@db.Date` ใน schema source (#21) | วันที่บันทึกตามปฏิทิน `Asia/Bangkok` |
 | `status` | String? | free-form; comment ระบุตัวอย่าง To Do/In Progress/Review/Completed/Blocked |
-| `createdAt`, `updatedAt` | DateTime | เวลาสร้าง/แก้ไข |
+| `createdAt`, `updatedAt` | DateTime, PostgreSQL `TIMESTAMP(3) WITHOUT TIME ZONE` / Prisma `@db.Timestamp(3)` (#21) | เวลาสร้าง/แก้ไขแบบ Bangkok local wall-clock |
 | `userId` | String, required FK → User.id | ผู้บันทึก; delete User cascade ลบ TimeEntry |
 | `projectId` | String? FK → Project.id | Project context; delete Project cascade ลบ TimeEntry |
 | `workItemId` | String? FK → WorkItem.id (`Restrict`) | Work Item context; ลบ WorkItem ที่มี Daily Work อ้างอยู่ไม่ได้ |
@@ -186,9 +186,9 @@ Schema ใน `prisma/schema.prisma` implement ตาม #20 แต่ยัง�
 ### 4.3 Data integrity ที่ควรประเมิน
 
 - หากฐานข้อมูลมี User หลายแถวจาก seed/ข้อมูลเดิม ให้เลือก User row ที่เป็นเจ้าของหลักก่อน; map `WorkItem.assigneeId` และ `TimeEntry.userId` อย่างมี audit โดยไม่ลบประวัติหรือ user rows ก่อนตรวจ references ทั้งหมด
-- บังคับว่า Daily Work ของ workflow นี้ต้องมี `workItemId`; หากรักษา optional เพื่อ legacy/import ให้ปฏิเสธ orphan records ในหน้าปฏิบัติงานและรายงานแยก
-- Project ID ของ TimeEntry ควรถูก derive จาก WorkItem หรือใช้ composite relation/check เพื่อป้องกัน mismatch
-- กำหนด precision ของ Decimal (`hours`, `budget`, `spent`); ชั่วโมงใช้ scale ที่เหมาะกับการบันทึกเศษชั่วโมงและ currency ใช้ scale 2 ตาม currency policy
+- `workItemId` และ `projectId` ยัง nullable ใน schema เพื่อคง legacy rows; Daily Work API บังคับ WorkItem ที่ owner เป็นเจ้าของและ derive `projectId` จาก WorkItem ทุก create/update. ก่อนทำคอลัมน์ `workItemId` เป็น required ต้อง audit และ resolve orphan rows ผ่านแผนที่อนุมัติ.
+- `TimeEntry.date` ใช้ PostgreSQL `DATE` / Prisma `@db.Date`; timestamps ใช้ `TIMESTAMP(3) WITHOUT TIME ZONE` / `@db.Timestamp(3)`. ก่อน rollout ให้ตรวจ date/time เดิมและรักษา Bangkok calendar/wall-clock semantics ผ่าน verified backup gate ของ Issue #16.
+- `TimeEntry.hours` ใน schema ปัจจุบันใช้ `DECIMAL(65,30)`; API ปฏิเสธค่าบวกที่เกิน 35 หลักจำนวนเต็มหรือ 30 หลักทศนิยมก่อนบันทึก. `budget`/`spent` ยังต้องกำหนด precision ตาม currency policy ก่อนใช้งานจริง
 - เพิ่ม check constraints สำหรับ `hours > 0`, `progress BETWEEN 0 AND 100` และ date ranges ตามกฎที่ตกลง
 - พิจารณา enum/reference tables สำหรับ Project status/priority และ owner account status แทน String free-form; `TimeEntry.status` เป็น legacy field ไม่ใช่สถานะ workflow ของ Target และห้ามใช้แทน `WorkItem.status`; อย่านำ `Developer`/`Infra`/`SA` ไปใส่ `User.role`
 - เพิ่ม `completedAt` หรือ `WorkItemStatusHistory` สำหรับ historical throughput; กำหนดการ stamp/reset เมื่อ status เข้า/ออก terminal state
@@ -229,6 +229,6 @@ Schema ใน `prisma/schema.prisma` implement ตาม #20 แต่ยัง�
 
 เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). #20 เพิ่ม GitLab model ลง schema source เท่านั้น; ไม่มี schema/database rollout หรือ backup จริงในงานนี้. ใช้ approved gates ของ target environment ก่อน sync.
 
-## Work Item schema ที่เพิ่มใน #19
+## Work Item และ Daily Work schema ที่ปรับใน #19/#21
 
-Prisma schema ปัจจุบันกำหนด `WorkItem.workDate` และ `dueDate` เป็น PostgreSQL `DATE`; `submittedAt`, `createdAt` และ `updatedAt` เป็น `TIMESTAMP(3) WITHOUT TIME ZONE`. `TimeEntry.workItem` ใช้ `onDelete: Restrict`. API date values เป็น `YYYY-MM-DD`; timestamps serialize พร้อม `+07:00`. Schema validation ผ่านใน source, แต่ #19 ไม่ได้ push schema, สร้าง production migration, backup, หรือ deploy database ใด. ก่อน rollout, ทำ verified backup/restore rehearsal และตรวจ conversion ของ `workDate`/`dueDate` ตาม [Database Rollout](./DATABASE_ROLLOUT.md).
+Prisma schema กำหนด `WorkItem.workDate`/`dueDate` และ `TimeEntry.date` เป็น PostgreSQL `DATE`; `TimeEntry.hours` เป็น `DECIMAL(65,30)`; `submittedAt`, `createdAt` และ `updatedAt` เป็น `TIMESTAMP(3) WITHOUT TIME ZONE`. `TimeEntry.workItem` ใช้ `onDelete: Restrict`. API date values เป็น `YYYY-MM-DD`; timestamps serialize พร้อม `+07:00`. Issue #19/#21 ปรับ schema source เท่านั้น ไม่ได้ push schema, สร้าง production migration, backup, หรือ deploy database. ก่อน rollout ให้ทำ verified backup/restore rehearsal; ตรวจ calendar date, Bangkok local timestamps, null/mismatched legacy relations, IDs, row counts และ Decimal hours ตาม [Database Rollout](./DATABASE_ROLLOUT.md).

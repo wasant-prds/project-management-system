@@ -1,115 +1,109 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
-import { serializeWorkLog, workLogInclude, resolveWorkItemId } from '@/lib/work-logs'
 import { Prisma } from '@prisma/client'
+import { prisma } from '@/lib/db'
 import { getOwner, ownerErrorResponse } from '@/lib/owner'
-import { bangkokDateRange, currentBangkokWallClockDate, parseBangkokDateTime } from '@/lib/bangkok-datetime'
+import { bangkokDateRange, currentBangkokWallClockDate } from '@/lib/bangkok-datetime'
+import { parseCreateWorkLogInput, parseWorkLogRequestBody } from '@/lib/work-log-input'
 import { lockOwnedWorkItemForUpdate } from '@/lib/work-item-lock'
-import { errorMessage } from '@/lib/error-message'
+import { resolveOwnedWorkItem, serializeWorkLog, workLogInclude } from '@/lib/work-logs'
+
+function apiError(status: number, code: string, message: string, field?: string) {
+  return NextResponse.json({ error: { code, message, ...(field ? { field } : {}) } }, { status })
+}
+
+function validationError(message: string, field?: string) {
+  return apiError(400, 'VALIDATION_ERROR', message, field)
+}
 
 export async function GET(request: Request) {
   try {
     const owner = await getOwner()
     const { searchParams } = new URL(request.url)
     const date = searchParams.get('date')
-    const startDateParam = searchParams.get('startDate')
-    const endDateParam = searchParams.get('endDate')
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
     const userId = searchParams.get('userId')
 
-    if (userId && userId !== owner.id) {
-      return NextResponse.json(
-        { error: { code: 'VALIDATION_ERROR', message: 'userId ต้องเป็นเจ้าของระบบ' } },
-        { status: 400 },
-      )
+    if (userId && userId !== owner.id) return validationError('userId ต้องเป็นเจ้าของระบบ', 'userId')
+    if (date !== null && (startDate !== null || endDate !== null)) {
+      return validationError('Use either date or a date range, not both', 'date')
     }
-    const where: Prisma.TimeEntryWhereInput = { userId: owner.id }
 
-    if (date) {
+    const where: Prisma.TimeEntryWhereInput = { userId: owner.id }
+    if (date !== null) {
       const range = bangkokDateRange(date)
-      if (!range) return NextResponse.json({ error: 'date must use a valid YYYY-MM-DD value' }, { status: 400 })
+      if (!range) return validationError('date must use a valid YYYY-MM-DD value', 'date')
       where.date = { gte: range.start, lt: range.end }
-    } else if (Boolean(startDateParam) !== Boolean(endDateParam)) {
-      return NextResponse.json({ error: 'startDate and endDate must be provided together' }, { status: 400 })
-    } else if (startDateParam && endDateParam) {
-      const start = bangkokDateRange(startDateParam)
-      const end = bangkokDateRange(endDateParam)
+    } else if ((startDate === null) !== (endDate === null)) {
+      return validationError('startDate and endDate must be provided together', 'startDate')
+    } else if (startDate !== null && endDate !== null) {
+      const start = bangkokDateRange(startDate)
+      const end = bangkokDateRange(endDate)
       if (!start || !end || end.start < start.start) {
-        return NextResponse.json({ error: 'startDate and endDate must be valid ordered dates' }, { status: 400 })
+        return validationError('startDate and endDate must be valid ordered dates', 'startDate')
       }
       where.date = { gte: start.start, lt: end.end }
     }
 
-
     const workLogs = await prisma.timeEntry.findMany({
       where,
       include: workLogInclude,
-      orderBy: { date: 'desc' },
+      orderBy: [{ date: 'desc' }, { id: 'desc' }],
     })
 
     return NextResponse.json(
       { workLogs: workLogs.map((workLog) => serializeWorkLog(workLog, owner.id)) },
-      { status: 200 },
+      { status: 200, headers: { 'Cache-Control': 'no-store' } },
     )
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError
     console.error('Error fetching work logs:')
-    return NextResponse.json({ error: 'Failed to fetch work logs' }, { status: 500 })
+    return apiError(500, 'INTERNAL_ERROR', 'Failed to fetch work logs')
   }
 }
 
 export async function POST(request: Request) {
   try {
     const owner = await getOwner()
-    const body = await request.json()
-    const { description, remarks, hours, date, userId, projectId, workItemId, status } = body
-    if (userId !== undefined && userId !== owner.id) {
-      return NextResponse.json(
-        { error: { code: 'VALIDATION_ERROR', message: 'userId ต้องเป็นเจ้าของระบบ' } },
-        { status: 400 },
-      )
-    }
+    const body = await parseWorkLogRequestBody(request)
+    if (!body.ok) return validationError(body.error.message, body.error.field)
 
-    if (!hours || !projectId || !workItemId) {
-      return NextResponse.json(
-        { error: 'Hours, project, and work item are required' },
-        { status: 400 },
-      )
-    }
-    const workLogDate = date === undefined ? currentBangkokWallClockDate() : parseBangkokDateTime(date)
-    if (!workLogDate || Number.isNaN(workLogDate.getTime())) {
-      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: 'date must be a date-only value or an ISO timestamp with +07:00' } }, { status: 400 })
-    }
-    const workLog = await prisma.$transaction(async (transaction) => {
-      await lockOwnedWorkItemForUpdate(transaction, workItemId, owner.id)
-      const resolvedWorkItemId = await resolveWorkItemId(projectId, workItemId, owner.id, transaction)
-      return transaction.timeEntry.create({
-        data: {
-          description,
-          remarks,
-          hours: Number.parseFloat(hours),
-          date: workLogDate,
-          userId: owner.id,
-          projectId,
-          workItemId: resolvedWorkItemId ?? null,
-          status,
-        },
-        include: workLogInclude,
-      })
+    const input = parseCreateWorkLogInput(body.value, owner.id)
+    if (!input.ok) return validationError(input.error.message, input.error.field)
+
+    const outcome = await prisma.$transaction(async (transaction) => {
+      await lockOwnedWorkItemForUpdate(transaction, input.value.workItemId, owner.id)
+      const workItem = await resolveOwnedWorkItem(input.value.workItemId, owner.id, transaction)
+      if (!workItem) return { kind: 'work-item-missing' as const }
+      if (input.value.projectId !== undefined && input.value.projectId !== workItem.projectId) {
+        return { kind: 'project-mismatch' as const }
+      }
+
+      const timestamp = currentBangkokWallClockDate()
+      const data: Prisma.TimeEntryUncheckedCreateInput = {
+        hours: input.value.hours,
+        date: input.value.date,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        userId: owner.id,
+        projectId: workItem.projectId,
+        workItemId: workItem.id,
+        ...(input.value.description !== undefined ? { description: input.value.description } : {}),
+        ...(input.value.remarks !== undefined ? { remarks: input.value.remarks } : {}),
+        ...(input.value.status !== undefined ? { status: input.value.status } : {}),
+      }
+      const workLog = await transaction.timeEntry.create({ data, include: workLogInclude })
+      return { kind: 'created' as const, workLog }
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
 
-    return NextResponse.json({ workLog: serializeWorkLog(workLog, owner.id) }, { status: 201 })
+    if (outcome.kind === 'work-item-missing') return apiError(404, 'NOT_FOUND', 'Work Item not found', 'workItemId')
+    if (outcome.kind === 'project-mismatch') return apiError(400, 'RELATION_MISMATCH', 'Project must match the Work Item Project', 'projectId')
+    return NextResponse.json({ workLog: serializeWorkLog(outcome.workLog, owner.id) }, { status: 201 })
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError
-    const message = errorMessage(error, 'Failed to create work log')
-    const status = [
-      'Work item does not belong to the selected project',
-      'A project is required before assigning a work item',
-      'A work item is required before saving Daily Work',
-    ].includes(message) ? 400 : 500
-    if (status === 400) return NextResponse.json({ error: message }, { status })
     console.error('Error creating work log:')
-    return NextResponse.json({ error: 'Failed to save Daily Work' }, { status })
+    return apiError(500, 'INTERNAL_ERROR', 'Failed to save Daily Work')
   }
 }

@@ -2,117 +2,151 @@
 
 ## Overview
 
-อ่านหรือบันทึก `TimeEntry` (Daily Work) ของ owner. API ใช้ Bangkok date range/serialization ที่ `lib/bangkok-datetime.ts` กำหนด.
+อ่านรายการหรือสร้าง Daily Work (`TimeEntry`) ของ owner. วันและช่วงวันที่อิง `Asia/Bangkok` calendar date; persisted timestamps ใช้ Bangkok local wall-clock semantics และไม่แปลงเป็น UTC. ชั่วโมงรับเป็น positive decimal และสร้างรายการโดยผูก WorkItem ของ owner พร้อม derive Project จาก WorkItem.
 
-| Method | Endpoint | Behavior |
+| Method | Endpoint | พฤติกรรม |
 | --- | --- | --- |
-| `GET` | `/api/work-logs` | list ตามวันหรือ inclusive date range, ใหม่สุดก่อน |
-| `POST` | `/api/work-logs` | create TimeEntry โดยกำหนด User จาก owner |
+| `GET` | `/api/work-logs` | อ่านรายการของ owner เรียง `date` และ `id` จากใหม่ไปเก่า; ไม่มี pagination |
+| `POST` | `/api/work-logs` | สร้าง TimeEntry ของ owner ใน serializable transaction |
+
+การรวมชั่วโมงเป็นอีก operation: [Work log summary](./summary.md).
 
 ## สิทธิ์ที่มองเห็น
 
-ต้องผ่าน owner gate และ owner resolver. `userId` หากส่งต้องตรงกับ owner; ค่าที่เขียนจริงมาจาก resolver. WorkItem relation ต้องเป็นของ owner และอยู่ใน Project ที่เลือก.
+ต้องผ่าน Node owner gate ด้วย HTTP Basic และ middleware internal proof. Unsafe request ต้องส่ง `Origin` ที่ตรงกับ `APP_ORIGIN`; หากส่ง `Origin` ใน request ใดก็ต้องตรงกัน. Route เรียก `getOwner()` ซึ่ง resolve User หนึ่งรายการ (เลือกด้วย `OWNER_USER_ID` เมื่อกำหนด หรือใช้เมื่อมี User เพียงหนึ่งรายการ); implementation นี้ไม่ได้ใช้ `User.role` เป็น permission.
+
+`userId` ที่ส่งเป็น compatibility field ต้องตรงกับ owner; owner ที่บันทึกจริงมาจาก server. `workItemId` ต้องเป็น WorkItem ของ owner. `projectId` เป็น optional compatibility field ที่หากส่งต้องตรงกับ Project ของ WorkItem และ Project ที่บันทึกจะ derive จาก WorkItem เสมอ.
 
 ## ดึงข้อมูลจากตารางไหน
 
-| Table | Operation | เหตุผล |
+| Table | Operation | การใช้งาน |
 | --- | --- | --- |
-| `User` | Read | owner และ user relation |
-| `TimeEntry` | Read/Insert | list/create Daily Work |
-| `Project` | Read | project relation ของ WorkLog |
-| `work_items` | Read | ตรวจ WorkItem ID + Project + owner และ response relation |
+| `User` | Read | resolve owner และอ่าน User relation ใน response |
+| `TimeEntry` | Read / Insert | อ่านรายการหรือสร้าง Daily Work |
+| `work_items` | Read / row lock | ตรวจ owner และ Project ของ WorkItem; include WorkItem ใน response |
+| `Project` | Read | include Project relation ใน response |
 
 ## Request
+
+### Headers
+
+| Header | Type | Required | เงื่อนไข |
+| --- | --- | --- | --- |
+| `Authorization` | HTTP Basic | Yes | ตรวจโดย Node owner gate; ใช้ credential ที่ provision ให้ environment และห้ามใส่ credential จริงในเอกสารหรือ shell history |
+| `Content-Type` | media type | No | เมื่อส่ง body ให้ใช้ `application/json`; route parse JSON body โดยไม่ได้ตรวจ header นี้ |
+| `Origin` | URL | Conditional | `POST` ต้องส่งและต้องตรงกับ `APP_ORIGIN`; request อื่นที่ส่ง header นี้ต้องใช้ origin เดียวกัน |
 
 ### GET query parameters
 
 | Parameter | Type | Required | Validation / behavior |
 | --- | --- | --- | --- |
-| `date` | `YYYY-MM-DD` | No | อ่าน Bangkok calendar day; เมื่อส่ง จะมี precedence เหนือ start/end |
-| `startDate` | `YYYY-MM-DD` | Conditional | ต้องส่งพร้อม `endDate`; inclusive day range |
-| `endDate` | `YYYY-MM-DD` | Conditional | ต้องส่งพร้อม `startDate`; ต้องไม่น้อยกว่า startDate |
-| `userId` | string | No | legacy filter; หากไม่ใช่ owner ตอบ 400 |
+| `date` | `YYYY-MM-DD` | No | เลือก Bangkok calendar day; ใช้พร้อม `startDate`/`endDate` ไม่ได้ |
+| `startDate` | `YYYY-MM-DD` | Conditional | ต้องส่งคู่กับ `endDate`; inclusive date range |
+| `endDate` | `YYYY-MM-DD` | Conditional | ต้องส่งคู่กับ `startDate`; ต้องไม่ก่อน `startDate` |
+| `userId` | string | No | compatibility filter; เมื่อไม่ว่างและไม่ตรง owner ตอบ `400 VALIDATION_ERROR`; ค่าว่างถูกละไว้ |
 
-Query ช่วงวันใช้ `date >= start of startDate` และ `< start of day หลัง endDate`, ทั้งหมดตาม Bangkok wall-clock semantics. ไม่มี pagination ปัจจุบัน.
+เมื่อไม่ส่งตัวกรองวันที่ จะอ่านรายการของ owner ทุกวัน. Range query ใช้วันเริ่มต้นแบบ `>=` และวันหลัง `endDate` แบบ `<` ตาม Bangkok wall-clock semantics.
 
 ```bash
-curl -u "$OWNER_GATE_USERNAME:$OWNER_GATE_PASSWORD" \
+curl -i -u "$OWNER_GATE_USERNAME:$OWNER_GATE_PASSWORD" \
   "$APP_ORIGIN/api/work-logs?startDate=2026-09-01&endDate=2026-09-30"
+```
+
+GET response มี top-level `workLogs` array; เมื่อไม่มีรายการจะเป็น array ว่าง:
+
+```jsonc
+{
+  "workLogs": [] // Daily Work ที่ตรงกับ owner และ filters; array item มี field ตามตาราง Response
+}
 ```
 
 ### POST body
 
-| Field | Type | Required | Behavior |
+| Field | Type | Required | Validation / behavior |
 | --- | --- | --- | --- |
-| `hours` | number/string | Yes | truthy value เป็นเงื่อนไข required; handler ใช้ `parseFloat` และ DB รับ Decimal |
-| `projectId` | string | Yes | Project ID; required |
-| `workItemId` | string | Yes | WorkItem ที่ต้องเป็นของ owner และ Project เดียวกัน |
-| `date` | string | No | date-only `YYYY-MM-DD` หรือ ISO timestamp ที่ลงท้าย `+07:00`; omitted ใช้ current Bangkok wall-clock date/time |
-| `description` | string \| null | No | Daily Work description |
+| `hours` | number หรือ string | Yes | API ตรวจ positive finite decimal และขอบเขต `DECIMAL(65,30)` (จำนวนเต็มไม่เกิน 35 หลัก, ทศนิยมไม่เกิน 30 หลัก); ไม่พบข้อมูลที่ยืนยันได้จาก implementation ปัจจุบันเกี่ยวกับ per-day cap; ส่ง string เมื่อต้องรักษาความแม่นยำของเลขทศนิยม |
+| `workItemId` | string | Yes | ต้องเป็น WorkItem ของ owner; Project จะ derive จากรายการนี้ |
+| `date` | string | Yes | `YYYY-MM-DD` หรือ Bangkok timestamp ที่ลงท้าย `+07:00`; บันทึกเฉพาะ Bangkok calendar date |
+| `projectId` | string | No | compatibility field; หากส่งต้องไม่ว่างและตรงกับ Project ของ WorkItem |
+| `description` | string \| null | No | คำอธิบาย Daily Work |
 | `remarks` | string \| null | No | รายละเอียดเพิ่มเติม |
-| `status` | string \| null | No | สถานะ legacy; route ไม่ validate enum |
-| `userId` | string | No | legacy compatibility; หากส่งต้องตรง owner |
+| `status` | string \| null | No | legacy status; route รับข้อความโดยไม่ตรวจ enum |
+| `userId` | string | No | compatibility field; หากส่งต้องตรง owner |
+
+Body ต้องเป็น JSON object; `description`, `remarks`, `status` ต้องเป็น string หรือ `null`.
 
 ```json
-{"projectId":"project-id","workItemId":"work-item-id","hours":2.5,"date":"2026-09-30","description":"Review"}
+{
+  "workItemId": "work-item-id",
+  "hours": "2.5",
+  "date": "2026-09-30",
+  "description": "Review"
+}
 ```
 
 ## Response
 
-GET ตอบ `200` `{workLogs: [...]}`; POST ตอบ `201` `{workLog: ...}`. TimeEntry object รวม scalar model fields และ relation ที่ query เลือกไว้:
+`GET` ตอบ `200` พร้อม `Cache-Control: no-store`; `POST` ตอบ `201`. GET คืน `workLogs` เป็น array (ว่างได้) และ POST คืนรายการเดียวใน `workLog`. แต่ละรายการมีโครงสร้างเดียวกัน:
 
 | Field | Description |
 | --- | --- |
-| `workLogs` / `workLog` | Array หรือรายการ Daily Work |
-| `id`, `description`, `remarks` | TimeEntry ID และข้อความ; nullable fields อาจเป็น null |
-| `hours` | Decimal ชั่วโมง; JSON serialization ของ Prisma Decimal เป็น string |
-| `date`, `createdAt`, `updatedAt` | Bangkok timestamp ที่ serialize เป็น ISO `+07:00` |
-| `status` | legacy status string หรือ null; handler ไม่แปลง enum |
-| `userId`, `projectId`, `workItemId` | foreign keys; workItemId nullable ตาม schema |
-| `user` | Owner User relation |
-| `user.id` | User primary key |
+| `workLogs` | array ของ TimeEntry ที่ตรงกับ owner และ filters; มีเฉพาะใน GET |
+| `workLog` | TimeEntry ที่เพิ่งสร้าง; มีเฉพาะใน POST |
+| `id` | primary key ของ TimeEntry |
+| `description` | คำอธิบาย หรือ `null` |
+| `remarks` | รายละเอียดเพิ่มเติม หรือ `null` |
+| `hours` | ชั่วโมงในรูป Decimal string จาก `TimeEntry.hours` |
+| `date` | Bangkok calendar date รูปแบบ `YYYY-MM-DD` |
+| `status` | legacy status string หรือ `null`; ไม่ได้แปลง enum |
+| `createdAt` | เวลาสร้างที่ serialize เป็น Bangkok wall-clock ISO timestamp พร้อม `+07:00` |
+| `updatedAt` | เวลาแก้ไขล่าสุดที่ serialize เป็น Bangkok wall-clock ISO timestamp พร้อม `+07:00` |
+| `userId` | foreign key ของ owner ที่ resolver กำหนด |
+| `projectId` | foreign key ของ Project ที่ derive จาก WorkItem; อาจเป็น `null` ใน legacy record ที่อ่านได้ |
+| `workItemId` | foreign key ของ WorkItem; อาจเป็น `null` ใน legacy record ที่อ่านได้ |
+| `user` | User relation ของ owner ที่เลือกมาใน response |
+| `user.id` | primary key ของ User |
 | `user.name` | ชื่อ owner |
-| `user.email` | Email owner |
-| `user.avatar` | Avatar URL หรือ null |
-| `project` | Project relation หรือ null ตาม schema |
-| `project.id` | Project primary key |
+| `user.email` | email ของ owner |
+| `user.avatar` | avatar URL หรือ `null` |
+| `project` | Project relation หรือ `null` สำหรับ legacy record |
+| `project.id` | primary key ของ Project |
 | `project.name` | ชื่อ Project |
-| `project.colorProject` | สี Project หรือ null |
-| `workItem` | Owned WorkItem relation หรือ null เมื่อ foreign-owner |
-| `workItem.id` | WorkItem primary key |
+| `project.colorProject` | สี Project หรือ `null` |
+| `workItem` | WorkItem ของ owner หรือ `null` สำหรับ legacy record/WorkItem ที่ไม่ใช่ของ owner |
+| `workItem.id` | primary key ของ WorkItem |
 | `workItem.title` | ชื่อ WorkItem |
-| `workItem.kind` | ชนิด WorkItem |
-| `workItem.status` | สถานะ WorkItem ใน public hyphen format |
+| `workItem.kind` | ประเภท WorkItem |
+| `workItem.status` | สถานะ WorkItem ใน public format เช่น `in-progress` |
 
 ```jsonc
 {
-  "workLog": {
-    "id": "time-entry-id", // TimeEntry primary key
-    "description": "Review", // description หรือ null
-    "remarks": null, // remarks หรือ null
-    "hours": "2.5", // Decimal hours
-    "date": "2026-09-30T00:00:00.000+07:00", // Bangkok wall-clock datetime
-    "status": null, // legacy status
+  "workLog": { // TimeEntry ที่สร้างสำเร็จ
+    "id": "time-entry-id", // primary key ของ TimeEntry
+    "description": "Review", // คำอธิบาย หรือ null
+    "remarks": null, // รายละเอียดเพิ่มเติม หรือ null
+    "hours": "2.5", // ชั่วโมงในรูป Decimal string
+    "date": "2026-09-30", // Bangkok calendar date
+    "status": null, // legacy status หรือ null
     "createdAt": "2026-09-30T12:00:00.000+07:00", // เวลาสร้าง Bangkok
-    "updatedAt": "2026-09-30T12:00:00.000+07:00", // เวลาแก้ล่าสุด Bangkok
-    "userId": "owner-id", // owner foreign key
-    "projectId": "project-id", // Project foreign key
-    "workItemId": "work-item-id", // WorkItem foreign key หรือ null
-    "user": { // owner relation
-      "id": "owner-id", // User primary key
+    "updatedAt": "2026-09-30T12:00:00.000+07:00", // เวลาแก้ไขล่าสุด Bangkok
+    "userId": "owner-id", // foreign key ของ owner ที่ server resolve
+    "projectId": "project-id", // foreign key ของ Project ที่ derive จาก WorkItem
+    "workItemId": "work-item-id", // foreign key ของ WorkItem
+    "user": { // User relation ของ owner
+      "id": "owner-id", // primary key ของ User
       "name": "Owner", // ชื่อ owner
-      "email": "owner@example.invalid", // Email owner
-      "avatar": null // Avatar URL หรือ null
+      "email": "owner@example.invalid", // email ของ owner
+      "avatar": null // avatar URL หรือ null
     },
-    "project": { // Project relation หรือ null
-      "id": "project-id", // Project primary key
+    "project": { // Project relation หรือ null ใน legacy record
+      "id": "project-id", // primary key ของ Project
       "name": "Website", // ชื่อ Project
       "colorProject": null // สี Project หรือ null
     },
-    "workItem": { // owned WorkItem relation หรือ null
-      "id": "work-item-id", // WorkItem primary key
+    "workItem": { // WorkItem relation ของ owner หรือ null ใน legacy record
+      "id": "work-item-id", // primary key ของ WorkItem
       "title": "Review", // ชื่อ WorkItem
-      "kind": "Task", // ชนิด WorkItem
+      "kind": "Task", // ประเภท WorkItem
       "status": "in-progress" // สถานะ public ของ WorkItem
     }
   }
@@ -121,20 +155,47 @@ GET ตอบ `200` `{workLogs: [...]}`; POST ตอบ `201` `{workLog: ...}`. 
 
 ## Error Responses
 
-| HTTP | Body/code | Cause |
+| HTTP | Code | Cause |
 | ---: | --- | --- |
-| `400` | `VALIDATION_ERROR` หรือข้อความ `{error}` | foreign `userId`, invalid date/range, required field ขาด หรือ WorkItem/Project relation ไม่ตรง/foreign |
-| `401` | `OWNER_UNAUTHENTICATED` | owner access ไม่ผ่าน |
-| `403` | `ACCESS_DENIED` | Origin ไม่ผ่าน |
-| `500` | `{error: "Failed to fetch work logs"}` หรือ `{error: "Failed to save Daily Work"}` | DB/server error |
-| `503` | `DEPENDENCY_UNAVAILABLE` | owner resolver ล้มเหลว |
+| `400` | `VALIDATION_ERROR` | filter/body/date/hours ไม่ถูกต้อง, ช่วงวันไม่ครบหรือเรียงกลับ, `userId` ไม่ตรง owner หรือ `workItemId` ขาด |
+| `400` | `RELATION_MISMATCH` | `projectId` ที่ส่งไม่ตรง Project ของ WorkItem |
+| `401` | `OWNER_UNAUTHENTICATED` | Basic authentication หรือ internal owner proof ไม่ผ่าน |
+| `403` | `ACCESS_DENIED` | owner gate ปฏิเสธ `Origin` ที่ไม่ตรง `APP_ORIGIN` |
+| `404` | `NOT_FOUND` | WorkItem ไม่มีอยู่หรือไม่ใช่ของ owner |
+| `500` | `INTERNAL_ERROR` | database หรือ server operation ล้มเหลว; ไม่ส่งรายละเอียดภายในกลับไป |
+| `503` | `DEPENDENCY_UNAVAILABLE` | resolve owner ไม่ได้หนึ่ง User หรือ owner gate เชื่อมต่อ Next.js ไม่ได้ |
 
-GET ที่ date/range ไม่ถูกต้องตอบ 400. POST relation validation ที่ `resolveWorkItemId()` ตรวจพบตอบ 400; error DB อื่นตอบ generic 500.
+ตัวอย่าง validation error ที่มี `field`:
+
+```jsonc
+{
+  "error": { // รายละเอียด error ที่ API ส่งกลับ
+    "code": "VALIDATION_ERROR", // รหัสสาเหตุ
+    "message": "hours must be a positive finite decimal", // คำอธิบาย validation
+    "field": "hours" // field ที่ไม่ผ่าน; อาจไม่มีใน error บางชนิด
+  }
+}
+```
 
 ## Processing Flow
 
-GET: resolve owner → validate owner/date filters → build Bangkok-exclusive end range → query TimeEntry `userId` → include relations → ownership-safe serialization. POST: resolve owner → reject foreign user → parse Bangkok date → resolve owner WorkItem/project pair → create TimeEntry with server `userId` → serialize.
+`GET`: owner gate ตรวจ Basic/Origin → middleware ตรวจ internal proof → resolve owner จาก `User` → validate filters → query `TimeEntry` ด้วย `userId` และ Bangkok date range → include relations และ serialize date/hour/time → response. `POST`: ผ่าน gate และ resolve owner → parse JSON/validate fields → serializable transaction ล็อกและ resolve WorkItem ของ owner → ตรวจ optional `projectId` → insert TimeEntry ด้วย owner และ Project ที่ derive จาก WorkItem → response.
 
 ## Verification
 
-`pnpm test:auth`. ทดสอบ unauthenticated, foreign user, invalid date, date-only, `+07:00`, Bangkok boundaries เมื่อ machine timezone ต่างกัน, WorkItem foreign/project mismatch และ persisted/returned owner. ใช้ test doubles; ห้ามอ้างข้อมูลจริง.
+รัน `pnpm test:daily-work` เพื่อทดสอบ collection, owner scope/spoofing, validation, WorkItem/Project consistency, Decimal/date parsing และ safe errors ด้วย test doubles. รัน `pnpm test:auth` เพื่อทดสอบ Basic, Origin และ internal proof ที่ owner gate. ชุดทดสอบใช้ doubles และไม่ได้เขียนข้อมูลไปยังฐานข้อมูล environment จริง; ขั้นตอนตรวจ environment ดู [Owner access](../../operations/owner-access.md).
+
+Manual check ใน environment ที่ provision owner access แล้ว:
+
+```bash
+curl -i -u "$OWNER_GATE_USERNAME:$OWNER_GATE_PASSWORD" \
+  "$APP_ORIGIN/api/work-logs?date=2026-09-30"
+
+curl -i -u "$OWNER_GATE_USERNAME:$OWNER_GATE_PASSWORD" \
+  -H "Origin: $APP_ORIGIN" \
+  -H "Content-Type: application/json" \
+  --data '{"workItemId":"work-item-id","hours":"2.5","date":"2026-09-30"}' \
+  "$APP_ORIGIN/api/work-logs"
+```
+
+คาดหวัง `200` พร้อม `workLogs` สำหรับ GET และ `201` พร้อม `workLog` สำหรับ POST; ตรวจ record ที่สร้างว่ามี owner `userId`, WorkItem และ Project ที่สัมพันธ์กัน.

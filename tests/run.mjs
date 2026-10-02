@@ -21,6 +21,7 @@ const suites = {
   auth: { directory: join(testRoot, "auth") },
   "company-projects": { directory: join(testRoot, "company-projects") },
   "work-items": { directory: join(testRoot, "work-items") },
+  "daily-work": { directory: join(testRoot, "daily-work") },
   runner: { directory: join(testRoot, "runner") },
 };
 const requestedSuite = process.argv[2];

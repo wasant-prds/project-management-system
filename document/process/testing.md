@@ -51,6 +51,15 @@ pnpm test:work-items
 node tests/run.mjs work-items
 ```
 
+Run the Daily Work/TimeEntry owner, positive Decimal, WorkItem/Project, Bangkok date, exact summary, and live logged-hours regressions:
+
+```powershell
+pnpm test:daily-work
+node tests/run.mjs daily-work
+```
+
+The suite uses mocked Prisma Route Handlers and client wiring; it does not connect to PostgreSQL or create TimeEntries from GitLab. The Bash reporter also accepts `bash scripts/test-unit.sh daily-work`.
+
 Run schema rollout approval checks without connecting to a database:
 
 ```powershell

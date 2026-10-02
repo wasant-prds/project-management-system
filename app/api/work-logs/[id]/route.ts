@@ -1,59 +1,23 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
-import { serializeWorkLog, workLogInclude, resolveWorkItemId } from '@/lib/work-logs'
-import { getOwner, ownerErrorResponse } from '@/lib/owner'
-import { parseBangkokDateTime } from '@/lib/bangkok-datetime'
 import { Prisma } from '@prisma/client'
+import { prisma } from '@/lib/db'
+import { getOwner, ownerErrorResponse } from '@/lib/owner'
+import { currentBangkokWallClockDate } from '@/lib/bangkok-datetime'
+import { parsePatchWorkLogInput, parseWorkLogRequestBody } from '@/lib/work-log-input'
 import { lockOwnedWorkItemForUpdate } from '@/lib/work-item-lock'
-import { errorMessage } from '@/lib/error-message'
+import { resolveOwnedWorkItem, serializeWorkLog, workLogInclude } from '@/lib/work-logs'
 
-function parseHours(value: unknown): number | null {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null
-  if (typeof value !== 'string' || value.trim() === '') return null
+type RouteContext = { params: Promise<{ id: string }> }
 
-  const hours = Number(value)
-  return Number.isFinite(hours) ? hours : null
+function apiError(status: number, code: string, message: string, field?: string) {
+  return NextResponse.json({ error: { code, message, ...(field ? { field } : {}) } }, { status })
 }
 
-function parseDate(value: unknown): Date | null {
-  return parseBangkokDateTime(value)
+function validationError(message: string, field?: string) {
+  return apiError(400, 'VALIDATION_ERROR', message, field)
 }
 
-async function workLogUpdateData(
-  body: Record<string, unknown>,
-  currentProjectId: string | null,
-  currentWorkItemId: string | null,
-  ownerId: string,
-  database: Parameters<typeof resolveWorkItemId>[3] = prisma,
-) {
-  const { description, remarks, hours, date, projectId, workItemId, status } = body
-  const updateData: Record<string, unknown> = {}
-  if (description !== undefined) updateData.description = description
-  if (remarks !== undefined) updateData.remarks = remarks
-  if (hours !== undefined) {
-    const parsedHours = parseHours(hours)
-    if (parsedHours === null) return { error: 'hours must be a finite number' }
-    updateData.hours = parsedHours
-  }
-  if (date !== undefined) {
-    const parsedDate = parseDate(date)
-    if (parsedDate === null) return { error: 'date must be a valid date string' }
-    updateData.date = parsedDate
-  }
-  if (projectId !== undefined) updateData.projectId = projectId
-  if (status !== undefined) updateData.status = status
-  if (workItemId !== undefined || projectId !== undefined) {
-    const nextProjectId = projectId === undefined ? currentProjectId : projectId as string | null
-    const nextWorkItemId = workItemId === undefined ? currentWorkItemId : workItemId
-    updateData.workItemId = await resolveWorkItemId(nextProjectId, nextWorkItemId, ownerId, database)
-  }
-  return { data: updateData }
-}
-
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(_request: Request, { params }: RouteContext) {
   try {
     const owner = await getOwner()
     const { id } = await params
@@ -62,92 +26,91 @@ export async function GET(
       include: workLogInclude,
     })
 
-    if (!workLog) {
-      return NextResponse.json({ error: 'Work log not found' }, { status: 404 })
-    }
-
-    return NextResponse.json({ workLog: serializeWorkLog(workLog, owner.id) }, { status: 200 })
+    if (!workLog) return apiError(404, 'NOT_FOUND', 'Work log not found')
+    return NextResponse.json(
+      { workLog: serializeWorkLog(workLog, owner.id) },
+      { status: 200, headers: { 'Cache-Control': 'no-store' } },
+    )
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError
     console.error('Error fetching work log:')
-    return NextResponse.json({ error: 'Failed to fetch work log' }, { status: 500 })
+    return apiError(500, 'INTERNAL_ERROR', 'Failed to fetch work log')
   }
 }
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(request: Request, { params }: RouteContext) {
   try {
     const owner = await getOwner()
     const { id } = await params
-    const body = await request.json()
-    if (body.userId !== undefined && body.userId !== owner.id) {
-      return NextResponse.json(
-        { error: { code: 'VALIDATION_ERROR', message: 'userId ต้องเป็นเจ้าของระบบ' } },
-        { status: 400 },
-      )
-    }
+    const body = await parseWorkLogRequestBody(request)
+    if (!body.ok) return validationError(body.error.message, body.error.field)
+
+    const input = parsePatchWorkLogInput(body.value, owner.id)
+    if (!input.ok) return validationError(input.error.message, input.error.field)
+
     const outcome = await prisma.$transaction(async (transaction) => {
       const existing = await transaction.timeEntry.findFirst({
         where: { id, userId: owner.id },
         select: { projectId: true, workItemId: true },
       })
-      if (!existing) return { kind: 'missing' as const }
+      if (!existing) return { kind: 'work-log-missing' as const }
 
-      const targetWorkItemId = body.workItemId === undefined ? existing.workItemId : body.workItemId
-      if ((body.projectId !== undefined || body.workItemId !== undefined) && typeof targetWorkItemId === 'string') {
-        await lockOwnedWorkItemForUpdate(transaction, targetWorkItemId, owner.id)
+      const targetWorkItemId = input.value.workItemId ?? existing.workItemId
+      if (typeof targetWorkItemId !== 'string' || targetWorkItemId.trim() === '') {
+        return { kind: 'work-item-required' as const }
       }
-      const update = await workLogUpdateData(body, existing.projectId, existing.workItemId, owner.id, transaction)
-      if ('error' in update) return { kind: 'invalid' as const, message: update.error }
 
+      await lockOwnedWorkItemForUpdate(transaction, targetWorkItemId.trim(), owner.id)
+      const workItem = await resolveOwnedWorkItem(targetWorkItemId, owner.id, transaction)
+      if (!workItem) return { kind: 'work-item-missing' as const }
+      if (input.value.projectId !== undefined && input.value.projectId !== workItem.projectId) {
+        return { kind: 'project-mismatch' as const }
+      }
+
+      const data: Prisma.TimeEntryUncheckedUpdateInput = {
+        projectId: workItem.projectId,
+        workItemId: workItem.id,
+        updatedAt: currentBangkokWallClockDate(),
+        ...(input.value.description !== undefined ? { description: input.value.description } : {}),
+        ...(input.value.remarks !== undefined ? { remarks: input.value.remarks } : {}),
+        ...(input.value.hours !== undefined ? { hours: input.value.hours } : {}),
+        ...(input.value.date !== undefined ? { date: input.value.date } : {}),
+        ...(input.value.status !== undefined ? { status: input.value.status } : {}),
+      }
       const workLog = await transaction.timeEntry.update({
         where: { id },
-        data: update.data,
+        data,
         include: workLogInclude,
       })
       return { kind: 'updated' as const, workLog }
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
 
-    if (outcome.kind === 'missing') return NextResponse.json({ error: 'Work log not found' }, { status: 404 })
-    if (outcome.kind === 'invalid') {
-      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: outcome.message } }, { status: 400 })
-    }
+    if (outcome.kind === 'work-log-missing') return apiError(404, 'NOT_FOUND', 'Work log not found')
+    if (outcome.kind === 'work-item-required') return validationError('workItemId is required', 'workItemId')
+    if (outcome.kind === 'work-item-missing') return apiError(404, 'NOT_FOUND', 'Work Item not found', 'workItemId')
+    if (outcome.kind === 'project-mismatch') return apiError(400, 'RELATION_MISMATCH', 'Project must match the Work Item Project', 'projectId')
 
     return NextResponse.json({ workLog: serializeWorkLog(outcome.workLog, owner.id) }, { status: 200 })
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError
-    const message = errorMessage(error, 'Failed to update work log')
-    const status = [
-      'Work item does not belong to the selected project',
-      'A project is required before assigning a work item',
-      'A work item is required before saving Daily Work',
-    ].includes(message) ? 400 : 500
-    if (status === 400) return NextResponse.json({ error: message }, { status })
     console.error('Error updating work log:')
-    return NextResponse.json({ error: 'Failed to save Daily Work' }, { status })
+    return apiError(500, 'INTERNAL_ERROR', 'Failed to save Daily Work')
   }
 }
 
-export async function DELETE(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function DELETE(_request: Request, { params }: RouteContext) {
   try {
     const owner = await getOwner()
     const { id } = await params
     const result = await prisma.timeEntry.deleteMany({ where: { id, userId: owner.id } })
-    if (!result.count) {
-      return NextResponse.json({ error: 'Work log not found' }, { status: 404 })
-    }
+    if (!result.count) return apiError(404, 'NOT_FOUND', 'Work log not found')
     return NextResponse.json({ message: 'Work log deleted successfully' }, { status: 200 })
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError
     console.error('Error deleting work log:')
-    return NextResponse.json({ error: 'Failed to delete work log' }, { status: 500 })
+    return apiError(500, 'INTERNAL_ERROR', 'Failed to delete work log')
   }
 }

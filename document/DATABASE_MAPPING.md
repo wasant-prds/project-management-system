@@ -84,7 +84,7 @@ Target mapping: ค่า default time zone ของระบบ, application �
 | --- | --- | --- |
 | `id` | `id` | response identity |
 | `description`, `remarks` | same | optional in schema; current page requires description on submit |
-| `hours` | `hours` Decimal | UI/API convert input string to number; target validation must reject nonnumeric/nonpositive values server-side |
+| `hours` | `hours` `Decimal(65,30)` | Server accepts only finite positive values that fit the database precision/scale and passes a normalized decimal string to Prisma; all summaries use exact decimal addition |
 | `date` | `date` | Target PostgreSQL `DATE` / Prisma `@db.Date`; calendar date in `Asia/Bangkok`; day boundaries use the same timezone |
 | `TimeEntry.status` | `status` | optional free-form legacy field As-Is; not a WorkItem workflow status or target metric; do not create a second status vocabulary |
 | `userId` | `userId` | current page selects Admin/default User client-side; target always resolve the single owner's authenticated identity server-side |
@@ -111,7 +111,7 @@ Target mapping: ค่า default time zone ของระบบ, application �
 | Work Item references valid Project | Required FK; API checks project exists | Keep FK and validate permissions |
 | Work Item references valid assignee | Required FK; create API checks user exists | Resolve to the sole owner User row; remove assignee choice among multiple users |
 | Daily Work references valid user | Required FK; POST API checks user exists | Use the sole owner's authenticated identity; retain FK |
-| Daily Work Project and Work Item match | POST checks the pair; PATCH checks only when `workItemId` is included. PATCH that changes only `projectId` can mismatch; DB doesn't enforce pair | Derive Project from Work Item and/or add composite DB integrity; validate on every mutation |
+| Daily Work Project and Work Item match | #21 POST/PATCH validate an owner-owned WorkItem on every mutation and derive `projectId`; supplied mismatch returns 400. DB does not enforce the pair and nullable legacy relations remain | Keep the API invariant; consider a database pair constraint only after legacy rows are audited and mapped |
 | Work Item/TimeEntry enum validity | WorkItem enums and API parser; TimeEntry.status is free-form String | Keep WorkItem status canonical; TimeEntry has no separate target workflow status |
 | Project has Company | Required `Project.companyId` FK; API checks selected Company | Keep Company FK and validate selection |
 | Company registry | Company API and owner UI (#18); Project selects Company | Multiple Companies; Project selects one; existing Projects backfill to Dhas |

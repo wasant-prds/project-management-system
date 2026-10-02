@@ -23,6 +23,7 @@
     "test:auth": "node tests/run.mjs auth",
     "test:company-projects": "node tests/run.mjs company-projects",
     "test:work-items": "node tests/run.mjs work-items",
+    "test:daily-work": "node tests/run.mjs daily-work",
     "test:runner": "node tests/run.mjs runner",
     "start": "node scripts/runtime-launch.mjs --start",
     "postinstall": "prisma generate",

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from "react"
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { AppHeader } from "@/components/layout/app-header"
 import {
@@ -35,8 +36,14 @@ import {
   Legend,
 } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { LoggedHoursStat } from "@/components/layout/logged-hours-stat"
+import { bangkokRollingDateRange } from "@/lib/bangkok-datetime"
+
+type ReportDays = 7 | 30 | 90 | 365
 
 export default function AnalysisPage() {
+  const [reportDays, setReportDays] = useState<ReportDays>(30)
+  const reportRange = bangkokRollingDateRange(reportDays)
   const projectStatusData = [
     { name: "Completed", value: 42, color: "var(--chart-1)" },
     { name: "In Progress", value: 28, color: "var(--chart-2)" },
@@ -90,15 +97,21 @@ export default function AnalysisPage() {
                 <p className={PAGE_LEAD}>Comprehensive insights and analytics</p>
               </div>
               <div className="flex w-full flex-wrap justify-end gap-2 sm:w-auto">
-                <Select defaultValue="last-30-days">
+                <Select
+                  value={String(reportDays)}
+                  onValueChange={(value) => {
+                    const days = Number(value)
+                    if (days === 7 || days === 30 || days === 90 || days === 365) setReportDays(days)
+                  }}
+                >
                   <SelectTrigger className="w-full bg-background sm:w-40">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="last-7-days">Last 7 days</SelectItem>
-                    <SelectItem value="last-30-days">Last 30 days</SelectItem>
-                    <SelectItem value="last-90-days">Last 90 days</SelectItem>
-                    <SelectItem value="last-year">Last year</SelectItem>
+                    <SelectItem value="7">Last 7 days</SelectItem>
+                    <SelectItem value="30">Last 30 days</SelectItem>
+                    <SelectItem value="90">Last 90 days</SelectItem>
+                    <SelectItem value="365">Last year</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button variant="outline">
@@ -144,6 +157,13 @@ export default function AnalysisPage() {
                   </div>
                 }
               />
+              {reportRange && (
+                <LoggedHoursStat
+                  label="ชั่วโมงที่บันทึก"
+                  startDate={reportRange.startDate}
+                  endDate={reportRange.endDate}
+                />
+              )}
             </div>
 
             {/* Tabs */}
