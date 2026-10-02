@@ -38,7 +38,7 @@ Target mapping: ค่า default time zone ของระบบ, application �
 | Dashboard `/` | hard-coded arrays; `DashboardCharts` | sample project stats, work item counts, activity and chart values | Query WorkItem statuses/dates, TimeEntry.hours/date, Project/customer; remove mock arrays; link totals to filtered list |
 | Projects `/projects` | Prisma `Project.findMany`; counts WorkItems/Members; detail uses Project API | Project status/priority/date/budget/spent/progress; `_count.workItems`, legacy `_count.members`; WorkItem status summary | Add required Project.customer relation; hours = `SUM(TimeEntry.hours)`; one shared progress formula; summarize WorkItem functional roles, not team members |
 | Work Items `/work-items` | `/api/work-items`, `/api/projects?options=work-items`, `/api/users`; proposed `/api/integrations/gitlab/*` | `WorkItem` core fields; nested Project/Company; GitLab source reference | #19 validates shared CRUD/import, filters Company/status/priority/role, shows owner Daily Work; GitLab sync remains a separate target |
-| Board `/board` | hard-coded React `useState` columns/cards | No persistent mapping today | `WorkItem.status` defines column; card maps WorkItem fields; mutation patches same `WorkItem`; filters resolve Project/Customer/functional role |
+| Board `/board` | `GET /api/work-items` paginated collection; Company/Project options from their APIs | `WorkItem.id`, title, description, kind, priority, role, status, dates, Project and Company relation | Status enum defines columns; filters use shared API; mutation uses `PATCH /api/work-items/{id}`; no Board-specific storage |
 | Analysis `/analysis` | hard-coded chart datasets and metric constants | Current displayed values do not map reliably to DB | Aggregate `WorkItem` and `TimeEntry` grouped by consistent period, Customer/Project and `WorkItem.role`; include metric definitions and drill-through IDs |
 | Daily Work `/daily-work` | `/api/work-logs`; API persists to `TimeEntry` | `TimeEntry.date/hours/description/remarks/status/userId/projectId/workItemId`; nested User, Project, WorkItem | Derive `projectId` from WorkItem or enforce equality; resolve the sole owner identity server-side; summary uses exact rows |
 | Company `/company` | server Prisma query on `Company`, `User`, `Project`, `WorkItem` | company first row/fallback display; current User/team counts and memberships are legacy UI/schema | Implement Company profile and Customer registry persistence; show Customer → Projects → Work Items/hours; remove member/team administration |
@@ -137,6 +137,10 @@ Project/Company labels are context from relations, not copied text fields on Wor
 ## Work Item mapping ที่ implement ใน #19
 
 `POST /api/work-items`, `PATCH /api/work-items/{id}` และ import ใช้ `lib/work-item-input.ts`; update/import ไม่ข้าม enum, Bangkok date, owner หรือ Project validation. `GET /api/work-items` รองรับ `companyId`, `kind`, `status`, `priority`, `role`, `projectId`, `year`, `month` และ search; เมื่อไม่ส่ง year ใช้ปีปัจจุบันตาม `Asia/Bangkok`. JSON export ใช้ field shape ที่ import รับได้. Detail serialize Project/Company และ TimeEntries ของ owner พร้อม date-only `YYYY-MM-DD` และ timestamp `+07:00`. การลบที่มี TimeEntry ถูกปฏิเสธ และ FK ใช้ `Restrict`. Schema ยังต้องผ่าน database rollout ก่อน deploy environment.
+
+## Board mapping ที่ implement ใน #22
+
+แต่ละการ์ดมาจาก `WorkItem.id` และอยู่ในคอลัมน์ตาม `WorkItem.status`; การกรอง Company อ่าน `Project.companyId`, Project ใช้ `WorkItem.projectId` และบทบาทใช้ `WorkItem.role`. Status mutation เรียก `PATCH /api/work-items/{id}` ผ่าน validation ชุดเดิม. ไม่มี Board record หรือ status copy เพิ่ม.
 
 ## GitLab Issue mapping ที่ implement ใน #20
 

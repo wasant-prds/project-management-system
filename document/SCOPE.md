@@ -186,3 +186,7 @@ Work Items รองรับ shared create/update validation, Company/status/pr
 ## ขอบเขตที่ส่งมอบใน Issue #21
 
 Daily Work รองรับ owner-only CRUD, Work Item ที่ owner เป็นเจ้าของ, Project ที่ derive จาก Work Item, positive `DECIMAL(65,30)` hours และ Bangkok calendar date/local timestamp. ตัวกรอง day/week/month/year ใช้ Bangkok calendar boundaries; Work Item options อ่านทุกหน้าและทุกปี. การแก้ไขและลบคำนวณยอดใหม่จาก TimeEntry ล่าสุดด้วย exact decimal arithmetic; Work Item detail, Project summary และ logged-hours metric ของ Dashboard/Analysis อ่านข้อมูลจริง. Dashboard/Analysis ส่วนอื่นยังเป็น scope ของ #23/#24. GitLab ไม่สร้าง TimeEntry. Schema source เปลี่ยน precision ของ hours, `TimeEntry.date` เป็น PostgreSQL `DATE` และ timestamp เป็น `TIMESTAMP(3) WITHOUT TIME ZONE`; ยังไม่มี database rollout ในงานนี้.
+
+## ขอบเขตที่ส่งมอบใน Issue #22
+
+Board โหลด WorkItems ทุกหน้าจาก API เดิม พร้อม filter Company, Project และ functional role; แสดงทุก status จาก enum กลางและเปิดรายละเอียดของ record เดิม. การย้ายสถานะใช้ `PATCH /api/work-items/{id}` เพื่อผ่าน shared Work Item validation. UI rollback สถานะเมื่อบันทึกล้มเหลวและมี loading, empty, retry และ error states. เพิ่ม unit suite แบบ mock/in-memory; ไม่มี endpoint หรือ schema ใหม่.

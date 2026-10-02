@@ -152,3 +152,7 @@ Source schema เปลี่ยน `WorkItem.workDate`/`dueDate` เป็น P
 ## Daily Work schema rollout ที่ต้องใช้หลัง #21
 
 Issue #21 ปรับ Prisma source ให้ `TimeEntry.date` เป็น PostgreSQL `DATE`, `hours` เป็น `DECIMAL(65,30)` และ TimeEntry timestamps เป็น `TIMESTAMP(3) WITHOUT TIME ZONE`; API บังคับ Work Item, positive hours ภายใน precision/scale ที่เก็บได้ และ derive Project แต่ยังคง nullable relations ใน schema เพื่อรักษา legacy rows. ยังไม่ได้ sync schema กับ database. ก่อน deploy schema นี้ให้ผ่าน environment/hash approval, verified backup และ isolated restore rehearsal; audit calendar-date conversion, Bangkok timestamp values, null/orphan/mismatched WorkItem/Project rows และ exact Decimal hours ตาม [Database Rollout](./DATABASE_ROLLOUT.md). หากพบ legacy rows ที่ map ไม่ได้ให้หยุดและรายงาน ห้ามแก้หรือลบทิ้งโดยอัตโนมัติ.
+
+## Board workflow ที่ส่งมอบใน #22
+
+Issue #22 ไม่มี runtime service, environment variable, schema sync หรือ deployment step ใหม่. Board ใช้ API Work Items ที่อยู่ภายใต้ owner access gate เดิม; status mutations ผ่าน shared Work Item validation. ตรวจ `pnpm test:board`, `pnpm typecheck` และ `pnpm lint` ก่อน deploy ตามปกติ. ไม่ได้ deploy หรือทดสอบกับ production environment ใน issue นี้.

@@ -240,3 +240,7 @@ Metric ที่เป็นแนวโน้มตามเวลาไม่�
 ## Daily Work consistency ที่ implement ใน #21
 
 Daily Work ใช้ owner ที่ resolve จาก server, ต้องระบุ Work Item ที่ owner เป็นเจ้าของ และ derive Project จาก Work Item; Project ID ที่ส่งมาเพื่อ compatibility ต้องตรงกัน. ชั่วโมงต้องเป็น Decimal มากกว่าศูนย์ที่เก็บได้ใน `DECIMAL(65,30)` และทุก summary ต้องรวมแบบ exact decimal. `date` ใช้ Bangkok calendar date (`YYYY-MM-DD`); ตัวกรองวัน/สัปดาห์/เดือน/ปีใช้ Bangkok calendar boundaries ไม่ขึ้นกับ timezone ของ browser; timestamps เป็น Bangkok local wall-clock. Work Item, Project, Dashboard และ Analysis อ่านยอด logged hours ล่าสุดจาก TimeEntry; Dashboard/Analysis เปลี่ยนเฉพาะ logged-hours metric ในขอบเขต #21. GitLab time tracking ไม่สร้าง TimeEntry. Prisma schema source ระบุชนิด date/timestamp/Decimal แล้วแต่ยังไม่ได้ rollout ไป database environment.
+
+## Board เชื่อมกับ Work Item ใน #22
+
+Board แสดง WorkItem จริงเพียงครั้งเดียวตาม status ปัจจุบัน โดยอ่านข้อมูลชุดเดียวกับ Work Items และเปิดรายละเอียดของ WorkItem ID เดียวกัน. ผู้ใช้กรอง Company, Project และ functional role ได้. การย้ายสถานะบันทึกผ่าน Work Items API; เมื่อ validation หรือ API ล้มเหลว การ์ดกลับไปสถานะก่อนหน้าและแสดงข้อผิดพลาด. `completed` กับ `cancelled` ยังเป็นคนละสถานะ; due date แสดงเป็น Bangkok calendar date.

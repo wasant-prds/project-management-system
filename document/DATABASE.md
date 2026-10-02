@@ -232,3 +232,7 @@ Schema ใน `prisma/schema.prisma` implement ตาม #20 แต่ยัง�
 ## Work Item และ Daily Work schema ที่ปรับใน #19/#21
 
 Prisma schema กำหนด `WorkItem.workDate`/`dueDate` และ `TimeEntry.date` เป็น PostgreSQL `DATE`; `TimeEntry.hours` เป็น `DECIMAL(65,30)`; `submittedAt`, `createdAt` และ `updatedAt` เป็น `TIMESTAMP(3) WITHOUT TIME ZONE`. `TimeEntry.workItem` ใช้ `onDelete: Restrict`. API date values เป็น `YYYY-MM-DD`; timestamps serialize พร้อม `+07:00`. Issue #19/#21 ปรับ schema source เท่านั้น ไม่ได้ push schema, สร้าง production migration, backup, หรือ deploy database. ก่อน rollout ให้ทำ verified backup/restore rehearsal; ตรวจ calendar date, Bangkok local timestamps, null/mismatched legacy relations, IDs, row counts และ Decimal hours ตาม [Database Rollout](./DATABASE_ROLLOUT.md).
+
+## Board workflow ใน #22
+
+Issue #22 ไม่เปลี่ยน Prisma schema หรือข้อมูลฐานข้อมูล. Board ใช้ `WorkItem.status` ที่มีอยู่เป็นคอลัมน์และ `WorkItem.id` เป็น identity ของการ์ด; mutation ใช้ Work Items API เดิม. ไม่มี board-specific table, duplicate status, migration หรือ rollout.

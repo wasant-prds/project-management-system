@@ -44,6 +44,17 @@ Run only the Company and Project management regression tests:
 pnpm test:company-projects
 ```
 
+Run Issue #22 Board workflow unit tests:
+
+```powershell
+pnpm test:board
+node tests/run.mjs board
+```
+
+The shared terminal reporter also accepts `bash scripts/test-unit.sh board`.
+
+This suite uses in-memory API responses and WorkItem fixtures; it does not connect to PostgreSQL or external services. It checks shared status columns, Company/Project/role filters and pagination, Bangkok date rendering, the existing Work Items PATCH contract, status validation, rejection of stale reads during status writes, and selection state following rollback after a failed save.
+
 Run the Work Item management, validation, import, history-retention, and Bangkok date regressions:
 
 ```powershell

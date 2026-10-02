@@ -20,6 +20,7 @@ const suites = {
   "gitlab-contracts": { files: [join(testRoot, "contracts", "gitlab-issue-import.test.mjs")] },
   auth: { directory: join(testRoot, "auth") },
   "company-projects": { directory: join(testRoot, "company-projects") },
+  board: { directory: join(testRoot, "board") },
   "work-items": { directory: join(testRoot, "work-items") },
   "daily-work": { directory: join(testRoot, "daily-work") },
   runner: { directory: join(testRoot, "runner") },

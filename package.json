@@ -22,6 +22,7 @@
     "test:gitlab": "node tests/run.mjs gitlab",
     "test:auth": "node tests/run.mjs auth",
     "test:company-projects": "node tests/run.mjs company-projects",
+    "test:board": "node tests/run.mjs board",
     "test:work-items": "node tests/run.mjs work-items",
     "test:daily-work": "node tests/run.mjs daily-work",
     "test:runner": "node tests/run.mjs runner",

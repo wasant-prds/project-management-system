@@ -57,3 +57,7 @@
 | --- | --- |
 | หน้า | `app/board/page.tsx` |
 | โครง / คอนทราสต์ | `components/ui/sidebar.tsx`, `components/ui/button.tsx`, `app/globals.css` |
+
+## เพิ่มเติมจาก Issue #22
+
+Board โหลด WorkItems และ filter options จาก API เดิมแบบมี pagination; การเปลี่ยนสถานะใช้ `PATCH /api/work-items/{id}` และ shared validation โดยไม่มี endpoint หรือ schema ใหม่. การย้ายสถานะใช้เมนูการ์ดที่คีย์บอร์ดเลือกได้; drag-and-drop และการแก้ไข/ลบคอลัมน์ยังไม่อยู่ใน scope. Cards และ columns ยังคงเลื่อนภายในพื้นที่ Board.

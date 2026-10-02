@@ -204,3 +204,7 @@ Owner-only mapping/status/sync routes อยู่ใน `app/api/integrations/g
 ## Daily Work consistency ที่ implement ใน #21
 
 TimeEntry mutations resolve owner server-side, serialize writes for the selected WorkItem, validate WorkItem ownership and any compatibility `projectId`, then persist the WorkItem's Project ID. Hours are positive Decimal strings within `DECIMAL(65,30)` and every summary uses exact Decimal arithmetic. Calendar dates and day/week/month/year filters use Bangkok calendar boundaries; timestamps use Bangkok local wall-clock. `/api/work-logs/summary` is the shared latest-hours read for the WorkItem detail and logged-hours cards on Dashboard/Analysis, while Project summaries use the same TimeEntry source. Daily Work option lists follow every cursor and include all WorkItem years. GitLab import remains separate and cannot create TimeEntry rows. The Prisma schema change is source-only until the target environment passes the verified rollout gate.
+
+## Board workflow ที่ implement ใน #22
+
+Client Component `/board` โหลด WorkItems, Company และ Project options แบบ cursor pagination. WorkItem status เป็นตัวกำหนดคอลัมน์; filter Company/Project/role ปรับ query เดิม. การอัปเดตสถานะเรียก `PATCH /api/work-items/{id}` และ shared parser/service ฝั่ง server โดยตรง. Helper จัดการ optimistic status และ rollback เมื่อ request ล้มเหลว; ไม่มี Board model หรือ mutation route ใหม่. รายละเอียดการ์ดอ่าน WorkItem เดิมและ date-only values ใช้ Bangkok calendar date.

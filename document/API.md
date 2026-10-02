@@ -34,7 +34,7 @@
 | `GET` | `/api/work-logs/summary` | รวมชั่วโมง owner ทั้งหมดหรือช่วง Bangkok calendar dates | `{ summary: { hours, timezone, startDate?, endDate? } }`; Decimal string, `Cache-Control: no-store` |
 | `GET`, `PATCH`, `DELETE` | `/api/work-logs/{id}` | Daily Work อ่าน/แก้/ลบ TimeEntry | TimeEntry เดียว; wrapper `{ workLog }` |
 
-ยังไม่พบ API route สำหรับ Dashboard aggregates, Analysis หรือ Settings persistence. Board ยังไม่มี API ของตัวเอง. Baseline ปัจจุบันรวม #17–#21; middleware/owner resolver, Company/Project pagination, GitLab routes และ Daily Work Decimal summary อยู่ใน repository. Production rollout ของ Company/Project ที่บันทึกใน [Issue #18 implementation report](./COMPANY_PROJECT_IMPLEMENTATION.md) ผ่านการตรวจ Company/Project schema และ API smoke checks. GitLab schema ยังไม่ได้ apply กับ environment ใด; TimeEntry schema change ของ #21 ก็ยังไม่ได้ apply กับ environment ใดเช่นกัน.
+ยังไม่พบ API route สำหรับ Dashboard aggregates, Analysis หรือ Settings persistence. Board ไม่มี API route เฉพาะ; Issue #22 ใช้ `GET /api/work-items` สำหรับ cards และ `PATCH /api/work-items/{id}` สำหรับ status mutation. Baseline ปัจจุบันรวม #17–#22; middleware/owner resolver, Company/Project pagination, GitLab routes และ Daily Work Decimal summary อยู่ใน repository. Production rollout ของ Company/Project ที่บันทึกใน [Issue #18 implementation report](./COMPANY_PROJECT_IMPLEMENTATION.md) ผ่านการตรวจ Company/Project schema และ API smoke checks. GitLab schema ยังไม่ได้ apply กับ environment ใด; TimeEntry schema change ของ #21 ก็ยังไม่ได้ apply กับ environment ใดเช่นกัน.
 
 **สถานะ #17:** owner gate ตรวจ HTTP Basic และ origin ก่อน Next.js; middleware ปฏิเสธ page/API ที่ไม่มี internal proof ด้วย `401 OWNER_UNAUTHENTICATED` (หรือ gate `403 ACCESS_DENIED` เมื่อ origin ไม่ผ่าน). `GET /api/health` เป็นข้อยกเว้น. Route Handlers ของ Projects, Users, Work Items และ Work Logs ตรวจ owner ฝั่ง server. `GET /api/users` คืน owner หนึ่งคน; WorkItem create/import/update และ TimeEntry create/update ไม่ยอมรับ `assigneeId`/`userId` ที่ต่างจาก owner (`400 VALIDATION_ERROR`); list ของ Work Items/Work Logs กรอง owner. Browser ยังอาจส่ง ID owner เดิมเพื่อ compatibility แต่ server เป็นผู้กำหนดค่าเขียนจริง. Error อื่นของ legacy routes ยังมีรูปแบบเดิมและจะปรับใน issue ที่เกี่ยวข้อง.
 
@@ -236,6 +236,8 @@ Mutation success คืน canonical resource หลัง server commit. UI อ
 Route proposals ที่ยังไม่ implement ขึ้นกับ owner access, shared WorkItem/TimeEntry validation และ preference storage ตามลำดับใน [SCOPE.md](./SCOPE.md). Company/Project rollout ของ #18 ผ่านแล้ว; รายละเอียด migration เดิมเก็บไว้ใน [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) เพื่ออ้างอิงย้อนหลังเท่านั้น. GitLab import เป็น API ที่ implement ใน repository แล้ว (#20) แต่ยังไม่ได้ apply schema หรือเชื่อม instance จริง.
 
 Contract regression tests ตรวจเอกสารและ route inventory; `pnpm test:gitlab` เพิ่ม mocked service/API behavior checks. คำสั่งดูที่ [Testing Commands](./process/testing.md): `pnpm test:api-contracts`, `pnpm test:contracts`, `pnpm test`, `pnpm test:gitlab`, `pnpm test:gitlab-contracts`.
+
+**สถานะ #22:** Board ใช้ WorkItem collection แบบ cursor pagination และ filters เดิม; status update ถูกตรวจด้วย shared WorkItem parser/service ที่ `PATCH /api/work-items/{id}`. ไม่มี Board-owned status field หรือ endpoint ใหม่; API ตอบ record เดิมหลังบันทึก และ client rollback เมื่อรับ error.
 
 ## Runtime security ที่ implement ใน #15
 
