@@ -10,6 +10,8 @@ Issue #19 ใช้ WorkItem record เดียวร่วมกันระ�
 
 Issue #21 บังคับให้ Daily Work ที่สร้าง/แก้ไขผูกกับ WorkItem ของ owner และ derive Project จาก WorkItem; ชั่วโมงเป็น positive Decimal, date เป็น Bangkok calendar day และ summary ใช้ exact Decimal aggregate. Dashboard/Analysis แสดงเฉพาะ logged-hours metric ที่อ่านจาก TimeEntry ตามขอบเขต issue. Prisma schema source เปลี่ยนแล้วแต่ยังต้องผ่าน verified environment rollout ก่อน sync.
 
+Issue #22 เชื่อม Board กับ WorkItem status ชุดเดียวกับ Work Items; Board ใช้ API เดิมสำหรับ cards, filters และ status update. ไม่มี Board-specific status, API หรือ table. ดู [Board workflow](./board/workflow.md).
+
 สำหรับ Issue #18 ระบบรองรับหลาย Company แต่ Project แต่ละรายการต้องอ้าง Company หนึ่งรายการผ่าน companyId. Prisma schema ปัจจุบันไม่มี Customer model; รายละเอียด Dhas, Company APIs และ Project APIs อยู่ในหน้า Company/Projects และ [Database model](./database/data-model.md). Handbook ยืนยันพฤติกรรมจาก repository; สถานะข้อมูลในฐานข้อมูล environment จริงต้องตรวจจาก environment นั้นแยกต่างหาก.
 
 ## API
@@ -59,6 +61,7 @@ Route Handler ปัจจุบันมีดังนี้:
 
 ## Other Components
 
+- [Board workflow — Issue #22](./board/workflow.md) — data flow, filters, status writes, date behavior และการตรวจสอบ
 - [Owner access gate](./operations/owner-access.md) — Basic credential gate, origin checks, middleware proof, owner resolution.
 - [Runtime operations](./operations/runtime.md) — start, health, logs และ troubleshooting; links ไปยัง Docker/DB runbooks.
 - [Database data model](./database/data-model.md) — relations และ tables ที่ current APIs ใช้.
