@@ -6,8 +6,8 @@
 | เอกสาร | ขอบเขตงาน (TH) |
 | English version | [scope.en.md](./scope.en.md) |
 | เอกสารที่เกี่ยวข้อง | [business-requirement.th.md](./business-requirement.th.md) |
-| **สถานะ** | **เสร็จ** |
-| วันที่ | 2026-09-04 |
+| **สถานะ** | **ส่งมอบข้อมูลจริงใน Issue #24** |
+| วันที่ | 2026-10-03 |
 
 เอกสารนี้บอก **สิ่งที่อยู่ใน/นอกงานนี้** และบริการใดที่ทำ ลักษณะผลิตภัณฑ์อยู่ใน [ข้อกำหนดทางธุรกิจ](./business-requirement.th.md)
 
@@ -19,7 +19,7 @@
 | --- | --- |
 | รันไทม์ | Next.js **`app`** เท่านั้น (`pms-app-dev`) ไม่มีไมโครเซอร์วิสใหม่ |
 | หน้า | `app/analysis/page.tsx` |
-| API / Docker / migration ใหม่ | **ไม่มี** |
+| API / Docker / migration ใหม่ | มี owner-only `GET /api/analysis/summary`; ไม่มี Docker service หรือ schema/migration ใหม่ |
 
 ---
 
@@ -27,7 +27,7 @@
 
 | กรณีธุรกิจ | ในขอบเขต |
 | --- | --- |
-| กรณีที่ 1 — ดูผล | สถิติ แท็บ และกราฟที่มีอยู่ |
+| กรณีที่ 1 — ดูผล | KPI, breakdown, charts, filtered source tables และ CSV จาก WorkItem/TimeEntry จริง |
 | กรณีที่ 2 — เลื่อน | โครงแถบข้างร่วม + `PAGE_MAIN` |
 | กรณีที่ 3 — คอนทราสต์ | โทเค็นปุ่มร่วม |
 | กรณีที่ 4 — ตอบสนอง | `STAT_GRID` แท็บเลื่อน แถบเครื่องมือร่วม |
@@ -38,9 +38,9 @@
 
 | รายการ | นอกขอบเขต |
 | --- | --- |
-| ประเภทรายงานใหม่ | ไม่เพิ่มตระกูลกราฟใหม่ในรอบนี้ |
+| Historical throughput | ไม่แสดงก่อนมี status history หรือ completion timestamp ที่เชื่อถือได้ |
 | คลังข้อมูลสด | ไม่เพิ่มบริการรายงาน |
-| แพลตฟอร์ม | ไม่มี REST ใหม่ ไม่เปลี่ยนสคีมา Prisma ไม่มีบริการ Docker ใหม่ |
+| แพลตฟอร์ม | ไม่มี service ใหม่หรือเปลี่ยน Prisma schema; เพิ่ม summary Route Handler ใน Next.js app |
 
 ---
 
@@ -50,6 +50,7 @@
 - Target: ช่วงรายงานและการจัดกลุ่ม time series ของ Analysis ใช้ default time zone `Asia/Bangkok` ทุก environment
 - กราฟปรับขนาดตาม container; แกน, legend, tooltip และ label ต้องอยู่ในกรอบ chart component บนทุก breakpoint โดยไม่สร้าง page-level horizontal overflow
 - เส้นกริดกราฟใช้ตัวแปร CSS ใน `app/globals.css` อยู่แล้ว
+- Shared parser/query definitions และสูตร metric ใช้ร่วมกับ Dashboard; period, filters, breakdowns, detail rows และ export ใช้เงื่อนไขเดียวกัน
 
 ---
 

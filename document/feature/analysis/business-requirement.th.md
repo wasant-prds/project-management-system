@@ -6,8 +6,8 @@
 | เอกสาร | ข้อกำหนดทางธุรกิจ (TH) |
 | English version | [business-requirement.en.md](./business-requirement.en.md) |
 | เอกสารที่เกี่ยวข้อง | [scope.th.md](./scope.th.md) |
-| **สถานะ** | **เสร็จ** |
-| วันที่ | 2026-09-04 |
+| **สถานะ** | **ใช้ข้อมูลจริงแล้วใน Issue #24** |
+| วันที่ | 2026-10-03 |
 
 เอกสารนี้บอก **สิ่งที่ผลิตภัณฑ์ต้องทำ** ขอบเขตทางเทคนิคอยู่ใน [ขอบเขตงาน](./scope.th.md)
 
@@ -15,7 +15,7 @@
 
 ## กรณีที่ 1 — ดูผลการดำเนินงาน
 
-เจ้าของเปิด `/analysis` เพื่อดูการ์ดสรุป แท็บ และกราฟแนวโน้ม Projects, Work Items, Daily Work และ functional roles Developer/Infra/SA จากข้อมูลจริง; ไม่มี team-performance report สำหรับผู้ใช้หลายคน; Target: ช่วงรายงานและการจัดกลุ่มวันที่ใช้ `Asia/Bangkok` และอ่านวันที่/timestamps ตาม Bangkok calendar/wall-clock semantics
+เจ้าของเปิด `/analysis` เพื่อดู KPI, breakdown และกราฟจาก `WorkItem`/`TimeEntry` จริง พร้อมเลือกช่วงวันที่, Company, Project, functional role และ kind; รายงานไม่มี team-performance แบบหลายผู้ใช้. ช่วงและ grouping ใช้ `Asia/Bangkok`; สถานะที่แสดงเป็นสถานะปัจจุบัน ไม่ใช่ historical throughput.
 
 ---
 
@@ -47,7 +47,7 @@
 
 | กรณี | ถือว่าผ่านเมื่อ |
 | --- | --- |
-| 1 | แท็บวิเคราะห์ สถิติ และกราฟมองเห็นได้ |
+| 1 | KPI, breakdown, charts, WorkItem/TimeEntry source tables และ CSV export มองเห็นได้; ทุกรายการใช้ filters เดียวกัน |
 | 2 | ส่วนหลักและแถบข้างเลื่อนได้เมื่อเนื้อหาสูงกว่าจอ |
 | 3 | ปุ่มทึบ (รวมส่งออก) ใช้ป้ายขาวบนพื้นเข้ม |
 | 4 | เลย์เอาต์โทรศัพท์/แท็บเล็ต/โน้ตบุ๊กตรงกรณีที่ 4; chart และองค์ประกอบภายในยังอยู่ในกรอบ component |

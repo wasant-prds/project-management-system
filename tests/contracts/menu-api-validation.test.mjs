@@ -20,6 +20,7 @@ test("API handbook separates the actual Route Handler inventory from target prop
     ["app/api/work-items/[id]/route.ts", ["GET", "PATCH", "DELETE"]],
     ["app/api/work-items/import/route.ts", ["POST"]],
     ["app/api/dashboard/summary/route.ts", ["GET"]],
+    ["app/api/analysis/summary/route.ts", ["GET"]],
     ["app/api/work-logs/route.ts", ["GET", "POST"]],
     ["app/api/work-logs/[id]/route.ts", ["GET", "PATCH", "DELETE"]],
   ];
@@ -43,7 +44,7 @@ test("API handbook separates the actual Route Handler inventory from target prop
   assert.match(api, /Endpoint ที่มีอยู่ใน repository \(As-Is\)/i);
   assert.match(api, /Target proposal/);
   for (const proposedPath of [
-    "/api/analysis",
+    "/api/analysis/summary",
     "/api/settings/me",
   ]) {
     assert.ok(api.includes(proposedPath), `Missing target endpoint ${proposedPath}`);
@@ -63,6 +64,40 @@ test("Dashboard summary route and handbook expose shared filters and metric defi
   assert.match(handbook, /`startDate`, `endDate`/);
   assert.match(handbook, /"metricDefinitions"/);
   assert.match(handbook, /"workItemDateAnchor"/);
+});
+
+test("Analysis summary route and handbook expose owner-only shared aggregates and source rows", async () => {
+  const route = await read("app/api/analysis/summary/route.ts");
+  const service = await read("lib/analysis.ts");
+  const handbook = await read("document/handbook/api/analysis/summary.md");
+  assert.match(route, /getOwner\(\)/);
+  assert.match(route, /getAnalysisSummary\(owner\.id/);
+  assert.match(route, /Cache-Control.*no-store/);
+  assert.match(service, /parseDashboardFilters/);
+  assert.match(service, /selectedWorkItemWhere/);
+  assert.match(service, /selectedTimeEntryWhere/);
+  assert.match(service, /serializeWorkItemStatus/);
+  assert.match(handbook, /`GET \/api\/analysis\/summary`/);
+  assert.match(handbook, /`companyId`/);
+  assert.match(handbook, /`loggedHoursByPeriod`/);
+  assert.match(handbook, /"workItems"/);
+  assert.match(handbook, /"timeEntries"/);
+  assert.match(handbook, /"cancelled": "Owner WorkItems with status=cancelled"/);
+  assert.match(handbook, /Project options ทั้งหมด/);
+  assert.match(handbook, /neutralize formula prefixes/);
+  assert.doesNotMatch(handbook, /recentProjectProgress/);
+  assert.match(handbook, /historical throughput/i);
+});
+
+test("Analysis unit suite has reusable pnpm, Node, reporter, and documentation commands", async () => {
+  const packageJson = JSON.parse(await read("package.json"));
+  const runner = await read("tests/run.mjs");
+  const guide = await read("document/process/testing.md");
+  assert.equal(packageJson.scripts["test:analysis"], "node tests/run.mjs analysis");
+  assert.match(runner, /analysis: \{ directory: join\(testRoot, "analysis"\) \}/);
+  assert.match(guide, /pnpm test:analysis/);
+  assert.match(guide, /node tests\/run\.mjs analysis/);
+  assert.match(guide, /bash scripts\/test-unit\.sh analysis/);
 });
 
 test("all eight menus declare a consumer, canonical read source, and write behavior", () => {

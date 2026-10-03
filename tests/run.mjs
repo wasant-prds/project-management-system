@@ -22,6 +22,7 @@ const suites = {
   "company-projects": { directory: join(testRoot, "company-projects") },
   board: { directory: join(testRoot, "board") },
   dashboard: { directory: join(testRoot, "dashboard") },
+  analysis: { directory: join(testRoot, "analysis") },
   "work-items": { directory: join(testRoot, "work-items") },
   "daily-work": { directory: join(testRoot, "daily-work") },
   runner: { directory: join(testRoot, "runner") },
@@ -53,4 +54,4 @@ async function findTestFiles(directory) {
 const testFiles = (suite?.files ?? await findTestFiles(suite?.directory ?? testRoot)).sort();
 if (testFiles.length === 0) throw new Error("No .test.mjs files found under tests/");
 
-for (const testFile of testFiles) await import(pathToFileURL(testFile));
+await Promise.all(testFiles.map((testFile) => import(pathToFileURL(testFile))));

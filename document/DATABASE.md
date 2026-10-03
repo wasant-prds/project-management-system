@@ -240,3 +240,7 @@ Issue #22 ไม่เปลี่ยน Prisma schema หรือข้อม�
 ## Dashboard aggregates ใน #23
 
 Issue #23 ไม่เปลี่ยน Prisma schema หรือ database. หน้าและ `GET /api/dashboard/summary` aggregate จาก `WorkItem.assigneeId/status/workDate/dueDate/createdAt`, `WorkItem.projectId/role/kind`, `TimeEntry.userId/date/hours`, `Project.companyId` และ Company/Project relations. WorkItem period anchor ใช้ `workDate ?? dueDate ?? createdAt`; TimeEntry ใช้ `date`. Date ranges รวมวันสิ้นสุดโดยใช้ Bangkok calendar boundaries และ Decimal hours ยังคงเป็น string หลัง aggregate. Recent Project progress ใช้ WorkItems ของ owner ทั้ง Project และ shared `completionRate` helper. Query reads อย่างเดียวและไม่มี table/cache/column เพิ่ม.
+
+## Analysis aggregate ใน #24
+
+Issue #24 ไม่เปลี่ยน Prisma schema หรือ database. `GET /api/analysis/summary` อ่าน owner WorkItems และ TimeEntries ตาม query predicates ร่วมกับ Dashboard; เลือก WorkItem ด้วย shared date anchor และ TimeEntry ด้วย `date`, owner และ relation filters. Response รวม status/kind/priority counts, exact Decimal hour buckets, and source-row details. ไม่มี table, column, index, cache หรือ migration เพิ่ม; historical status ยังคงไม่มี source timestamp/history.

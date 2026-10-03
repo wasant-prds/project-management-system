@@ -112,7 +112,7 @@ function rangeAnchor(start: Date, end: Date): Prisma.WorkItemWhereInput {
   }
 }
 
-function selectedWorkItemWhere(ownerId: string, filters: DashboardFilters, range: { start: Date; end: Date }): Prisma.WorkItemWhereInput {
+export function selectedWorkItemWhere(ownerId: string, filters: DashboardFilters, range: { start: Date; end: Date }): Prisma.WorkItemWhereInput {
   const where: Prisma.WorkItemWhereInput = {
     assigneeId: ownerId,
     ...rangeAnchor(range.start, range.end),
@@ -125,7 +125,7 @@ function selectedWorkItemWhere(ownerId: string, filters: DashboardFilters, range
   return where
 }
 
-function selectedTimeEntryWhere(ownerId: string, filters: DashboardFilters, range: { start: Date; end: Date }): Prisma.TimeEntryWhereInput {
+export function selectedTimeEntryWhere(ownerId: string, filters: DashboardFilters, range: { start: Date; end: Date }): Prisma.TimeEntryWhereInput {
   const where: Prisma.TimeEntryWhereInput = {
     userId: ownerId,
     date: { gte: range.start, lt: range.end },
@@ -149,7 +149,7 @@ function selectedProjectsWhere(filters: DashboardFilters): Prisma.ProjectWhereIn
   return where
 }
 
-async function assertFilterRelations(
+export async function assertFilterRelations(
   filters: DashboardFilters,
   database: Pick<typeof prisma, 'company' | 'project'>,
 ) {

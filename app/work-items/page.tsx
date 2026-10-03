@@ -190,6 +190,80 @@ function workItemQuery({
   return params.toString()
 }
 
+type WorkItemViewFilters = Pick<
+  WorkItemQueryOptions,
+  'year' | 'month' | 'project' | 'company' | 'dateRange' | 'status' | 'priority' | 'role' | 'kind' | 'openOnly' | 'overdueOnly'
+>
+
+function matchesProjectAndPeriod(item: WorkItem, filters: WorkItemViewFilters) {
+  if (filters.project !== 'all' && item.project.id !== filters.project) return false
+  if (filters.company !== 'all' && item.project.company?.id !== filters.company) return false
+  if (filters.dateRange) {
+    const anchor = item.workDate ?? item.dueDate ?? item.createdAt.slice(0, 10)
+    const anchorDate = anchor.slice(0, 10)
+    return anchorDate >= filters.dateRange.startDate && anchorDate <= filters.dateRange.endDate
+  }
+  return matchesYearMonth(item, filters.year, filters.month)
+}
+
+function matchesWorkItemFacets(item: WorkItem, filters: WorkItemViewFilters) {
+  if (filters.kind !== 'all' && item.kind !== filters.kind) return false
+  if (filters.status !== 'all' && item.status !== filters.status) return false
+  if (filters.priority !== 'all' && item.priority !== filters.priority) return false
+  if (filters.role === 'none') return item.role === null
+  return filters.role === 'all' || item.role === filters.role
+}
+
+function matchesWorkItemState(item: WorkItem, filters: WorkItemViewFilters) {
+  const isClosed = item.status === 'completed' || item.status === 'cancelled'
+  if (filters.openOnly && isClosed) return false
+  return !filters.overdueOnly || urgencySubgroup(item) === 'overdue'
+}
+
+function matchesWorkItemSearch(item: WorkItem, query: string) {
+  if (!query) return true
+  const values = [
+    item.title,
+    item.description,
+    item.project.name,
+    item.project.company?.name,
+    item.project.company?.displayName,
+    item.assignee.name,
+    item.kind,
+    item.status,
+    item.priority,
+    item.role,
+    ...item.types,
+  ]
+  return values.some((value) => value?.toLowerCase().includes(query) ?? false)
+}
+
+function filterWorkItems(items: WorkItem[], filters: WorkItemViewFilters, search: string) {
+  const query = search.trim().toLowerCase()
+  return items.filter((item) =>
+    matchesProjectAndPeriod(item, filters)
+    && matchesWorkItemFacets(item, filters)
+    && matchesWorkItemState(item, filters)
+    && matchesWorkItemSearch(item, query),
+  )
+}
+
+type WorkItemPageResponse = {
+  workItems?: WorkItem[]
+  page?: { nextCursor?: string | null }
+  error?: string | { message?: string }
+}
+
+async function fetchWorkItemPage(query: string): Promise<WorkItemPageResponse> {
+  const response = await fetch(`/api/work-items?${query}`)
+  const data = await response.json() as WorkItemPageResponse
+  if (!response.ok) {
+    const message = typeof data.error === 'string' ? data.error : data.error?.message
+    throw new Error(message || 'Failed to export work items')
+  }
+  return data
+}
+
 function WorkItemSortMenu({
   value,
   onChange,
@@ -273,6 +347,10 @@ export default function WorkItemsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const searchParamsValue = searchParams.toString()
+  const requestedWorkItemId = useMemo(
+    () => new URLSearchParams(searchParamsValue).get('workItemId')?.trim() ?? '',
+    [searchParamsValue],
+  )
   const [workItems, setWorkItems] = useState<WorkItem[]>([])
   const [workItemSummary, setWorkItemSummary] = useState<WorkItemSummary | null>(null)
   const [projects, setProjects] = useState<ProjectOption[]>([])
@@ -361,6 +439,40 @@ export default function WorkItemsPage() {
     setMonthFilter(hasDateRange ? 'all' : month || 'all')
     setDashboardFiltersReady(true)
   }, [searchParamsValue])
+
+  useEffect(() => {
+    if (!requestedWorkItemId) return
+
+    const generation = ++viewGenerationRef.current
+    let active = true
+    setViewLoading(true)
+    fetch(`/api/work-items/${encodeURIComponent(requestedWorkItemId)}`)
+      .then(async (response) => {
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error?.message || 'โหลด Work Item ไม่สำเร็จ')
+        return data.workItem as WorkItem
+      })
+      .then((item) => {
+        if (active && generation === viewGenerationRef.current && item.id === requestedWorkItemId) setViewItem(item)
+      })
+      .catch((error: unknown) => {
+        if (!active || generation !== viewGenerationRef.current) return
+        toast({
+          title: 'โหลด Work Item ไม่สำเร็จ',
+          description: error instanceof Error ? error.message : 'กรุณาลองอีกครั้ง',
+          variant: 'destructive',
+        })
+        setViewItem(null)
+      })
+      .finally(() => {
+        if (active && generation === viewGenerationRef.current) setViewLoading(false)
+      })
+
+    return () => {
+      active = false
+      viewGenerationRef.current += 1
+    }
+  }, [requestedWorkItemId])
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 250)
@@ -513,39 +625,20 @@ export default function WorkItemsPage() {
   }, [availableYears])
 
   const filtered = useMemo(() => {
-    const query = debouncedSearchQuery.trim().toLowerCase()
-    return workItems.filter((item) => {
-      if (projectFilter !== 'all' && item.project.id !== projectFilter) return false
-      if (companyFilter !== 'all' && item.project.company?.id !== companyFilter) return false
-      if (dashboardDateRange) {
-        const anchor = item.workDate ?? item.dueDate ?? item.createdAt.slice(0, 10)
-        const anchorDate = anchor.slice(0, 10)
-        if (anchorDate < dashboardDateRange.startDate || anchorDate > dashboardDateRange.endDate) return false
-      } else if (!matchesYearMonth(item, yearFilter, monthFilter)) return false
-      if (dashboardKindFilter !== 'all' && item.kind !== dashboardKindFilter) return false
-      if (statusFilter !== 'all' && item.status !== statusFilter) return false
-      if (priorityFilter !== 'all' && item.priority !== priorityFilter) return false
-      if (roleFilter === 'none' && item.role !== null) return false
-      if (roleFilter !== 'all' && roleFilter !== 'none' && item.role !== roleFilter) return false
-      if (dashboardOpenOnly && (item.status === 'completed' || item.status === 'cancelled')) return false
-      if (dashboardOverdueOnly && urgencySubgroup(item) !== 'overdue') return false
-      if (!query) return true
-      return [
-        item.title,
-        item.description,
-        item.project.name,
-        item.project.company?.name,
-        item.project.company?.displayName,
-        item.assignee.name,
-        item.kind,
-        item.status,
-        item.priority,
-        item.role,
-        ...item.types,
-      ]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query))
-    })
+    const filters: WorkItemViewFilters = {
+      year: yearFilter,
+      month: monthFilter,
+      project: projectFilter,
+      company: companyFilter,
+      dateRange: dashboardDateRange,
+      kind: dashboardKindFilter,
+      status: statusFilter,
+      priority: priorityFilter,
+      role: roleFilter,
+      openOnly: dashboardOpenOnly,
+      overdueOnly: dashboardOverdueOnly,
+    }
+    return filterWorkItems(workItems, filters, debouncedSearchQuery)
   }, [workItems, debouncedSearchQuery, yearFilter, monthFilter, projectFilter, companyFilter, dashboardDateRange, dashboardKindFilter, statusFilter, priorityFilter, roleFilter, dashboardOpenOnly, dashboardOverdueOnly])
 
   const visibleGroups = useMemo(() => {
@@ -656,9 +749,8 @@ export default function WorkItemsPage() {
 
   const fetchAllFilteredItems = async () => {
     const allItems: WorkItem[] = []
-    let cursor: string | null = null
     const seenCursors = new Set<string>()
-    do {
+    const fetchPage = (cursor: string | null): Promise<void> => {
       const query = workItemQuery({
         year: yearFilter,
         month: monthFilter,
@@ -675,14 +767,17 @@ export default function WorkItemsPage() {
         includeYears: false,
         page: { limit: 200, cursor },
       })
-      const response = await fetch(`/api/work-items?${query}`)
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error?.message || data.error || 'Failed to export work items')
-      allItems.push(...(data.workItems || []))
-      cursor = data.page?.nextCursor ?? null
-      if (cursor && seenCursors.has(cursor)) throw new Error('Work Item export cursor repeated')
-      if (cursor) seenCursors.add(cursor)
-    } while (cursor)
+      return fetchWorkItemPage(query).then((data) => {
+        allItems.push(...(data.workItems ?? []))
+        const nextCursor = data.page?.nextCursor ?? null
+        if (!nextCursor) return
+        if (seenCursors.has(nextCursor)) throw new Error('Work Item export cursor repeated')
+        seenCursors.add(nextCursor)
+        return fetchPage(nextCursor)
+      })
+    }
+
+    await fetchPage(null)
 
     const scopedItems = kindTab === 'all' ? allItems : allItems.filter((item) => item.kind === kindTab)
     return flattenProjectGroups(groupWorkItems(scopedItems, sortMode))
@@ -1062,6 +1157,12 @@ export default function WorkItemsPage() {
               viewGenerationRef.current += 1
               setViewLoading(false)
               setViewItem(null)
+              if (requestedWorkItemId) {
+                const params = new URLSearchParams(searchParamsValue)
+                params.delete('workItemId')
+                const query = params.toString()
+                router.replace(query ? `/work-items?${query}` : '/work-items', { scroll: false })
+              }
             }
           }}
           onEdit={openEdit}

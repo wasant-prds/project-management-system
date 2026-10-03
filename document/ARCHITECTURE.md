@@ -9,7 +9,7 @@
 | ภาษาหลัก | ไทย; system terms คงภาษาอังกฤษ |
 | ข้อกำหนด | [Shared Data Model](./SHARED_DATA_MODEL.md) · [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) · [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) · [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [API.md](./API.md) · [DATABASE.md](./DATABASE.md) |
 
-> ภาพ As-Is ด้านล่างอิง repository ที่ตรวจพบ ณ วันที่ 2026-09-27; ส่วน Target เป็นแนวทางระบบที่เมนูทั้งหมดอ่านข้อมูลจริงชุดเดียวกัน
+> ภาพ As-Is ด้านล่างอิง repository ที่ตรวจพบ ณ วันที่ 2026-10-03; ส่วน Target เป็นแนวทางระบบที่เมนูทั้งหมดอ่านข้อมูลจริงชุดเดียวกัน
 
 ## 1. Architectural goals
 
@@ -34,11 +34,13 @@ flowchart LR
   RH --> WL[/api/work-logs]
   RH --> PR[/api/projects]
   RH --> US[/api/users]
+  RH --> DASH[/api/dashboard/summary]
+  RH --> ANALYSIS[/api/analysis/summary]
 ```
 
 ข้อสังเกต As-Is:
 
-- Dashboard, Board, Analysis ใช้ข้อมูลฝังใน component; ไม่ผ่าน API หรือ DB
+- Board ยังเป็น client view ของ WorkItem API; Dashboard aggregates implement ใน #23 และ Analysis summary API/page implement ใน #24 อ่าน persistent records
 - Work Items และ Daily Work ใช้ API และ persistent database records
 - Projects page ดึงข้อมูลผ่าน Prisma ฝั่ง server; Project API มี list/create และ detail read/update/delete
 - Company page อ่านบางข้อมูลผ่าน Prisma ฝั่ง server; ยังไม่พบ API สำหรับ Company/Customer persistence; ปุ่มสมาชิกปัจจุบันเป็น UI ที่ไม่ตรงกับ product scope แบบ single-owner
@@ -212,3 +214,7 @@ Client Component `/board` โหลด WorkItems, Company และ Project opti
 ## Dashboard data flow ที่ implement ใน #23
 
 `app/page.tsx` และ `GET /api/dashboard/summary` อ่านผ่าน `lib/dashboard.ts` ซึ่งเป็น query/metric boundary ร่วมกัน. Server ยืนยัน owner ก่อน query; Prisma aggregate `WorkItem`, `TimeEntry`, `Project` และ `Company` ตาม Bangkok date range กับ Company/Project/role/kind filters. Dashboard แสดง aggregate จริงและส่ง active filters ผ่าน source links ไปยัง `GET /api/work-items` หรือ `GET /api/work-logs`; ทั้งสอง list APIs ตรวจ owner ซ้ำและใช้ filter เดียวกัน. Client ไม่สร้าง KPI จาก sample arrays. ไม่มี table, cache หรือ schema ใหม่.
+
+## Analysis data flow ที่ implement ใน #24
+
+`app/analysis/page.tsx` อ่าน owner-only `GET /api/analysis/summary`. Route ยืนยัน owner แล้วเรียก `lib/analysis.ts`, ซึ่งใช้ parser, relation checks และ WorkItem/TimeEntry query predicates เดียวกับ Dashboard. Response ส่ง summary, current status/kind/priority breakdowns, Bangkok-grouped exact logged hours และ source rows; links ส่ง Company/Project/role/kind/period filters กลับไปยัง Work Items หรือ Daily Work. CSV export สร้างจาก filtered response เดียวกัน. Analysis read model ไม่มี write path, schema, cache, background worker, หรือ historical status projection.

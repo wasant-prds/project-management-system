@@ -12,6 +12,8 @@ Issue #21 บังคับให้ Daily Work ที่สร้าง/แก
 
 Issue #22 เชื่อม Board กับ WorkItem status ชุดเดียวกับ Work Items; Board ใช้ API เดิมสำหรับ cards, filters และ status update. ไม่มี Board-specific status, API หรือ table. ดู [Board workflow](./board/workflow.md).
 
+Issue #24 เพิ่ม Analysis จาก WorkItem/TimeEntry จริงพร้อม shared filters/metrics, owner-only summary API, source tables, Bangkok-grouped logged-hour trends และ CSV export; ไม่มี status history หรือ historical throughput.
+
 สำหรับ Issue #18 ระบบรองรับหลาย Company แต่ Project แต่ละรายการต้องอ้าง Company หนึ่งรายการผ่าน companyId. Prisma schema ปัจจุบันไม่มี Customer model; รายละเอียด Dhas, Company APIs และ Project APIs อยู่ในหน้า Company/Projects และ [Database model](./database/data-model.md). Handbook ยืนยันพฤติกรรมจาก repository; สถานะข้อมูลในฐานข้อมูล environment จริงต้องตรวจจาก environment นั้นแยกต่างหาก.
 
 ## API
@@ -45,6 +47,10 @@ Route Handler ปัจจุบันมีดังนี้:
 ### Dashboard — Issue #23
 
 - [Dashboard summary](./api/dashboard/summary.md) — owner-only read projection สำหรับ KPI, WorkItems, Projects และ logged hours ตามช่วง Bangkok dates และ filters
+
+### Analysis — Issue #24
+
+- [Analysis summary](./api/analysis/summary.md) — owner-only report API สำหรับ WorkItem/TimeEntry KPIs, breakdowns, source rows, Bangkok-grouped hours และ filtered CSV export
 
 ### Integrations — GitLab Issue import — Issue #20
 

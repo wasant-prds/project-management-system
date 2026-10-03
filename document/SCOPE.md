@@ -30,7 +30,7 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 | Overview — Projects `/projects` | Project CRUD/detail, required Company relation, Work Item/role/hour summaries | #18 เพิ่ม Company relation, hours, consistent progress และ business rules |
 | Overview — Work Items `/work-items` | WorkItem list/create/edit/delete/filter/import/export; manual one-way GitLab Issue sync; owner is sole assignee; Developer/Infra/SA are functional roles | #19 Work Item CRUD/validation; #20 owner-only GitLab mapping/manual sync implementation; real instance setup and schema rollout remain environment steps |
 | Management — Board `/board` | Kanban ของ WorkItem จริง; persist status change | ปัจจุบันเป็น client sample state; เชื่อม WorkItem API และ status enum |
-| Management — Analysis `/analysis` | KPI/charts/tables จาก WorkItem และ TimeEntry จริง | ปัจจุบันเป็น sample arrays; เพิ่ม shared queries, metric definitions, export |
+| Management — Analysis `/analysis` | KPI/charts/tables จาก WorkItem และ TimeEntry จริง | #24 ส่งมอบ owner-only summary API, shared filters/metrics, source tables, Bangkok grouping และ CSV export |
 | Management — Daily Work `/daily-work` | CRUD TimeEntry, period views, WorkItem/Project relation, hours | มี API/หน้าใช้งาน; เสริม auth, validation, date/time consistency |
 | Management — Company `/company` | จัดการหลาย Companies และ Project portfolio | #18 เพิ่ม Company API/UI; ไม่มีสมาชิกหลายคนหรือ Customer registry |
 | Settings `/settings` | Profile/preferences/security ของ owner account เดียวที่ persist | ปัจจุบันเป็น form UI; เพิ่ม persistence และ owner access control |
@@ -194,3 +194,7 @@ Board โหลด WorkItems ทุกหน้าจาก API เดิม พ
 ## ขอบเขตที่ส่งมอบใน Issue #23
 
 Dashboard ใช้ shared server query สำหรับหน้า `/` และ `GET /api/dashboard/summary`; คำนวณ KPIs, bounded WorkItem lists, recent Project progress และ exact logged-hours series จากฐานข้อมูล. วันที่แบบ inclusive ใช้ `Asia/Bangkok`; filter Company/Project/role/kind มีผลกับ dashboard query และ source lists. Work Items/Daily Work APIs รองรับ date range และ relation filters เพื่อให้ drill-through คงเงื่อนไข. Loading, empty และ safe error states อยู่ในหน้า; ไม่มี schema หรือ runtime configuration ใหม่.
+
+## ขอบเขตที่ส่งมอบใน Issue #24
+
+Analysis `/analysis` ใช้ `GET /api/analysis/summary` และ shared Dashboard filters/formulas เพื่อแสดง WorkItem status/kind/priority, open/completed/overdue, exact TimeEntry hours, source rows และ CSV export. Company, Project, functional role, kind และ inclusive Bangkok date range ใช้ชุดเดียวกับ KPI/charts/tables. WorkItem links เปิด exact source ID; Daily Work links คงวันที่และ filters. ไม่มี historical throughput, schema change, cache, worker หรือ Docker service.

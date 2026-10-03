@@ -160,3 +160,7 @@ Issue #22 ไม่มี runtime service, environment variable, schema sync ห
 ## Dashboard implementation ใน #23
 
 Issue #23 เพิ่ม owner-only `GET /api/dashboard/summary` และ query-time Prisma aggregates; ไม่มี environment variable, worker, cache, schema sync หรือ migration ใหม่. Dashboard ใช้ owner gate และ PostgreSQL runtime ที่มีอยู่. Source changes ของ TimeEntry จาก #21 ยังต้องผ่าน rollout/backup gates ของ target environment ก่อน deploy image ที่พึ่ง schema ดังกล่าว. ก่อน release ให้รัน `pnpm test:dashboard`, `pnpm test:work-items`, `pnpm test:daily-work`, `pnpm lint` และ `pnpm typecheck`; issue นี้ไม่ได้ deploy หรือเปลี่ยนฐานข้อมูลจริง.
+
+## Analysis implementation ใน #24
+
+Issue #24 เพิ่ม owner-only `GET /api/analysis/summary` และ browser CSV export; ใช้ Next.js/Prisma runtime กับ owner gate เดิม. ไม่มี environment variable, worker, cache, schema sync, migration หรือ Docker service ใหม่. ก่อน release ให้รัน `pnpm test:analysis`, `pnpm test:dashboard`, `pnpm lint` และ `pnpm typecheck`. Issue นี้ไม่ได้ deploy หรือเปลี่ยนฐานข้อมูลจริง; target database ยังคงต้องผ่าน rollout/backup gates ของ source schema #21 ตาม environment ก่อนใช้งาน.

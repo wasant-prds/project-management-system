@@ -192,6 +192,8 @@ function makeSystem() {
 
   const workItems = loadTs('../../lib/work-items.ts')
   const bangkok = loadTs('../../lib/bangkok-datetime.ts')
+  // Pin the business date so overdue and cursor tests stay deterministic as the real date advances.
+  bangkok.currentBangkokCalendarDate = () => '2026-10-02'
   const ownerBoundary = {
     async getOwner() {
       if (state.authError) throw state.authError

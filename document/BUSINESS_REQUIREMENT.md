@@ -248,3 +248,7 @@ Board แสดง WorkItem จริงเพียงครั้งเดี�
 ## Dashboard จากข้อมูลจริงใน #23
 
 Dashboard `/` แสดง total/open/completed/overdue WorkItems, logged hours และรายการ Work Items/Projects จากฐานข้อมูล. Owner กรอง inclusive Bangkok date range, Company, Project, functional role และ WorkItem kind; ทุก KPI และ list ใช้ filter metadata เดียวกัน และ card/chart เปิดรายการต้นทางพร้อม filter เดิม. `cancelled` ไม่ใช่ completed หรือ open; Project progress ใช้ completed ÷ (total − cancelled), และชั่วโมงมาจากผลรวม Decimal ของ TimeEntry. หน้าแสดงช่วงวันที่/timezone/สูตร พร้อม loading, empty และ error states; API failure ต้องไม่ถูกแสดงเป็น live zero.
+
+## Analysis จาก Work Items และ Daily Work ใน #24
+
+`/analysis` และ owner-only `GET /api/analysis/summary` อ่าน `WorkItem`/`TimeEntry` จริง. Period, Company (Customer context ในโมเดลปัจจุบัน), Project, functional role และ kind filters ใช้ shared parser/where definitions เดียวกับ Dashboard; KPI, status/kind/priority breakdowns, logged-hour chart, source tables และ CSV export มาจาก filter set เดียวกัน. Hours รวมด้วย exact Decimal และ group ตาม Bangkok calendar day/week/month. WorkItem และ TimeEntry source IDs เปิดหน้ารายการต้นทางพร้อม filter เดิม. Status breakdown แสดง status ปัจจุบันเท่านั้น; ไม่มี historical throughput จนกว่าจะมี status history หรือ completion timestamp ที่เชื่อถือได้. ไม่มี schema, cache หรือ deployment change.

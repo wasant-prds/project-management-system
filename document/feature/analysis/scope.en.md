@@ -6,8 +6,8 @@
 | Document | Scope (EN) |
 | Thai version | [scope.th.md](./scope.th.md) |
 | Related | [business-requirement.en.md](./business-requirement.en.md) |
-| **Status** | **done** |
-| Date | 2026-09-04 |
+| **Status** | **Live data delivered in Issue #24** |
+| Date | 2026-10-03 |
 
 This document describes **what is in or out of this work** and which service implements it. Product behavior is in the [business requirement](./business-requirement.en.md).
 
@@ -19,7 +19,7 @@ This document describes **what is in or out of this work** and which service imp
 | --- | --- |
 | Runtime | Next.js **`app`** only (`pms-app-dev`). No new microservice. |
 | Page | `app/analysis/page.tsx` |
-| New API / Docker service / migration | **No.** |
+| New API / Docker service / migration | Owner-only `GET /api/analysis/summary`; no Docker service or schema/migration change. |
 
 ---
 
@@ -27,7 +27,7 @@ This document describes **what is in or out of this work** and which service imp
 
 | Business case | In scope |
 | --- | --- |
-| Case 1 — Review | Existing stats, tabs, and charts. |
+| Case 1 — Review | KPIs, breakdowns, charts, filtered source tables, and CSV from real WorkItem/TimeEntry data. |
 | Case 2 — Scroll | Shared sidebar shell + `PAGE_MAIN`. |
 | Case 3 — Contrast | Shared button tokens. |
 | Case 4 — Responsive | `STAT_GRID`, scrollable tabs, shared toolbar. |
@@ -38,9 +38,9 @@ This document describes **what is in or out of this work** and which service imp
 
 | Item | Out of scope |
 | --- | --- |
-| New report types | Do not add new chart families in this pass. |
+| Historical throughput | Do not show before reliable status history or a completion timestamp exists. |
 | Live warehouse | Do not add a reporting service. |
-| Platform | No new REST resource, no Prisma schema change, no new Docker service. |
+| Platform | No new service or Prisma schema change; add a summary Route Handler inside the Next.js app. |
 
 ---
 
@@ -50,6 +50,7 @@ This document describes **what is in or out of this work** and which service imp
 - Target: Analysis reporting periods and time-series grouping use the system default timezone, `Asia/Bangkok`, in every environment.
 - Charts resize with their container; axes, legend, tooltip, and labels stay inside the chart component at every breakpoint without page-level horizontal overflow.
 - Chart grid lines already use CSS variables in `app/globals.css`.
+- Dashboard parser/query definitions and metric formulas are shared; periods, filters, breakdowns, details, and export use one filtered result.
 
 ---
 
