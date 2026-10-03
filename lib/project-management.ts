@@ -132,9 +132,14 @@ export function projectSummary(
   return {
     statusCounts, roles, total, completed, cancelled,
     open: total - completed - cancelled,
-    progress: total === cancelled ? 0 : completed / (total - cancelled) * 100,
+    progress: completionRate(total, completed, cancelled),
     hours: totalHours,
   }
+}
+
+export function completionRate(total: number, completed: number, cancelled: number) {
+  const eligible = total - cancelled
+  return eligible === 0 ? 0 : completed / eligible * 100
 }
 
 export function companySummary(projects: ReadonlyArray<{ summary: { total: number; hours: string } }>) {

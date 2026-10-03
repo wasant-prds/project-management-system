@@ -436,6 +436,66 @@ test('Work Item filters validate shared enums and apply owner, Project, Company,
   }
 })
 
+test('Dashboard Work Item links preserve inclusive dates, Company, Project, role, kind, and open overdue filters', async () => {
+  const system = makeSystem()
+  const records = [
+    ['dashboard-open-overdue', 'project-1', owner.id, 'Task', 'Developer', 'todo', '2026-10-01', '2026-10-01'],
+    ['dashboard-open-current', 'project-1', owner.id, 'Task', 'Developer', 'in_progress', '2026-10-02', '2026-10-02'],
+    ['dashboard-completed', 'project-1', owner.id, 'Task', 'Developer', 'completed', '2026-10-01', '2026-10-01'],
+    ['dashboard-cancelled', 'project-1', owner.id, 'Task', 'Developer', 'cancelled', '2026-10-01', '2026-10-01'],
+    ['dashboard-other-project', 'project-2', owner.id, 'Task', 'Developer', 'todo', '2026-10-01', '2026-10-01'],
+    ['dashboard-other-kind', 'project-1', owner.id, 'Issue', 'Developer', 'todo', '2026-10-01', '2026-10-01'],
+    ['dashboard-other-role', 'project-1', owner.id, 'Task', 'infra', 'todo', '2026-10-01', '2026-10-01'],
+    ['dashboard-foreign-owner', 'project-1', 'other-owner', 'Task', 'Developer', 'todo', '2026-10-01', '2026-10-01'],
+  ]
+  for (const [id, projectId, assigneeId, kind, role, status, workDate, dueDate] of records) {
+    system.state.workItems.set(id, {
+      id,
+      title: id,
+      projectId,
+      assigneeId,
+      kind,
+      role,
+      status,
+      priority: 'medium',
+      types: [],
+      workDate: new Date(`${workDate}T00:00:00.000Z`),
+      dueDate: new Date(`${dueDate}T00:00:00.000Z`),
+      createdAt: new Date('2026-10-01T09:00:00.000Z'),
+      updatedAt: new Date('2026-10-01T09:00:00.000Z'),
+    })
+  }
+
+  const result = await system.list.GET({
+    url: 'http://local/api/work-items?startDate=2026-10-01&endDate=2026-10-02&companyId=company-1&projectId=project-1&role=Developer&kind=Task&openOnly=true&overdue=true',
+  })
+
+  assert.equal(result.status, 200)
+  assert.deepEqual(Array.from(result.body.workItems, (item) => item.id), ['dashboard-open-overdue'])
+  assert.equal(system.state.lastWhere.assigneeId, owner.id)
+  assert.equal(system.state.lastWhere.projectId, 'project-1')
+  assert.equal(system.state.lastWhere.project.is.companyId, 'company-1')
+  assert.equal(system.state.lastWhere.role, 'Developer')
+  assert.equal(system.state.lastWhere.kind, 'Task')
+  assert.deepEqual(JSON.parse(JSON.stringify(system.state.lastWhere.AND.slice(0, 3))), [
+    { status: { notIn: ['completed', 'cancelled'] } },
+    { dueDate: { lt: '2026-10-02T00:00:00.000Z' } },
+    { status: { notIn: ['completed', 'cancelled'] } },
+  ])
+  const dateAnchors = system.state.lastWhere.AND[3].OR
+  assert.equal(dateAnchors[0].workDate.gte.toISOString(), '2026-10-01T00:00:00.000Z')
+  assert.equal(dateAnchors[0].workDate.lt.toISOString(), '2026-10-03T00:00:00.000Z')
+  const inclusiveEnd = await system.list.GET({
+    url: 'http://local/api/work-items?startDate=2026-10-01&endDate=2026-10-02&companyId=company-1&projectId=project-1&role=Developer&kind=Task',
+  })
+  assert.ok(inclusiveEnd.body.workItems.some((item) => item.id === 'dashboard-open-current'))
+  assert.ok(inclusiveEnd.body.workItems.some((item) => item.id === 'dashboard-cancelled'))
+  assert.equal((await system.list.GET({ url: 'http://local/api/work-items?startDate=2026-10-02' })).status, 400)
+  assert.equal((await system.list.GET({ url: 'http://local/api/work-items?startDate=2026-10-02&endDate=2026-10-01' })).status, 400)
+  assert.equal((await system.list.GET({ url: 'http://local/api/work-items?openOnly=on' })).status, 400)
+  assert.equal((await system.list.GET({ url: 'http://local/api/work-items?overdue=0' })).status, 400)
+})
+
 test('Work Item collection uses bounded stable cursor pages bound to its filters', async () => {
   const system = makeSystem()
   for (const id of ['work-a', 'work-b', 'work-c', 'work-d']) {
@@ -466,6 +526,32 @@ test('Work Item collection uses bounded stable cursor pages bound to its filters
   assert.equal((await system.list.GET({ url: 'http://local/api/work-items?limit=0' })).status, 400)
   assert.equal((await system.list.GET({ url: 'http://local/api/work-items?limit=201' })).status, 400)
   assert.equal((await system.list.GET({ url: 'http://local/api/work-items?cursor=broken' })).status, 400)
+})
+
+test('overdue Work Item cursors expire when the Bangkok business date changes', async () => {
+  const system = makeSystem()
+  for (const id of ['overdue-a', 'overdue-b']) {
+    const created = await system.list.POST(request(validInput({
+      id,
+      kind: 'Task',
+      workDate: '2026-10-01',
+      dueDate: '2026-10-01',
+    })))
+    assert.equal(created.status, 201)
+  }
+
+  const firstPage = await system.list.GET({
+    url: 'http://local/api/work-items?startDate=2026-10-01&endDate=2026-10-02&overdue=true&limit=1',
+  })
+  assert.equal(firstPage.status, 200)
+  assert.equal(typeof firstPage.body.page.nextCursor, 'string')
+
+  system.bangkok.currentBangkokCalendarDate = () => '2026-10-03'
+  const nextPage = await system.list.GET({
+    url: `http://local/api/work-items?startDate=2026-10-01&endDate=2026-10-02&overdue=true&limit=1&cursor=${encodeURIComponent(firstPage.body.page.nextCursor)}`,
+  })
+  assert.equal(nextPage.status, 400)
+  assert.equal(nextPage.body.error.field, 'cursor')
 })
 
 test('Work Item collection and create unexpected errors use the shared error envelope', async () => {

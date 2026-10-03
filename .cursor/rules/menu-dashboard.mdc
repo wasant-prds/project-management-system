@@ -1,6 +1,6 @@
 ---
 description: Dashboard must use live aggregates and documented metrics
-globs: app/page.tsx,components/layout/dashboard-charts.tsx,components/layout/summary-stat-card.tsx
+globs: app/page.tsx,components/layout/dashboard-charts.tsx,components/layout/dashboard-loading.tsx,components/layout/summary-stat-card.tsx
 alwaysApply: false
 ---
 

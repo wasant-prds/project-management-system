@@ -156,3 +156,7 @@ Issue #21 ปรับ Prisma source ให้ `TimeEntry.date` เป็น Pos
 ## Board workflow ที่ส่งมอบใน #22
 
 Issue #22 ไม่มี runtime service, environment variable, schema sync หรือ deployment step ใหม่. Board ใช้ API Work Items ที่อยู่ภายใต้ owner access gate เดิม; status mutations ผ่าน shared Work Item validation. ตรวจ `pnpm test:board`, `pnpm typecheck` และ `pnpm lint` ก่อน deploy ตามปกติ. ไม่ได้ deploy หรือทดสอบกับ production environment ใน issue นี้.
+
+## Dashboard implementation ใน #23
+
+Issue #23 เพิ่ม owner-only `GET /api/dashboard/summary` และ query-time Prisma aggregates; ไม่มี environment variable, worker, cache, schema sync หรือ migration ใหม่. Dashboard ใช้ owner gate และ PostgreSQL runtime ที่มีอยู่. Source changes ของ TimeEntry จาก #21 ยังต้องผ่าน rollout/backup gates ของ target environment ก่อน deploy image ที่พึ่ง schema ดังกล่าว. ก่อน release ให้รัน `pnpm test:dashboard`, `pnpm test:work-items`, `pnpm test:daily-work`, `pnpm lint` และ `pnpm typecheck`; issue นี้ไม่ได้ deploy หรือเปลี่ยนฐานข้อมูลจริง.

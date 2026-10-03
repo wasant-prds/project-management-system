@@ -1,86 +1,59 @@
 'use client'
 
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from 'recharts'
+import Link from 'next/link'
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart'
+import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
+import { dashboardDailyWorkHref } from '@/lib/dashboard-links'
+import type { DashboardFilters } from '@/lib/dashboard'
 
-const projectCompletionData = [
-  { month: 'Jan', completed: 12, inProgress: 8 },
-  { month: 'Feb', completed: 15, inProgress: 10 },
-  { month: 'Mar', completed: 18, inProgress: 12 },
-  { month: 'Apr', completed: 22, inProgress: 15 },
-  { month: 'May', completed: 25, inProgress: 14 },
-  { month: 'Jun', completed: 28, inProgress: 12 },
-]
+type LoggedHoursPoint = { date: string; hours: string }
 
-const taskActivityData = [
-  { day: 'Mon', tasks: 45 },
-  { day: 'Tue', tasks: 52 },
-  { day: 'Wed', tasks: 48 },
-  { day: 'Thu', tasks: 61 },
-  { day: 'Fri', tasks: 55 },
-  { day: 'Sat', tasks: 32 },
-  { day: 'Sun', tasks: 28 },
-]
+export function DashboardCharts({
+  data,
+  filters,
+}: Readonly<{ data: LoggedHoursPoint[]; filters: DashboardFilters }>) {
+  const sourceHref = dashboardDailyWorkHref(filters)
+  const chartData = data.map((point) => ({ ...point, plottedHours: Number(point.hours) }))
 
-export function DashboardCharts() {
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <Card className="card-shadow">
-        <CardHeader>
-          <CardTitle>Project Completion Trends</CardTitle>
-          <CardDescription>Monthly project completion vs in-progress</CardDescription>
-        </CardHeader>
-        <CardContent>
+    <Card className="min-w-0 overflow-hidden card-shadow">
+      <CardHeader className="flex min-w-0 flex-row flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <CardTitle>ชั่วโมง Daily Work ตามวัน</CardTitle>
+          <CardDescription>รวมจาก TimeEntry.date ในช่วงและตัวกรองที่เลือก</CardDescription>
+        </div>
+        <Link href={sourceHref} className="shrink-0 text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">เปิด Daily Work</Link>
+      </CardHeader>
+      <CardContent className="min-w-0 overflow-hidden">
+        {chartData.length === 0 ? (
+          <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">ไม่มี Daily Work ในช่วงนี้</p>
+        ) : (
           <ChartContainer
-            config={{
-              completed: { label: 'Completed', color: 'var(--chart-1)' },
-              inProgress: { label: 'In Progress', color: 'var(--chart-2)' },
-            }}
-            className="h-[250px]"
+            config={{ plottedHours: { label: 'ชั่วโมง', color: 'var(--chart-2)' } }}
+            className="h-[260px] min-w-0 w-full"
           >
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={projectCompletionData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
-                <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={12} />
-                <YAxis stroke="var(--muted-foreground)" fontSize={12} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="completed" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="inProgress" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
+              <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 4, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.35} />
+                <XAxis
+                  dataKey="date"
+                  stroke="var(--muted-foreground)"
+                  fontSize={11}
+                  minTickGap={18}
+                  tickFormatter={(date: string) => date.slice(5)}
+                />
+                <YAxis stroke="var(--muted-foreground)" fontSize={11} width={36} />
+                <Tooltip
+                  content={<ChartTooltipContent />}
+                  labelFormatter={(date: string) => `วันที่ ${date}`}
+                />
+                <Bar dataKey="plottedHours" fill="var(--chart-2)" radius={[4, 4, 0, 0]} maxBarSize={36} />
               </BarChart>
             </ResponsiveContainer>
           </ChartContainer>
-        </CardContent>
-      </Card>
-
-      <Card className="card-shadow">
-        <CardHeader>
-          <CardTitle>Weekly Task Activity</CardTitle>
-          <CardDescription>Tasks completed this week</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer
-            config={{ tasks: { label: 'Tasks', color: 'var(--chart-2)' } }}
-            className="h-[250px]"
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={taskActivityData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
-                <XAxis dataKey="day" stroke="var(--muted-foreground)" fontSize={12} />
-                <YAxis stroke="var(--muted-foreground)" fontSize={12} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Line
-                  type="monotone"
-                  dataKey="tasks"
-                  stroke="var(--chart-2)"
-                  strokeWidth={2}
-                  dot={{ fill: 'var(--chart-2)', r: 4 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </CardContent>
-      </Card>
-    </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }

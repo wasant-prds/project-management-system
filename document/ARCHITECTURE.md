@@ -208,3 +208,7 @@ TimeEntry mutations resolve owner server-side, serialize writes for the selected
 ## Board workflow ที่ implement ใน #22
 
 Client Component `/board` โหลด WorkItems, Company และ Project options แบบ cursor pagination. WorkItem status เป็นตัวกำหนดคอลัมน์; filter Company/Project/role ปรับ query เดิม. การอัปเดตสถานะเรียก `PATCH /api/work-items/{id}` และ shared parser/service ฝั่ง server โดยตรง. Helper จัดการ optimistic status และ rollback เมื่อ request ล้มเหลว; ไม่มี Board model หรือ mutation route ใหม่. รายละเอียดการ์ดอ่าน WorkItem เดิมและ date-only values ใช้ Bangkok calendar date.
+
+## Dashboard data flow ที่ implement ใน #23
+
+`app/page.tsx` และ `GET /api/dashboard/summary` อ่านผ่าน `lib/dashboard.ts` ซึ่งเป็น query/metric boundary ร่วมกัน. Server ยืนยัน owner ก่อน query; Prisma aggregate `WorkItem`, `TimeEntry`, `Project` และ `Company` ตาม Bangkok date range กับ Company/Project/role/kind filters. Dashboard แสดง aggregate จริงและส่ง active filters ผ่าน source links ไปยัง `GET /api/work-items` หรือ `GET /api/work-logs`; ทั้งสอง list APIs ตรวจ owner ซ้ำและใช้ filter เดียวกัน. Client ไม่สร้าง KPI จาก sample arrays. ไม่มี table, cache หรือ schema ใหม่.

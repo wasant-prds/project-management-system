@@ -19,6 +19,7 @@ test("API handbook separates the actual Route Handler inventory from target prop
     ["app/api/work-items/route.ts", ["GET", "POST"]],
     ["app/api/work-items/[id]/route.ts", ["GET", "PATCH", "DELETE"]],
     ["app/api/work-items/import/route.ts", ["POST"]],
+    ["app/api/dashboard/summary/route.ts", ["GET"]],
     ["app/api/work-logs/route.ts", ["GET", "POST"]],
     ["app/api/work-logs/[id]/route.ts", ["GET", "PATCH", "DELETE"]],
   ];
@@ -42,7 +43,6 @@ test("API handbook separates the actual Route Handler inventory from target prop
   assert.match(api, /Endpoint ที่มีอยู่ใน repository \(As-Is\)/i);
   assert.match(api, /Target proposal/);
   for (const proposedPath of [
-    "/api/dashboard/summary",
     "/api/analysis",
     "/api/settings/me",
   ]) {
@@ -50,6 +50,19 @@ test("API handbook separates the actual Route Handler inventory from target prop
   }
   assert.doesNotMatch(api, /`\/api\/customers/);
   assert.match(api, /there is no Customer API or `customerId` contract/i);
+});
+
+test("Dashboard summary route and handbook expose shared filters and metric definitions", async () => {
+  const route = await read("app/api/dashboard/summary/route.ts");
+  const handbook = await read("document/handbook/api/dashboard/summary.md");
+  assert.match(route, /getOwner\(\)/);
+  assert.match(route, /getDashboardSummary\(owner\.id/);
+  assert.match(route, /Cache-Control.*no-store/);
+  assert.match(handbook, /`GET \/api\/dashboard\/summary`/);
+  assert.match(handbook, /`companyId`/);
+  assert.match(handbook, /`startDate`, `endDate`/);
+  assert.match(handbook, /"metricDefinitions"/);
+  assert.match(handbook, /"workItemDateAnchor"/);
 });
 
 test("all eight menus declare a consumer, canonical read source, and write behavior", () => {
@@ -137,7 +150,7 @@ test("resource contracts cover create/update guards and shared aggregate filters
   assert.match(api, /`workItemId`, business `date`, `hours`/);
   assert.match(api, /ตรวจ next-state ของ `workItemId` \+ `projectId` ทุกครั้ง/);
   assert.match(api, /`startDate`, `endDate` \(ทั้งคู่หรือไม่ส่งทั้งคู่/);
-  assert.match(api, /เมื่อไม่ส่งใช้เดือนปัจจุบันใน default time zone `Asia\/Bangkok`/);
+  assert.match(api, /เมื่อไม่ส่งใช้ทั้งเดือนปัจจุบันใน default time zone `Asia\/Bangkok`/);
   assert.match(api, /multiple Companies with Project, WorkItem, and TimeEntry aggregate summaries/);
   assert.match(api, /Company collection\/create\/update\/delete contracts ของ #18/);
   assert.match(api, /Target preferences จำกัดที่ theme/);

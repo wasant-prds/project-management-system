@@ -26,7 +26,7 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 
 | กลุ่ม/เมนู | In scope เป้าหมาย | ระบบปัจจุบันที่พบ / งานที่ต้องเติม |
 | --- | --- | --- |
-| Overview — Dashboard `/` | KPI, งานที่ต้องติดตาม, Project ล่าสุด, filter และ deep link จาก records จริง | ปัจจุบันเป็น sample data; เพิ่ม DB-backed queries |
+| Overview — Dashboard `/` | KPI, งานที่ต้องติดตาม, Project ล่าสุด, filter และ deep link จาก records จริง | #23 ส่งมอบ shared DB-backed query, filters และ source links แล้ว |
 | Overview — Projects `/projects` | Project CRUD/detail, required Company relation, Work Item/role/hour summaries | #18 เพิ่ม Company relation, hours, consistent progress และ business rules |
 | Overview — Work Items `/work-items` | WorkItem list/create/edit/delete/filter/import/export; manual one-way GitLab Issue sync; owner is sole assignee; Developer/Infra/SA are functional roles | #19 Work Item CRUD/validation; #20 owner-only GitLab mapping/manual sync implementation; real instance setup and schema rollout remain environment steps |
 | Management — Board `/board` | Kanban ของ WorkItem จริง; persist status change | ปัจจุบันเป็น client sample state; เชื่อม WorkItem API และ status enum |
@@ -185,8 +185,12 @@ Work Items รองรับ shared create/update validation, Company/status/pr
 
 ## ขอบเขตที่ส่งมอบใน Issue #21
 
-Daily Work รองรับ owner-only CRUD, Work Item ที่ owner เป็นเจ้าของ, Project ที่ derive จาก Work Item, positive `DECIMAL(65,30)` hours และ Bangkok calendar date/local timestamp. ตัวกรอง day/week/month/year ใช้ Bangkok calendar boundaries; Work Item options อ่านทุกหน้าและทุกปี. การแก้ไขและลบคำนวณยอดใหม่จาก TimeEntry ล่าสุดด้วย exact decimal arithmetic; Work Item detail, Project summary และ logged-hours metric ของ Dashboard/Analysis อ่านข้อมูลจริง. Dashboard/Analysis ส่วนอื่นยังเป็น scope ของ #23/#24. GitLab ไม่สร้าง TimeEntry. Schema source เปลี่ยน precision ของ hours, `TimeEntry.date` เป็น PostgreSQL `DATE` และ timestamp เป็น `TIMESTAMP(3) WITHOUT TIME ZONE`; ยังไม่มี database rollout ในงานนี้.
+Daily Work รองรับ owner-only CRUD, Work Item ที่ owner เป็นเจ้าของ, Project ที่ derive จาก Work Item, positive `DECIMAL(65,30)` hours และ Bangkok calendar date/local timestamp. ตัวกรอง day/week/month/year ใช้ Bangkok calendar boundaries; Work Item options อ่านทุกหน้าและทุกปี. การแก้ไขและลบคำนวณยอดใหม่จาก TimeEntry ล่าสุดด้วย exact decimal arithmetic; Work Item detail, Project summary และ logged-hours metric ของ Dashboard/Analysis อ่านข้อมูลจริง. #23 เพิ่ม Dashboard query/filters/deep links; Analysis ส่วนที่เหลือเป็น scope ของ #24. GitLab ไม่สร้าง TimeEntry. Schema source เปลี่ยน precision ของ hours, `TimeEntry.date` เป็น PostgreSQL `DATE` และ timestamp เป็น `TIMESTAMP(3) WITHOUT TIME ZONE`; ยังไม่มี database rollout ในงานนี้.
 
 ## ขอบเขตที่ส่งมอบใน Issue #22
 
 Board โหลด WorkItems ทุกหน้าจาก API เดิม พร้อม filter Company, Project และ functional role; แสดงทุก status จาก enum กลางและเปิดรายละเอียดของ record เดิม. การย้ายสถานะใช้ `PATCH /api/work-items/{id}` เพื่อผ่าน shared Work Item validation. UI rollback สถานะเมื่อบันทึกล้มเหลวและมี loading, empty, retry และ error states. เพิ่ม unit suite แบบ mock/in-memory; ไม่มี endpoint หรือ schema ใหม่.
+
+## ขอบเขตที่ส่งมอบใน Issue #23
+
+Dashboard ใช้ shared server query สำหรับหน้า `/` และ `GET /api/dashboard/summary`; คำนวณ KPIs, bounded WorkItem lists, recent Project progress และ exact logged-hours series จากฐานข้อมูล. วันที่แบบ inclusive ใช้ `Asia/Bangkok`; filter Company/Project/role/kind มีผลกับ dashboard query และ source lists. Work Items/Daily Work APIs รองรับ date range และ relation filters เพื่อให้ drill-through คงเงื่อนไข. Loading, empty และ safe error states อยู่ในหน้า; ไม่มี schema หรือ runtime configuration ใหม่.

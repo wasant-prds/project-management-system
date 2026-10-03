@@ -39,13 +39,17 @@ function decimal(value) {
 function createSystem() {
   const state = {
     workItems: new Map([
-      ['item-1', { id: 'item-1', projectId: 'project-1', assigneeId: owner.id, title: 'One', kind: 'Task', status: 'todo' }],
-      ['item-2', { id: 'item-2', projectId: 'project-2', assigneeId: owner.id, title: 'Two', kind: 'Issue', status: 'in_progress' }],
-      ['foreign-item', { id: 'foreign-item', projectId: 'project-1', assigneeId: foreignOwner.id, title: 'Private', kind: 'Task', status: 'todo' }],
+      ['item-1', { id: 'item-1', projectId: 'project-1', assigneeId: owner.id, title: 'One', kind: 'Task', role: 'Developer', status: 'todo' }],
+      ['item-2', { id: 'item-2', projectId: 'project-2', assigneeId: owner.id, title: 'Two', kind: 'Issue', role: 'infra', status: 'in_progress' }],
+      ['foreign-item', { id: 'foreign-item', projectId: 'project-1', assigneeId: foreignOwner.id, title: 'Private', kind: 'Task', role: 'Developer', status: 'todo' }],
     ]),
     projects: new Map([
-      ['project-1', { id: 'project-1', name: 'Project One', colorProject: '#123456' }],
-      ['project-2', { id: 'project-2', name: 'Project Two', colorProject: '#654321' }],
+      ['project-1', { id: 'project-1', name: 'Project One', colorProject: '#123456', companyId: 'company-1' }],
+      ['project-2', { id: 'project-2', name: 'Project Two', colorProject: '#654321', companyId: 'company-2' }],
+    ]),
+    companies: new Map([
+      ['company-1', { id: 'company-1' }],
+      ['company-2', { id: 'company-2' }],
     ]),
     entries: [],
     nextId: 1,
@@ -70,6 +74,19 @@ function createSystem() {
     if (where.id && entry.id !== where.id) return false
     if (where.date?.gte && entry.date < where.date.gte) return false
     if (where.date?.lt && entry.date >= where.date.lt) return false
+    if (where.workItem?.is) {
+      const item = state.workItems.get(entry.workItemId)
+      const itemFilter = where.workItem.is
+      if (!item) return false
+      if (itemFilter.kind && item.kind !== itemFilter.kind) return false
+      if ('role' in itemFilter && item.role !== itemFilter.role) return false
+      if (itemFilter.project?.is) {
+        const projectFilter = itemFilter.project.is
+        if (projectFilter.id && item.projectId !== projectFilter.id) return false
+        const project = state.projects.get(item.projectId)
+        if (projectFilter.companyId && project?.companyId !== projectFilter.companyId) return false
+      }
+    }
     return true
   }
 
@@ -81,6 +98,12 @@ function createSystem() {
     async $queryRaw(query) {
       state.locks.push(query)
       return []
+    },
+    project: {
+      async findUnique({ where }) { return state.projects.get(where.id) ?? null },
+    },
+    company: {
+      async findUnique({ where }) { return state.companies.get(where.id) ?? null },
     },
     workItem: {
       async findFirst({ where }) {
@@ -163,6 +186,7 @@ function createSystem() {
   const common = {
     'next/server': { NextResponse: response },
     '@/lib/db': { prisma },
+    '@/lib/work-items': { WORK_ITEM_KINDS: ['Incident', 'Issue', 'Task'], WORK_ITEM_ROLES: ['Developer', 'infra', 'PM', 'SA', 'QA', 'UX/UI'] },
     '@/lib/owner': {
       async getOwner() {
         if (state.ownerError) throw state.ownerError
@@ -368,6 +392,26 @@ test('GET returns only owner records and queries Bangkok date boundaries as an e
   assert.equal(system.state.lastWhere.userId, owner.id)
   assert.equal(system.state.lastWhere.date.gte.toISOString(), '2026-10-01T00:00:00.000Z')
   assert.equal(system.state.lastWhere.date.lt.toISOString(), '2026-10-02T00:00:00.000Z')
+})
+
+test('Dashboard Daily Work links preserve inclusive dates and filter through the WorkItem Project', async () => {
+  const system = createSystem()
+  seedEntry(system, { id: 'dashboard-match', date: new Date('2026-10-01T00:00:00.000Z'), workItemId: 'item-1' })
+  seedEntry(system, { id: 'dashboard-other-project', date: new Date('2026-10-02T00:00:00.000Z'), workItemId: 'item-2', projectId: 'project-2' })
+
+  const result = await system.collection.GET(new Request(
+    'http://localhost/api/work-logs?startDate=2026-10-01&endDate=2026-10-01&companyId=company-1&projectId=project-1&role=Developer&kind=Task',
+  ))
+
+  assert.equal(result.status, 200)
+  assert.deepEqual(Array.from(result.body.workLogs, (entry) => entry.id), ['dashboard-match'])
+  assert.equal(system.state.lastWhere.userId, owner.id)
+  assert.equal(system.state.lastWhere.date.gte.toISOString(), '2026-10-01T00:00:00.000Z')
+  assert.equal(system.state.lastWhere.date.lt.toISOString(), '2026-10-02T00:00:00.000Z')
+  assert.equal(system.state.lastWhere.workItem.is.project.is.id, 'project-1')
+  assert.equal(system.state.lastWhere.workItem.is.project.is.companyId, 'company-1')
+  assert.equal(system.state.lastWhere.workItem.is.role, 'Developer')
+  assert.equal(system.state.lastWhere.workItem.is.kind, 'Task')
 })
 
 test('GET rejects invalid and incomplete Bangkok date filters before querying', async () => {
@@ -641,7 +685,8 @@ test('Dashboard and Analysis request live hours and Work Item details display an
   const workItemDialog = readFileSync(new URL('../../components/page/work-items/work-item-view-dialog.tsx', import.meta.url), 'utf8')
   const workLogDialog = readFileSync(new URL('../../components/page/daily-work/work-log-dialog.tsx', import.meta.url), 'utf8')
   const dailyWorkPage = readFileSync(new URL('../../app/daily-work/page.tsx', import.meta.url), 'utf8')
-  assert.match(dashboard, /<LoggedHoursStat label="ชั่วโมงสะสม" \/>/)
+  assert.match(dashboard, /getDashboardSummary\(owner\.id, params\)/)
+  assert.doesNotMatch(dashboard, /LoggedHoursStat/)
   assert.match(analysis, /<LoggedHoursStat[\s\S]*?startDate=\{reportRange\.startDate\}/)
   assert.match(stat, /\/api\/work-logs\/summary/)
   assert.match(workItemDialog, /sumDecimalHours\(entries\.map\(\(entry\) => entry\.hours\)\)/)

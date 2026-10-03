@@ -20,7 +20,7 @@ This document describes **what is in or out of this work** and which service imp
 | Runtime | Next.js **`app`** only (`pms-app-dev`). No new microservice. |
 | Page | `app/page.tsx` |
 | Shared chrome | `components/layout/page-layout.ts`, `SidebarProvider` / `SidebarInset` |
-| New API / Docker service / migration | **No.** |
+| New API / Docker service / migration | `GET /api/dashboard/summary` was added in #23; no Docker service or schema migration. |
 
 ---
 
@@ -28,7 +28,7 @@ This document describes **what is in or out of this work** and which service imp
 
 | Business case | In scope |
 | --- | --- |
-| Case 1 — Overview | Existing dashboard stats, recent projects, and charts. |
+| Case 1 — Overview | Live WorkItem/TimeEntry KPIs and lists, recent Projects, date and Company/Project/role/kind filters, source links, and daily logged-hours chart. |
 | Case 2 — Scroll | App shell `h-svh overflow-hidden`; main uses `PAGE_MAIN` (`overflow-y-auto`). Sidebar content already `overflow-auto`. |
 | Case 3 — Contrast | Global button/badge/dialog tokens; no `text-foreground` on all `button` / `span` / `div`. |
 | Case 4 — Responsive | Shared `STAT_GRID`, `PAGE_TOOLBAR`, compact headings. |
@@ -39,7 +39,7 @@ This document describes **what is in or out of this work** and which service imp
 
 | Item | Out of scope |
 | --- | --- |
-| Live metrics | Binding every dashboard number to live Prisma aggregates (page may still use sample chart data). |
+| Advanced analytics | Forecasting, configurable widgets, and cross-company BI warehouse; live aggregates are now in scope through #23. |
 | New widgets | No new dashboard cards or chart types in this pass. |
 | Platform | No new REST resource, no Prisma schema change, no new Docker service. |
 
@@ -52,6 +52,7 @@ This document describes **what is in or out of this work** and which service imp
 - Charts resize with their container; axes, legend, tooltip, and labels stay inside the chart component at every breakpoint without page-level horizontal overflow.
 - Contrast rule is CSS/component-level so it applies on every menu, not only `/`.
 - `html, body { overflow: hidden }` so the bounded `PAGE_MAIN` is the scroll container.
+- #23 shares `lib/dashboard.ts` between the page and API; metrics query PostgreSQL without adding schema or cache storage.
 
 ---
 

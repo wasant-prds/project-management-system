@@ -53,6 +53,15 @@ node tests/run.mjs board
 
 The shared terminal reporter also accepts `bash scripts/test-unit.sh board`.
 
+Run Issue #23 Dashboard aggregate, filter, date, timezone, deep-link, empty/error and owner regressions:
+
+```powershell
+pnpm test:dashboard
+node tests/run.mjs dashboard
+```
+
+The suite uses an in-memory Prisma fake and does not connect to PostgreSQL or external services. Work Item and Daily Work source routes also have deep-link filter regressions; run them with `pnpm test:work-items` and `pnpm test:daily-work`. The shared Bash reporter accepts `bash scripts/test-unit.sh dashboard` when Bash is available.
+
 This suite uses in-memory API responses and WorkItem fixtures; it does not connect to PostgreSQL or external services. It checks shared status columns, Company/Project/role filters and pagination, Bangkok date rendering, the existing Work Items PATCH contract, status validation, rejection of stale reads during status writes, and selection state following rollback after a failed save.
 
 Run the Work Item management, validation, import, history-retention, and Bangkok date regressions:

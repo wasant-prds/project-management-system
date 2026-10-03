@@ -42,6 +42,10 @@ Route Handler ปัจจุบันมีดังนี้:
 - [WorkItem detail](./api/work-items/detail.md) — read, update, delete; detail read แสดง Company และ Daily Work
 - [WorkItem import](./api/work-items/import.md) — JSON bulk import พร้อมผลลัพธ์รายแถว
 
+### Dashboard — Issue #23
+
+- [Dashboard summary](./api/dashboard/summary.md) — owner-only read projection สำหรับ KPI, WorkItems, Projects และ logged hours ตามช่วง Bangkok dates และ filters
+
 ### Integrations — GitLab Issue import — Issue #20
 
 - [GitLab configuration status](./api/integrations/gitlab-status.md) — owner-only configuration readiness
@@ -79,3 +83,5 @@ Route Handler ปัจจุบันมีดังนี้:
 - [Shared WorkItem parser](../../lib/work-item-input.ts)
 - [WorkItem response serializer](../../lib/work-item-response.ts)
 - [WorkItem export UI helpers](../../components/page/work-items/work-item-export.ts)
+- [Dashboard summary handler](../../app/api/dashboard/summary/route.ts)
+- [Dashboard query and metrics](../../lib/dashboard.ts)

@@ -169,3 +169,9 @@ Issue #20 implements owner-triggered GitLab → PMS only, explicit GitLab Projec
 ## Board workflow ที่ implement ใน #22
 
 `/board` อ่าน canonical WorkItems จาก `GET /api/work-items` แบบครบทุกหน้า โดยส่ง filter Company, Project และ functional role; คอลัมน์ใช้ status enum กลางทั้ง 8 ค่า. เปิดการ์ดเพื่อดู WorkItem เดิม; ย้ายสถานะผ่าน `PATCH /api/work-items/{id}` ที่ใช้ validation และ transaction ของ Work Items. UI แสดง loading/empty/error, อัปเดตแบบ optimistic และ rollback เป็นค่าเดิมเมื่อบันทึกล้มเหลว. Board ไม่มี status หรือ API record แยก. วัน Work/Due แสดงจาก Bangkok date ที่ serialize เป็น `YYYY-MM-DD`; ไม่มี schema หรือ deployment change ใน #22.
+
+## Dashboard aggregates ที่ implement ใน #23
+
+`GET /api/dashboard/summary` และหน้า `/` ใช้ `lib/dashboard.ts` ชุดเดียวกันและ owner จาก server. Query คำนวณ WorkItem count/list จาก `WorkItem` กับ Project/Company relations และชั่วโมง/series จาก `TimeEntry`; `startDate`/`endDate` เป็น Bangkok business dates แบบ inclusive และ default เป็นทั้งเดือนปัจจุบัน. Company, Project, functional role และ WorkItem kind filters ใช้กับตัวเลขและรายการ; Dashboard deep links ส่งช่วงและ filters เดิมไปยัง Work Items/Daily Work ซึ่ง API รองรับเงื่อนไขเหล่านี้.
+
+นิยามร่วม: `open = total - completed - cancelled`; overdue คือ due date ก่อน Bangkok วันนี้และ status ไม่ใช่ `completed`/`cancelled`; hours รวมเป็น exact Decimal string; Project progress ใช้ `completed / (total - cancelled) × 100` ผ่าน helper เดียวกับ Project summary. Recent Project progress คำนวณจาก WorkItems ทั้งหมดของ Project ไม่จำกัดช่วงรายงาน. หน้าแสดง effective period, timezone, filter/formula context และ loading/empty/error states. ไม่มี schema/migration ใหม่ใน #23.

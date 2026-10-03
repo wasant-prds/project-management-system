@@ -15,7 +15,7 @@
 
 ## กรณีที่ 1 — ภาพรวมงานในหน้าเดียว
 
-เมื่อเจ้าของเปิด `/` ต้องเห็นสรุป Projects, Work Items และ Daily Work ของ portfolio: การ์ดสรุป โครงการล่าสุด และกิจกรรมของเจ้าของ โดยทุกตัวเลขมาจาก records จริง ไม่ใช่ข้อมูลตัวอย่าง; Target: ช่วงรายงานและการจัดกลุ่มวันที่ใช้ `Asia/Bangkok` และอ่านข้อมูลวันเวลาโดยใช้ semantics เดียวกัน
+เมื่อเจ้าของเปิด `/` ต้องเห็น KPI 5 ค่า (total/open/completed/overdue Work Items และ logged hours), Work Item lists, Projects ล่าสุด และ Daily Work hours chart จาก records จริง ไม่ใช่ข้อมูลตัวอย่าง. ใช้ inclusive date range และ Company/Project/role/kind filters พร้อมลิงก์ไปข้อมูลต้นทาง; ช่วงและการจัดกลุ่มวันที่ใช้ `Asia/Bangkok`.
 
 ---
 

@@ -7,11 +7,11 @@
 | Framework | Next.js 15 App Router Route Handlers |
 | Base URL | `http://localhost:<app-port>/api` |
 | รูปแบบ | JSON; methods ใช้ `GET`, `POST`, `PATCH`, `DELETE` เว้นแต่ระบุว่าเป็นไฟล์ |
-| สถานะเอกสาร | แยก endpoint ที่พบใน repository (As-Is) ออกจากสัญญาเป้าหมาย (Target proposal) |
+| สถานะเอกสาร | แยก endpoint ที่ implement ใน repository ออกจากสัญญาเป้าหมายที่ยังไม่ implement |
 | ขอบเขตข้อมูล | ยึด [Company → Project decision](./COMPANY_PROJECT_DECISION.md); GitLab import ยึด [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) |
 | เอกสารเชื่อมโยง | [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [BUSINESS_REQUIREMENT.md](./BUSINESS_REQUIREMENT.md) · [SCOPE.md](./SCOPE.md) · [DATABASE.md](./DATABASE.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [DEPLOYMENT.md](./DEPLOYMENT.md) |
 
-> **ขอบเขต As-Is:** inventory อิง source code ใน repository โดยมี baseline 2026-09-27 และส่วนที่ implement เพิ่มใน #17–#18; ไม่ใช่ผลตรวจ production database. **Target:** endpoint ที่ระบุว่าเป้าหมายยังไม่ถือว่าถูก implement หรือเปิดใช้งานแล้ว.
+> **ขอบเขต As-Is:** inventory อิง source code ใน repository โดยมี baseline 2026-09-27 และ implementation เพิ่มใน #17–#23; ไม่ใช่ผลตรวจ production database. **Target:** endpoint ที่ยังระบุว่าเป็นเป้าหมายไม่ถือว่าถูก implement หรือเปิดใช้งานแล้ว.
 
 ## 1. Endpoint ที่มีอยู่ใน repository (As-Is)
 
@@ -26,6 +26,7 @@
 | `GET`, `POST` | `/api/work-items` | Work Items; filter, cursor pagination และสร้าง WorkItem ด้วย validation กลาง | WorkItem พร้อม Project/Company/owner; `{ workItems, page, summary, years? }` หรือ `{ workItem }` |
 | `GET`, `PATCH`, `DELETE` | `/api/work-items/{id}` | Work Items อ่าน/แก้/ลบ WorkItem; detail คืน Daily Work ที่ผูกอยู่ | WorkItem เดียว; wrapper `{ workItem }`; DELETE ปฏิเสธเมื่อมีประวัติเวลา |
 | `POST` | `/api/work-items/import` | Work Items bulk import แบบแยกผลรายแถว | ตรวจ WorkItem input และ Project/owner references; valid rows ทำต่อได้เมื่อแถวอื่นผิด |
+| `GET` | `/api/dashboard/summary` | Dashboard aggregates สำหรับช่วงและ Company/Project/role/kind ที่เลือก (#23) | `{ meta, summary, filterOptions }`; query-time Prisma aggregates, `Cache-Control: no-store` |
 | `GET` | `/api/integrations/gitlab/status` | ตรวจว่ามี GitLab server configuration พร้อมหรือไม่ | `{ configured }`; ไม่คืน token/secret metadata (#20) |
 | `GET`, `POST` | `/api/integrations/gitlab/projects` | อ่าน/สร้าง owner-managed GitLab Project mappings | `{ mappings }` / `{ mapping }`; exact label map และ Project relation (#20) |
 | `PATCH`, `DELETE` | `/api/integrations/gitlab/projects/{mappingId}` | แก้ mapping หรือถอน mapping โดยเก็บ imported history | `{ mapping }` / `{ deleted }`; move ปลายทางที่มี references เป็น `409` (#20) |
@@ -34,15 +35,15 @@
 | `GET` | `/api/work-logs/summary` | รวมชั่วโมง owner ทั้งหมดหรือช่วง Bangkok calendar dates | `{ summary: { hours, timezone, startDate?, endDate? } }`; Decimal string, `Cache-Control: no-store` |
 | `GET`, `PATCH`, `DELETE` | `/api/work-logs/{id}` | Daily Work อ่าน/แก้/ลบ TimeEntry | TimeEntry เดียว; wrapper `{ workLog }` |
 
-ยังไม่พบ API route สำหรับ Dashboard aggregates, Analysis หรือ Settings persistence. Board ไม่มี API route เฉพาะ; Issue #22 ใช้ `GET /api/work-items` สำหรับ cards และ `PATCH /api/work-items/{id}` สำหรับ status mutation. Baseline ปัจจุบันรวม #17–#22; middleware/owner resolver, Company/Project pagination, GitLab routes และ Daily Work Decimal summary อยู่ใน repository. Production rollout ของ Company/Project ที่บันทึกใน [Issue #18 implementation report](./COMPANY_PROJECT_IMPLEMENTATION.md) ผ่านการตรวจ Company/Project schema และ API smoke checks. GitLab schema ยังไม่ได้ apply กับ environment ใด; TimeEntry schema change ของ #21 ก็ยังไม่ได้ apply กับ environment ใดเช่นกัน.
+Analysis aggregates และ Settings persistence ยังไม่มี API route. Dashboard API เพิ่มใน #23; Board ไม่มี API route เฉพาะและใช้ `GET /api/work-items` สำหรับ cards กับ `PATCH /api/work-items/{id}` สำหรับ status mutation. Production rollout ของ Company/Project ที่บันทึกใน [Issue #18 implementation report](./COMPANY_PROJECT_IMPLEMENTATION.md) ผ่านการตรวจ Company/Project schema และ API smoke checks. GitLab schema ยังไม่ได้ apply กับ environment ใด; TimeEntry schema change ของ #21 ก็ยังไม่ได้ apply กับ environment ใดเช่นกัน.
 
 **สถานะ #17:** owner gate ตรวจ HTTP Basic และ origin ก่อน Next.js; middleware ปฏิเสธ page/API ที่ไม่มี internal proof ด้วย `401 OWNER_UNAUTHENTICATED` (หรือ gate `403 ACCESS_DENIED` เมื่อ origin ไม่ผ่าน). `GET /api/health` เป็นข้อยกเว้น. Route Handlers ของ Projects, Users, Work Items และ Work Logs ตรวจ owner ฝั่ง server. `GET /api/users` คืน owner หนึ่งคน; WorkItem create/import/update และ TimeEntry create/update ไม่ยอมรับ `assigneeId`/`userId` ที่ต่างจาก owner (`400 VALIDATION_ERROR`); list ของ Work Items/Work Logs กรอง owner. Browser ยังอาจส่ง ID owner เดิมเพื่อ compatibility แต่ server เป็นผู้กำหนดค่าเขียนจริง. Error อื่นของ legacy routes ยังมีรูปแบบเดิมและจะปรับใน issue ที่เกี่ยวข้อง.
 
 ### 1.1 Query parameters ปัจจุบัน
 
-`GET /api/work-items` รองรับ `projectId`, `companyId`, `assigneeId` (legacy; ต้องเป็น owner), `kind`, `status`, `priority`, `role` (`none` ใช้กรอง role ว่าง), `year`, `month`, `search`, `includeYears`, `limit` และ `cursor`. `limit` default 50, สูงสุด 200; `page.nextCursor` ผูกกับ filters และ ordering `createdAt DESC, id DESC`. Response มี `summary` สำหรับรายการทั้งหมดที่ตรง filters ไม่ใช่เฉพาะหน้าปัจจุบัน. เมื่อไม่ส่ง `year` ใช้ปีปัจจุบันของ `Asia/Bangkok`; `year=all` ขอทุกปี. ปี/เดือนกรองตาม `workDate`, ถัดมา `dueDate`, แล้ว `createdAt`. Enum ที่ไม่รู้จัก ปี/เดือนผิดรูปแบบ และ limit/cursor ไม่ถูกต้องหรือใช้กับ filters อื่นตอบ 400. Public status ใช้ hyphen เช่น `in-progress`, แม้ Prisma enum บางค่าจะมี underscore.
+`GET /api/work-items` รองรับ `projectId`, `companyId`, `assigneeId` (legacy; ต้องเป็น owner), `kind`, `status`, `priority`, `role` (`none` ใช้กรอง role ว่าง), `year`, `month`, `startDate`+`endDate`, `openOnly`, `overdue`, `search`, `includeYears`, `limit` และ `cursor`. วันที่เริ่ม/สิ้นสุดต้องมาคู่กันและ inclusive; ใช้แทน `year/month`. `openOnly=true` และ `overdue=true` ไม่รวม completed/cancelled; overdue ใช้ due date ก่อนวันปัจจุบันใน `Asia/Bangkok`. `limit` default 50, สูงสุด 200; `page.nextCursor` ผูกกับ filters และ ordering `createdAt DESC, id DESC`. Response มี `summary` สำหรับรายการทั้งหมดที่ตรง filters ไม่ใช่เฉพาะหน้าปัจจุบัน. เมื่อไม่ส่ง `year` ใช้ปีปัจจุบันของ `Asia/Bangkok`; `year=all` ขอทุกปี. ปี/เดือนและช่วงวันที่กรองตาม `workDate`, ถัดมา `dueDate`, แล้ว `createdAt`. Enum ที่ไม่รู้จัก ปี/เดือน/ช่วงวันที่ผิดรูปแบบ และ limit/cursor ไม่ถูกต้องหรือใช้กับ filters อื่นตอบ 400. Public status ใช้ hyphen เช่น `in-progress`, แม้ Prisma enum บางค่าจะมี underscore.
 
-`GET /api/work-logs` อ่านตาม Bangkok calendar day หรือ inclusive date range, กรองด้วย owner และคืน `date` เป็น `YYYY-MM-DD`; timestamps serialize เป็น Bangkok wall-clock `+07:00`. `POST/PATCH` ปฏิเสธชั่วโมงที่ไม่ใช่ finite Decimal บวก, ผูก WorkItem ของ owner และ derive Project จาก WorkItem; Project mismatch ตอบ 400. `GET /api/work-logs/summary` รวมชั่วโมงด้วย PostgreSQL Decimal aggregate สำหรับ owner และ optional date range. Collection ยังไม่มี cursor/limit.
+`GET /api/work-logs` อ่านตาม Bangkok calendar day หรือ inclusive date range และกรอง owner; Dashboard drill-through เพิ่ม `companyId`, `projectId`, `role` และ `kind` โดยกรองผ่าน `TimeEntry.workItem → WorkItem.project`. คืน `date` เป็น `YYYY-MM-DD`; timestamps serialize เป็น Bangkok wall-clock `+07:00`. `POST/PATCH` ปฏิเสธชั่วโมงที่ไม่ใช่ finite Decimal บวก, ผูก WorkItem ของ owner และ derive Project จาก WorkItem; Project mismatch ตอบ 400. `GET /api/work-logs/summary` รวมชั่วโมงด้วย PostgreSQL Decimal aggregate สำหรับ owner และ optional date range. Collection ยังไม่มี cursor/limit.
 
 Issue #19 ทำให้ Work Item API รับ `workDate`/`dueDate` เป็น business date `YYYY-MM-DD`, ใช้ Prisma `DATE`, คืน business date ในรูปแบบเดิม และคืน timestamps เป็น Bangkok `+07:00`. `submittedAt` ใช้ Bangkok local wall-clock. WorkItem GET/PATCH/POST/import ใช้ owner-side validation ชุดเดียวกัน; เปลี่ยน Project ของ WorkItem ที่มี Daily Work จะถูกปฏิเสธเป็น `409 RELATION_MISMATCH` ใน serializable transaction. Import จับ lookup/create failure เป็นผลรายแถว. Export เดิน cursor จนครบ filtered result.
 
@@ -170,9 +171,9 @@ Repository routes: `GET /api/integrations/gitlab/status`, `GET/POST /api/integra
 
 ### 4.4 Dashboard และ Analysis aggregates
 
-`GET /api/dashboard/summary` และ `GET /api/analysis` ใช้ query parameters ชุดเดียวกัน: `startDate`, `endDate` (ทั้งคู่หรือไม่ส่งทั้งคู่; เมื่อไม่ส่งใช้เดือนปัจจุบันใน default time zone `Asia/Bangkok`), `companyId`, `projectId`, `role`, `kind`. `startDate`/`endDate` เป็น inclusive business dates. หากส่งทั้ง `companyId` และ `projectId` ที่ไม่สัมพันธ์กัน ให้ตอบ `400 RELATION_MISMATCH`; resource ID ที่ไม่มีอยู่ตอบ `404`.
+`GET /api/dashboard/summary` (implemented in #23) และ target `GET /api/analysis` ใช้ query parameters ชุดเดียวกัน: `startDate`, `endDate` (ทั้งคู่หรือไม่ส่งทั้งคู่; เมื่อไม่ส่งใช้ทั้งเดือนปัจจุบันใน default time zone `Asia/Bangkok`), `companyId`, `projectId`, `role`, `kind`. `startDate`/`endDate` เป็น inclusive business dates. `role=none` กรอง WorkItem ที่ไม่ระบุ role. หากส่งทั้ง `companyId` และ `projectId` ที่ไม่สัมพันธ์กัน ให้ตอบ `400 RELATION_MISMATCH`; resource ID ที่ไม่มีอยู่ตอบ `404`.
 
-ใช้ date range กับ WorkItem date anchor และ `TimeEntry.date` ตามข้อ 2.4. Response ทั้งคู่ต้องบอก effective period, timezone, filters และ metric version เพื่อให้ UI/link/export ระบุฐานคำนวณเดิม. Dashboard `summary` คืน `total`, `open`, `completed`, `overdue`, `completionRate`, `loggedHours` และ bounded `recentWorkItems`, `urgentWorkItems`, `overdueWorkItems` lists พร้อม canonical IDs/deep links. Analysis คืน KPIs เดียวกัน พร้อม `statusBreakdown`, `kindBreakdown`, `priorityBreakdown`, time-series และ filtered source rows สำหรับ drill-through กลับ WorkItem/TimeEntry IDs. ทั้งสอง response ไม่เขียน metric ที่คำนวณได้ลงเป็นข้อมูลชุดใหม่. Historical throughput ต้องรอ status history หรือ completion timestamp ที่มีความหมายชัดเจน.
+ใช้ date range กับ WorkItem date anchor และ `TimeEntry.date` ตามข้อ 2.4. Dashboard response บอก effective period, timezone, filters และ metric version เพื่อให้ UI/link ระบุฐานคำนวณเดิม. Dashboard `summary` คืน `total`, `open`, `completed`, `overdue`, `completionRate`, `loggedHours`, grouped `loggedHoursByDate` และ bounded lists ที่มี canonical IDs กับ Project/Company: `recentWorkItems`, `urgentWorkItems`, `overdueWorkItems`, `recentProjects`. Progress ของ recent Projects ใช้ทุก WorkItem ใน Project ไม่จำกัดช่วง report; filter Company/Project จำกัดรายการ Project. `filterOptions` คืน Companies และ Projects ที่สัมพันธ์กับตัวกรองปัจจุบัน. ดู response field comments และ error shapes ใน [Dashboard summary API](./handbook/api/dashboard/summary.md). Target Analysis คืน KPIs เดียวกัน พร้อม `statusBreakdown`, `kindBreakdown`, `priorityBreakdown`, time-series และ filtered source rows สำหรับ drill-through กลับ WorkItem/TimeEntry IDs. ทั้งสอง response ไม่เขียน metric ที่คำนวณได้ลงเป็นข้อมูลชุดใหม่. Historical throughput ต้องรอ status history หรือ completion timestamp ที่มีความหมายชัดเจน.
 
 ตัวอย่าง metadata ที่ response ต้องมี:
 
@@ -189,6 +190,16 @@ Repository routes: `GET /api/integrations/gitlab/status`, `GET/POST /api/integra
       "projectId": null, // Project filter หรือ null
       "role": null, // WorkItem role filter หรือ null
       "kind": null // WorkItem kind filter หรือ null
+    },
+    "metricDefinitions": { // สูตร/ฐานข้อมูลที่ใช้ตีความค่าใน summary
+      "total": "Owner WorkItems matching the selected date anchor and filters", // ฐานนับรายการ
+      "open": "total - completed - cancelled", // สูตร Open
+      "completed": "Owner WorkItems with status=completed", // เงื่อนไข Completed
+      "overdue": "dueDate before the current Asia/Bangkok date and status not in completed,cancelled", // เงื่อนไข Overdue
+      "completionRate": "completed / (total - cancelled) * 100; zero denominator returns 0", // สูตร progress
+      "loggedHours": "Exact SUM(TimeEntry.hours) for the owner and selected period/filters", // สูตรชั่วโมงรวม
+      "workItemDateAnchor": "workDate ?? dueDate ?? createdAt", // วันอ้างอิง WorkItem ตามลำดับ
+      "recentProjectProgress": "completed / (total - cancelled) across all owner WorkItems in the Project" // สูตร Project progress ที่ไม่จำกัด report period
     },
     "metricVersion": "shared-work-v1" // สูตร metrics ที่ response ใช้
   }

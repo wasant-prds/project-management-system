@@ -15,7 +15,7 @@ This document describes **what the product must do**. Technical boundaries are i
 
 ## Case 1 — Overview of work at a glance
 
-When the owner opens `/`, they see a summary of Projects, Work Items, and their Daily Work activity: four summary cards, recent Projects, and charts. The system has no multi-user team activity. Target behavior: reporting periods, date grouping, and persisted date/time interpretation use `Asia/Bangkok`.
+When the owner opens `/`, they see five live KPIs (total/open/completed/overdue Work Items and logged hours), Work Item lists, recent Projects, and a Daily Work hours chart. The system has no multi-user team activity. Inclusive date range and Company/Project/role/kind filters carry through to source links; reporting periods and date grouping use `Asia/Bangkok`.
 
 ---
 

@@ -15,7 +15,7 @@ import {
 import { parseWorkItemInput } from '@/lib/work-item-input'
 import { Prisma } from '@prisma/client'
 import { getOwner, ownerErrorResponse } from '@/lib/owner'
-import { currentBangkokCalendarDate, currentBangkokWallClockDate } from '@/lib/bangkok-datetime'
+import { bangkokDateRange, currentBangkokCalendarDate, currentBangkokWallClockDate } from '@/lib/bangkok-datetime'
 import { serializeWorkItem, workItemInclude } from '@/lib/work-item-response'
 import { createHash } from 'node:crypto'
 
@@ -25,11 +25,14 @@ type WorkItemListQuery = {
   ownerId: string
   yearParam: string
   monthParam: string
+  startDate: string | null
+  endDate: string | null
   search: string
   includeYears: boolean
   limit: number
   cursor: WorkItemCursor | null
   filterHash: string
+  overdueAsOf: string | null
   where: Prisma.WorkItemWhereInput
 }
 type WorkItemListQueryResult = { success: true; query: WorkItemListQuery } | { success: false; response: NextResponse }
@@ -128,7 +131,7 @@ function searchClause(query: string): Prisma.WorkItemWhereInput {
   return { OR: clauses }
 }
 
-type WorkItemFilterResult = { where: Prisma.WorkItemWhereInput } | { error: string }
+type WorkItemFilterResult = { where: Prisma.WorkItemWhereInput; overdueAsOf: string | null } | { error: string }
 
 function validateAssigneeFilter(assigneeId: string | null, ownerId: string) {
   return assigneeId && assigneeId !== ownerId ? 'assigneeId ต้องเป็นเจ้าของระบบ' : null
@@ -176,6 +179,11 @@ function baseWorkItemFilter(searchParams: URLSearchParams, ownerId: string): Wor
   const priority = searchParams.get('priority')
   const role = searchParams.get('role')
   const companyId = searchParams.get('companyId')
+  const openOnly = searchParams.get('openOnly')
+  const overdueOnly = searchParams.get('overdue')
+
+  if (openOnly !== null && openOnly !== 'true' && openOnly !== 'false') return { error: 'Invalid openOnly filter' }
+  if (overdueOnly !== null && overdueOnly !== 'true' && overdueOnly !== 'false') return { error: 'Invalid overdue filter' }
 
   const validationError = validateAssigneeFilter(assigneeId, ownerId)
     ?? applyKindFilter(where, kind)
@@ -186,7 +194,30 @@ function baseWorkItemFilter(searchParams: URLSearchParams, ownerId: string): Wor
 
   if (projectId) where.projectId = projectId
   if (companyId) where.project = { is: { companyId } }
-  return { where }
+  const clauses: Prisma.WorkItemWhereInput[] = []
+  let overdueAsOf: string | null = null
+  if (openOnly === 'true') clauses.push({ status: { notIn: ['completed', 'cancelled'] } })
+  if (overdueOnly === 'true') {
+    overdueAsOf = currentBangkokCalendarDate()
+    const today = bangkokDateRange(overdueAsOf)
+    if (!today) return { error: 'Invalid Bangkok business date' }
+    clauses.push({ dueDate: { lt: today.start } }, { status: { notIn: ['completed', 'cancelled'] } })
+  }
+  if (clauses.length > 0) where.AND = clauses
+  return { where, overdueAsOf }
+}
+
+function selectedDateRange(startDate: string, endDate: string): Prisma.WorkItemWhereInput | null {
+  const start = bangkokDateRange(startDate)
+  const end = bangkokDateRange(endDate)
+  if (!start || !end || end.start < start.start) return null
+  return {
+    OR: [
+      { workDate: { gte: start.start, lt: end.end } },
+      { workDate: null, dueDate: { gte: start.start, lt: end.end } },
+      { workDate: null, dueDate: null, createdAt: { gte: start.start, lt: end.end } },
+    ],
+  }
 }
 
 async function periodFilter(yearParam: string, monthParam: string, ownerId: string) {
@@ -213,7 +244,7 @@ function parsePageLimit(value: string | null) {
   return limit >= 1 && limit <= MAX_PAGE_LIMIT ? limit : null
 }
 
-function workItemFilterHash(searchParams: URLSearchParams, year: string, month: string, search: string) {
+function workItemFilterHash(searchParams: URLSearchParams, year: string, month: string, search: string, overdueAsOf: string | null) {
   const filters = {
     year,
     month,
@@ -224,6 +255,11 @@ function workItemFilterHash(searchParams: URLSearchParams, year: string, month: 
     status: searchParams.get('status') ?? '',
     priority: searchParams.get('priority') ?? '',
     role: searchParams.get('role') ?? '',
+    startDate: searchParams.get('startDate') ?? '',
+    endDate: searchParams.get('endDate') ?? '',
+    openOnly: searchParams.get('openOnly') ?? '',
+    overdue: searchParams.get('overdue') ?? '',
+    overdueAsOf: overdueAsOf ?? '',
     search,
     order: 'createdAt-desc-id-desc',
   }
@@ -272,7 +308,13 @@ function validationResponse(message: string, field?: string) {
 }
 
 function parseWorkItemListQuery(searchParams: URLSearchParams, ownerId: string): WorkItemListQueryResult {
-  const yearParam = searchParams.get('year') ?? currentBangkokCalendarDate().slice(0, 4)
+  const startDate = searchParams.get('startDate')
+  const endDate = searchParams.get('endDate')
+  if ((startDate === null) !== (endDate === null)) {
+    return { success: false, response: validationResponse('startDate and endDate must be provided together', 'startDate') }
+  }
+  const hasDateRange = startDate !== null && endDate !== null
+  const yearParam = searchParams.get('year') ?? (hasDateRange ? 'all' : currentBangkokCalendarDate().slice(0, 4))
   const monthParam = searchParams.get('month') ?? 'all'
   const search = searchParams.get('search')?.trim() ?? ''
   const includeYears = searchParams.get('includeYears') === 'true'
@@ -285,6 +327,12 @@ function parseWorkItemListQuery(searchParams: URLSearchParams, ownerId: string):
   if (monthParam !== 'all' && !/^(?:[1-9]|1[0-2])$/.test(monthParam)) {
     return { success: false, response: validationResponse('Invalid month', 'month') }
   }
+  if (hasDateRange && (yearParam !== 'all' || monthParam !== 'all')) {
+    return { success: false, response: validationResponse('Use either startDate/endDate or year/month', 'startDate') }
+  }
+  if (hasDateRange && !selectedDateRange(startDate, endDate)) {
+    return { success: false, response: validationResponse('Invalid ordered date range', 'startDate') }
+  }
 
   // Ignore legacy seed rows whose required Project record is missing.
   const filters = baseWorkItemFilter(searchParams, ownerId)
@@ -292,7 +340,7 @@ function parseWorkItemListQuery(searchParams: URLSearchParams, ownerId: string):
     return { success: false, response: validationResponse(filters.error) }
   }
 
-  const filterHash = workItemFilterHash(searchParams, yearParam, monthParam, search)
+  const filterHash = workItemFilterHash(searchParams, yearParam, monthParam, search, filters.overdueAsOf)
   const cursorParam = searchParams.get('cursor')
   const cursor = cursorParam === null ? null : decodeCursor(cursorParam, filterHash)
   if (cursorParam !== null && !cursor) {
@@ -305,11 +353,14 @@ function parseWorkItemListQuery(searchParams: URLSearchParams, ownerId: string):
       ownerId,
       yearParam,
       monthParam,
+      startDate,
+      endDate,
       search,
       includeYears,
       limit,
       cursor,
       filterHash,
+      overdueAsOf: filters.overdueAsOf,
       where: filters.where,
     },
   }
@@ -319,16 +370,24 @@ async function queryWorkItemList({
   ownerId,
   yearParam,
   monthParam,
+  startDate,
+  endDate,
   search,
   includeYears,
   limit,
   cursor,
   filterHash,
+  overdueAsOf,
   where,
 }: WorkItemListQuery) {
   const shouldIncludeYears = includeYears || (yearParam === 'all' && monthParam !== 'all')
-  const { clause, availableYears } = await periodFilter(yearParam, monthParam, ownerId)
+  const period = startDate && endDate
+    ? { clause: selectedDateRange(startDate, endDate), availableYears: undefined }
+    : await periodFilter(yearParam, monthParam, ownerId)
+  const { clause, availableYears } = period
+  const baseClauses = Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []
   const and: Prisma.WorkItemWhereInput[] = [
+    ...baseClauses,
     ...(clause ? [clause] : []),
     ...(search ? [searchClause(search)] : []),
   ]
@@ -336,7 +395,7 @@ async function queryWorkItemList({
   const pageWhere: Prisma.WorkItemWhereInput = cursor
     ? { ...filteredWhere, AND: [...and, cursorClause(cursor)] }
     : filteredWhere
-  const todayStart = new Date(`${currentBangkokCalendarDate()}T00:00:00.000Z`)
+  const todayStart = new Date(`${overdueAsOf ?? currentBangkokCalendarDate()}T00:00:00.000Z`)
 
   const [rows, years, total, inProgress, completed, overdue, incident, issue, task] = await Promise.all([
     prisma.workItem.findMany({

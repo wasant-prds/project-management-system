@@ -236,3 +236,7 @@ Prisma schema กำหนด `WorkItem.workDate`/`dueDate` และ `TimeEntry
 ## Board workflow ใน #22
 
 Issue #22 ไม่เปลี่ยน Prisma schema หรือข้อมูลฐานข้อมูล. Board ใช้ `WorkItem.status` ที่มีอยู่เป็นคอลัมน์และ `WorkItem.id` เป็น identity ของการ์ด; mutation ใช้ Work Items API เดิม. ไม่มี board-specific table, duplicate status, migration หรือ rollout.
+
+## Dashboard aggregates ใน #23
+
+Issue #23 ไม่เปลี่ยน Prisma schema หรือ database. หน้าและ `GET /api/dashboard/summary` aggregate จาก `WorkItem.assigneeId/status/workDate/dueDate/createdAt`, `WorkItem.projectId/role/kind`, `TimeEntry.userId/date/hours`, `Project.companyId` และ Company/Project relations. WorkItem period anchor ใช้ `workDate ?? dueDate ?? createdAt`; TimeEntry ใช้ `date`. Date ranges รวมวันสิ้นสุดโดยใช้ Bangkok calendar boundaries และ Decimal hours ยังคงเป็น string หลัง aggregate. Recent Project progress ใช้ WorkItems ของ owner ทั้ง Project และ shared `completionRate` helper. Query reads อย่างเดียวและไม่มี table/cache/column เพิ่ม.

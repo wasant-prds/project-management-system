@@ -2,6 +2,7 @@
 
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { AppHeader } from "@/components/layout/app-header"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   PAGE_HEADING,
   PAGE_INNER,
@@ -22,14 +23,31 @@ import { bangkokCalendarPeriodRange, currentBangkokCalendarDate } from "@/lib/ba
 import { parsePositiveDecimalHours, sumDecimalHours } from "@/lib/decimal-hours"
 import { readWorkLogsResponse } from "@/lib/work-log-response"
 import { fetchCollection } from "@/lib/fetch-collection"
+import { dailyWorkHrefWithoutDashboardFilters } from "@/lib/dashboard-links"
 import { WorkLog, Project, WorkLogFormData, emptyWorkLogForm } from "@/components/page/daily-work/types"
 import { WorkLogList } from "@/components/page/daily-work/work-log-list"
 import { WorkLogDialog } from "@/components/page/daily-work/work-log-dialog"
 import { StatsCard } from "@/components/page/daily-work/stats-card"
 
 type ViewPeriod = "day" | "week" | "month" | "year"
+type DashboardWorkLogFilters = {
+  startDate: string
+  endDate: string
+  companyId: string | null
+  projectId: string | null
+  role: string | null
+  kind: string | null
+}
 
-function workLogQuery(date: Date | undefined, period: ViewPeriod) {
+function workLogQuery(date: Date | undefined, period: ViewPeriod, dashboardFilters: DashboardWorkLogFilters | null) {
+  if (dashboardFilters) {
+    const params = new URLSearchParams({ startDate: dashboardFilters.startDate, endDate: dashboardFilters.endDate })
+    if (dashboardFilters.companyId) params.set("companyId", dashboardFilters.companyId)
+    if (dashboardFilters.projectId) params.set("projectId", dashboardFilters.projectId)
+    if (dashboardFilters.role) params.set("role", dashboardFilters.role)
+    if (dashboardFilters.kind) params.set("kind", dashboardFilters.kind)
+    return `?${params.toString()}`
+  }
   if (!date) return ""
   if (period === "day") return `?date=${formatDate(date)}`
 
@@ -69,6 +87,9 @@ async function saveWorkLog(form: WorkLogFormData, selected: WorkLog | null) {
 }
 
 export default function DailyWorkPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const searchParamsValue = searchParams.toString()
   const [date, setDate] = useState<Date | undefined>(() => dateOnlyToPickerDate(currentBangkokCalendarDate()) ?? undefined)
   const [workLogs, setWorkLogs] = useState<WorkLog[]>([])
   const [projects, setProjects] = useState<Project[]>([])
@@ -78,13 +99,36 @@ export default function DailyWorkPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [viewPeriod, setViewPeriod] = useState<ViewPeriod>("day")
+  const [dashboardFilters, setDashboardFilters] = useState<DashboardWorkLogFilters | null>(null)
+  const [dashboardFiltersReady, setDashboardFiltersReady] = useState(false)
 
   // Form state
   const [formData, setFormData] = useState<WorkLogFormData>(() => emptyWorkLogForm(currentBangkokCalendarDate()))
 
+  const clearDashboardFilters = useCallback((selectedDate: string | null) => {
+    setDashboardFilters(null)
+    setDate(selectedDate ? dateOnlyToPickerDate(selectedDate) ?? undefined : undefined)
+    router.replace(dailyWorkHrefWithoutDashboardFilters(searchParamsValue, selectedDate), { scroll: false })
+  }, [router, searchParamsValue])
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParamsValue)
+    const startDate = params.get("startDate")
+    const endDate = params.get("endDate")
+    const companyId = params.get("companyId")
+    const projectId = params.get("projectId")
+    const role = params.get("role")
+    const kind = params.get("kind")
+    setDashboardFilters(startDate && endDate ? { startDate, endDate, companyId, projectId, role, kind } : null)
+    const selectedDate = startDate && endDate ? startDate : params.get("date") || currentBangkokCalendarDate()
+    setDate(dateOnlyToPickerDate(selectedDate) ?? undefined)
+    setDashboardFiltersReady(true)
+  }, [searchParamsValue])
+
   const fetchWorkLogs = useCallback(async () => {
+    if (!dashboardFiltersReady) return
     try {
-      const response = await fetch(`/api/work-logs${workLogQuery(date, viewPeriod)}`)
+      const response = await fetch(`/api/work-logs${workLogQuery(date, viewPeriod, dashboardFilters)}`)
       const result = await readWorkLogsResponse<WorkLog>(response)
       if (result.error) {
         setWorkLogs([])
@@ -104,12 +148,12 @@ export default function DailyWorkPage() {
         variant: "destructive",
       })
     }
-  }, [date, viewPeriod])
+  }, [date, viewPeriod, dashboardFilters, dashboardFiltersReady])
 
   // Fetch work logs based on selected date and view period.
   useEffect(() => {
-    void fetchWorkLogs()
-  }, [fetchWorkLogs])
+    if (dashboardFiltersReady) void fetchWorkLogs()
+  }, [fetchWorkLogs, dashboardFiltersReady])
 
   // Fetch projects on mount.
   useEffect(() => {
@@ -269,10 +313,28 @@ export default function DailyWorkPage() {
                 <h1 className={PAGE_HEADING}>Daily Work</h1>
                 <p className={PAGE_LEAD}>Track your daily activities and work logs</p>
               </div>
+            {dashboardFilters && (
+              <Card className="card-shadow">
+                <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+                  <p className="text-muted-foreground">
+                    ตัวกรองจาก Dashboard: {dashboardFilters.startDate} – {dashboardFilters.endDate}
+                    {dashboardFilters.companyId ? ` · Company ${dashboardFilters.companyId}` : ""}
+                    {dashboardFilters.projectId ? ` · Project ${dashboardFilters.projectId}` : ""}
+                    {dashboardFilters.role ? ` · role ${dashboardFilters.role}` : ""}
+                    {dashboardFilters.kind ? ` · ${dashboardFilters.kind}` : ""}
+                  </p>
+                  <button type="button" onClick={() => clearDashboardFilters(currentBangkokCalendarDate())} className="text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">ล้างตัวกรอง Dashboard</button>
+                </div>
+              </Card>
+            )}
               <ToggleGroup
                 type="single"
                 value={viewPeriod}
-                onValueChange={(value) => value && setViewPeriod(value as "day" | "week" | "month" | "year")}
+              onValueChange={(value) => {
+                if (!value) return
+                clearDashboardFilters(date ? formatDate(date) : null)
+                setViewPeriod(value as ViewPeriod)
+              }}
                 className="w-full justify-start overflow-x-auto sm:w-auto"
               >
                 <ToggleGroupItem value="day" aria-label="Day view">Day</ToggleGroupItem>
@@ -295,7 +357,10 @@ export default function DailyWorkPage() {
                 <Card className="card-shadow">
                   <Calendar
                     selectedDate={date}
-                    onDateChange={(newDate) => setDate(newDate || undefined)}
+                    onDateChange={(newDate) => {
+                      clearDashboardFilters(newDate ? formatDate(newDate) : null)
+                      setDate(newDate || undefined)
+                    }}
                     className="rounded-md"
                   />
                 </Card>

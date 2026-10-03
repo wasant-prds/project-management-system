@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
@@ -35,6 +37,7 @@ import {
   type WorkItemKindValue,
 } from '@/lib/work-items'
 import { currentBangkokCalendarDate } from '@/lib/bangkok-datetime'
+import { fetchCollection } from '@/lib/fetch-collection'
 import { WorkItemViewDialog } from '@/components/page/work-items/work-item-view-dialog'
 import { WorkItemGroupedList } from '@/components/page/work-items/work-item-grouped-list'
 import { GitLabImportPanel } from '@/components/page/work-items/gitlab-import-panel'
@@ -135,10 +138,15 @@ type WorkItemQueryOptions = {
   year: string
   month: string
   project: string
+  company: string
+  dateRange: { startDate: string; endDate: string } | null
   search: string
   status: string
   priority: string
   role: string
+  kind: string
+  openOnly: boolean
+  overdueOnly: boolean
   includeYears: boolean
   page?: { limit?: number; cursor?: string | null }
 }
@@ -147,20 +155,36 @@ function workItemQuery({
   year,
   month,
   project,
+  company,
+  dateRange,
   search,
   status,
   priority,
   role,
+  kind,
+  openOnly,
+  overdueOnly,
   includeYears,
   page,
 }: WorkItemQueryOptions) {
-  const params = new URLSearchParams({ year, month })
+  const params = new URLSearchParams({
+    year: dateRange ? 'all' : year,
+    month: dateRange ? 'all' : month,
+  })
   params.set('limit', String(page?.limit ?? 50))
   if (project !== 'all') params.set('projectId', project)
+  if (company !== 'all') params.set('companyId', company)
+  if (dateRange) {
+    params.set('startDate', dateRange.startDate)
+    params.set('endDate', dateRange.endDate)
+  }
   if (search.trim()) params.set('search', search.trim())
   if (status !== 'all') params.set('status', status)
   if (priority !== 'all') params.set('priority', priority)
   if (role !== 'all') params.set('role', role)
+  if (kind !== 'all') params.set('kind', kind)
+  if (openOnly) params.set('openOnly', 'true')
+  if (overdueOnly) params.set('overdue', 'true')
   if (includeYears) params.set('includeYears', 'true')
   if (page?.cursor) params.set('cursor', page.cursor)
   return params.toString()
@@ -246,19 +270,29 @@ function WorkItemSortMenu({
 }
 
 export default function WorkItemsPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const searchParamsValue = searchParams.toString()
   const [workItems, setWorkItems] = useState<WorkItem[]>([])
   const [workItemSummary, setWorkItemSummary] = useState<WorkItemSummary | null>(null)
   const [projects, setProjects] = useState<ProjectOption[]>([])
+  const [companies, setCompanies] = useState<Array<{ id: string; name: string; displayName: string | null }>>([])
   const [availableYears, setAvailableYears] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
   const [yearFilter, setYearFilter] = useState(() => currentBangkokCalendarDate().slice(0, 4))
   const [monthFilter, setMonthFilter] = useState('all')
   const [projectFilter, setProjectFilter] = useState('all')
+  const [companyFilter, setCompanyFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [priorityFilter, setPriorityFilter] = useState('all')
   const [roleFilter, setRoleFilter] = useState('all')
   const [kindTab, setKindTab] = useState<KindTab>('all')
+  const [dashboardKindFilter, setDashboardKindFilter] = useState('all')
+  const [dashboardDateRange, setDashboardDateRange] = useState<{ startDate: string; endDate: string } | null>(null)
+  const [dashboardOpenOnly, setDashboardOpenOnly] = useState(false)
+  const [dashboardOverdueOnly, setDashboardOverdueOnly] = useState(false)
+  const [dashboardFiltersReady, setDashboardFiltersReady] = useState(false)
   const [sortMode, setSortMode] = useState<WorkItemSortMode>(DEFAULT_WORK_ITEM_SORT_MODE)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create')
@@ -282,6 +316,52 @@ export default function WorkItemsPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
 
+  const applyCalendarPeriod = useCallback((year: string, month: string) => {
+    setDashboardDateRange(null)
+    setYearFilter(year)
+    setMonthFilter(month)
+    const query = workItemQuery({
+      year,
+      month,
+      project: projectFilter,
+      company: companyFilter,
+      dateRange: null,
+      search: searchQuery,
+      status: statusFilter,
+      priority: priorityFilter,
+      role: roleFilter,
+      kind: dashboardKindFilter,
+      openOnly: dashboardOpenOnly,
+      overdueOnly: dashboardOverdueOnly,
+      includeYears: false,
+    })
+    router.replace(`/work-items?${query}`, { scroll: false })
+  }, [router, projectFilter, companyFilter, searchQuery, statusFilter, priorityFilter, roleFilter, dashboardKindFilter, dashboardOpenOnly, dashboardOverdueOnly])
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParamsValue)
+    const startDate = params.get('startDate')
+    const endDate = params.get('endDate')
+    const hasDateRange = Boolean(startDate && endDate)
+    setCompanyFilter(params.get('companyId') || 'all')
+    setProjectFilter(params.get('projectId') || 'all')
+    setStatusFilter(params.get('status') || 'all')
+    setPriorityFilter(params.get('priority') || 'all')
+    setRoleFilter(params.get('role') || 'all')
+    const kind = params.get('kind') || 'all'
+    setDashboardKindFilter(kind)
+    setKindTab(isKindTab(kind) ? kind : 'all')
+    setDashboardDateRange(hasDateRange ? { startDate: startDate!, endDate: endDate! } : null)
+    setDashboardOpenOnly(params.get('openOnly') === 'true')
+    setDashboardOverdueOnly(params.get('overdue') === 'true')
+
+    const year = params.get('year')
+    const month = params.get('month')
+    setYearFilter(startDate && endDate ? startDate.slice(0, 4) : year || currentBangkokCalendarDate().slice(0, 4))
+    setMonthFilter(hasDateRange ? 'all' : month || 'all')
+    setDashboardFiltersReady(true)
+  }, [searchParamsValue])
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearchQuery(searchQuery), 250)
     return () => clearTimeout(timer)
@@ -289,7 +369,7 @@ export default function WorkItemsPage() {
 
   const load = useCallback(async () => {
     const generation = ++loadGenerationRef.current
-    const filterKey = [yearFilter, monthFilter, projectFilter, statusFilter, priorityFilter, roleFilter, debouncedSearchQuery.trim()].join('|')
+    const filterKey = [yearFilter, monthFilter, projectFilter, companyFilter, dashboardDateRange?.startDate, dashboardDateRange?.endDate, statusFilter, priorityFilter, roleFilter, dashboardKindFilter, dashboardOpenOnly, dashboardOverdueOnly, debouncedSearchQuery.trim()].join('|')
     loadControllerRef.current?.abort()
     const controller = new AbortController()
     loadControllerRef.current = controller
@@ -306,10 +386,15 @@ export default function WorkItemsPage() {
         year: yearFilter,
         month: monthFilter,
         project: projectFilter,
+        company: companyFilter,
+        dateRange: dashboardDateRange,
         search: debouncedSearchQuery,
         status: statusFilter,
         priority: priorityFilter,
         role: roleFilter,
+        kind: dashboardKindFilter,
+        openOnly: dashboardOpenOnly,
+        overdueOnly: dashboardOverdueOnly,
         includeYears: !yearOptionsLoadedRef.current,
       })
       const response = await fetch(`/api/work-items?${query}`, { signal: controller.signal })
@@ -337,7 +422,7 @@ export default function WorkItemsPage() {
     } finally {
       if (generation === loadGenerationRef.current) setLoadingFilterKey(null)
     }
-  }, [yearFilter, monthFilter, projectFilter, statusFilter, priorityFilter, roleFilter, debouncedSearchQuery])
+  }, [yearFilter, monthFilter, projectFilter, companyFilter, dashboardDateRange, statusFilter, priorityFilter, roleFilter, dashboardKindFilter, dashboardOpenOnly, dashboardOverdueOnly, debouncedSearchQuery])
 
   const refreshAfterMutation = useCallback(async () => {
     yearOptionsLoadedRef.current = false
@@ -353,10 +438,15 @@ export default function WorkItemsPage() {
         year: yearFilter,
         month: monthFilter,
         project: projectFilter,
+        company: companyFilter,
+        dateRange: dashboardDateRange,
         search: debouncedSearchQuery,
         status: statusFilter,
         priority: priorityFilter,
         role: roleFilter,
+        kind: dashboardKindFilter,
+        openOnly: dashboardOpenOnly,
+        overdueOnly: dashboardOverdueOnly,
         includeYears: false,
         page: { limit: 50, cursor: nextCursor },
       })
@@ -376,11 +466,11 @@ export default function WorkItemsPage() {
     } finally {
       if (generation === loadGenerationRef.current) setIsLoadingMore(false)
     }
-  }, [nextCursor, isLoadingMore, yearFilter, monthFilter, projectFilter, debouncedSearchQuery, statusFilter, priorityFilter, roleFilter])
+  }, [nextCursor, isLoadingMore, yearFilter, monthFilter, projectFilter, companyFilter, dashboardDateRange, debouncedSearchQuery, statusFilter, priorityFilter, roleFilter, dashboardKindFilter, dashboardOpenOnly, dashboardOverdueOnly])
 
   useEffect(() => {
-    void load()
-  }, [load])
+    if (dashboardFiltersReady) void load()
+  }, [dashboardFiltersReady, load])
 
   const ensureProjectsLoaded = useCallback(async () => {
     if (projectsLoadedRef.current) return true
@@ -408,6 +498,15 @@ export default function WorkItemsPage() {
     void ensureProjectsLoaded()
   }, [ensureProjectsLoaded])
 
+  useEffect(() => {
+    fetchCollection<{ id: string; name: string; displayName: string | null }>('/api/company', 'companies')
+      .then(setCompanies)
+      .catch((error) => {
+        console.error(error)
+        toast({ title: 'Error', description: 'โหลด Company ไม่สำเร็จ', variant: 'destructive' })
+      })
+  }, [])
+
   const yearOptions = useMemo(() => {
     const years = new Set<string>([currentBangkokCalendarDate().slice(0, 4), ...availableYears])
     return [...years].sort((left, right) => Number(right) - Number(left))
@@ -417,11 +516,19 @@ export default function WorkItemsPage() {
     const query = debouncedSearchQuery.trim().toLowerCase()
     return workItems.filter((item) => {
       if (projectFilter !== 'all' && item.project.id !== projectFilter) return false
-      if (!matchesYearMonth(item, yearFilter, monthFilter)) return false
+      if (companyFilter !== 'all' && item.project.company?.id !== companyFilter) return false
+      if (dashboardDateRange) {
+        const anchor = item.workDate ?? item.dueDate ?? item.createdAt.slice(0, 10)
+        const anchorDate = anchor.slice(0, 10)
+        if (anchorDate < dashboardDateRange.startDate || anchorDate > dashboardDateRange.endDate) return false
+      } else if (!matchesYearMonth(item, yearFilter, monthFilter)) return false
+      if (dashboardKindFilter !== 'all' && item.kind !== dashboardKindFilter) return false
       if (statusFilter !== 'all' && item.status !== statusFilter) return false
       if (priorityFilter !== 'all' && item.priority !== priorityFilter) return false
       if (roleFilter === 'none' && item.role !== null) return false
       if (roleFilter !== 'all' && roleFilter !== 'none' && item.role !== roleFilter) return false
+      if (dashboardOpenOnly && (item.status === 'completed' || item.status === 'cancelled')) return false
+      if (dashboardOverdueOnly && urgencySubgroup(item) !== 'overdue') return false
       if (!query) return true
       return [
         item.title,
@@ -439,7 +546,7 @@ export default function WorkItemsPage() {
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query))
     })
-  }, [workItems, debouncedSearchQuery, yearFilter, monthFilter, projectFilter, statusFilter, priorityFilter, roleFilter])
+  }, [workItems, debouncedSearchQuery, yearFilter, monthFilter, projectFilter, companyFilter, dashboardDateRange, dashboardKindFilter, statusFilter, priorityFilter, roleFilter, dashboardOpenOnly, dashboardOverdueOnly])
 
   const visibleGroups = useMemo(() => {
     const scoped = kindTab === 'all' ? filtered : filtered.filter((item) => item.kind === kindTab)
@@ -452,9 +559,15 @@ export default function WorkItemsPage() {
     yearFilter,
     monthFilter,
     projectFilter,
+    companyFilter,
+    dashboardDateRange?.startDate,
+    dashboardDateRange?.endDate,
     statusFilter,
     priorityFilter,
     roleFilter,
+    dashboardKindFilter,
+    dashboardOpenOnly,
+    dashboardOverdueOnly,
     searchQuery.trim(),
     kindTab,
     sortMode,
@@ -550,10 +663,15 @@ export default function WorkItemsPage() {
         year: yearFilter,
         month: monthFilter,
         project: projectFilter,
+        company: companyFilter,
+        dateRange: dashboardDateRange,
         search: debouncedSearchQuery,
         status: statusFilter,
         priority: priorityFilter,
         role: roleFilter,
+        kind: dashboardKindFilter,
+        openOnly: dashboardOpenOnly,
+        overdueOnly: dashboardOverdueOnly,
         includeYears: false,
         page: { limit: 200, cursor },
       })
@@ -748,6 +866,24 @@ export default function WorkItemsPage() {
               </div>
             </div>
 
+            {dashboardDateRange && (
+              <section className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card px-4 py-3 text-sm" aria-label="ตัวกรองจาก Dashboard">
+                <p className="text-muted-foreground">
+                  ตัวกรองจาก Dashboard: {dashboardDateRange.startDate} – {dashboardDateRange.endDate}
+                  {companyFilter !== 'all' ? ` · Company ${companyFilter}` : ''}
+                  {projectFilter !== 'all' ? ` · Project ${projectFilter}` : ''}
+                  {roleFilter !== 'all' ? ` · role ${roleFilter}` : ''}
+                  {dashboardKindFilter !== 'all' ? ` · ${dashboardKindFilter}` : ''}
+                  {dashboardOpenOnly ? ' · Open' : ''}
+                  {dashboardOverdueOnly ? ' · Overdue' : ''}
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  <button type="button" onClick={() => applyCalendarPeriod(yearFilter, monthFilter)} className="text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">ใช้ตัวกรอง Year/Month</button>
+                  <Link href="/work-items" className="text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">ล้างตัวกรอง Dashboard</Link>
+                </div>
+              </section>
+            )}
+
             {importReport && (
               <section className="space-y-2 rounded-lg border bg-card p-3 text-sm" aria-live="polite">
                 <p className="font-medium">
@@ -794,7 +930,16 @@ export default function WorkItemsPage() {
                 />
               </div>
               <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
-                <Select value={yearFilter} onValueChange={setYearFilter}>
+                <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                  <SelectTrigger className="w-full bg-secondary/50 sm:w-[180px]" aria-label="กรอง Company">
+                    <SelectValue placeholder="Company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">ทุก Company</SelectItem>
+                    {companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.displayName ?? company.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={yearFilter} onValueChange={(value) => applyCalendarPeriod(value, monthFilter)}>
                   <SelectTrigger className="w-full bg-secondary/50 sm:w-[130px]">
                     <SelectValue placeholder="Year" />
                   </SelectTrigger>
@@ -805,7 +950,7 @@ export default function WorkItemsPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={monthFilter} onValueChange={setMonthFilter}>
+                <Select value={monthFilter} onValueChange={(value) => applyCalendarPeriod(yearFilter, value)}>
                   <SelectTrigger className="w-full bg-secondary/50 sm:w-[150px]">
                     <SelectValue placeholder="Month" />
                   </SelectTrigger>
@@ -872,7 +1017,9 @@ export default function WorkItemsPage() {
             <Tabs
               value={kindTab}
               onValueChange={(value) => {
-                if (isKindTab(value)) setKindTab(value)
+                if (!isKindTab(value)) return
+                setKindTab(value)
+                setDashboardKindFilter(value === 'all' ? 'all' : value)
               }}
               className="space-y-4"
             >

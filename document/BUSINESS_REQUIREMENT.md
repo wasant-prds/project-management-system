@@ -63,8 +63,8 @@ Baseline 2026-09-27: ผู้ใช้เปิด Work Items และ Daily W
 **ต้องทำได้**
 
 - แสดงจำนวน Work Items ทั้งหมด, งานเปิด, งานเสร็จ, งานเกินกำหนด และชั่วโมงที่บันทึกในช่วงเวลาที่เลือก
-- แสดงงานที่เพิ่งสร้าง/ปรับปรุง และรายการเร่งด่วน/เกินกำหนดพร้อม Project, Customer, functional role, status และ due date; ผู้รับผิดชอบคือเจ้าของระบบ
-- แสดง Project ล่าสุดพร้อม Customer และ progress ที่คำนวณจาก Work Items
+- แสดง Work Items ล่าสุดและรายการเร่งด่วน/เกินกำหนดพร้อม Project, Company, functional role, status และ due date; ผู้รับผิดชอบคือเจ้าของระบบ
+- แสดง Project ล่าสุดพร้อม Company และ progress ที่คำนวณจาก Work Items
 - การ์ด/กราฟที่กดได้พาไปหน้ารายการพร้อม filter ที่สอดคล้องกับตัวเลข
 - กราฟและองค์ประกอบภายใน (แกน, legend, tooltip และ label) ต้องอยู่ในกรอบ chart component และไม่ทำให้หน้าเลื่อนแนวนอน
 - ระบุช่วงวันที่และนิยามยอดบนหน้า; เมื่อยังไม่มีข้อมูลให้แสดงข้อความว่างที่ถูกต้อง
@@ -244,3 +244,7 @@ Daily Work ใช้ owner ที่ resolve จาก server, ต้องร�
 ## Board เชื่อมกับ Work Item ใน #22
 
 Board แสดง WorkItem จริงเพียงครั้งเดียวตาม status ปัจจุบัน โดยอ่านข้อมูลชุดเดียวกับ Work Items และเปิดรายละเอียดของ WorkItem ID เดียวกัน. ผู้ใช้กรอง Company, Project และ functional role ได้. การย้ายสถานะบันทึกผ่าน Work Items API; เมื่อ validation หรือ API ล้มเหลว การ์ดกลับไปสถานะก่อนหน้าและแสดงข้อผิดพลาด. `completed` กับ `cancelled` ยังเป็นคนละสถานะ; due date แสดงเป็น Bangkok calendar date.
+
+## Dashboard จากข้อมูลจริงใน #23
+
+Dashboard `/` แสดง total/open/completed/overdue WorkItems, logged hours และรายการ Work Items/Projects จากฐานข้อมูล. Owner กรอง inclusive Bangkok date range, Company, Project, functional role และ WorkItem kind; ทุก KPI และ list ใช้ filter metadata เดียวกัน และ card/chart เปิดรายการต้นทางพร้อม filter เดิม. `cancelled` ไม่ใช่ completed หรือ open; Project progress ใช้ completed ÷ (total − cancelled), และชั่วโมงมาจากผลรวม Decimal ของ TimeEntry. หน้าแสดงช่วงวันที่/timezone/สูตร พร้อม loading, empty และ error states; API failure ต้องไม่ถูกแสดงเป็น live zero.
