@@ -5,6 +5,7 @@ import type { FormEvent } from 'react'
 import { AlertTriangle, ExternalLink, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -247,11 +248,11 @@ export function GitLabImportPanel({ projects, onSynced }: Readonly<{
       </div>
 
       {configured === false && (
-        <output className="block rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm" aria-live="polite">
+        <output className="block rounded-md border border-warning/40 bg-warning-subtle text-warning px-3 py-2 text-sm" aria-live="polite">
           ยังไม่ได้ตั้งค่า GitLab ฝั่ง server (GITLAB_BASE_URL และ GITLAB_TOKEN) จึงยังสร้าง mapping หรือ sync ไม่ได้
         </output>
       )}
-      {error && <p className="text-sm text-destructive" role="alert">{error}</p>}
+      {error && <p className="text-sm text-danger" role="alert">{error}</p>}
       {loading && <output className="text-sm text-muted-foreground" aria-live="polite">กำลังโหลด GitLab mappings...</output>}
 
       {!loading && (
@@ -294,11 +295,15 @@ export function GitLabImportPanel({ projects, onSynced }: Readonly<{
             </label>
           )}
           <label className="min-w-0 space-y-1 text-sm">
-            <span>PMS Project</span>
-            <select className="h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={projectId} onChange={(event) => setProjectId(event.target.value)} disabled={saving || projects.length === 0} required>
-              <option value="">เลือก Project</option>
-              {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
-            </select>
+            <span id="gitlab-pms-project-label">PMS Project</span>
+            <Select value={projectId} onValueChange={setProjectId} disabled={saving || projects.length === 0}>
+              <SelectTrigger id="gitlab-pms-project" aria-labelledby="gitlab-pms-project-label" aria-required="true" className="w-full min-w-0">
+                <SelectValue placeholder="เลือก Project" />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((project) => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </label>
         </div>
 
@@ -316,9 +321,14 @@ export function GitLabImportPanel({ projects, onSynced }: Readonly<{
           {labelRows.map((row, index) => (
             <div key={row.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(7rem,0.7fr)_auto] gap-2">
               <Input aria-label={`GitLab label ${index + 1}`} value={row.label} maxLength={255} onChange={(event) => setLabelRows((rows) => rows.map((entry, entryIndex) => entryIndex === index ? { ...entry, label: event.target.value } : entry))} disabled={saving} placeholder="GitLab label" />
-              <select aria-label={`Work Item type ของ label ${index + 1}`} className="h-10 min-w-0 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" value={row.type} onChange={(event) => setLabelRows((rows) => rows.map((entry, entryIndex) => entryIndex === index ? { ...entry, type: event.target.value } : entry))} disabled={saving}>
-                {WORK_ITEM_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
-              </select>
+              <Select value={row.type} onValueChange={(value) => setLabelRows((rows) => rows.map((entry, entryIndex) => entryIndex === index ? { ...entry, type: value } : entry))} disabled={saving}>
+                <SelectTrigger aria-label={`Work Item type ของ label ${index + 1}`} className="h-10 min-w-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {WORK_ITEM_TYPES.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+                </SelectContent>
+              </Select>
               <Button type="button" variant="ghost" size="icon" aria-label={`ลบ GitLab label mapping ${index + 1}`} disabled={saving} onClick={() => setLabelRows((rows) => rows.filter((_, entryIndex) => entryIndex !== index))}>
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -338,7 +348,7 @@ export function GitLabImportPanel({ projects, onSynced }: Readonly<{
             <p className="text-sm tabular-nums">{countLabel(syncResult.counts)}</p>
           </div>
           {syncResult.runError && (
-            <div className="flex flex-wrap items-center gap-2 text-sm text-destructive" role="alert">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-danger" role="alert">
               <span>{errorLabel(syncResult.runError.code, syncResult.runError.message)}</span>
               {syncResult.runError.retryable && (
                 <Button type="button" size="sm" variant="outline" disabled={Boolean(syncingId)} onClick={() => sync(syncResult.mappingId)}>
@@ -357,9 +367,9 @@ export function GitLabImportPanel({ projects, onSynced }: Readonly<{
                   {items.map((item) => (
                     <li key={`${item.issueId}-${item.outcome}`} className="break-words">
                       <span>{item.title}</span>
-                      {item.sourceUrl && <a className="ml-2 inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline" href={item.sourceUrl} target="_blank" rel="noopener noreferrer">#{item.iid}<ExternalLink className="h-3 w-3" /></a>}
+                      {item.sourceUrl && <a className="ml-2 inline-flex items-center gap-1 text-link underline-offset-4 hover:underline" href={item.sourceUrl} target="_blank" rel="noopener noreferrer">#{item.iid}<ExternalLink className="h-3 w-3" /></a>}
                       {(item.error || item.reason) && <span className="ml-2 text-muted-foreground">{item.error ? errorLabel(item.error.code, item.error.message) : reasonLabel(item.reason)}</span>}
-                      {item.warnings?.map((warning) => <span className="ml-2 block text-amber-700 dark:text-amber-300" key={warning}>{warningLabel(warning)}</span>)}
+                      {item.warnings?.map((warning) => <span className="ml-2 block text-warning" key={warning}>{warningLabel(warning)}</span>)}
                     </li>
                   ))}
                 </ul>
@@ -372,7 +382,7 @@ export function GitLabImportPanel({ projects, onSynced }: Readonly<{
       <AlertDialog open={firstSyncId !== null} onOpenChange={(open) => { if (!open) setFirstSyncId(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-amber-600" />อนุมัติการซิงก์ GitLab ครั้งแรก</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-warning" />อนุมัติการซิงก์ GitLab ครั้งแรก</AlertDialogTitle>
             <AlertDialogDescription>
               ระบบจะสร้าง Work Item สำหรับ Issue ที่ยังไม่มี GitLab identity ตรงกัน โดย GitLab จะเป็นแหล่งข้อมูลของ title, description, status, mapped types, due date และ source URL ส่วน role, priority, work date, owner และ Daily Work ยังคงจัดการใน PMS
             </AlertDialogDescription>

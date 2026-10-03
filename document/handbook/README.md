@@ -77,6 +77,7 @@ Route Handler ปัจจุบันมีดังนี้:
 
 ## Other Components
 
+- [Frontend design system, themes and responsive dialogs — Issue #27](./frontend/issue-27-redesign.md) — Light/Dark/Special Dark tokens, shared Select options, Work Items/Board dialogs, theme persistence and verification.
 - [Frontend visual system and accessibility — Issue #26](./frontend/visual-system.md) — shared themes/components, responsive charts/dialogs, reduced motion, browser asset notes และ verification commands.
 - [Board workflow — Issue #22](./board/workflow.md) — data flow, filters, status writes, date behavior และการตรวจสอบ
 - [Owner access gate](./operations/owner-access.md) — Basic credential gate, origin checks, middleware proof, owner resolution.

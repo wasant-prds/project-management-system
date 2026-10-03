@@ -127,14 +127,20 @@ function inspectMotionPreference(matches) {
 }
 
 test('light, dark and special-dark each define theme-aware surface shadows', () => {
-  const themeBlocks = (selector) => [...css.matchAll(new RegExp(`${selector}\\s*\\{([^}]*)\\}`, 'g'))]
-    .map(([, block]) => block)
+  const themeBlocks = (selector) => {
+    const blocks = []
+    postcss.parse(css).walkRules((rule) => {
+      if (rule.selectors.includes(selector)) blocks.push(rule.toString())
+    })
+    return blocks
+  }
   assert.match(css, /:root\s*\{[^}]*--surface-shadow-soft:/s)
   assert.match(css, /:root\s*\{[^}]*--surface-shadow-raised:/s)
   assert.match(css, /:root\s*\{[^}]*--surface-shadow-inset:/s)
-  assert.ok(themeBlocks('\\.dark').some((block) => block.includes('--surface-shadow-raised')))
-  assert.ok(themeBlocks('\\.special-dark').some((block) => block.includes('--surface-shadow-raised')))
-  assert.ok(themeBlocks('\\.special-dark').some((block) => block.includes('color-mix(in oklch, var(--primary)')))
+  assert.ok(themeBlocks('.dark').some((block) => block.includes('--shadow-raised')))
+  assert.ok(themeBlocks('.special-dark').some((block) => block.includes('--shadow-raised')))
+  assert.ok(themeBlocks('.special-dark').some((block) => block.includes('--shadow-dark')))
+  assert.doesNotMatch(themeBlocks('.dark').join(''), /var\(--primary\).*transparent/)
   assert.doesNotMatch(css, /#3ba7ab|rgba?\(94,\s*104,\s*121/)
 })
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRightLeft, CalendarDays, ChevronDown, Flag } from 'lucide-react'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
@@ -14,6 +14,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { FilterSelect, type FilterSelectOption } from '@/components/ui/filter-select'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,7 +51,6 @@ type CompanyOption = { id: string; name: string; displayName: string | null }
 type ProjectOption = { id: string; name: string; companyId: string | null }
 
 const INITIAL_FILTERS: BoardFilters = { companyId: 'all', projectId: 'all', role: 'all' }
-const SELECT_CLASS = 'surface-inset h-9 w-full min-w-0 rounded-md border border-input bg-input px-3 text-sm text-foreground outline-none transition-[box-shadow,border-color] duration-150 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none'
 
 function filterLabel(company: CompanyOption) {
   return company.displayName?.trim() || company.name
@@ -62,21 +62,19 @@ function BoardFilter({
   value,
   disabled,
   onChange,
-  children,
+  options,
 }: Readonly<{
   id: string
   label: string
   value: string
   disabled: boolean
   onChange: (value: string) => void
-  children: ReactNode
+  options: readonly FilterSelectOption[]
 }>) {
   return (
     <label htmlFor={id} className="flex min-w-0 flex-col gap-1.5 text-xs font-medium text-muted-foreground">
       {label}
-      <select id={id} className={SELECT_CLASS} value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}>
-        {children}
-      </select>
+      <FilterSelect id={id} value={value} disabled={disabled} onValueChange={onChange} options={options} />
     </label>
   )
 }
@@ -94,12 +92,12 @@ function BoardWorkItemCard({
 }>) {
   const company = item.project.company?.displayName || item.project.company?.name
   return (
-    <Card className="min-w-0 border-border/70 bg-card transition-[translate,border-color] duration-150 motion-safe:hover:-translate-y-px hover:border-primary/30 motion-reduce:transition-none">
+    <Card className="min-w-0 border-border-strong bg-card transition-[translate,border-color] duration-150 motion-safe:hover:-translate-y-px hover:border-primary/30 motion-reduce:transition-none">
       <CardContent className="space-y-3 p-3 sm:p-4">
         <div className="flex min-w-0 items-start justify-between gap-2">
           <button
             type="button"
-            className="min-w-0 flex-1 text-left text-sm font-semibold leading-snug text-foreground underline-offset-4 hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="min-w-0 flex-1 text-left text-sm font-semibold leading-snug text-foreground underline-offset-4 hover:text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-haspopup="dialog"
             onClick={() => onOpen(item)}
           >
@@ -175,7 +173,7 @@ function BoardStatusColumn({
   onMove: (item: WorkItem, nextStatus: WorkItemStatusValue) => void
 }>) {
   return (
-    <Card className="flex min-h-60 w-[18rem] shrink-0 flex-col border-border/70 bg-muted/30 sm:w-80">
+    <Card className="flex surface-inset min-h-60 w-[18rem] shrink-0 flex-col gap-0 border-border-strong bg-muted/30 py-0 sm:w-80">
       <CardHeader className="shrink-0 border-b border-border/60 px-3 py-3 sm:px-4">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-sm font-semibold">{WORK_ITEM_STATUS_LABELS[status]}</CardTitle>
@@ -184,7 +182,7 @@ function BoardStatusColumn({
       </CardHeader>
       <CardContent className="min-h-0 flex-1 space-y-3 p-3">
         {items.length === 0
-          ? <p className="rounded-md border border-dashed border-border/70 px-3 py-5 text-center text-sm text-muted-foreground">ยังไม่มี Work Item ในสถานะนี้</p>
+          ? <p className="rounded-md border border-dashed border-border-strong px-3 py-5 text-center text-sm text-muted-foreground">ยังไม่มี Work Item ในสถานะนี้</p>
           : items.map((item) => (
             <BoardWorkItemCard
               key={item.id}
@@ -343,6 +341,7 @@ export default function BoardPage() {
           <div className={`${PAGE_INNER} flex h-full min-h-0 min-w-0 w-full flex-col overflow-hidden`}>
             <div className={`${PAGE_TOOLBAR} shrink-0 flex-col items-stretch sm:flex-row sm:items-center`}>
               <div className="min-w-0">
+                <p className="page-eyebrow mb-2">Workflow board</p>
                 <h1 className={PAGE_HEADING}>Kanban Board</h1>
                 <p className={PAGE_LEAD}>ดูและเปลี่ยนสถานะของ Work Item จากระบบหลัก</p>
               </div>
@@ -357,56 +356,49 @@ export default function BoardPage() {
               </Button>
             </div>
 
-            <section aria-label="ตัวกรอง Board" className="grid shrink-0 grid-cols-1 gap-3 border-b border-border/60 pb-4 sm:grid-cols-3">
+            <section aria-label="ตัวกรอง Board" className="filter-panel grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-3">
               <BoardFilter
                 id="board-company-filter"
                 label="Company"
                 value={filters.companyId}
                 disabled={filtersLoading || Boolean(filtersError) || pendingIds.size > 0}
                 onChange={(value) => updateFilter('companyId', value)}
-              >
-                <option value="all">ทุก Company</option>
-                {companies.map((company) => <option key={company.id} value={company.id}>{filterLabel(company)}</option>)}
-              </BoardFilter>
+                options={[{ value: 'all', label: 'ทุก Company' }, ...companies.map((company) => ({ value: company.id, label: filterLabel(company) }))]}
+              />
               <BoardFilter
                 id="board-project-filter"
                 label="Project"
                 value={filters.projectId}
                 disabled={filtersLoading || Boolean(filtersError) || pendingIds.size > 0}
                 onChange={(value) => updateFilter('projectId', value)}
-              >
-                <option value="all">ทุก Project</option>
-                {visibleProjects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
-              </BoardFilter>
+                options={[{ value: 'all', label: 'ทุก Project' }, ...visibleProjects.map((project) => ({ value: project.id, label: project.name }))]}
+              />
               <BoardFilter
                 id="board-role-filter"
                 label="Functional role"
                 value={filters.role}
                 disabled={filtersLoading || Boolean(filtersError) || pendingIds.size > 0}
                 onChange={(value) => updateFilter('role', value)}
-              >
-                <option value="all">ทุกบทบาท</option>
-                {WORK_ITEM_ROLES.map((role) => <option key={role} value={role}>{WORK_ITEM_ROLE_LABELS[role]}</option>)}
-                <option value="none">ไม่ระบุบทบาท</option>
-              </BoardFilter>
+                options={[{ value: 'all', label: 'ทุกบทบาท' }, ...WORK_ITEM_ROLES.map((role) => ({ value: role, label: WORK_ITEM_ROLE_LABELS[role] })), { value: 'none', label: 'ไม่ระบุบทบาท' }]}
+              />
             </section>
 
             {filtersError && (
-              <div role="alert" className="flex shrink-0 flex-wrap items-center gap-3 py-3 text-sm text-destructive">
+              <div role="alert" className="flex shrink-0 flex-wrap items-center gap-3 py-3 text-sm text-danger">
                 <span>โหลดตัวกรองไม่สำเร็จ: {filtersError}</span>
                 <Button type="button" variant="outline" size="sm" onClick={() => setFiltersRetry((value) => value + 1)}>
                   ลองโหลดตัวกรองอีกครั้ง
                 </Button>
               </div>
             )}
-            {statusError && <p role="alert" className="shrink-0 py-2 text-sm text-destructive">{statusError}</p>}
+            {statusError && <p role="alert" className="shrink-0 py-2 text-sm text-danger">{statusError}</p>}
             {statusMessage && <output className="shrink-0 py-2 text-sm text-muted-foreground" aria-live="polite">{statusMessage}</output>}
 
             <section aria-label="Work Items by status" aria-busy={boardLoading} className="flex min-h-0 min-w-0 flex-1 flex-col pt-3">
               {boardLoading && <output className="grid min-h-32 place-items-center text-sm text-muted-foreground" aria-live="polite">กำลังโหลด Work Items…</output>}
               {!boardLoading && boardError && (
                 <div role="alert" className="m-auto flex max-w-lg flex-col items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-5 text-center">
-                  <p className="text-sm text-destructive">โหลด Board ไม่สำเร็จ: {boardError}</p>
+                  <p className="text-sm text-danger">โหลด Board ไม่สำเร็จ: {boardError}</p>
                   <Button type="button" variant="outline" onClick={() => setBoardRetry((value) => value + 1)}>ลองอีกครั้ง</Button>
                 </div>
               )}

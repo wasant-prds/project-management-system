@@ -125,7 +125,7 @@ export function ProjectCreateModal({ open, onOpenChange }: ProjectCreateModalPro
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">
-              Project Name <span className="text-destructive">*</span>
+              Project Name <span className="text-danger">*</span>
             </Label>
             <Input
               id="name"
@@ -193,7 +193,7 @@ export function ProjectCreateModal({ open, onOpenChange }: ProjectCreateModalPro
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="startDate">
-                Start Date <span className="text-destructive">*</span>
+                Start Date <span className="text-danger">*</span>
               </Label>
               <Input
                 id="startDate"
@@ -207,7 +207,7 @@ export function ProjectCreateModal({ open, onOpenChange }: ProjectCreateModalPro
 
             <div className="space-y-2">
               <Label htmlFor="dueDate">
-                Due Date <span className="text-destructive">*</span>
+                Due Date <span className="text-danger">*</span>
               </Label>
               <Input
                 id="dueDate"

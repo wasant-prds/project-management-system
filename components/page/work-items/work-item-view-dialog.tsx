@@ -141,7 +141,7 @@ export function WorkItemViewDialog({
               href={item.source.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex max-w-full items-center gap-1.5 text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex max-w-full items-center gap-1.5 text-sm text-link underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               aria-label={`Open GitLab Issue ${item.source.issueIid}`}
             >
               <ExternalLink className="h-3.5 w-3.5 shrink-0" />
@@ -180,7 +180,7 @@ export function WorkItemViewDialog({
           <Detail label="Assignee">
             <div className="flex min-w-0 items-center gap-2">
               <Avatar className="h-6 w-6 shrink-0 border border-primary/20">
-                <AvatarFallback className="bg-primary/10 text-xs text-primary">
+                <AvatarFallback className="bg-primary/10 text-xs text-link">
                   {(item.assignee.avatar || item.assignee.name).slice(0, 2)}
                 </AvatarFallback>
               </Avatar>

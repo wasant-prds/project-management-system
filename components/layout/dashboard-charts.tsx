@@ -25,7 +25,7 @@ export function DashboardCharts({
           <CardTitle>ชั่วโมง Daily Work ตามวัน</CardTitle>
           <CardDescription>รวมจาก TimeEntry.date ในช่วงและตัวกรองที่เลือก</CardDescription>
         </div>
-        <Link href={sourceHref} className="shrink-0 text-sm text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">เปิด Daily Work</Link>
+        <Link href={sourceHref} className="shrink-0 text-sm text-link underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">เปิด Daily Work</Link>
       </CardHeader>
       <CardContent className="min-w-0 overflow-hidden">
         {chartData.length === 0 ? (

@@ -1,107 +1,50 @@
 'use client'
 
 import { memo } from 'react'
-import { Bell, Search, Settings, User } from 'lucide-react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { ChevronRight, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { SidebarTrigger } from '@/components/ui/sidebar'
-import { Input } from '@/components/ui/input'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
+import { useOwnerSettings } from './owner-settings-provider'
+import { currentNavigation } from './navigation'
 
-// Memoized header component to prevent unnecessary re-renders
 export const AppHeader = memo(function AppHeader() {
+  const pathname = usePathname()
+  const route = currentNavigation(pathname)
+  const { settings, isLoading, loadError } = useOwnerSettings()
+  const profileName = settings?.profile.name || 'เจ้าของระบบ'
   return (
-    <header className="surface-soft sticky top-0 z-50 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:h-16 sm:px-4">
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <SidebarTrigger />
-        <div className="relative hidden min-w-0 flex-1 max-w-md sm:block">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search projects, tasks, issues..."
-            className="bg-secondary/50 pl-10 text-foreground"
-          />
-        </div>
+    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border/60 bg-background px-4 sm:px-6 lg:px-8">
+      <div className="flex min-w-0 items-center gap-3">
+        <SidebarTrigger aria-label="เปิดหรือปิดเมนูหลัก" />
+        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2 text-sm">
+          <Link href="/" className="hidden text-muted-foreground hover:text-foreground sm:inline">พื้นที่ทำงาน</Link>
+          <ChevronRight aria-hidden="true" className="hidden size-3 text-muted-foreground sm:block" />
+          {route && pathname !== route.url ? <><Link href={route.url} className="text-muted-foreground hover:text-foreground">{route.title}</Link><ChevronRight aria-hidden="true" className="size-3 text-muted-foreground" /><span aria-current="page" className="truncate font-semibold">รายละเอียด</span></> : <span aria-current="page" className="truncate font-semibold">{route?.title ?? 'พื้นที่ทำงาน'}</span>}
+        </nav>
       </div>
-
-      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         <ThemeToggle />
-        
+        <span aria-hidden="true" className="h-6 w-px bg-border/60" />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-0 right-0 h-2 w-2 bg-destructive rounded-full" />
+            <Button variant="ghost" className="h-11 max-w-48 gap-2 rounded-xl px-2" aria-label="เมนูโปรไฟล์เจ้าของระบบ">
+              <span className="surface-inset flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-link"><UserRound aria-hidden="true" className="size-4" /></span>
+              <span className="hidden min-w-0 text-left sm:block"><span className="block truncate text-xs font-semibold">{isLoading ? 'กำลังโหลด…' : profileName}</span><span className="block text-[11px] text-muted-foreground">เจ้าของระบบ</span></span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80">
-            <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="break-words">{loadError ? 'โหลดโปรไฟล์ไม่สำเร็จ' : profileName}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <div className="max-h-[300px] overflow-y-auto">
-              <DropdownMenuItem className="flex-col items-start gap-1 py-3">
-                <div className="flex items-center gap-2 w-full">
-                  <div className="h-2 w-2 rounded-full bg-primary" />
-                  <p className="text-sm font-medium">New task assigned</p>
-                </div>
-                <p className="text-xs text-muted-foreground pl-4">
-                  You have been assigned to &quot;Update API documentation&quot;
-                </p>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex-col items-start gap-1 py-3">
-                <div className="flex items-center gap-2 w-full">
-                  <div className="h-2 w-2 rounded-full bg-muted" />
-                  <p className="text-sm font-medium">Project deadline approaching</p>
-                </div>
-                <p className="text-xs text-muted-foreground pl-4">
-                  E-Commerce Platform is due in 3 days
-                </p>
-              </DropdownMenuItem>
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <Settings className="h-5 w-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Settings</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Preferences</DropdownMenuItem>
-            <DropdownMenuItem>Appearance</DropdownMenuItem>
-            <DropdownMenuItem>Keyboard Shortcuts</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-                <User className="h-4 w-4 text-primary" />
-              </div>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>My Projects</DropdownMenuItem>
-            <DropdownMenuItem>My Tasks</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Log out</DropdownMenuItem>
+            <DropdownMenuItem asChild><Link href="/settings">โปรไฟล์และการแสดงผล</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link href="/projects">Projects ของคุณ</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link href="/work-items">Work Items ของคุณ</Link></DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
     </header>
   )
 })
-

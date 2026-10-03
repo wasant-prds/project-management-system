@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { DIALOG_SHELL_CLASS } from '@/components/ui/responsive-dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -29,7 +30,7 @@ export function BoardWorkItemDialog({ item, onOpenChange }: Readonly<BoardWorkIt
   return (
     <Dialog open={Boolean(item)} onOpenChange={onOpenChange}>
       {item && (
-        <DialogContent className="flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0">
+        <DialogContent className={DIALOG_SHELL_CLASS}>
           <DialogHeader className="shrink-0 space-y-3 border-b border-border/60 px-4 py-4 text-left sm:px-6">
             <div className="flex min-w-0 flex-wrap items-start gap-2">
               <DialogTitle className="min-w-0 text-lg leading-snug sm:text-xl">{item.title}</DialogTitle>

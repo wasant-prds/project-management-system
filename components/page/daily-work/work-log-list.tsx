@@ -16,7 +16,7 @@ import { WorkItemDescription } from "@/components/page/work-items/work-item-desc
 import { formatBangkokDateLabel } from "@/lib/bangkok-datetime"
 
 // Constants
-const DEFAULT_PROJECT_COLOR = "#3b82f6"
+const DEFAULT_PROJECT_COLOR = "var(--project-accent)"
 const CSV_HEADER = "Project,Work Item,User,User Email,Hours,Date,Description,Remarks,Status"
 
 // Utility functions
@@ -210,7 +210,7 @@ export function WorkLogList({
         <CardHeader className="pb-0">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-base">
-              Work Logs for : <span className="font-bold text-blue-700 dark:text-blue-300">{buttonLabel}</span>
+              Work Logs for : <span className="font-bold text-link">{buttonLabel}</span>
             </CardTitle>
             {workLogs.length > 0 && (
               <div className="flex flex-wrap gap-2">
@@ -280,11 +280,11 @@ export function WorkLogList({
             <DialogHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <div className="min-w-0 space-y-1.5 text-left">
                 <DialogTitle className="text-xl font-bold sm:text-2xl">
-                  Work Logs for: <span className="text-blue-700 dark:text-blue-300">{buttonLabel}</span>
+                  Work Logs for: <span className="text-link">{buttonLabel}</span>
                 </DialogTitle>
                 <DialogDescription>
                   View all work logs grouped by project ({' '}
-                  <span className="font-bold text-blue-700 dark:text-blue-300">{groupedByProject.length}</span> projects
+                  <span className="font-bold text-link">{groupedByProject.length}</span> projects
                   ). Within each project, entries are ordered by # tags in description or remarks, otherwise by date.
                 </DialogDescription>
               </div>
@@ -306,9 +306,9 @@ export function WorkLogList({
             {groupedByProject.map(([projectName, logs], projectIndex, allProjects) => (
               <div key={projectName} className="space-y-4">
                 {/* Project Header */}
-                <div className="sticky top-0 z-10 border-b-2 border-blue-500 bg-card pb-2">
+                <div className="sticky top-0 z-10 border-b-2 border-info bg-card pb-2">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-bold text-blue-600 dark:text-blue-400 flex items-center gap-2">
+                    <h3 className="text-xl font-bold text-link flex items-center gap-2">
                       <div
                         className="w-4 h-4 rounded-full"
                         style={{

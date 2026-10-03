@@ -119,7 +119,7 @@ export function WorkItemCard({
               </div>
               <div className="flex min-w-0 max-w-full items-center gap-1.5">
                 <Avatar className="h-5 w-5 shrink-0 border border-primary/20">
-                  <AvatarFallback className="bg-primary/10 text-[10px] text-primary">
+                  <AvatarFallback className="bg-primary/10 text-[10px] text-link">
                     {(item.assignee.avatar || item.assignee.name).slice(0, 2)}
                   </AvatarFallback>
                 </Avatar>
@@ -145,7 +145,7 @@ export function WorkItemCard({
               <DropdownMenuItem onClick={() => onView(item)}>View</DropdownMenuItem>
               <DropdownMenuItem onClick={() => onEdit(item)}>Edit</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive" onClick={() => onDelete(item)}>
+              <DropdownMenuItem className="text-danger" onClick={() => onDelete(item)}>
                 Delete
               </DropdownMenuItem>
             </DropdownMenuContent>

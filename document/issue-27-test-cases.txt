@@ -1,0 +1,423 @@
+Issue #27 review follow-up — 2026-10-03
+Actual full regression results: 341 tests; 332 PASS / 0 FAIL / 9 SKIP.
+Review fixes include MUI year/month calendar selector regression, Company/Projects collection load errors and retry, GitLab PMS Project theme-aware Select popup, matching Board/Work Items dialog shell widths, and source mapping for theme tests.
+Full regression includes synthetic localhost HTTP/subprocess checks; opt-in real infrastructure cases are skipped.
+
+========================================================================
+ชุด: unit (ไม่ต่อ PostgreSQL/Redis จริง)
+ผ่านเมื่อ: assertion ในแต่ละ test ตรงกับค่าที่คาด
+[no tests] = กลุ่มยังไม่มีไฟล์ *.test.mjs — ปกติ
+========================================================================
+
+ผลเทสต์
+────────────────────────────────────────────────────────────────────────
+tests/analysis                                                          ok  0.28s
+└─ summary.test.mjs
+   ├─ Analysis defaults to the current Bangkok calendar month independent of the host timezone                       PASS  0.15s
+   ├─ Analysis shares Dashboard WorkItem formulas, date anchors, owner scope, and exact hour filters                 PASS  0.01s
+   ├─ Analysis distinguishes open, completed, cancelled, overdue, and completion-rate definitions                    PASS  0.00s
+   ├─ Analysis overdue count comes from the same WorkItem snapshot as its source rows                                PASS  0.00s
+   ├─ Company, Project, functional role, and kind filters constrain WorkItems and linked TimeEntries                 PASS  0.01s
+   ├─ Analysis keeps Decimal sums exact and returns Bangkok date-only source rows and daily groups                   PASS  0.00s
+   ├─ Analysis groups hours by Bangkok week or month for longer reporting ranges                                     PASS  0.01s
+   ├─ Analysis rejects incomplete, invalid, reversed dates and unsupported filters before querying                   PASS  0.00s
+   ├─ Analysis returns safe relation errors for missing filters and Company/Project mismatch                         PASS  0.00s
+   ├─ Analysis returns real zero totals and empty source sets for a no-match range                                   PASS  0.00s
+   ├─ Analysis work-item links preserve period and filters and open an exact source record                           PASS  0.00s
+   ├─ Analysis Daily Work links narrow the same filters to one selected Bangkok date                                 PASS  0.00s
+   ├─ Analysis CSV exports summary, breakdowns, source rows, and safely escaped source text                          PASS  0.00s
+   ├─ Analysis CSV neutralizes spreadsheet formulas in source text                                                   PASS  0.00s
+   ├─ Analysis summary API requires owner access, validates filters, disables caching, and hides dependency details  PASS  0.07s
+   ├─ Analysis page renders live data, filters, traceable tables, export, and safe states without sample datasets    PASS  0.01s
+   └─ Work Items page opens an exact Analysis deep-link record and removes its query on close                        PASS  0.00s
+
+tests/auth                                                              ok  0.63s
+└─ owner.test.mjs
+   ├─ owner resolver requires middleware identity and exactly one User                             PASS  0.04s
+   ├─ explicit owner ID selects one audited User while preserving legacy Users                     PASS  0.03s
+   ├─ owner access is not granted or denied by legacy User roles                                   PASS  0.02s
+   ├─ WorkItem input takes assignee from server owner and rejects a different ID                   PASS  0.04s
+   ├─ middleware denies direct API/page reads and accepts only the gate proof                      PASS  0.02s
+   ├─ owner access audit timestamps use Bangkok wall-clock independently of machine timezone       PASS  0.03s
+   ├─ Daily Work dates parse, persist, query, and display with Bangkok wall-clock semantics        PASS  0.05s
+   ├─ Daily Work links only owner WorkItems and serializes calendar dates with Bangkok timestamps  PASS  0.04s
+   ├─ Daily Work date filters use exclusive Bangkok day boundaries regardless of machine timezone  PASS  0.04s
+   ├─ Daily Work displays clear access errors and clears stale rows on failed reads                PASS  0.01s
+   ├─ Daily Work create rejects a different user and persists the server owner                     PASS  0.05s
+   ├─ Daily Work update rejects a foreign owner ID and invalid date or hours before writing        PASS  0.04s
+   ├─ WorkItem create passes server owner into validation and persistence                          PASS  0.05s
+   ├─ WorkItem update rejects a foreign assignee ID before reading or writing                      PASS  0.02s
+   ├─ WorkItem import accepts supported row shapes and processes rows independently                PASS  0.01s
+   ├─ WorkItem API returns owner access error before reading input                                 PASS  0.04s
+   ├─ WorkItem list keeps owner and period filters after refactor                                  PASS  0.05s
+   ├─ WorkItem year options only include years from the authenticated owner                        PASS  0.04s
+   ├─ owner gate rejects forged internal proof headers without valid Basic credentials             PASS  0.00s
+   └─ owner gate checks request Origin for writes and any supplied Origin                          PASS  0.00s
+
+tests/board                                                             ok  0.02s
+└─ workflow.test.mjs
+   ├─ Board columns use every shared status once and keep cancelled separate from completed             PASS  0.00s
+   ├─ Board date labels keep Bangkok date-only and +07:00 calendar boundaries across machine timezones  PASS  0.00s
+   ├─ Board loads every filtered Work Item page with Company, Project, and role filters                 PASS  0.00s
+   ├─ Board role filter can select Work Items without a functional role                                 PASS  0.00s
+   ├─ Board pagination reports API failures and rejects repeated cursors                                PASS  0.00s
+   ├─ Board status writes PATCH the existing Work Item route and verify the saved status                PASS  0.00s
+   ├─ Board status writes surface validation errors and reject a mismatched response                    PASS  0.00s
+   ├─ Board moves optimistically and keeps the server-confirmed shared status                           PASS  0.00s
+   ├─ Board ignores an in-flight read while a status write is pending                                   PASS  0.00s
+   ├─ Board selection follows the current Work Item through an optimistic rollback                      PASS  0.00s
+   ├─ Board restores the previous status after API validation rejects a status save                     PASS  0.00s
+   └─ Board rejects an invalid local status without changing the card or calling the API                PASS  0.00s
+
+tests/company-projects                                                  ok  2.21s
+├─ management.test.mjs
+│  ├─ Dhas default preserves the supplied company identity and contact details                         PASS  0.00s
+│  ├─ empty installation creates Dhas alongside other Companies and rejects duplicate Dhas identities  PASS  0.04s
+│  ├─ Project validation uses Bangkok calendar dates and requires a selected Company                   PASS  0.00s
+│  ├─ only Company foreign-key failures become Company conflicts                                       PASS  0.00s
+│  ├─ Project summary excludes cancelled from progress and sums role/hour source rows                  PASS  0.00s
+│  ├─ Project and Company summaries preserve the exact TimeEntry decimal totals                        PASS  0.00s
+│  ├─ Project create checks selected Company and attaches server owner                                 PASS  0.05s
+│  ├─ Project list rejects invalid status filters before querying                                      PASS  0.03s
+│  ├─ Company list is paginated and returns bounded aggregate summaries                                PASS  0.04s
+│  ├─ Dhas backfill rejects another Company or Project link                                            PASS  0.00s
+│  ├─ backfill changes only Project.companyId and preserves legacy timestamps                          PASS  0.00s
+│  ├─ Project delete blocks history and unauthenticated access                                         PASS  0.14s
+│  ├─ Project update blocks unlinked legacy rows and invalid dates                                     PASS  0.06s
+│  ├─ Company mutation rejects unauthenticated requests before parsing                                 PASS  0.05s
+│  ├─ Company registry validates creation and blocks deletion with linked Projects                     PASS  0.11s
+│  ├─ Company list requires owner access before provisioning Dhas or reading Companies                 PASS  0.02s
+│  ├─ Company list returns a safe error when its database read fails                                   PASS  0.04s
+│  ├─ Company PATCH cannot rename the reserved Dhas Company                                            PASS  0.04s
+│  ├─ Company PATCH trims supported fields and serializes returned timestamps                          PASS  0.05s
+│  ├─ Project list and detail reject unauthenticated reads before database access                      PASS  0.07s
+│  ├─ Project detail serializes Company, WorkItems, Bangkok dates, and derived hours                   PASS  0.04s
+│  └─ Project detail returns NOT_FOUND for an unknown Project                                          PASS  0.04s
+└─ ui.test.mjs
+   ├─ Project detail confirms deletion, navigates on success, and shows history conflict codes         PASS  0.26s
+   ├─ Company deletion requires the alert-dialog confirmation                                          PASS  0.13s
+   ├─ Company create and edit persist through the form and show API errors                             PASS  0.14s
+   ├─ Project create and edit persist a Company relation and surface API failures                      PASS  0.44s
+   ├─ Project list search and Company filters select matching summaries                                PASS  0.14s
+   ├─ Company collection failures show an alert instead of a false empty state and can be retried      PASS  0.15s
+   └─ Project collection failures show an alert instead of a false empty state and can be retried      PASS  0.13s
+
+tests/contracts                                                         ok  0.30s
+├─ customer-project-migration.test.mjs
+│  ├─ migration contract separates repository facts from target and live data                        PASS  0.02s
+│  ├─ Customer minimum fields, status, and used-record deletion rules are explicit                   PASS  0.00s
+│  ├─ every existing Project must be covered by an evidence-backed mapping register                  PASS  0.00s
+│  ├─ rollout requires backup and restore rehearsal before nullable backfill and final NOT NULL      PASS  0.00s
+│  ├─ backfill preserves existing work history and defines stop and recovery behavior                PASS  0.00s
+│  ├─ GitLab identity is canonical, uniquely constrained, and safe under retries                     PASS  0.02s
+│  ├─ primary EV docs reference the migration contract and the API follows the Company decision      PASS  0.04s
+│  └─ reusable test runner documents all-suite, contract-suite, and focused commands                 PASS  0.01s
+├─ gitlab-issue-import.test.mjs
+│  ├─ GitLab import contract distinguishes implemented repository code from environment rollout      PASS  0.02s
+│  ├─ scope, owner access, and first-sync mapping gates are explicit                                 PASS  0.00s
+│  ├─ identity and Project mapping are unique and conflict-safe                                      PASS  0.00s
+│  ├─ field ownership, status, labels, dates, and new-item defaults are defined                      PASS  0.00s
+│  ├─ date and timestamp storage uses Bangkok wall-clock semantics                                   PASS  0.00s
+│  ├─ pagination, transaction boundaries, partial failures, rate limits, and safe retry are covered  PASS  0.00s
+│  ├─ implemented routes, safe response/errors, and secret handling are documented                   PASS  0.00s
+│  ├─ all primary EV docs point to the canonical contract                                            PASS  0.02s
+│  └─ focused GitLab test command uses the shared runner and is documented                           PASS  0.01s
+├─ menu-api-validation.test.mjs
+│  ├─ API handbook separates the actual Route Handler inventory from target proposals                PASS  0.04s
+│  ├─ Dashboard summary route and handbook expose shared filters and metric definitions              PASS  0.00s
+│  ├─ Analysis summary route and handbook expose owner-only shared aggregates and source rows        PASS  0.00s
+│  ├─ Analysis unit suite has reusable pnpm, Node, reporter, and documentation commands              PASS  0.01s
+│  ├─ all eight menus declare a consumer, canonical read source, and write behavior                  PASS  0.00s
+│  ├─ shared HTTP errors, authentication, pagination, and response statuses are explicit             PASS  0.00s
+│  ├─ target contracts preserve shared enums, relations, status writes, and metrics                  PASS  0.00s
+│  ├─ target timestamps use the issue's +07:00 API contract and Bangkok persistence policy           PASS  0.02s
+│  ├─ resource contracts cover create/update guards and shared aggregate filters                     PASS  0.00s
+│  ├─ focused API contract runner is reusable and documented                                         PASS  0.01s
+│  └─ Owner Settings route persists only supported profile/preferences and has a handbook            PASS  0.03s
+└─ shared-data-model.test.mjs
+   ├─ shared model defines the canonical entity cardinalities                                        PASS  0.00s
+   ├─ owner identity and functional roles stay separate                                              PASS  0.00s
+   ├─ shared metrics, decimal hours, and business dates are explicit                                 PASS  0.00s
+   ├─ work views reuse persisted WorkItem and TimeEntry IDs                                          PASS  0.00s
+   ├─ primary EV documents point to the owner's current Company relation                             PASS  0.03s
+   └─ menu mapping treats TimeEntry status as legacy, not a second workflow                          PASS  0.00s
+
+tests/daily-work                                                        ok  9.05s
+└─ management.test.mjs
+   ├─ positive decimal hour parser preserves exact decimal input and rejects non-numeric values      PASS  3.42s
+   ├─ positive hours fit the persisted Decimal(65,30) integer and fractional bounds                  PASS  0.14s
+   ├─ POST rejects positive hours outside the TimeEntry Decimal range before writing                 PASS  0.28s
+   ├─ decimal hour summation is exact and does not round each entry                                  PASS  0.13s
+   ├─ POST creates an owner TimeEntry, derives its Project, and stores exact positive Decimal hours  PASS  0.24s
+   ├─ POST accepts a Bangkok +07:00 timestamp but persists and returns only its calendar date        PASS  0.16s
+   ├─ POST rejects zero hours without writing                                                        PASS  0.16s
+   ├─ POST rejects negative hours without writing                                                    PASS  0.15s
+   ├─ POST rejects malformed and non-finite hours without writing                                    PASS  0.18s
+   ├─ POST rejects missing WorkItem or business date before opening a transaction                    PASS  0.17s
+   ├─ POST rejects a client-supplied foreign owner                                                   PASS  0.14s
+   ├─ POST rejects unauthenticated access before opening a transaction                               PASS  0.24s
+   ├─ POST rejects a Project that differs from the selected WorkItem                                 PASS  0.17s
+   ├─ POST rejects WorkItems outside the authenticated owner scope                                   PASS  0.18s
+   ├─ GET returns only owner records and queries Bangkok date boundaries as an exclusive next day    PASS  0.18s
+   ├─ Dashboard Daily Work links preserve inclusive dates and filter through the WorkItem Project    PASS  0.18s
+   ├─ GET rejects invalid and incomplete Bangkok date filters before querying                        PASS  0.14s
+   ├─ PATCH updates hours, details, and date while re-deriving Project from its WorkItem             PASS  0.16s
+   ├─ PATCH rejects a Project mismatch even when Project is the only relation field sent             PASS  0.15s
+   ├─ PATCH rejects legacy entries without a WorkItem and leaves their data unchanged                PASS  0.12s
+   ├─ zero                                                                                           PASS  0.15s
+   ├─ negative                                                                                       PASS  0.13s
+   ├─ malformed                                                                                      PASS  0.14s
+   ├─ PATCH rejects non-positive or malformed hours without updating                                 PASS  0.42s
+   ├─ PATCH rejects owner spoofing before reading or updating the entry                              PASS  0.12s
+   ├─ PATCH returns not found for a missing or foreign TimeEntry                                     PASS  0.10s
+   ├─ DELETE removes only an owned TimeEntry and returns not found for a foreign one                 PASS  0.10s
+   ├─ GET detail does not disclose a foreign TimeEntry                                               PASS  0.09s
+   ├─ summary returns exact Decimal totals for the requested inclusive Bangkok date range            PASS  0.11s
+   ├─ hour summaries reflect the latest create, update, and delete values                            PASS  0.13s
+   ├─ summary returns zero for an empty owner range without treating query errors as zero            PASS  0.19s
+   ├─ summary rejects incomplete and invalid ranges without aggregating                              PASS  0.10s
+   ├─ summary rejects unauthenticated access before querying TimeEntries                             PASS  0.09s
+   ├─ create database failure returns a safe generic error                                           PASS  0.10s
+   ├─ Bangkok rolling ranges use Bangkok today independent of the host timezone                      PASS  0.10s
+   ├─ date-only values remain the selected calendar day in a non-Bangkok browser timezone            PASS  0.01s
+   ├─ Daily Work calendar ranges stay within selected weeks, months, and years                       PASS  0.12s
+   ├─ Daily Work calendar ranges do not change with the browser timezone                             PASS  0.11s
+   ├─ Work Item option fetch follows every cursor and retains Project and year filters               PASS  0.02s
+   ├─ Dashboard and Analysis request live hours and Work Item details display an exact total         PASS  0.01s
+   ├─ GitLab import implementation does not create TimeEntries automatically                         PASS  0.01s
+   └─ TimeEntry schema uses a Bangkok calendar date and explicit wall-clock timestamp types          PASS  0.00s
+
+tests/dashboard                                                         ok  0.15s
+└─ summary.test.mjs
+   ├─ Dashboard defaults to the complete Bangkok calendar month independent of the host timezone                             PASS  0.03s
+   ├─ Dashboard requires a valid inclusive date pair and validates shared role and kind filters                              PASS  0.00s
+   ├─ Dashboard treats empty form selections as no filters                                                                   PASS  0.00s
+   ├─ Dashboard applies shared WorkItem date anchors and excludes other owners and Companies                                 PASS  0.00s
+   ├─ Dashboard excludes completed and cancelled from Open and Completed and uses the shared completion formula              PASS  0.00s
+   ├─ Dashboard period and Company/Project/role/kind filters constrain TimeEntry through its WorkItem                        PASS  0.00s
+   ├─ Dashboard preserves exact Decimal sums for unfiltered Daily Work and serializes date fields as Bangkok calendar dates  PASS  0.00s
+   ├─ Dashboard recent Project progress excludes cancelled from the denominator                                              PASS  0.01s
+   ├─ Dashboard validates missing resources and Company/Project relationship conflicts                                       PASS  0.00s
+   ├─ Dashboard returns real zero totals and explicit empty collections when no matching records exist                       PASS  0.00s
+   ├─ Dashboard source links keep all filters and add the selected metric condition                                          PASS  0.00s
+   ├─ Work Items calendar period query replaces Dashboard dates and retains the other active filters                         PASS  0.05s
+   ├─ Clearing Daily Work Dashboard filters removes them from the URL and keeps the selected date                            PASS  0.00s
+   ├─ Dashboard page and chart render live query props and retain loading, empty, and safe error states                      PASS  0.01s
+   └─ Dashboard API requires owner access and returns safe validation and dependency errors                                  PASS  0.04s
+
+tests/database                                                          ok  0.46s
+├─ rollout-docker.test.mjs
+│  └─ real PostgreSQL backup/restore and staged Company relation preserve exact history                             SKIP  0.00s
+└─ rollout.test.mjs
+   ├─ environment is explicit; backup directory and retention use approved defaults or overrides                    PASS  0.00s
+   ├─ exact verification rejects deleted rows, same-count edits, changed decimals/dates/types and extra tables      PASS  0.00s
+   ├─ Bangkok database/session/default and staged nullable gates fail closed                                        PASS  0.00s
+   ├─ corrupt/wrong environment archives cannot start a restore; failed restore cleans only its isolated container  PASS  0.07s
+   ├─ retention preserves newest, pinned, corrupt, unverified and other-environment artifacts                       PASS  0.14s
+   └─ health verifies app, database, migration completion and actual endpoint; no secrets in arguments              PASS  0.24s
+
+tests/frontend-ui                                                       ok  16.51s
+├─ color-system.test.mjs
+│  ├─ COLOR-01 :root surface hierarchy and semantic labels meet AA                                                     PASS  0.01s
+│  ├─ COLOR-01 .dark surface hierarchy and semantic labels meet AA                                                     PASS  0.01s
+│  ├─ COLOR-01 .special-dark surface hierarchy and semantic labels meet AA                                             PASS  0.00s
+│  ├─ COLOR-02 :root solid action default, hover, pressed and focus remain accessible                                  PASS  0.00s
+│  ├─ COLOR-02 .dark solid action default, hover, pressed and focus remain accessible                                  PASS  0.01s
+│  ├─ COLOR-02 .special-dark solid action default, hover, pressed and focus remain accessible                          PASS  0.00s
+│  ├─ COLOR-03 dark palettes use layered low-luminance surfaces and independent neutral shadows                        PASS  0.00s
+│  ├─ COLOR-04 production actions and disabled controls render semantic colors with native semantics                   PASS  0.03s
+│  ├─ COLOR-05 custom Project colors preserve rails and tints without painting readable names                          PASS  0.00s
+│  ├─ COLOR-06 status and priority labels use semantic roles independently of chart series                             PASS  0.00s
+│  ├─ COLOR-07 compiled dark states follow the explicit class, including special-dark, rather than OS preference       PASS  3.90s
+│  └─ COLOR-08 app components contain no arbitrary UI palettes outside the Recharts adapter                            PASS  0.78s
+├─ filter-select.test.mjs
+│  ├─ SELECT-01 Dashboard custom options preserve empty GET fields and serialize selected IDs without internal values  PASS  2.01s
+│  ├─ SELECT-02 controlled Board options emit original values and respect parent resets and loading locks              PASS  0.10s
+│  ├─ SELECT-03 server-rendered filters have labeled custom triggers and original form defaults before hydration       PASS  0.20s
+│  └─ SELECT-04 Dashboard and Board use the shared themed filter instead of native option popups                       PASS  0.01s
+├─ redesign.test.mjs
+│  ├─ TC-27-01 navigation identifies only the current route and its nested detail                                      PASS  0.00s
+│  ├─ TC-27-02 sidebar renders all eight real destinations and announces the active Project detail                     PASS  0.07s
+│  ├─ TC-27-03 selecting a navigation destination dismisses the mobile drawer                                          PASS  0.08s
+│  ├─ TC-27-04 header reads the persisted owner and links breadcrumbs and profile actions to real routes               PASS  0.07s
+│  ├─ TC-27-05 unavailable owner settings display safe profile feedback without a fabricated identity                  PASS  0.06s
+│  ├─ TC-27-06 loading feedback announces its busy state and uses reduced-motion-safe animation                        PASS  0.00s
+│  ├─ TC-27-07 empty feedback describes the next step and preserves its action                                         PASS  0.00s
+│  ├─ TC-27-08 errors remain visible alerts and never substitute fake aggregate values                                 PASS  0.00s
+│  ├─ TC-27-09 portfolio preserves Company, Bangkok calendar date, progress and exact Decimal hours                    PASS  0.02s
+│  ├─ TC-27-10 portfolio handles missing Company and preserves the selected edit identity                              PASS  0.01s
+│  ├─ TC-27-11 Company card keeps real totals and its filtered Project drill-through                                   PASS  0.01s
+│  ├─ TC-27-12 default Company and Companies with Projects never expose the delete action                              PASS  0.01s
+│  ├─ TC-27-13 empty non-default Company exposes edit/delete callbacks with the unchanged record                       PASS  0.00s
+│  ├─ TC-27-14 redesigned controls preserve label, invalid, disabled and busy semantics                                PASS  0.00s
+│  ├─ TC-27-15 Table keeps semantic sorting and selection inside a local scroll container                              PASS  0.02s
+│  ├─ TC-27-16 Calendar uses the selected day and emits the same picker date through its callback                      PASS  3.45s
+│  ├─ TC-27-17 all themes meet WCAG AA normal-text contrast for surfaces, semantic text and solid buttons              PASS  0.17s
+│  ├─ TC-27-18 Tailwind emits pressed/hover surfaces, tablet drawer and touch/reduced-motion rules                     PASS  2.48s
+│  ├─ TC-27-19 redesign suite is reusable through pnpm and the shared runner                                           PASS  0.01s
+│  ├─ TC-27-20 chart dot links have stable period keys, accessible names and unchanged source URLs                     PASS  0.01s
+│  ├─ TC-27-21 GitLab PMS Project mapping renders the shared accessible themed Select                                 PASS  0.60s
+│  └─ TC-27-22 Board Work Item detail uses the same responsive width shell as Work Items dialogs                     PASS  0.03s
+└─ visual-system.test.mjs
+   ├─ light, dark and special-dark each define theme-aware surface shadows                                             PASS  0.06s
+   ├─ shared cards and emphasized surfaces consume shared shadow tokens                                                PASS  0.00s
+   ├─ form controls use inset surfaces while focus, invalid and selected states remain explicit                        PASS  0.00s
+   ├─ Tailwind compilation emits the active tab inset utility variant                                                  PASS  1.94s
+   ├─ Tailwind font utilities use the Geist fonts loaded by the root layout                                            PASS  0.64s
+   ├─ root layout loads Vercel Analytics only when explicitly enabled                                                  PASS  0.24s
+   ├─ Daily Work card detail and remarks actions render as native keyboard buttons                                     PASS  0.06s
+   ├─ all eight menu layouts use shrinkable page shells without page-level horizontal scrolling                        PASS  0.01s
+   ├─ responsive dialog shells fit phone, tablet and notebook viewports                                                PASS  0.00s
+   ├─ ChartContainer owns one responsive container and Dashboard does not nest another                                 PASS  0.00s
+   ├─ chart legend, tooltip and labels stay bounded by the chart frame                                                 PASS  0.00s
+   ├─ long tooltip content remains within phone and wider chart frames                                                 PASS  0.00s
+   ├─ interaction motion is brief and reduced-motion preference suppresses it                                          PASS  0.03s
+   └─ focused UI suite has reusable pnpm and shared Node runner commands                                               PASS  0.00s
+
+tests/gitlab                                                            ok  1.40s
+├─ import.test.mjs
+│  ├─ canonicalizes only HTTPS GitLab base URLs and rejects client-controlled credentials or hosts                    PASS  0.00s
+│  ├─ new Issues map fields, use Bangkok dates, and preserve owner-only identity                                      PASS  0.10s
+│  ├─ cross-origin redirects are rejected without following them with the GitLab token                                PASS  0.00s
+│  ├─ omitted optional description and due date are normalized to null                                                PASS  0.01s
+│  ├─ numeric GitLab IDs are preserved losslessly from the JSON source text                                           PASS  0.21s
+│  ├─ closed Issues get a PMS submittedAt Bangkok timestamp without using GitLab closed_at                            PASS  0.00s
+│  ├─ resync updates GitLab-owned fields and preserves PMS-owned fields and Daily Work                                PASS  0.00s
+│  ├─ sync refuses to update an imported Work Item that has left its mapped PMS Project                               PASS  0.00s
+│  ├─ repeated same snapshot is skipped and older GitLab snapshots cannot overwrite newer fields                      PASS  0.01s
+│  ├─ pagination follows only same-instance Issue links and deduplicates overlapping global identities                PASS  0.01s
+│  ├─ unsafe pagination URLs preserve committed page outcomes and never send the token off instance                   PASS  0.00s
+│  ├─ rate limits honor a short Retry-After and stop safely when the requested wait exceeds the bounded retry         PASS  0.32s
+│  ├─ transient provider failures retry with bounded backoff and then import successfully                             PASS  0.01s
+│  ├─ bad Issue rows fail individually while other Issues still commit                                                PASS  0.01s
+│  ├─ GitLab response body timeout aborts the request and uses bounded retries                                        PASS  0.29s
+│  ├─ malformed remote fields and invalid dates fail without writing an Issue                                         PASS  0.00s
+│  ├─ failed external-reference persistence rolls back the Work Item transaction                                      PASS  0.00s
+│  ├─ remote labels matching JavaScript prototype keys are treated as unmapped strings                                PASS  0.01s
+│  ├─ invalid mapping labels and mapping changes stop sync before writing records                                     PASS  0.00s
+│  └─ source timestamps and due dates are parsed independently of the process timezone                                PASS  0.01s
+└─ routes.test.mjs
+   ├─ owner authentication protects GitLab status before configuration details are read                               PASS  0.14s
+   ├─ GitLab status returns only the configured flag for configured and unconfigured secrets                          PASS  0.03s
+   ├─ all GitLab mapping routes reject unauthenticated access before database reads or writes                         PASS  0.09s
+   ├─ mapping create uses only server-configured instance and rejects client URL or secret fields                     PASS  0.02s
+   ├─ mapping creation rejects rebinding an imported source Project to a different PMS Project                        PASS  0.02s
+   ├─ mapping edit blocks destination moves with references and resets first-sync approval on approved label changes  PASS  0.03s
+   ├─ unmapping deletes only the mapping and leaves imported identity references untouched                            PASS  0.03s
+   ├─ sync requires explicit first-sync approval and then calls only the configured server-side connector             PASS  0.02s
+   ├─ first-sync approval stops if the mapping changed after it was read                                              PASS  0.02s
+   └─ unauthenticated sync is rejected before reading the request, configuration, or mapping                          PASS  0.01s
+
+tests/runner                                                            ok  0.02s
+├─ format-unit-tests.test.mjs
+│  ├─ unit report groups TAP results by source file and totals pass, fail, and skip cases            PASS  0.02s
+│  ├─ unit report uses aligned color-coded terminal output when color is enabled                     PASS  0.00s
+│  └─ terminal colors respect NO_COLOR, FORCE_COLOR, and terminal support                            PASS  0.00s
+└─ isolated-runner.test.mjs
+   ├─ isolated runner passes literal paths, serial file execution and the selected reporter to Node  PASS  0.00s
+   ├─ isolated runner preserves failures and treats a terminated child as a failed run               PASS  0.00s
+   └─ isolated runner reports spawn errors instead of claiming that unexecuted tests passed          PASS  0.00s
+
+tests/runtime                                                           ok  1.14s
+├─ container.test.mjs
+│  └─ production image enforces owner gate and excludes secrets from client, responses, logs and image files  SKIP  0.01s
+├─ docker.test.mjs
+│  ├─ scheduled backup fails safely and publishes only successful dumps without leaking diagnostics           SKIP  0.00s
+│  ├─ effective Dev/UAT/Production Compose has loopback ports, secrets and timezone                           SKIP  0.00s
+│  ├─ migration entrypoint skips absent seed by default and explains explicit seed failure safely             SKIP  0.00s
+│  ├─ migration entrypoint blocks Prisma schema sync before any database command without an approval gate     SKIP  0.00s
+│  └─ isolated PostgreSQL server and real Prisma sessions use Bangkok; wall-clock defaults match              SKIP  0.00s
+├─ launcher.test.mjs
+│  └─ launcher puts child on loopback, removes owner credentials, redacts fragmented logs and shuts down      PASS  0.54s
+├─ owner-origin.test.mjs
+│  ├─ owner gate permits the theme PATCH only at the exact configured browser origin                          PASS  0.00s
+│  ├─ matching the browser origin never permits a theme PATCH without valid owner credentials                 PASS  0.00s
+│  └─ owner access diagnostics distinguish missing, opaque and mismatched origin without logging credentials  PASS  0.03s
+├─ schema-rollout-gate.test.mjs
+│  ├─ schema rollout gate requires backup/restore verification and explicit approval                          PASS  0.00s
+│  ├─ schema rollout gate binds approval to the selected environment and exact Prisma schema                  PASS  0.00s
+│  ├─ schema rollout gate entrypoint rejects default configuration and accepts a verified approval            PASS  0.00s
+│  └─ schema rollout approval defaults to the process environment and repository schema                       PASS  0.00s
+└─ security.test.mjs
+   ├─ PostgreSQL secrets are encoded without losing spaces, quotes or special characters                      PASS  0.00s
+   ├─ runtime verification prints only safe status and rejects public bindings or failed dependencies         PASS  0.00s
+   ├─ all environments enforce Bangkok without disclosing credentials                                         PASS  0.00s
+   ├─ missing, invalid, ambiguous and public credentials fail closed                                          PASS  0.00s
+   ├─ environment values preserve characters and reject removed secret-file settings                          PASS  0.00s
+   ├─ real HTTP protects pages/APIs and mutations, strips credentials, rejects bypass and WebSocket abuse     PASS  0.17s
+   ├─ upstream failure is a safe 503                                                                          PASS  0.02s
+   ├─ CLI preflight reads root .env without printing credentials                                              PASS  0.34s
+   └─ deployment, generic health and reusable runner regressions                                              PASS  0.02s
+
+tests/seed                                                              ok  0.20s
+├─ docker.test.mjs
+│  ├─ PostgreSQL WorkItem DATE columns and Restrict FK survive gated Prisma schema sync        SKIP  0.00s
+│  └─ installation seed dataset inserts into an empty database and preserves records on rerun  SKIP  0.00s
+└─ seed.test.mjs
+   ├─ seed inserts each empty table and repeated runs skip existing tables                     PASS  0.04s
+   ├─ a populated table is unchanged while an empty table seeds; skipped file need not exist   PASS  0.02s
+   ├─ constraint failure rolls back all pending tables and exposes only safe table/code        PASS  0.03s
+   ├─ directory seeds preserve row order and existing naive datetime parsing                   PASS  0.03s
+   ├─ invalid config, unknown model and paths fail without inserts                             PASS  0.05s
+   └─ missing or malformed files for an empty table fail and rollback                          PASS  0.03s
+
+tests/settings                                                          ok  1.89s
+├─ management.test.mjs
+│  ├─ settings parser accepts supported owner profile and preference fields                                 PASS  0.22s
+│  ├─ settings parser rejects empty, invalid, unknown, security, notification, and timezone fields          PASS  0.06s
+│  ├─ GET returns only the authenticated owner profile, persisted preferences, and fixed timezone           PASS  0.10s
+│  ├─ GET applies safe theme and locale defaults and always returns the fixed system timezone               PASS  0.08s
+│  ├─ PATCH persists profile and preferences for server-resolved owner and GET returns them after reload    PASS  0.10s
+│  ├─ PATCH rejects unsupported settings and invalid profile values before writing                          PASS  0.07s
+│  ├─ PATCH reports unique email conflicts without exposing database details                                PASS  0.07s
+│  ├─ settings routes require owner authentication before reading or writing                                PASS  0.05s
+│  ├─ settings returns not found and dependency errors as safe API envelopes                                PASS  0.14s
+│  └─ PATCH malformed JSON and unexpected database failures return safe errors                              PASS  0.10s
+├─ provider.test.mjs
+│  ├─ COLOR-09 Dark to Light saves only the preference and a new provider restores the confirmed theme      PASS  0.18s
+│  ├─ Owner settings load completes before mutations; confirmed PATCH updates one shared canonical state    PASS  0.03s
+│  ├─ Owner settings reload blocks writes until its latest GET completes                                    PASS  0.03s
+│  └─ origin-denied theme save preserves the persisted theme and releases its lock for an authorized retry  PASS  0.02s
+└─ ui.test.mjs
+   ├─ Settings renders persisted owner values and the fixed timezone without unsupported tabs               PASS  0.14s
+   ├─ Settings shows loading and retryable load-error states                                                PASS  0.09s
+   ├─ Profile form sends only edited fields and Cancel restores the latest saved profile                    PASS  0.03s
+   ├─ Preferences send only changed theme and locale, leaving the fixed timezone unchanged                  PASS  0.04s
+   ├─ Settings reports a failed save and leaves the canonical theme unchanged                               PASS  0.04s
+   ├─ Header theme changes and Settings share canonical preferences across Cancel and partial Save          PASS  0.05s
+   ├─ Settings change handlers capture event values before deferred state updates                           PASS  0.15s
+   ├─ Settings fields are disabled while their shared save request is pending                               PASS  0.06s
+   └─ Header theme control uses the shared save method and applies the theme after success                  PASS  0.01s
+
+tests/work-items                                                        ok  3.23s
+└─ management.test.mjs
+   ├─ shared input parser accepts Bangkok calendar dates and rejects invalid calendar days                           PASS  0.29s
+   ├─ shared input validation rejects malformed bodies, missing fields, foreign assignees, and ID changes            PASS  0.15s
+   ├─ create, update, and detail reads keep one owner WorkItem with Company and linked Daily Work                    PASS  0.17s
+   ├─ invalid create and update inputs or missing Projects do not write partial changes                              PASS  0.14s
+   ├─ Work Item Project changes run serializably and reject moves with linked Daily Work                             PASS  0.14s
+   ├─ imported GitLab WorkItems cannot move outside their mapped Project                                             PASS  0.11s
+   ├─ Work Item filters validate shared enums and apply owner, Project, Company, status, priority, and role filters  PASS  0.11s
+   ├─ Dashboard Work Item links preserve inclusive dates, Company, Project, role, kind, and open overdue filters     PASS  0.10s
+   ├─ Work Item collection uses bounded stable cursor pages bound to its filters                                     PASS  0.09s
+   ├─ overdue Work Item cursors expire when the Bangkok business date changes                                        PASS  0.11s
+   ├─ Work Item collection and create unexpected errors use the shared error envelope                                PASS  0.14s
+   ├─ foreign-owner WorkItems are hidden from collection and detail reads and cannot be changed or deleted           PASS  0.14s
+   ├─ collection metrics do not count cancelled or completed overdue items as overdue                                PASS  0.16s
+   ├─ detail API maps repository failures to safe internal errors                                                    PASS  0.39s
+   ├─ delete refuses linked Daily Work, retains history, and deletes an unreferenced WorkItem                        PASS  0.18s
+   ├─ delete refuses imported GitLab WorkItems to preserve their external identity                                   PASS  0.12s
+   ├─ bulk import reports each bad row and preserves valid and existing rows independently                           PASS  0.17s
+   ├─ bulk import reports a Project foreign-key race per row and continues with later rows                           PASS  0.17s
+   ├─ bulk import reports Project and duplicate-ID lookup failures per row and continues safely                      PASS  0.14s
+   ├─ bulk import rejects an empty array before attempting any database writes                                       PASS  0.13s
+   ├─ Work Items JSON export is importable and urgency uses the Bangkok calendar date                                PASS  0.05s
+   ├─ Work Items detail and import UI expose Company, Daily Work, per-row reasons, and guarded deletion              PASS  0.00s
+   └─ Work Items loading state compares the complete shared filter key and fills its tab content                     PASS  0.02s
+
+────────────────────────────────────────────────────────────────────────
+สรุป  กลุ่ม  15 ok  0 ไม่มีเทสต์  0 fail  0 skip
+      เคส       332 PASS  0 FAIL  9 SKIP
+PASS = assertion ผ่านตามค่าที่คาด
+SKIP = ข้ามเทสต์ — ไม่ใช่ FAIL
+────────────────────────────────────────────────────────────────────────

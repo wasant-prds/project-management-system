@@ -1,6 +1,10 @@
 # Testing Commands
 
-Project tests use pnpm and Node's built-in test runner; no additional test dependency is required. The root runner imports all `.test.mjs` files under `tests/` in one process.
+ระบบสีของ Issue #27 ใช้ `pnpm test:color-system` หรือ `node tests/run.mjs color-system`: ตรวจ contrast ทั้งสามธีม, action/focus states, custom Project colors, compiled dark variants และ theme persistence ด้วย mocks. ทั้ง suite ไม่ใช้ network/DB/Docker. ใช้ `bash scripts/test-unit.sh color-system` สำหรับรายงาน tree; รายละเอียดและขอบเขต browser/build อยู่ใน [COLOR_SYSTEM.md](../COLOR_SYSTEM.md).
+
+Dropdown ของ Dashboard / Kanban Board ใช้ `pnpm test:filter-select` หรือ `node tests/run.mjs filter-select`: ตรวจ shared themed Select, empty GET values, SSR defaults, controlled callbacks และ loading locks รวม Dashboard filter/summary กับ Board workflow regressions. ไม่เชื่อม network/DB/Docker; reusable tree runner ใช้ `bash scripts/test-unit.sh filter-select` เมื่อมี Bash และ Node 22+.
+
+Project tests use pnpm and Node's built-in test runner; no additional test dependency is required. The root runner discovers `.test.mjs` files under `tests/` and runs them in isolated child processes, one file at a time.
 
 ```powershell
 pnpm test
@@ -208,3 +212,42 @@ node tests/run.mjs frontend-ui
 ```
 
 The focused suite checks local CSS and source contracts, compiles the Tailwind stylesheet and font tokens, renders the root layout under both Vercel Analytics settings, renders the Daily Work card with mocked UI primitives to verify native button markup, exercises reduced-motion subscription behavior, and checks tooltip positioning with the installed Recharts helper. It requires no PostgreSQL, Redis, browser, Docker, network, or external service. `pnpm test` also discovers the same `.test.mjs` cases as part of the full suite.
+
+## Issue #27 — Full Frontend redesign
+
+รัน unit tests ของ shell/navigation, real presentation components, accessible states, Calendar callback และ installed MUI year/month selectors, retryable Company/Projects collection errors, theme contrast, emitted responsive/motion CSS, GitLab PMS Project themed option popup และ Board/Work Items modal shell consistency:
+
+```powershell
+pnpm test:frontend-redesign
+node tests/run.mjs frontend-redesign
+pnpm test:frontend-ui
+pnpm test:company-projects
+pnpm test:runner
+pnpm test
+```
+
+Shared runner ใช้ Node test file isolation และ `--test-concurrency=1` โดยคง exit code ของ failure/spawn error. ไม่ให้ React/TypeScript/Tailwind compilation ของ UI block timers ของ suite อื่น. Docker integration suites ยังคง opt-in ตามคำสั่งเดิม.
+
+Company/Projects regression checks initial collection failures show retryable error alerts rather than false zero/empty results, and that retry restores the real list/empty state. Calendar regression binds styles to the utility classes exported by the installed MUI version. TC-27-21 checks GitLab PMS Project uses the shared Select trigger and theme-aware popover/option/focus tokens. TC-27-22 checks Board detail, Work Items create/edit and Work Items view dialogs all use the same responsive shell and desktop width. Theme test titles stay literal so the shared case report maps every case to its source file.
+
+รายงานรายเคสแบบ tree ใช้ `bash scripts/test-unit.sh frontend-redesign` ได้. เครื่องที่ไม่มี Bash ใช้ PowerShell โดยเก็บ exit code ก่อนส่ง TAP เข้า formatter:
+
+```powershell
+node --test-reporter=tap tests/run.mjs frontend-redesign > issue-27-tests.tap
+$taskTestExit = $LASTEXITCODE
+Get-Content issue-27-tests.tap | node scripts/format-unit-tests.mjs --stdin
+if ($taskTestExit -ne 0) { throw "Unit tests failed (exit $taskTestExit)" }
+```
+
+Browser QA ใช้ isolated read-only fixture preview ซึ่งไม่ต่อฐานข้อมูลจริง:
+
+```powershell
+node scripts/frontend-preview.mjs
+# http://127.0.0.1:3791
+# ?theme=dark หรือ ?theme=special-dark
+# หยุดด้วย Ctrl+C
+```
+
+Preview ไม่อ่าน `.env`, ใช้ production UI กับ mocked Next/owner/data boundaries และปฏิเสธ API writes. ใช้ตรวจ layout/interaction; ไม่แทน production E2E/auth/hydration tests. Production standalone build บน Windows ที่ติด symlink EPERM ตรวจด้วย `docker build --target production -t pms-issue27-validation .` ได้โดยไม่ deploy. ดู [รายงาน #27](../FRONTEND_REDESIGN.md) และ [ผลทุกเคส](../issue-27-test-cases.txt).
+
+Theme save follow-up: `pnpm test:settings` ตรวจว่า origin-denied save คง persisted theme และ retry ได้; `pnpm test:runtime-security` รวม direct owner-origin unit cases (exact scheme/host/port และยังต้องมี valid credentials). ถ้า page โหลดได้แต่ PATCH เป็น `403 ACCESS_DENIED` ให้เทียบ browser origin กับ `APP_ORIGIN` ของ app container จริง. Dev compose publish พอร์ต 3777; `localhost` กับ `127.0.0.1` เป็นคนละ origin. การเปลี่ยน root `.env` ต้อง recreate เฉพาะ app เพื่อโหลด environment ใหม่; อย่าแก้ด้วยการข้าม origin/authentication check.

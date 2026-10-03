@@ -28,13 +28,26 @@ export function formatBangkokTimestamp(date) {
   return `${values.year}-${values.month}-${values.day}T${values.hour}:${values.minute}:${values.second}.${values.fractionalSecond}+07:00`
 }
 
-function recordOwnerAccess(audit, now, method, status) {
-  audit({
+function auditOrigin(value) {
+  if (value === undefined) return 'missing'
+  if (value === 'null') return 'opaque'
+  try {
+    const url = new URL(value)
+    return ['http:', 'https:'].includes(url.protocol) ? url.origin : 'invalid'
+  } catch {
+    return 'invalid'
+  }
+}
+
+export function ownerAccessEvent(request, status, date) {
+  return {
     event: 'owner_access',
     outcome: status === 200 ? 'authorized' : 'rejected',
-    method,
-    timestamp: formatBangkokTimestamp(now()),
-  })
+    method: request.method,
+    status,
+    origin: auditOrigin(request.headers.origin),
+    timestamp: formatBangkokTimestamp(date),
+  }
 }
 
 function reject(response, status) {
@@ -97,13 +110,13 @@ export function createOwnerGate(env, upstreamPort, options = {}) {
     // Exact, read-only infrastructure exception; Next returns only generic status.
     const health = request.method === 'GET' && request.url === '/api/health';
     const status = health ? 200 : authorize(request, env);
-    if (!health) recordOwnerAccess(audit, now, request.method, status);
+    if (!health) audit(ownerAccessEvent(request, status, now()));
     if (status !== 200) return reject(response, status);
     return forwardHttp(request, response, upstreamPort, internalProof);
   });
   server.on('upgrade', (request, socket, head) => {
     const status = authorize(request, env);
-    recordOwnerAccess(audit, now, request.method, status);
+    audit(ownerAccessEvent(request, status, now()));
     if (status !== 200) {
       socket.end(`HTTP/1.1 ${status} Access denied\r\nConnection: close\r\n\r\n`);
       return;

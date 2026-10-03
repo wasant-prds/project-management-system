@@ -1,7 +1,7 @@
 import type { WorkItemKindValue, WorkItemPriorityValue, WorkItemStatusValue } from '@/lib/work-items'
 import type { WorkItem } from './types'
 
-export const DEFAULT_PROJECT_COLOR = '#3b82f6'
+export const DEFAULT_PROJECT_COLOR = 'var(--project-accent)'
 
 export const MONTH_OPTIONS = [
   { value: '1', label: 'January' },
@@ -65,10 +65,14 @@ export function resolveProjectColor(color: string | null | undefined): string {
 }
 
 function withAlpha(color: string, alpha: string): string {
-  if (color.startsWith('#') && (color.length === 4 || color.length === 7)) {
+  if (/^#[\da-f]{3}$/i.test(color)) {
+    const expanded = color.slice(1).split('').map((channel) => channel.repeat(2)).join('')
+    return `#${expanded}${alpha}`
+  }
+  if (/^#[\da-f]{6}$/i.test(color)) {
     return `${color}${alpha}`
   }
-  return color
+  return `color-mix(in srgb, ${color} ${Math.round(Number.parseInt(alpha, 16) / 255 * 100)}%, transparent)`
 }
 
 export function projectAccentStyle(color: string | null | undefined) {
@@ -77,6 +81,7 @@ export function projectAccentStyle(color: string | null | undefined) {
     color: value,
     backgroundColor: withAlpha(value, '18'),
     borderColor: value,
+    borderTint: withAlpha(value, '33'),
     softBackground: withAlpha(value, '0F'),
   }
 }
@@ -116,11 +121,11 @@ export function priorityClass(priority: WorkItemPriorityValue) {
     case 'urgent':
       return 'bg-destructive text-destructive-foreground'
     case 'high':
-      return 'bg-destructive/10 text-destructive border-destructive/20'
+      return 'bg-danger-subtle text-danger border-danger/30'
     case 'medium':
-      return 'bg-chart-5/10 text-chart-5 border-chart-5/20'
+      return 'bg-warning-subtle text-warning border-warning/30'
     case 'low':
-      return 'bg-chart-1/10 text-chart-1 border-chart-1/20'
+      return 'bg-muted text-muted-foreground border-border'
     default:
       return 'bg-muted text-muted-foreground'
   }
@@ -129,15 +134,15 @@ export function priorityClass(priority: WorkItemPriorityValue) {
 export function statusClass(status: WorkItemStatusValue) {
   switch (status) {
     case 'in-progress':
-      return 'bg-chart-2/10 text-chart-2 border-chart-2/20'
+      return 'bg-info-subtle text-info border-info/30'
     case 'sa-testing':
     case 'pm-testing':
-      return 'bg-chart-4/10 text-chart-4 border-chart-4/20'
+      return 'bg-accent text-accent-foreground border-info/30'
     case 'completed':
-      return 'bg-chart-1/10 text-chart-1 border-chart-1/20'
+      return 'bg-success-subtle text-success border-success/30'
     case 'blocked':
     case 'cancelled':
-      return 'bg-destructive/10 text-destructive border-destructive/20'
+      return 'bg-danger-subtle text-danger border-danger/30'
     default:
       return 'bg-muted text-muted-foreground border-border'
   }
@@ -146,10 +151,10 @@ export function statusClass(status: WorkItemStatusValue) {
 export function kindClass(kind: WorkItemKindValue) {
   switch (kind) {
     case 'Incident':
-      return 'bg-destructive/10 text-destructive border-destructive/20'
+      return 'bg-danger-subtle text-danger border-danger/30'
     case 'Issue':
-      return 'bg-chart-5/10 text-chart-5 border-chart-5/20'
+      return 'bg-warning-subtle text-warning border-warning/30'
     default:
-      return 'bg-chart-2/10 text-chart-2 border-chart-2/20'
+      return 'bg-info-subtle text-info border-info/30'
   }
 }

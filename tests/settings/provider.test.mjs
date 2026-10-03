@@ -77,6 +77,43 @@ const lightSettings = {
   preferences: { theme: 'light', locale: 'th', timezone: 'Asia/Bangkok' },
 }
 
+test('COLOR-09 Dark to Light saves only the preference and a new provider restores the confirmed theme', async () => {
+  let stored = { ...lightSettings, preferences: { ...lightSettings.preferences, theme: 'dark' } }
+  const themeChanges = []
+  const document = { documentElement: { lang: 'th' } }
+  const requests = []
+  const fetcher = async (path, init = {}) => {
+    requests.push({ path, init })
+    if (init.method === 'PATCH') {
+      const body = JSON.parse(init.body)
+      assert.deepEqual(body, { preferences: { theme: 'light' } })
+      stored = { ...stored, preferences: { ...stored.preferences, ...body.preferences } }
+    }
+    return response(stored)
+  }
+  const runtime = loadProvider({ fetcher, themeChanges, document })
+  runtime.render(runtime.OwnerSettingsProvider)
+  const cleanup = runtime.effects[0]()
+  await new Promise((resolve) => setImmediate(resolve))
+  let tree = runtime.render(runtime.OwnerSettingsProvider)
+  assert.equal(tree.props.value.settings.preferences.theme, 'dark')
+  await tree.props.value.savePreferences({ theme: 'light' })
+  tree = runtime.render(runtime.OwnerSettingsProvider)
+  assert.equal(tree.props.value.settings.preferences.theme, 'light')
+  assert.deepEqual(JSON.parse(JSON.stringify(tree.props.value.settings.profile)), lightSettings.profile)
+  assert.equal(tree.props.value.settings.preferences.timezone, 'Asia/Bangkok')
+  cleanup()
+
+  const restored = loadProvider({ fetcher, themeChanges, document })
+  restored.render(restored.OwnerSettingsProvider)
+  const restoredCleanup = restored.effects[0]()
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(restored.render(restored.OwnerSettingsProvider).props.value.settings.preferences.theme, 'light')
+  assert.deepEqual(themeChanges, ['dark', 'light', 'light'])
+  assert.equal(requests.filter((request) => request.init.method === 'PATCH').length, 1)
+  restoredCleanup()
+})
+
 test('Owner settings load completes before mutations; confirmed PATCH updates one shared canonical state', async () => {
   const getRequest = deferred()
   const patchRequest = deferred()
@@ -159,4 +196,31 @@ test('Owner settings reload blocks writes until its latest GET completes', async
   assert.equal(tree.props.value.loadError, null)
   assert.equal(tree.props.value.isLoading, false)
   assert.equal(calls.filter((call) => call.init.method === 'PATCH').length, 0)
+})
+
+test('origin-denied theme save preserves the persisted theme and releases its lock for an authorized retry', async () => {
+  const themeChanges = []
+  const document = { documentElement: { lang: 'th' } }
+  let attempts = 0
+  const runtime = loadProvider({ document, themeChanges, fetcher: async (_path, init = {}) => {
+    if (init.method !== 'PATCH') return response(lightSettings)
+    attempts += 1
+    if (attempts === 1) return response({ error: { code: 'ACCESS_DENIED', message: 'ไม่สามารถเข้าถึงระบบได้' } }, false)
+    return response({ ...lightSettings, preferences: { ...lightSettings.preferences, theme: 'dark' } })
+  } })
+  runtime.render(runtime.OwnerSettingsProvider)
+  const cleanup = runtime.effects[0]()
+  await new Promise((resolve) => setImmediate(resolve))
+  let tree = runtime.render(runtime.OwnerSettingsProvider)
+  await assert.rejects(tree.props.value.savePreferences({ theme: 'dark' }), /ไม่สามารถเข้าถึงระบบได้/)
+  tree = runtime.render(runtime.OwnerSettingsProvider)
+  assert.equal(tree.props.value.settings.preferences.theme, 'light')
+  assert.equal(tree.props.value.isSavingPreferences, false)
+  assert.deepEqual(themeChanges, ['light'])
+  await tree.props.value.savePreferences({ theme: 'dark' })
+  tree = runtime.render(runtime.OwnerSettingsProvider)
+  assert.equal(tree.props.value.settings.preferences.theme, 'dark')
+  assert.deepEqual(themeChanges, ['light', 'dark'])
+  assert.equal(attempts, 2)
+  cleanup()
 })

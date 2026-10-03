@@ -1,6 +1,7 @@
 import { readdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
+import { runTestFiles } from '../scripts/unit-test-process.mjs';
 
 const testRoot = resolve(dirname(fileURLToPath(import.meta.url)));
 const suites = {
@@ -11,7 +12,7 @@ const suites = {
   "work-item-schema-docker": { files: [join(testRoot, "seed", "docker.test.mjs")] },
   "runtime-docker": { files: [join(testRoot, "runtime", "docker.test.mjs")] },
   "schema-rollout-gate": { files: [join(testRoot, "runtime", "schema-rollout-gate.test.mjs")] },
-  "runtime-security": { files: [join(testRoot, "runtime", "security.test.mjs"), join(testRoot, "runtime", "launcher.test.mjs")] },
+  "runtime-security": { files: [join(testRoot, "runtime", "security.test.mjs"), join(testRoot, "runtime", "launcher.test.mjs"), join(testRoot, "runtime", "owner-origin.test.mjs")] },
   "runtime-container": { files: [join(testRoot, "runtime", "container.test.mjs")] },
   gitlab: { directory: join(testRoot, "gitlab") },
   contracts: { directory: join(testRoot, "contracts") },
@@ -24,7 +25,10 @@ const suites = {
   dashboard: { directory: join(testRoot, "dashboard") },
   analysis: { directory: join(testRoot, "analysis") },
   settings: { directory: join(testRoot, "settings") },
+  "frontend-redesign": { files: [join(testRoot, "frontend-ui", "redesign.test.mjs")] },
   "frontend-ui": { directory: join(testRoot, "frontend-ui") },
+  "filter-select": { files: [join(testRoot, "frontend-ui", "filter-select.test.mjs"), join(testRoot, "dashboard", "summary.test.mjs"), join(testRoot, "board", "workflow.test.mjs")] },
+  "color-system": { files: [join(testRoot, "frontend-ui", "color-system.test.mjs"), join(testRoot, "settings", "provider.test.mjs")] },
   "work-items": { directory: join(testRoot, "work-items") },
   "daily-work": { directory: join(testRoot, "daily-work") },
   runner: { directory: join(testRoot, "runner") },
@@ -56,4 +60,5 @@ async function findTestFiles(directory) {
 const testFiles = (suite?.files ?? await findTestFiles(suite?.directory ?? testRoot)).sort();
 if (testFiles.length === 0) throw new Error("No .test.mjs files found under tests/");
 
-await Promise.all(testFiles.map((testFile) => import(pathToFileURL(testFile))));
+const reporter = process.execArgv.find((argument) => argument.startsWith('--test-reporter='))?.split('=')[1] ?? 'spec';
+process.exitCode = runTestFiles(testFiles, { reporter });

@@ -63,7 +63,7 @@ export function LoggedHoursStat({ label, startDate, endDate }: Readonly<LoggedHo
     <SummaryStatCard
       label={label}
       value={<output aria-label={`${label}: ${value}`}>{value}</output>}
-      icon={<Clock className="h-4 w-4 text-chart-2" />}
+      icon={<Clock className="h-4 w-4 text-info" />}
       hint={<span className="text-sm text-muted-foreground">{hint}</span>}
     />
   )

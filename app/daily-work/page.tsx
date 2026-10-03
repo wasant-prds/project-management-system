@@ -310,8 +310,9 @@ export default function DailyWorkPage() {
           <div className={PAGE_INNER}>
             <div className={PAGE_TOOLBAR}>
               <div className="min-w-0">
+                <p className="page-eyebrow mb-2">Daily journal</p>
                 <h1 className={PAGE_HEADING}>Daily Work</h1>
-                <p className={PAGE_LEAD}>Track your daily activities and work logs</p>
+                <p className={PAGE_LEAD}>บันทึกเวลาทำงานและติดตามกิจกรรมในแต่ละวัน</p>
               </div>
             {dashboardFilters && (
               <Card className="card-shadow">
@@ -323,7 +324,7 @@ export default function DailyWorkPage() {
                     {dashboardFilters.role ? ` · role ${dashboardFilters.role}` : ""}
                     {dashboardFilters.kind ? ` · ${dashboardFilters.kind}` : ""}
                   </p>
-                  <button type="button" onClick={() => clearDashboardFilters(currentBangkokCalendarDate())} className="text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">ล้างตัวกรอง Dashboard</button>
+                  <button type="button" onClick={() => clearDashboardFilters(currentBangkokCalendarDate())} className="text-link underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">ล้างตัวกรอง Dashboard</button>
                 </div>
               </Card>
             )}

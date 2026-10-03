@@ -5,23 +5,23 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-[color,background-color,border-color,box-shadow,transform,translate] duration-150 motion-safe:active:translate-y-px disabled:pointer-events-none disabled:border disabled:border-border disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100 disabled:shadow-none motion-reduce:transition-none motion-reduce:active:translate-y-0 [&_span]:text-inherit [&_svg]:pointer-events-none [&_svg]:text-current [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-control)] text-sm font-medium transition-[color,background-color,border-color,box-shadow,transform,translate] duration-150 motion-safe:active:translate-y-px disabled:pointer-events-none disabled:border disabled:border-border disabled:bg-disabled disabled:text-disabled-foreground disabled:opacity-100 disabled:shadow-none motion-reduce:transition-none motion-reduce:active:translate-y-0 [&_span]:text-inherit [&_svg]:pointer-events-none [&_svg]:text-current [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
   {
     variants: {
       variant: {
-        default: 'bg-primary text-white hover:bg-primary/90',
+        default: 'surface-soft active:surface-pressed bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-active',
         destructive:
-          'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40',
+          'surface-soft active:surface-pressed bg-destructive text-destructive-foreground hover:bg-destructive-hover active:bg-destructive-active',
         outline:
-          'surface-soft border border-border bg-card text-foreground hover:bg-accent hover:text-accent-foreground dark:bg-input/40 dark:border-border dark:text-foreground dark:hover:bg-input/70',
+          'surface-soft active:surface-inset border border-border-strong bg-card text-foreground hover:bg-hover active:bg-pressed',
         secondary:
-          'surface-soft bg-secondary text-secondary-foreground hover:bg-secondary/80',
+          'surface-soft active:surface-inset bg-secondary text-secondary-foreground hover:bg-hover active:bg-pressed',
         ghost:
-          'text-foreground hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
-        link: 'text-primary underline-offset-4 hover:underline',
-        info: 'bg-blue-700 text-white hover:bg-blue-800 focus-visible:ring-blue-700/40',
-        success: 'bg-emerald-700 text-white hover:bg-emerald-800 focus-visible:ring-emerald-700/40',
-        neutral: 'bg-slate-700 text-white hover:bg-slate-800 focus-visible:ring-slate-700/40',
+          'text-foreground hover:bg-hover active:bg-pressed',
+        link: 'text-link underline-offset-4 hover:underline',
+        info: 'surface-soft active:surface-pressed bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-active',
+        success: 'surface-soft active:surface-pressed bg-success-solid text-inverse hover:bg-success-hover active:bg-success-active',
+        neutral: 'surface-soft active:surface-pressed bg-neutral-solid text-inverse hover:bg-neutral-hover active:bg-neutral-active',
       },
       size: {
         default: 'h-9 px-4 py-2 has-[>svg]:px-3',

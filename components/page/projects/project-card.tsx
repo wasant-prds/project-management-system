@@ -51,13 +51,13 @@ export function ProjectCard({ project }: ProjectCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "In Progress":
-        return "bg-chart-2/10 text-chart-2 border-chart-2/20"
+        return "bg-info-subtle text-info border-info/30"
       case "Review":
-        return "bg-chart-4/10 text-chart-4 border-chart-4/20"
+        return "bg-accent text-accent-foreground border-info/30"
       case "Planning":
-        return "bg-chart-3/10 text-chart-3 border-chart-3/20"
+        return "bg-warning-subtle text-warning border-warning/30"
       case "Completed":
-        return "bg-chart-1/10 text-chart-1 border-chart-1/20"
+        return "bg-success-subtle text-success border-success/30"
       default:
         return "bg-muted text-muted-foreground"
     }
@@ -66,9 +66,9 @@ export function ProjectCard({ project }: ProjectCardProps) {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "High":
-        return "bg-destructive/10 text-destructive border-destructive/20"
+        return "bg-danger-subtle text-danger border-danger/30"
       case "Medium":
-        return "bg-chart-5/10 text-chart-5 border-chart-5/20"
+        return "bg-warning-subtle text-warning border-warning/30"
       case "Low":
         return "bg-muted text-muted-foreground border-border"
       default:
@@ -128,7 +128,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
           <div className="flex items-start justify-between">
             <div className="space-y-1 flex-1">
               <Link href={`/projects/${project.id}`}>
-                <CardTitle className="hover:text-primary transition-colors cursor-pointer">
+                <CardTitle className="hover:text-link transition-colors cursor-pointer">
                   {project.name}
                 </CardTitle>
               </Link>
@@ -154,7 +154,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
-                  className="text-destructive"
+                  className="text-danger"
                   onClick={() => setShowArchiveDialog(true)}
                 >
                   Archive Project

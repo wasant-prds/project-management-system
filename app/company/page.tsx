@@ -1,12 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import Link from 'next/link'
+import { CompanyCard } from '@/components/page/company/company-card'
+import { PageState } from '@/components/layout/page-state'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
 import { PAGE_HEADING, PAGE_INNER, PAGE_LEAD, PAGE_MAIN, PAGE_TOOLBAR } from '@/components/layout/page-layout'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -37,14 +37,17 @@ export default function CompanyPage() {
   const [editing, setEditing] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [saving, setSaving] = useState(false)
   const [deleteCompany, setDeleteCompany] = useState<Company | null>(null)
   const [deleting, setDeleting] = useState(false)
   const reload = useCallback(async () => {
+    setLoading(true)
+    setLoadError('')
     try {
       setCompanies(await fetchCollection<Company>('/api/company', 'companies'))
       setMessage('')
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'โหลด Company ไม่สำเร็จ') }
+    } catch (error) { setLoadError(error instanceof Error ? error.message : 'โหลด Company ไม่สำเร็จ') }
     finally { setLoading(false) }
   }, [])
   useEffect(() => { reload() }, [reload])
@@ -63,7 +66,7 @@ export default function CompanyPage() {
   const edit = (company: Company) => {
     setEditing(company.id)
     setForm({ name: company.name, displayName: company.displayName, location: company.location, address: company.address, phone: company.phone, description: company.description })
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    document.getElementById('company-form')?.scrollIntoView({ block: 'start' })
   }
   const remove = async () => {
     if (!deleteCompany) return
@@ -77,20 +80,15 @@ export default function CompanyPage() {
   }
 
   return <SidebarProvider><AppSidebar /><SidebarInset><AppHeader /><main className={PAGE_MAIN}><div className={PAGE_INNER}>
-    <div className={PAGE_TOOLBAR}><div><h1 className={PAGE_HEADING}>Company</h1><p className={PAGE_LEAD}>จัดการบริษัทและ Projects ที่ผูกอยู่</p></div></div>
-    {message && <output className="block rounded border p-3 text-sm">{message}</output>}
-    <Card><CardHeader><CardTitle>{editing ? 'แก้ไข Company' : 'เพิ่ม Company'}</CardTitle></CardHeader><CardContent><form onSubmit={save} className="grid gap-3 sm:grid-cols-2">
+    <div className={PAGE_TOOLBAR}><div><p className="page-eyebrow mb-2">Company registry</p><h1 className={PAGE_HEADING}>Company</h1><p className={PAGE_LEAD}>จัดการบริษัทและ Projects ที่ผูกอยู่</p></div></div>
+    {message && <output aria-live="polite" className="surface-inset block rounded-xl border p-4 text-sm">{message}</output>}
+    <details id="company-form" open={editing !== null || undefined} className="surface-raised scroll-mt-4 rounded-[var(--radius-panel)] border border-border/60 bg-card py-4"><summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-4 text-sm font-semibold focus-visible:outline-2 sm:px-5"><span>{editing ? 'แก้ไข Company' : 'เพิ่ม Company'}</span><span aria-hidden="true" className="surface-inset flex size-8 items-center justify-center rounded-lg text-link">+</span></summary><div className="mt-5 px-4 sm:px-5"><form onSubmit={save} className="grid min-w-0 gap-4 sm:grid-cols-2 [&>div]:min-w-0 [&>div]:space-y-2">
       {(['name', 'displayName', 'location', 'address', 'phone'] as const).map((field) => <div key={field}><Label htmlFor={`company-${field}`}>{field === 'name' ? 'ชื่อบริษัท *' : field}</Label><Input id={`company-${field}`} value={form[field] ?? ''} onChange={(event) => setForm({ ...form, [field]: event.target.value })} required={field === 'name'} disabled={editing !== null && companies.find((item) => item.id === editing)?.code === 'dhas' && field === 'name'} /></div>)}
       <div className="sm:col-span-2"><Label htmlFor="company-description">รายละเอียด</Label><Textarea id="company-description" value={form.description ?? ''} onChange={(event) => setForm({ ...form, description: event.target.value })} rows={4} /></div>
       <div className="flex gap-2"><Button disabled={saving}>บันทึก</Button>{editing && <Button type="button" variant="outline" onClick={() => { setEditing(null); setForm(emptyForm) }}>ยกเลิก</Button>}</div>
-    </form></CardContent></Card>
-    {loading ? <p>กำลังโหลด...</p> : <div className="grid gap-5 lg:grid-cols-2">{companies.map((company) => <Card key={company.id}><CardHeader><CardTitle>{company.displayName ? `${company.displayName} — ${company.name}` : company.name}</CardTitle></CardHeader><CardContent className="space-y-3 text-sm">
-      {company.location && <p>{company.location}</p>}{company.address && <p>{company.address}</p>}{company.phone && <p>โทร {company.phone}</p>}{company.description && <p className="whitespace-pre-wrap">{company.description}</p>}
-      <div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => edit(company)}>แก้ไข</Button>{company.code !== 'dhas' && company.summary.projects === 0 && <Button variant="outline" size="sm" onClick={() => setDeleteCompany(company)}>ลบ</Button>}</div>
-      <h2 className="font-semibold">Projects ({company.summary.projects})</h2>
-      <p>{company.summary.workItems} Work Items · {company.summary.hours} ชั่วโมง</p>
-      {company.summary.projects === 0 ? <p className="text-muted-foreground">ยังไม่มี Project</p> : <Link href={`/projects?companyId=${encodeURIComponent(company.id)}`} className="text-primary underline">เปิด Projects ของ Company นี้</Link>}
-    </CardContent></Card>)}</div>}
+    </form></div></details>
+    <div className="flex items-center justify-between gap-2"><h2 className="text-base font-semibold">บริษัทและผลงาน</h2><span className="text-xs text-muted-foreground">{loading ? 'กำลังโหลด…' : loadError ? 'โหลดไม่สำเร็จ' : `${companies.length} บริษัท`}</span></div>
+    {loading ? <PageState kind="loading" title="กำลังโหลด Company…" /> : loadError ? <PageState kind="error" title="โหลด Company ไม่สำเร็จ" description={loadError} action={<Button type="button" variant="outline" onClick={() => void reload()}>ลองอีกครั้ง</Button>} /> : companies.length === 0 ? <PageState title="ยังไม่มี Company" description="เพิ่มข้อมูลบริษัทเพื่อเริ่มจัดการ Projects" /> : <div className="grid min-w-0 gap-5 lg:grid-cols-2">{companies.map((company) => <CompanyCard key={company.id} company={company} onEdit={edit} onDelete={setDeleteCompany} />)}</div>}
     <AlertDialog open={deleteCompany !== null} onOpenChange={(open) => { if (!open && !deleting) setDeleteCompany(null) }}>
       <AlertDialogContent>
         <AlertDialogHeader>

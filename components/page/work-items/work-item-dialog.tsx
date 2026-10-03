@@ -173,7 +173,7 @@ export function WorkItemDialog({
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
             <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="title">Title <span className="text-destructive">*</span></Label>
+              <Label htmlFor="title">Title <span className="text-danger">*</span></Label>
               <Input
                 id="title"
                 value={form.title}
@@ -196,7 +196,7 @@ export function WorkItemDialog({
             </div>
 
             <div className="space-y-2">
-              <Label>Kind <span className="text-destructive">*</span></Label>
+              <Label>Kind <span className="text-danger">*</span></Label>
               <Select
                 value={form.kind}
                 onValueChange={(value) => setForm({ ...form, kind: value as WorkItemKindValue })}
@@ -214,7 +214,7 @@ export function WorkItemDialog({
             </div>
 
             <div className="space-y-2">
-              <Label>Project <span className="text-destructive">*</span></Label>
+              <Label>Project <span className="text-danger">*</span></Label>
               <Select
                 value={form.projectId}
                 onValueChange={(value) => setForm({ ...form, projectId: value })}

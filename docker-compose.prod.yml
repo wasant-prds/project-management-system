@@ -41,7 +41,7 @@ services:
         limits: { cpus: "0.30", memory: 384M }
         reservations: { cpus: "0.10", memory: 128M }
     ports:
-      - "127.0.0.1:${APP_PORT:-3002}:3000"
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
 
   backup:
     profiles: [backup]

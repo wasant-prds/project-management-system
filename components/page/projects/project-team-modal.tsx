@@ -79,9 +79,9 @@ export function ProjectTeamModal({ open, onOpenChange, projectId }: ProjectTeamM
   const getRoleBadgeColor = (role: string) => {
     switch (role.toLowerCase()) {
       case 'lead':
-        return "bg-chart-1/10 text-chart-1 border-chart-1/20"
+        return "bg-success-subtle text-success border-success/30"
       case 'manager':
-        return "bg-chart-2/10 text-chart-2 border-chart-2/20"
+        return "bg-info-subtle text-info border-info/30"
       default:
         return "bg-muted text-muted-foreground"
     }
@@ -116,7 +116,7 @@ export function ProjectTeamModal({ open, onOpenChange, projectId }: ProjectTeamM
                     >
                       <div className="flex items-center gap-3 flex-1">
                         <Avatar className="h-10 w-10 border-2 border-primary/20">
-                          <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                          <AvatarFallback className="bg-primary/10 text-link text-xs font-semibold">
                             {getInitials(member.user.name)}
                           </AvatarFallback>
                         </Avatar>

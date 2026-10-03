@@ -38,6 +38,7 @@ import { bangkokCalendarPeriodRange, currentBangkokCalendarDate } from '@/lib/ba
 import { analysisDailyWorkHref, analysisWorkItemsHref } from '@/lib/analysis-links'
 import { generateAnalysisCsv, type AnalysisReport } from '@/lib/analysis-export'
 import { downloadTextFile } from '@/components/page/work-items/work-item-export'
+import { renderHoursChartDot } from '@/components/page/analysis/hours-chart-dot'
 import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion'
 import {
   WORK_ITEM_KINDS,
@@ -67,7 +68,6 @@ type StatusBarShapeProps = {
   fill?: string
   payload?: StatusChartPoint
 }
-type HoursChartPoint = { href: string; accessibleName: string }
 
 function StatusChartLinkBar({ x = 0, y = 0, width = 0, height = 0, fill = 'var(--chart-1)', payload }: StatusBarShapeProps) {
   if (!payload) return <g />
@@ -153,7 +153,7 @@ function BreakdownCard({
             <li key={row.value}>
               <Link
                 href={hrefForValue(row.value)}
-                className="flex min-w-0 items-center justify-between gap-3 py-2 text-sm hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex min-w-0 items-center justify-between gap-3 py-2 text-sm hover:text-link focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <span className="min-w-0 break-words">{row.value}</span>
                 <span className="shrink-0 font-semibold tabular-nums">{row.count}</span>
@@ -188,7 +188,7 @@ function WorkItemsTable({ report }: Readonly<{ report: AnalysisReport }>) {
               <td className="min-w-0 px-3 py-2">
                 <Link
                   href={analysisWorkItemsHref(report.meta.filters, report.meta.period, { workItemId: item.id })}
-                  className="block break-words font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="block break-words font-medium text-link underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   aria-label={`เปิด Work Item ${item.title}`}
                 >
                   {item.title}
@@ -230,7 +230,7 @@ function DailyWorkTable({ report }: Readonly<{ report: AnalysisReport }>) {
             return (
               <tr key={entry.id} className="align-top">
                 <td className="px-3 py-2">
-                  <Link href={dayHref} className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <Link href={dayHref} className="text-link underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                     {entry.date}
                   </Link>
                 </td>
@@ -275,7 +275,7 @@ function HoursPeriodTable({ report }: Readonly<{ report: AnalysisReport }>) {
               <td className="px-3 py-2 text-right">
                 <Link
                   href={analysisDailyWorkHref(report.meta.filters, { startDate: row.startDate, endDate: row.endDate })}
-                  className="text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="text-link underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   Daily Work
                 </Link>
@@ -395,10 +395,11 @@ export default function AnalysisPage() {
           <div className={`${PAGE_INNER} min-w-0`}>
             <div className={PAGE_TOOLBAR}>
               <div className="min-w-0">
+                <p className="page-eyebrow mb-2">Insights & reports</p>
                 <h1 className={PAGE_HEADING}>วิเคราะห์รายงาน</h1>
                 <p className={PAGE_LEAD}>สรุป Work Item และชั่วโมงจากข้อมูลจริงตามช่วงเวลาและตัวกรอง</p>
               </div>
-              <Button type="button" onClick={exportReport} disabled={!report || isLoading || filtersDirty} className="w-full text-white sm:w-auto">
+              <Button type="button" onClick={exportReport} disabled={!report || isLoading || filtersDirty} className="w-full text-primary-foreground sm:w-auto">
                 <Download className="h-4 w-4" />
                 <span className={ACTION_LABEL_CLASS}>ส่งออก CSV</span>
                 <span className="sm:hidden">ส่งออก CSV</span>
@@ -406,11 +407,11 @@ export default function AnalysisPage() {
             </div>
             {exportMessage && (
               exportMessage.kind === 'error'
-                ? <p className="text-sm text-destructive" role="alert">{exportMessage.text}</p>
+                ? <p className="text-sm text-danger" role="alert">{exportMessage.text}</p>
                 : <output className="block text-sm text-muted-foreground" aria-live="polite">{exportMessage.text}</output>
             )}
 
-            <Card className="card-shadow">
+            <Card className="surface-inset bg-muted/30">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">ตัวกรองรายงาน</CardTitle>
                 <CardDescription>ช่วงวันที่รวมวันเริ่มต้นและวันสิ้นสุด โดยใช้ปฏิทิน Asia/Bangkok</CardDescription>
@@ -468,10 +469,10 @@ export default function AnalysisPage() {
                       </Select>
                     </label>
                   </div>
-                  {dateError && <p className="text-sm text-destructive" role="alert">{dateError}</p>}
+                  {dateError && <p className="text-sm text-danger" role="alert">{dateError}</p>}
                   <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                     <Button type="button" variant="outline" onClick={resetFilters}>คืนค่าเริ่มต้น</Button>
-                    <Button type="submit" disabled={isLoading} className="text-white">ใช้ตัวกรอง</Button>
+                    <Button type="submit" disabled={isLoading} className="text-primary-foreground">ใช้ตัวกรอง</Button>
                   </div>
                 </form>
               </CardContent>
@@ -492,7 +493,7 @@ export default function AnalysisPage() {
                   <p>Completion rate {report.summary.completionRate.toFixed(1)}% = Completed ÷ (ทั้งหมด − Cancelled) · ชั่วโมงรวมเป็น Decimal แบบไม่ปัดก่อนรวม</p>
                 </div>
                 <p className="break-words text-xs text-muted-foreground">ตัวกรองที่ใช้กับรายงาน: {activeFilterDescription(report)}</p>
-                {filtersDirty && <p className="text-xs text-amber-700 dark:text-amber-300">มีการเปลี่ยนตัวกรองที่ยังไม่ถูกใช้กับรายงาน กด “ใช้ตัวกรอง” ก่อนส่งออก</p>}
+                {filtersDirty && <p className="text-xs text-warning">มีการเปลี่ยนตัวกรองที่ยังไม่ถูกใช้กับรายงาน กด “ใช้ตัวกรอง” ก่อนส่งออก</p>}
 
                 <Tabs defaultValue="overview" className="min-w-0 space-y-4">
                   <div className={TAB_SCROLL_CLASS}>
@@ -560,14 +561,7 @@ export default function AnalysisPage() {
                                   strokeWidth={2}
                                   animationDuration={150}
                                   isAnimationActive={!prefersReducedMotion}
-                                  dot={(props) => {
-                                    const point = props.payload as HoursChartPoint
-                                    return (
-                                      <Link href={point.href} aria-label={point.accessibleName}>
-                                        <circle cx={props.cx} cy={props.cy} r={props.r} fill="var(--chart-2)" stroke="var(--background)" strokeWidth={2} />
-                                      </Link>
-                                    )
-                                  }}
+                                  dot={renderHoursChartDot}
                                 />
                               </LineChart>
                             </ChartContainer>

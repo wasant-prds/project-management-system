@@ -918,7 +918,7 @@ export default function WorkItemsPage() {
   if (isListLoading) {
     listContent = <output className="block w-full min-w-0 rounded-lg border bg-card py-12 text-center text-muted-foreground" aria-live="polite">Loading work items…</output>
   } else if (loadError && !resultsAreCurrent) {
-    listContent = <div className="rounded-lg border bg-card py-12 text-center text-destructive" role="alert">{loadError}</div>
+    listContent = <div className="rounded-lg border bg-card py-12 text-center text-danger" role="alert">{loadError}</div>
   }
 
   return (
@@ -926,13 +926,14 @@ export default function WorkItemsPage() {
       <AppSidebar />
       <SidebarInset>
         <AppHeader />
-        <div className={PAGE_MAIN}>
+        <main className={PAGE_MAIN}>
           <div className={PAGE_INNER}>
             <div className={PAGE_TOOLBAR}>
               <div className="min-w-0">
+                <p className="page-eyebrow mb-2">Work register</p>
                 <h1 className={PAGE_HEADING}>Work Items</h1>
                 <p className={PAGE_LEAD}>
-                  Incidents, issues, and tasks in one place
+                  จัดการ Incident, Issue และ Task ในพื้นที่เดียวกัน
                 </p>
               </div>
               <div className="flex flex-wrap items-center justify-end gap-2">
@@ -1001,8 +1002,8 @@ export default function WorkItemsPage() {
                   {dashboardOverdueOnly ? ' · Overdue' : ''}
                 </p>
                 <div className="flex flex-wrap gap-3">
-                  <button type="button" onClick={() => applyCalendarPeriod(yearFilter, monthFilter)} className="text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">ใช้ตัวกรอง Year/Month</button>
-                  <Link href="/work-items" className="text-primary underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">ล้างตัวกรอง Dashboard</Link>
+                  <button type="button" onClick={() => applyCalendarPeriod(yearFilter, monthFilter)} className="text-link underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">ใช้ตัวกรอง Year/Month</button>
+                  <Link href="/work-items" className="text-link underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">ล้างตัวกรอง Dashboard</Link>
                 </div>
               </section>
             )}
@@ -1013,7 +1014,7 @@ export default function WorkItemsPage() {
                   {importReport.filename}: เพิ่ม {importReport.imported} · ข้าม {importReport.skipped} · ผิดพลาด {importReport.failed}
                 </p>
                 {importReport.rowMessages.length > 0 && (
-                  <ul className="max-h-40 space-y-1 overflow-y-auto text-destructive" aria-label="Import row results">
+                  <ul className="max-h-40 space-y-1 overflow-y-auto text-danger" aria-label="Import row results">
                     {importReport.rowMessages.map((message, index) => <li key={`${index}-${message}`}>{message}</li>)}
                   </ul>
                 )}
@@ -1027,26 +1028,26 @@ export default function WorkItemsPage() {
               <SummaryStatCard
                 label="In Progress"
                 value={stats.inProgress}
-                valueClassName="text-chart-2"
+                valueClassName="text-info"
               />
               <SummaryStatCard
                 label="Completed"
                 value={stats.completed}
-                valueClassName="text-chart-1"
+                valueClassName="text-success"
               />
               <SummaryStatCard
                 label="Overdue"
                 value={stats.overdue}
-                valueClassName="text-destructive"
+                valueClassName="text-danger"
               />
             </div>
 
-            <div className={FILTER_ROW}>
+            <div className={`${FILTER_ROW} filter-panel`}>
               <div className="relative w-full max-w-none flex-1 sm:max-w-md">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Search work items..."
+                  placeholder="ค้นหา Work Items…" aria-label="ค้นหา Work Items"
                   className="bg-secondary/50 pl-10"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
@@ -1174,7 +1175,7 @@ export default function WorkItemsPage() {
               </TabsContent>
             </Tabs>
           </div>
-        </div>
+        </main>
 
         <WorkItemViewDialog
           open={Boolean(viewItem)}

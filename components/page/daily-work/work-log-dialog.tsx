@@ -180,7 +180,7 @@ function BodySection({
         <Icon className="h-3.5 w-3.5" />
         <Label htmlFor={id} className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
           {label}
-          {required && !isView && <span className="text-destructive"> *</span>}
+          {required && !isView && <span className="text-danger"> *</span>}
         </Label>
       </div>
       <ScrollablePanel className={BODY_PANEL_CLASS}>
@@ -399,7 +399,7 @@ export function WorkLogDialog({
               <div className="min-h-0 space-y-4 overflow-y-auto pr-1">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="date">Date <span className="text-destructive">*</span></Label>
+                    <Label htmlFor="date">Date <span className="text-danger">*</span></Label>
                     <Input
                       id="date"
                       type="date"
@@ -409,7 +409,7 @@ export function WorkLogDialog({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="hours">Hours <span className="text-destructive">*</span></Label>
+                    <Label htmlFor="hours">Hours <span className="text-danger">*</span></Label>
                     <Input
                       id="hours"
                       type="number"
@@ -423,7 +423,7 @@ export function WorkLogDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Project <span className="text-destructive">*</span></Label>
+                  <Label>Project <span className="text-danger">*</span></Label>
                   <SearchSelect
                     value={formData?.projectId || ""}
                     options={projectOptions}
@@ -436,7 +436,7 @@ export function WorkLogDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Work item <span className="text-destructive">*</span></Label>
+                  <Label>Work item <span className="text-danger">*</span></Label>
                   <SearchSelect
                     value={formData?.workItemId || ""}
                     options={workItemOptions}
@@ -455,7 +455,7 @@ export function WorkLogDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="status">Status <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="status">Status <span className="text-danger">*</span></Label>
                   <Select
                     value={formData?.status || ""}
                     onValueChange={(value) => onFormDataChange?.({ ...formData!, status: value })}

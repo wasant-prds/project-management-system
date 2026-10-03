@@ -27,7 +27,7 @@ export function ProjectIdentity({
             className,
           )}
       style={{
-        background: `linear-gradient(90deg, ${accent.backgroundColor} 0%, ${accent.softBackground} 42%, transparent 100%)`,
+        backgroundColor: accent.softBackground,
       }}
     >
       {showRail && (
@@ -39,14 +39,13 @@ export function ProjectIdentity({
       )}
       <div
         className={cn(
-          'flex shrink-0 items-center justify-center rounded-md font-semibold tracking-wide',
+          'flex shrink-0 items-center justify-center rounded-md font-semibold tracking-wide text-foreground',
           compact ? 'h-7 w-7 text-[10px]' : 'h-8 w-8 text-[11px]',
           showRail && 'ml-1',
         )}
         style={{
-          color: accent.color,
           backgroundColor: accent.backgroundColor,
-          boxShadow: `inset 0 0 0 1px ${accent.color}33`,
+          boxShadow: `inset 0 0 0 1px ${accent.borderTint}`,
         }}
       >
         {projectInitials(name)}
@@ -56,8 +55,7 @@ export function ProjectIdentity({
           Project
         </p>
         <p
-          className={cn('truncate font-semibold leading-tight', compact ? 'text-xs' : 'text-sm')}
-          style={{ color: accent.color }}
+          className={cn('truncate font-semibold leading-tight text-foreground', compact ? 'text-xs' : 'text-sm')}
         >
           {name}
         </p>

@@ -17,6 +17,7 @@ type WorkLogCardProps = {
 
 export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
   const project = workLog.project
+  const projectColor = project?.colorProject || 'var(--project-accent)'
   const [showRemarks, setShowRemarks] = useState(false)
 
   const toggleRemarks = () => {
@@ -26,32 +27,25 @@ export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
   return (
     <Card className="card-shadow mb-2">
       <CardHeader>
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <Avatar
               className="h-10 w-10 border-2"
               style={{
-                borderColor: project?.colorProject
-                  ? `${project.colorProject}33`
-                  : 'hsl(var(--primary) / 0.2)'
+                borderColor: `color-mix(in srgb, ${projectColor} 20%, transparent)`
               }}
             >
               <AvatarFallback
-                className="font-semibold"
+                className="font-semibold text-foreground"
                 style={{
-                  backgroundColor: project?.colorProject
-                    ? `${project.colorProject}1a`
-                    : 'hsl(var(--primary) / 0.1)',
-                  color: project?.colorProject
-                    ? project.colorProject
-                    : 'hsl(var(--primary))'
+                  backgroundColor: `color-mix(in srgb, ${projectColor} 10%, transparent)`
                 }}
               >
                 {project?.name.substring(0, 3).toUpperCase() || 'N/A'}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <CardTitle className="text-base">{project?.name || 'No Project'}</CardTitle>
+              <CardTitle className="break-words text-base">{project?.name || 'No Project'}</CardTitle>
               {workLog.workItem?.title && (
                 <p className="truncate text-xs font-medium text-foreground/80">{workLog.workItem.title}</p>
               )}
@@ -60,7 +54,7 @@ export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
               </CardDescription>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {workLog.workItem && (
               <Badge variant="outline" className="gap-1 text-xs">
                 <CheckSquare className="h-3 w-3" />
@@ -82,8 +76,8 @@ export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
       <CardContent className="space-y-3">
         {workLog.description && (
           <div className="space-y-2 description-card">
-            <div className="flex items-center gap-3 p-2 rounded-lg bg-secondary/30 border border-border/50">
-            <FileText className="h-4 w-4 flex-shrink-0 text-primary" />
+            <div className="flex min-w-0 flex-1 items-center gap-3 p-2 rounded-lg bg-secondary/30 border border-border/50">
+            <FileText className="h-4 w-4 flex-shrink-0 text-link" />
               <div className="flex-1">
                 <p className="text-sm font-medium">{workLog.description}</p>
               </div>
@@ -97,12 +91,12 @@ export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
                 >
                   {showRemarks ? (
                     <>
-                      <X className="h-4 w-4 flex-shrink-0 text-red-500" />
+                      <X className="h-4 w-4 flex-shrink-0 text-danger" />
                       Close Remarks
                     </>
                   ) : (
                     <>
-                      <MessageSquareText className="h-4 w-4 flex-shrink-0 text-primary" />
+                      <MessageSquareText className="h-4 w-4 flex-shrink-0 text-link" />
                       Remarks
                     </>
                   )}

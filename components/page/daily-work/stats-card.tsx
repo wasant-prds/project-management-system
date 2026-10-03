@@ -11,20 +11,20 @@ export function StatsCard({ totalHours, totalLogs, date }: Readonly<StatsCardPro
   return (
     <Card className="card-shadow">
       <CardHeader>
-        <CardTitle className="text-base">Selected Day</CardTitle>
+        <CardTitle className="text-base">สรุปวันที่เลือก</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Total Hours</span>
-          <span className="text-lg font-bold">{totalHours}</span>
+          <span className="text-sm text-muted-foreground">ชั่วโมงรวม</span>
+          <span className="text-xl font-semibold tabular-nums">{totalHours}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Work Logs</span>
-          <span className="text-lg font-bold">{totalLogs}</span>
+          <span className="text-sm text-muted-foreground">รายการบันทึก</span>
+          <span className="text-xl font-semibold tabular-nums">{totalLogs}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">Date</span>
-          <span className="text-sm font-semibold">{date ? formatDate(date) : 'All'}</span>
+          <span className="text-sm text-muted-foreground">วันที่</span>
+          <span className="text-sm font-semibold">{date ? formatDate(date) : 'ทุกวัน'}</span>
         </div>
       </CardContent>
     </Card>

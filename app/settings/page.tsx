@@ -116,7 +116,7 @@ export default function SettingsPage() {
         <AppHeader />
         <main className={PAGE_MAIN} aria-busy={isLoading}>
           <div className={PAGE_INNER}>
-            <div>
+            <div className="page-toolbar"><p className="page-eyebrow mb-2">Personal workspace</p>
               <h1 className={PAGE_HEADING}>การตั้งค่า</h1>
               <p className={PAGE_LEAD}>จัดการโปรไฟล์และการตั้งค่าของเจ้าของระบบ</p>
             </div>
@@ -125,7 +125,7 @@ export default function SettingsPage() {
             {loadError && (
               <Card>
                 <CardContent className="space-y-3 p-5">
-                  <p role="alert" className="text-sm text-destructive">{loadError}</p>
+                  <p role="alert" className="text-sm text-danger">{loadError}</p>
                   <Button type="button" variant="outline" onClick={reload}>
                     ลองโหลดอีกครั้ง
                   </Button>
@@ -134,11 +134,11 @@ export default function SettingsPage() {
             )}
 
             {!isLoading && !loadError && profile && preferences && (
-              <Tabs defaultValue="profile" className="space-y-4">
+              <Tabs defaultValue="profile" className="min-w-0 gap-5 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start">
                 <div className={TAB_SCROLL_CLASS}>
-                  <TabsList aria-label="หมวดการตั้งค่า">
-                    <TabsTrigger className={TAB_TRIGGER_CLASS} value="profile">โปรไฟล์</TabsTrigger>
-                    <TabsTrigger className={TAB_TRIGGER_CLASS} value="preferences">การแสดงผล</TabsTrigger>
+                  <TabsList aria-label="หมวดการตั้งค่า" className="lg:h-auto lg:w-full lg:flex-col lg:items-stretch lg:gap-2 lg:p-2">
+                    <TabsTrigger className={`${TAB_TRIGGER_CLASS} lg:min-h-11 lg:justify-start`} value="profile">โปรไฟล์</TabsTrigger>
+                    <TabsTrigger className={`${TAB_TRIGGER_CLASS} lg:min-h-11 lg:justify-start`} value="preferences">การแสดงผล</TabsTrigger>
                   </TabsList>
                 </div>
 
@@ -153,7 +153,7 @@ export default function SettingsPage() {
                         <div className="flex items-center gap-4">
                           <Avatar className="h-16 w-16 border border-border">
                             {profile.avatar && <AvatarImage src={profile.avatar} alt="รูปโปรไฟล์เจ้าของระบบ" />}
-                            <AvatarFallback className="bg-primary/10 font-semibold text-primary">
+                            <AvatarFallback className="bg-primary/10 font-semibold text-link">
                               {getAvatarInitials(profile.name)}
                             </AvatarFallback>
                           </Avatar>
@@ -218,7 +218,7 @@ export default function SettingsPage() {
                           </Button>
                         </div>
                         {profileFeedback && (
-                          <output aria-live="polite" className={profileFeedback.kind === 'error' ? 'text-sm text-destructive' : 'text-sm text-primary'}>
+                          <output aria-live="polite" className={profileFeedback.kind === 'error' ? 'text-sm text-danger' : 'text-sm text-link'}>
                             {profileFeedback.message}
                           </output>
                         )}
@@ -240,7 +240,7 @@ export default function SettingsPage() {
                             <Label htmlFor="owner-theme">Theme</Label>
                             <select
                               id="owner-theme"
-                              className="surface-inset flex h-10 w-full rounded-md border border-input bg-input px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              className="surface-inset flex h-10 w-full rounded-md border border-border-strong bg-input px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                               disabled={isSavingPreferences}
                               value={preferences.theme}
                               onChange={(event) => {
@@ -255,7 +255,7 @@ export default function SettingsPage() {
                             <Label htmlFor="owner-locale">ภาษา</Label>
                             <select
                               id="owner-locale"
-                              className="surface-inset flex h-10 w-full rounded-md border border-input bg-input px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              className="surface-inset flex h-10 w-full rounded-md border border-border-strong bg-input px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                               disabled={isSavingPreferences}
                               value={preferences.locale}
                               onChange={(event) => {
@@ -283,7 +283,7 @@ export default function SettingsPage() {
                           </Button>
                         </div>
                         {preferencesFeedback && (
-                          <output aria-live="polite" className={preferencesFeedback.kind === 'error' ? 'text-sm text-destructive' : 'text-sm text-primary'}>
+                          <output aria-live="polite" className={preferencesFeedback.kind === 'error' ? 'text-sm text-danger' : 'text-sm text-link'}>
                             {preferencesFeedback.message}
                           </output>
                         )}

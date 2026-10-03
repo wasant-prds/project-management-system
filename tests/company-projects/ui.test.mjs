@@ -15,6 +15,7 @@ function component(name) {
 
 function createRuntime(initialState = {}) {
   const state = new Map(Object.entries(initialState).map(([index, value]) => [Number(index), value]))
+  const effects = []
   let index = 0
   return {
     useState(initial) {
@@ -22,31 +23,32 @@ function createRuntime(initialState = {}) {
       if (!state.has(slot)) state.set(slot, typeof initial === 'function' ? initial() : initial)
       return [state.get(slot), (next) => state.set(slot, typeof next === 'function' ? next(state.get(slot)) : next)]
     },
-    useEffect() {},
+    useEffect(effect) { effects.push(effect) },
     useCallback(callback) { return callback },
     use(value) { return { id: 'project-1' } },
     render(Page, props = {}) {
       index = 0
       return Page(props)
     },
+    effects,
   }
 }
 
-function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: true, json: async () => ({}) }), companies = [], projects = [] } = {}) {
+function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: true, json: async () => ({}) }), companies = [], projects = [], collectionFetcher } = {}) {
   const runtime = createRuntime(initialState)
   const names = [
     'AppSidebar', 'AppHeader', 'SidebarProvider', 'SidebarInset', 'Card', 'CardContent', 'CardHeader', 'CardTitle',
     'Button', 'Input', 'Label', 'Textarea', 'Select', 'SelectContent', 'SelectItem', 'SelectTrigger', 'SelectValue',
     'AlertDialog', 'AlertDialogAction', 'AlertDialogCancel', 'AlertDialogContent', 'AlertDialogDescription',
-    'AlertDialogFooter', 'AlertDialogHeader', 'AlertDialogTitle', 'Link',
+    'AlertDialogFooter', 'AlertDialogHeader', 'AlertDialogTitle', 'Link', 'Badge', 'Progress',
   ]
   const ui = Object.fromEntries(names.map((name) => [name, component(name)]))
   const routerCalls = []
   const mocks = {
     react: runtime,
     'react/jsx-runtime': {
-      jsx: (type, props) => ({ type, props }),
-      jsxs: (type, props) => ({ type, props }),
+      jsx: (type, props) => type?.renderInTest ? type(props) : ({ type, props }),
+      jsxs: (type, props) => type?.renderInTest ? type(props) : ({ type, props }),
       Fragment: component('Fragment'),
     },
     'next/link': { default: ui.Link },
@@ -62,6 +64,10 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
     '@/components/ui/sidebar': { SidebarProvider: ui.SidebarProvider, SidebarInset: ui.SidebarInset },
     '@/components/ui/card': { Card: ui.Card, CardContent: ui.CardContent, CardHeader: ui.CardHeader, CardTitle: ui.CardTitle },
     '@/components/ui/button': { Button: ui.Button },
+    '@/components/ui/badge': { Badge: ui.Badge },
+    '@/components/ui/progress': { Progress: ui.Progress },
+    '@/lib/utils': { cn: (...values) => values.filter(Boolean).join(' ') },
+    'lucide-react': Object.fromEntries(['ArrowUpRight', 'CalendarDays', 'FolderKanban', 'Building2', 'MapPin', 'Phone', 'CircleAlert', 'Inbox', 'LoaderCircle'].map((name) => [name, component(name)])),
     '@/components/ui/input': { Input: ui.Input },
     '@/components/ui/label': { Label: ui.Label },
     '@/components/ui/textarea': { Textarea: ui.Textarea },
@@ -75,7 +81,9 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
       AlertDialogFooter: ui.AlertDialogFooter, AlertDialogHeader: ui.AlertDialogHeader, AlertDialogTitle: ui.AlertDialogTitle,
     },
     '@/lib/fetch-collection': {
-      fetchCollection: async (_path, key) => key === 'companies' ? companies : projects,
+      fetchCollection: async (path, key) => collectionFetcher
+        ? collectionFetcher(path, key)
+        : key === 'companies' ? companies : projects,
     },
   }
   const source = readFileSync(new URL(relativePath, import.meta.url), 'utf8')
@@ -86,13 +94,29 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
   vm.runInNewContext(js, {
     module, exports: module.exports,
     require: (name) => {
+      if (!(name in mocks) && ['@/components/page/projects/portfolio-card', '@/components/page/company/company-card', '@/components/layout/page-state', '@/components/layout/summary-stat-card'].includes(name)) {
+        const childSource = readFileSync(new URL(`../../${name.slice(2)}.tsx`, import.meta.url), 'utf8')
+        const childJs = ts.transpileModule(childSource, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText
+        const child = { exports: {} }
+        vm.runInNewContext(childJs, { module: child, exports: child.exports, require: (dependency) => {
+          if (!(dependency in mocks)) throw new Error(`Unexpected presentation import: ${dependency}`)
+          return mocks[dependency]
+        }, encodeURIComponent }, { filename: name })
+        for (const value of Object.values(child.exports)) value.renderInTest = true
+        mocks[name] = child.exports
+      }
       if (!(name in mocks)) throw new Error(`Unexpected UI import: ${name}`)
       return mocks[name]
     },
-    fetch: fetcher, URLSearchParams, encodeURIComponent, window: { scrollTo() {} },
-    console, Date, URL, setTimeout, clearTimeout,
+    fetch: fetcher, URLSearchParams, encodeURIComponent, window: { scrollTo() {}, location: { search: '' } }, document: { getElementById: () => ({ scrollIntoView() {} }) },
+    console, Date, Error, URL, setTimeout, clearTimeout,
   }, { filename: relativePath })
   return { Page: module.exports.default, runtime, ui, routerCalls }
+}
+
+async function runEffects(page) {
+  for (const effect of page.runtime.effects.splice(0)) effect()
+  await new Promise((resolve) => setImmediate(resolve))
 }
 
 function walk(element, visit) {
@@ -145,7 +169,7 @@ test('Project detail confirms deletion, navigates on success, and shows history 
   tree = page.runtime.render(page.Page, { params: Promise.resolve({ id: project.id }) })
   await find(tree, (node) => node.type === page.ui.AlertDialogAction).props.onClick({ preventDefault() {} })
   tree = page.runtime.render(page.Page, { params: Promise.resolve({ id: project.id }) })
-  assert.match(textContent(find(tree, (node) => node.type === 'output')), /HISTORY_CONFLICT/)
+  assert.match(textContent(find(tree, (node) => node.props?.role === 'alert')), /HISTORY_CONFLICT/)
   assert.deepEqual(page.routerCalls, ['/projects'])
 })
 
@@ -191,6 +215,7 @@ test('Company create and edit persist through the form and show API errors', asy
   })
 
   let tree = page.runtime.render(page.Page)
+  assert.equal(find(tree, (node) => node.type === 'details').props.open, undefined)
   const name = find(tree, (node) => node.type === page.ui.Input && node.props.id === 'company-name')
   name.props.onChange({ target: { value: 'New Company' } })
   tree = page.runtime.render(page.Page)
@@ -208,6 +233,7 @@ test('Company create and edit persist through the form and show API errors', asy
   find(tree, (node) => node.type === page.ui.Button && textContent(node) === 'แก้ไข').props.onClick()
   tree = page.runtime.render(page.Page)
   const phone = find(tree, (node) => node.type === page.ui.Input && node.props.id === 'company-phone')
+  assert.equal(find(tree, (node) => node.type === 'details').props.open, true)
   phone.props.onChange({ target: { value: '02 123 4567' } })
   tree = page.runtime.render(page.Page)
   await find(tree, (node) => node.type === 'form').props.onSubmit({ preventDefault() {} })
@@ -260,8 +286,10 @@ test('Project create and edit persist a Company relation and surface API failure
     },
   })
   tree = editPage.runtime.render(editPage.Page)
+  assert.equal(find(tree, (node) => node.type === 'details').props.open, undefined)
   await find(tree, (node) => node.type === editPage.ui.Button && textContent(node) === 'แก้ไข').props.onClick()
   tree = editPage.runtime.render(editPage.Page)
+  assert.equal(find(tree, (node) => node.type === 'details').props.open, true)
   find(tree, (node) => node.type === editPage.ui.Input && node.props.id === 'project-name').props.onChange({ target: { value: 'Updated Project' } })
   tree = editPage.runtime.render(editPage.Page)
   await find(tree, (node) => node.type === 'form').props.onSubmit({ preventDefault() {} })
@@ -296,4 +324,60 @@ test('Project list search and Company filters select matching summaries', () => 
   tree = page.runtime.render(page.Page)
   assert.match(textContent(tree), /Beta Project/)
   assert.doesNotMatch(textContent(tree), /Alpha Project/)
+})
+
+test('Company collection failures show an alert instead of a false empty state and can be retried', async () => {
+  const company = {
+    id: 'company-3', code: null, name: 'Recovered Company', displayName: null, location: null, address: null,
+    phone: null, description: null, summary: { projects: 0, workItems: 0, hours: '0' },
+  }
+  let shouldFail = true
+  const page = loadPage('../../app/company/page.tsx', {
+    collectionFetcher: async () => {
+      if (shouldFail) throw new Error('API unavailable')
+      return [company]
+    },
+  })
+
+  page.runtime.render(page.Page)
+  await runEffects(page)
+  let tree = page.runtime.render(page.Page)
+  assert.equal(find(tree, (node) => node.props?.role === 'alert')?.props['data-slot'], 'page-state')
+  assert.match(textContent(tree), /API unavailable/)
+  assert.match(textContent(tree), /โหลดไม่สำเร็จ/)
+  assert.doesNotMatch(textContent(tree), /0 บริษัท|ยังไม่มี Company|เพิ่มข้อมูลบริษัทเพื่อเริ่ม/)
+
+  shouldFail = false
+  find(tree, (node) => node.type === page.ui.Button && textContent(node) === 'ลองอีกครั้ง').props.onClick()
+  await new Promise((resolve) => setImmediate(resolve))
+  tree = page.runtime.render(page.Page)
+  assert.match(textContent(tree), /1 บริษัท/)
+  assert.match(textContent(tree), /Recovered Company/)
+  assert.equal(find(tree, (node) => node.props?.role === 'alert'), undefined)
+})
+
+test('Project collection failures show an alert instead of a false empty state and can be retried', async () => {
+  let shouldFail = true
+  const page = loadPage('../../app/projects/page.tsx', {
+    collectionFetcher: async () => {
+      if (shouldFail) throw new Error('Project API unavailable')
+      return []
+    },
+  })
+
+  page.runtime.render(page.Page)
+  await runEffects(page)
+  let tree = page.runtime.render(page.Page)
+  assert.equal(find(tree, (node) => node.props?.role === 'alert')?.props['data-slot'], 'page-state')
+  assert.match(textContent(tree), /Project API unavailable/)
+  assert.match(textContent(tree), /โหลดไม่สำเร็จ/)
+  assert.doesNotMatch(textContent(tree), /0 รายการ|ไม่พบ Project|สร้าง Project โดยเลือก Company/)
+
+  shouldFail = false
+  find(tree, (node) => node.type === page.ui.Button && textContent(node) === 'ลองอีกครั้ง').props.onClick()
+  await new Promise((resolve) => setImmediate(resolve))
+  tree = page.runtime.render(page.Page)
+  assert.match(textContent(tree), /0 รายการ/)
+  assert.match(textContent(tree), /ไม่พบ Project/)
+  assert.equal(find(tree, (node) => node.props?.role === 'alert'), undefined)
 })

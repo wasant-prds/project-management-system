@@ -11,10 +11,10 @@ import type { UrgencySubgroup, WorkItemProjectGroup, WorkItemUrgencyBucket } fro
 import type { WorkItem } from './types'
 
 const URGENCY_SUBGROUP_BAR_CLASS: Record<UrgencySubgroup, string> = {
-  overdue: 'border-l-4 border-red-500 bg-red-500/15 text-red-800 dark:text-red-300',
-  'near-due': 'border-l-4 border-amber-500 bg-amber-500/15 text-amber-800 dark:text-amber-300',
-  'on-track': 'border-l-4 border-blue-500 bg-blue-500/15 text-blue-800 dark:text-blue-300',
-  complete: 'border-l-4 border-emerald-500 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300',
+  overdue: 'border-l-4 border-danger bg-danger-subtle text-danger',
+  'near-due': 'border-l-4 border-warning bg-warning-subtle text-warning',
+  'on-track': 'border-l-4 border-info bg-info-subtle text-info',
+  complete: 'border-l-4 border-success bg-success-subtle text-success',
 }
 
 const STUCK_SURFACE =
