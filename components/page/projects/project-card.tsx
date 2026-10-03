@@ -123,7 +123,7 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
   return (
     <>
-      <Card className="card-shadow hover:border-primary/30 transition-colors">
+      <Card className="card-shadow motion-card hover:border-primary/30">
         <CardHeader>
           <div className="flex items-start justify-between">
             <div className="space-y-1 flex-1">

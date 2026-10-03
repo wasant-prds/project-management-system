@@ -92,7 +92,7 @@ function BoardWorkItemCard({
 }>) {
   const company = item.project.company?.displayName || item.project.company?.name
   return (
-    <Card className="min-w-0 border-border-strong bg-card transition-[translate,border-color] duration-150 motion-safe:hover:-translate-y-px hover:border-primary/30 motion-reduce:transition-none">
+    <Card className="motion-card min-w-0 border-border-strong bg-card hover:border-primary/30">
       <CardContent className="space-y-3 p-3 sm:p-4">
         <div className="flex min-w-0 items-start justify-between gap-2">
           <button

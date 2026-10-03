@@ -17,7 +17,7 @@ type PortfolioProject = {
 
 export function PortfolioCard({ project, onEdit }: Readonly<{ project: PortfolioProject; onEdit: (id: string) => void }>) {
   return (
-    <Card className="surface-raised gap-4 hover:border-primary/40">
+    <Card className="surface-raised motion-card gap-4 hover:border-primary/40">
       <CardHeader>
         <div className="flex min-w-0 items-start gap-3">
           <span className="surface-inset flex size-10 shrink-0 items-center justify-center rounded-xl text-link"><FolderKanban aria-hidden="true" className="size-5" /></span>

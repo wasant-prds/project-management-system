@@ -217,7 +217,7 @@ async function DashboardContent({ searchParams }: DashboardPageProps) {
                 <p>ช่วง {formatBangkokDateLabel(data.meta.period.startDate)} – {formatBangkokDateLabel(data.meta.period.endDate)} · {data.meta.timezone}</p>
                 <p>Completed นับเฉพาะ completed; Open ตัด completed และ cancelled</p>
               </div>
-              <div className={`${STAT_GRID} lg:grid-cols-5`}>
+              <div className={`${STAT_GRID} motion-stagger lg:grid-cols-5`}>
                 <Link href={dashboardWorkItemsHref(filters)} className="min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   <SummaryStatCard label="Work Items ทั้งหมด" value={summary.total} icon={<ListTodo className="h-4 w-4 text-info" />} hint={<span className="text-sm text-muted-foreground">ตามช่วงและตัวกรองที่เลือก</span>} />
                 </Link>
@@ -244,11 +244,11 @@ async function DashboardContent({ searchParams }: DashboardPageProps) {
 
             <DashboardCharts data={summary.loggedHoursByDate} filters={filters} />
 
-            <div className="grid min-w-0 gap-4 xl:grid-cols-2">
-              <WorkItemList title="Work Items ล่าสุด" description="เรียงตามเวลาที่แก้ไขล่าสุด" items={summary.recentWorkItems} href={dashboardWorkItemsHref(filters)} />
-              <RecentProjects data={data} filters={filters} />
-              <WorkItemList title="Work Items เร่งด่วน" description="priority urgent ที่ยังเปิดอยู่" items={summary.urgentWorkItems} href={dashboardWorkItemsHref(filters, { priority: 'urgent', openOnly: true })} />
-              <WorkItemList title="Work Items เกินกำหนด" description="dueDate ก่อนวันปัจจุบันและยังไม่ปิด" items={summary.overdueWorkItems} href={dashboardWorkItemsHref(filters, { overdue: true })} />
+            <div className="grid min-w-0 gap-4 xl:grid-cols-12">
+              <div className="min-w-0 xl:col-span-7"><WorkItemList title="Work Items ล่าสุด" description="เรียงตามเวลาที่แก้ไขล่าสุด" items={summary.recentWorkItems} href={dashboardWorkItemsHref(filters)} /></div>
+              <div className="min-w-0 xl:col-span-5"><RecentProjects data={data} filters={filters} /></div>
+              <div className="min-w-0 xl:col-span-6"><WorkItemList title="Work Items เร่งด่วน" description="priority urgent ที่ยังเปิดอยู่" items={summary.urgentWorkItems} href={dashboardWorkItemsHref(filters, { priority: 'urgent', openOnly: true })} /></div>
+              <div className="min-w-0 xl:col-span-6"><WorkItemList title="Work Items เกินกำหนด" description="dueDate ก่อนวันปัจจุบันและยังไม่ปิด" items={summary.overdueWorkItems} href={dashboardWorkItemsHref(filters, { overdue: true })} /></div>
             </div>
           </div>
         </main>

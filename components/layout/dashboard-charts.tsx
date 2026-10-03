@@ -7,6 +7,7 @@ import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
 import { dashboardDailyWorkHref } from '@/lib/dashboard-links'
 import type { DashboardFilters } from '@/lib/dashboard'
 import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion'
+import { MOTION_DURATION_MS } from '@/components/ui/motion'
 
 type LoggedHoursPoint = { date: string; hours: string }
 
@@ -19,7 +20,7 @@ export function DashboardCharts({
   const chartData = data.map((point) => ({ ...point, plottedHours: Number(point.hours) }))
 
   return (
-    <Card className="min-w-0 overflow-hidden card-shadow">
+    <Card className="motion-content-enter min-w-0 overflow-hidden card-shadow">
       <CardHeader className="flex min-w-0 flex-row flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <CardTitle>ชั่วโมง Daily Work ตามวัน</CardTitle>
@@ -54,7 +55,7 @@ export function DashboardCharts({
                 fill="var(--chart-2)"
                 radius={[4, 4, 0, 0]}
                 maxBarSize={36}
-                animationDuration={150}
+                animationDuration={MOTION_DURATION_MS.chart}
                 isAnimationActive={!prefersReducedMotion}
               />
             </BarChart>

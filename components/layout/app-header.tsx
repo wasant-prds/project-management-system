@@ -21,9 +21,9 @@ export const AppHeader = memo(function AppHeader() {
       <div className="flex min-w-0 items-center gap-3">
         <SidebarTrigger aria-label="เปิดหรือปิดเมนูหลัก" />
         <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2 text-sm">
-          <Link href="/" className="hidden text-muted-foreground hover:text-foreground sm:inline">พื้นที่ทำงาน</Link>
+          <Link href="/" className="motion-control hidden text-muted-foreground hover:text-foreground sm:inline">พื้นที่ทำงาน</Link>
           <ChevronRight aria-hidden="true" className="hidden size-3 text-muted-foreground sm:block" />
-          {route && pathname !== route.url ? <><Link href={route.url} className="text-muted-foreground hover:text-foreground">{route.title}</Link><ChevronRight aria-hidden="true" className="size-3 text-muted-foreground" /><span aria-current="page" className="truncate font-semibold">รายละเอียด</span></> : <span aria-current="page" className="truncate font-semibold">{route?.title ?? 'พื้นที่ทำงาน'}</span>}
+          {route && pathname !== route.url ? <><Link href={route.url} className="motion-control text-muted-foreground hover:text-foreground">{route.title}</Link><ChevronRight aria-hidden="true" className="size-3 text-muted-foreground" /><span aria-current="page" className="truncate font-semibold">รายละเอียด</span></> : <span aria-current="page" className="truncate font-semibold">{route?.title ?? 'พื้นที่ทำงาน'}</span>}
         </nav>
       </div>
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">

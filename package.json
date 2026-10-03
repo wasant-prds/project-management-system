@@ -28,6 +28,7 @@
     "test:settings": "node tests/run.mjs settings",
     "test:frontend-ui": "node tests/run.mjs frontend-ui",
     "test:frontend-redesign": "node tests/run.mjs frontend-redesign",
+    "test:frontend-motion": "node tests/run.mjs frontend-motion",
     "test:color-system": "node tests/run.mjs color-system",
     "test:filter-select": "node tests/run.mjs filter-select",
     "test:work-items": "node tests/run.mjs work-items",

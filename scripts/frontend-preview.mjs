@@ -34,7 +34,7 @@ const bundle = await esbuild.build({
   } }],
 })
 const stylesheet = await postcss([tailwind()]).process(await readFile(resolve(root, 'app/globals.css'), 'utf8'), { from: resolve(root, 'app/globals.css') })
-const html = '<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Issue 27 — isolated UI preview</title><link rel="stylesheet" href="/preview.css"></head><body><div id="root"></div><script src="/preview.js"></script></body></html>'
+const html = '<!doctype html><html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PMS — isolated frontend preview</title><link rel="stylesheet" href="/preview.css"></head><body><div id="root"></div><script src="/preview.js"></script></body></html>'
 const server = createServer((request, response) => {
   response.setHeader('Cache-Control', 'no-store')
   const url = new URL(request.url, 'http://127.0.0.1')

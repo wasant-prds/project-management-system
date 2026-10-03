@@ -10,6 +10,7 @@ import Settings from '@/app/settings/page'
 import ProjectDetail from '@/app/projects/[id]/page'
 import { Toaster } from '@/components/ui/toaster'
 import { ThemeProvider } from 'next-themes'
+import Template from '@/app/template'
 
 const routes: Record<string, React.ComponentType> = { '/': Dashboard, '/projects': Projects, '/work-items': WorkItems, '/board': Board, '/analysis': Analysis, '/daily-work': DailyWork, '/company': Company, '/settings': Settings }
 const route = window.location.pathname
@@ -19,7 +20,7 @@ const root = document.getElementById('root')
 const detailParams = Promise.resolve({ id: route.split('/').at(-1) ?? 'project-0' })
 if (root) createRoot(root).render(
   <ThemeProvider attribute="class" defaultTheme="light" forcedTheme={theme} themes={['light', 'dark', 'special-dark']}>
-    {route.startsWith('/projects/') ? <ProjectDetail params={detailParams} /> : <Page />}
+    <Template>{route.startsWith('/projects/') ? <ProjectDetail params={detailParams} /> : <Page />}</Template>
     <Toaster />
   </ThemeProvider>,
 )

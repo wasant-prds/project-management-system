@@ -40,6 +40,8 @@ import { generateAnalysisCsv, type AnalysisReport } from '@/lib/analysis-export'
 import { downloadTextFile } from '@/components/page/work-items/work-item-export'
 import { renderHoursChartDot } from '@/components/page/analysis/hours-chart-dot'
 import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion'
+import { MOTION_DURATION_MS } from '@/components/ui/motion'
+import { ContentLoadingSkeleton } from '@/components/layout/content-loading-skeleton'
 import {
   WORK_ITEM_KINDS,
   WORK_ITEM_PRIORITY_LABELS,
@@ -480,7 +482,7 @@ export default function AnalysisPage() {
 
             {report && (
               <>
-                <div className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
+                <div className="motion-stagger grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
                   <SummaryStatCard label="Work Items ทั้งหมด" value={report.summary.total} />
                   <SummaryStatCard label="Open" value={report.summary.open} />
                   <SummaryStatCard label="Completed" value={report.summary.completed} hint={<span className="text-xs text-muted-foreground">ไม่นับ Cancelled</span>} />
@@ -506,7 +508,7 @@ export default function AnalysisPage() {
 
                   <TabsContent value="overview" className="min-w-0 space-y-4">
                     <div className="grid min-w-0 gap-4 xl:grid-cols-2">
-                      <Card className="min-w-0 overflow-hidden card-shadow">
+                      <Card className="motion-content-enter min-w-0 overflow-hidden card-shadow">
                         <CardHeader>
                           <CardTitle>สถานะ Work Items</CardTitle>
                           <CardDescription>สถานะปัจจุบันของรายการที่ตรงกับช่วงและตัวกรอง</CardDescription>
@@ -526,7 +528,7 @@ export default function AnalysisPage() {
                                   fill="var(--chart-1)"
                                   radius={[0, 4, 4, 0]}
                                   maxBarSize={24}
-                                  animationDuration={150}
+                                  animationDuration={MOTION_DURATION_MS.chart}
                                   isAnimationActive={!prefersReducedMotion}
                                   shape={(props: unknown) => <StatusChartLinkBar {...props as StatusBarShapeProps} />}
                                 />
@@ -536,7 +538,7 @@ export default function AnalysisPage() {
                         </CardContent>
                       </Card>
 
-                      <Card className="min-w-0 overflow-hidden card-shadow">
+                      <Card className="motion-content-enter min-w-0 overflow-hidden card-shadow">
                         <CardHeader>
                           <CardTitle>Logged hours ตามช่วงเวลา</CardTitle>
                           <CardDescription>รวมจาก TimeEntry.date ด้วย grouping แบบ {report.meta.loggedHoursGrouping} ตาม Asia/Bangkok</CardDescription>
@@ -559,7 +561,7 @@ export default function AnalysisPage() {
                                   dataKey="plottedHours"
                                   stroke="var(--chart-2)"
                                   strokeWidth={2}
-                                  animationDuration={150}
+                                  animationDuration={MOTION_DURATION_MS.chart}
                                   isAnimationActive={!prefersReducedMotion}
                                   dot={renderHoursChartDot}
                                 />
@@ -615,10 +617,10 @@ export default function AnalysisPage() {
             )}
 
             {isLoading && (
-              <output className="block rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground" aria-live="polite" aria-busy="true">
-                <RefreshCw className="mx-auto mb-2 h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-                กำลังโหลดรายงานจากข้อมูลจริง...
-              </output>
+              <div role="status" className="space-y-4 rounded-xl border border-border/60 p-6 text-sm text-muted-foreground" aria-busy="true">
+                <p>กำลังโหลดรายงานจากข้อมูลจริง...</p>
+                {!report && <ContentLoadingSkeleton layout="report" />}
+              </div>
             )}
             {!isLoading && loadError && (
               <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm" role="alert">

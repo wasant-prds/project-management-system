@@ -12,7 +12,7 @@ type RegistryCompany = {
 
 export function CompanyCard({ company, onEdit, onDelete }: Readonly<{ company: RegistryCompany; onEdit: (company: RegistryCompany) => void; onDelete: (company: RegistryCompany) => void }>) {
   return (
-    <Card className="surface-raised">
+    <Card className="surface-raised motion-card">
       <CardHeader>
         <div className="flex min-w-0 items-start gap-3">
           <span className="surface-inset flex size-11 shrink-0 items-center justify-center rounded-xl text-link"><Building2 aria-hidden="true" className="size-5" /></span>

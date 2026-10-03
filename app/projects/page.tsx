@@ -79,13 +79,13 @@ export default function ProjectsPage() {
   )
   let projectList: React.ReactNode
   if (loading) {
-    projectList = <PageState kind="loading" title="กำลังโหลด Projects…" />
+    projectList = <PageState kind="loading" loadingLayout="cards" title="กำลังโหลด Projects…" />
   } else if (loadError) {
     projectList = <PageState kind="error" title="โหลดข้อมูลไม่สำเร็จ" description={loadError} action={<Button type="button" variant="outline" onClick={() => void reload()}>ลองอีกครั้ง</Button>} />
   } else if (filtered.length === 0) {
     projectList = <PageState title="ไม่พบ Project" description="ลองปรับตัวกรอง หรือสร้าง Project โดยเลือก Company ที่ต้องการ" />
   } else {
-    projectList = <div className="grid min-w-0 gap-5 md:grid-cols-2 xl:grid-cols-3">{filtered.map((project) => <PortfolioCard key={project.id} project={project} onEdit={editProject} />)}</div>
+    projectList = <div className="motion-stagger grid min-w-0 gap-5 md:grid-cols-2 xl:grid-cols-3">{filtered.map((project) => <PortfolioCard key={project.id} project={project} onEdit={editProject} />)}</div>
   }
   return <SidebarProvider><AppSidebar /><SidebarInset><AppHeader /><main className={PAGE_MAIN}><div className={PAGE_INNER}>
     <div className={PAGE_TOOLBAR}><div><p className="page-eyebrow mb-2">Project portfolio</p><h1 className={PAGE_HEADING}>Projects</h1><p className={PAGE_LEAD}>แต่ละ Project ผูก Company ที่เลือก พร้อมงานจริง</p></div></div>

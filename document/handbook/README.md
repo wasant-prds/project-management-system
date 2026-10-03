@@ -77,6 +77,7 @@ Route Handler ปัจจุบันมีดังนี้:
 
 ## Other Components
 
+- [Frontend motion and interaction — Issue #28](./frontend/issue-28-motion.md) — motion tokens, route/content transitions, tactile card/control states, overlay exits, toast swipe, reduced-motion support และการตรวจสอบล่าสุด.
 - [Frontend design system, themes and responsive dialogs — Issue #27](./frontend/issue-27-redesign.md) — Light/Dark/Special Dark tokens, shared Select options, Work Items/Board dialogs, theme persistence and verification.
 - [Frontend visual system and accessibility — Issue #26](./frontend/visual-system.md) — shared themes/components, responsive charts/dialogs, reduced motion, browser asset notes และ verification commands.
 - [Board workflow — Issue #22](./board/workflow.md) — data flow, filters, status writes, date behavior และการตรวจสอบ

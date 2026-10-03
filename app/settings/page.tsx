@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
+import { ContentLoadingSkeleton } from '@/components/layout/content-loading-skeleton'
 import { useOwnerSettings } from '@/components/layout/owner-settings-provider'
 import {
   PAGE_HEADING,
@@ -121,7 +122,7 @@ export default function SettingsPage() {
               <p className={PAGE_LEAD}>จัดการโปรไฟล์และการตั้งค่าของเจ้าของระบบ</p>
             </div>
 
-            {isLoading && <output className="text-sm text-muted-foreground">กำลังโหลดการตั้งค่า...</output>}
+            {isLoading && <div role="status" aria-busy="true" className="space-y-4"><p className="text-sm text-muted-foreground">กำลังโหลดการตั้งค่า...</p><ContentLoadingSkeleton layout="profile" /></div>}
             {loadError && (
               <Card>
                 <CardContent className="space-y-3 p-5">

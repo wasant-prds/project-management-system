@@ -4,6 +4,8 @@
 
 Dropdown ของ Dashboard / Kanban Board ใช้ `pnpm test:filter-select` หรือ `node tests/run.mjs filter-select`: ตรวจ shared themed Select, empty GET values, SSR defaults, controlled callbacks และ loading locks รวม Dashboard filter/summary กับ Board workflow regressions. ไม่เชื่อม network/DB/Docker; reusable tree runner ใช้ `bash scripts/test-unit.sh filter-select` เมื่อมี Bash และ Node 22+.
 
+Motion system ของ Issue #28 ใช้ `pnpm test:frontend-motion` หรือ `node tests/run.mjs frontend-motion`: ตรวจ shared timing/easing tokens, route entrance, reduced-motion/performance rules, sidebar measurement/coalescing/cleanup/lazy mount, keyboard focus restoration, accessible loading layouts, KPI/progress/chart transitions, card state precedence, closed overlay exit timing, toast swipe transitions และ shared control states. Unit suite ใช้ CSS compiler และ mocks ใน process; ไม่เชื่อม PostgreSQL, Redis, Docker, network หรือ external services. Tree report ใช้ `bash scripts/test-unit.sh frontend-motion`. ดู [Motion handbook](../handbook/frontend/issue-28-motion.md) สำหรับ tokens, preview, schema-validation placeholder และข้อจำกัด SonarQube.
+
 Project tests use pnpm and Node's built-in test runner; no additional test dependency is required. The root runner discovers `.test.mjs` files under `tests/` and runs them in isolated child processes, one file at a time.
 
 ```powershell

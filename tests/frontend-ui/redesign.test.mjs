@@ -29,7 +29,12 @@ function sidebarFixture(pathname) {
     : React.createElement('div', { className }, children)
   const sidebar = Object.fromEntries(['Sidebar', 'SidebarContent', 'SidebarFooter', 'SidebarGroup', 'SidebarGroupContent', 'SidebarGroupLabel', 'SidebarHeader', 'SidebarMenu', 'SidebarMenuButton', 'SidebarMenuItem'].map((name) => [name, primitive]))
   sidebar.useSidebar = () => ({ setOpenMobile: (value) => closed.push(value) })
-  const fixtureLoad = createComponentLoader({ 'next/link': { default: Link }, 'next/navigation': { usePathname: () => pathname }, '@/components/ui/sidebar': sidebar })
+  const fixtureLoad = createComponentLoader({
+    react: { memo: (component) => ({ type: component }), useEffect() {}, useRef: (current) => ({ current }) },
+    'next/link': { default: Link },
+    'next/navigation': { usePathname: () => pathname },
+    '@/components/ui/sidebar': sidebar,
+  })
   return { component: fixtureLoad('components/layout/app-sidebar.tsx').AppSidebar.type, closed }
 }
 

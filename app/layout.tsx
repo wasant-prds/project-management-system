@@ -6,6 +6,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import { ThemeProvider } from "@/components/layout/theme-provider"
 import { OwnerSettingsProvider } from "@/components/layout/owner-settings-provider"
+import { ApplicationLoadingShell } from "@/components/layout/application-loading-shell"
 import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
@@ -36,7 +37,7 @@ export default function RootLayout({
           storageKey="project-management-theme"
         >
           <OwnerSettingsProvider>
-            <Suspense fallback={<div>Loading...</div>}>
+            <Suspense fallback={<ApplicationLoadingShell />}>
               {children}
               {isVercelAnalyticsEnabled && <Analytics />}
             </Suspense>

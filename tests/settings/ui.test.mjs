@@ -108,6 +108,7 @@ function loadPage(controller, themeChanges = [], deferStateUpdates = false) {
     '@/components/layout/owner-settings-provider': { useOwnerSettings: () => controller },
     '@/components/layout/app-sidebar': { AppSidebar: ui.AppSidebar },
     '@/components/layout/app-header': { AppHeader: ui.AppHeader },
+    '@/components/layout/content-loading-skeleton': { ContentLoadingSkeleton: component('ContentLoadingSkeleton') },
     '@/components/layout/page-layout': {
       PAGE_HEADING: 'PAGE_HEADING', PAGE_INNER: 'PAGE_INNER', PAGE_LEAD: 'PAGE_LEAD', PAGE_MAIN: 'PAGE_MAIN',
       TAB_SCROLL_CLASS: 'TAB_SCROLL_CLASS', TAB_TRIGGER_CLASS: 'TAB_TRIGGER_CLASS',
@@ -206,7 +207,10 @@ test('Settings renders persisted owner values and the fixed timezone without uns
 test('Settings shows loading and retryable load-error states', () => {
   const loadingPage = loadPage(makeController({ settings: null, isLoading: true }))
   const loadingTree = loadingPage.runtime.render(loadingPage.Page)
-  assert.match(textContent(find(loadingTree, (node) => node.type === 'output')), /กำลังโหลดการตั้งค่า/)
+  const loadingStatus = find(loadingTree, (node) => node.props?.role === 'status')
+  assert.match(textContent(loadingStatus), /กำลังโหลดการตั้งค่า/)
+  assert.equal(loadingStatus.props['aria-busy'], 'true')
+  assert.equal(find(loadingTree, (node) => node.type?.displayName === 'ContentLoadingSkeleton').props.layout, 'profile')
 
   const errorPage = loadPage(makeController({ settings: null, loadError: 'API unavailable' }))
   let errorTree = errorPage.runtime.render(errorPage.Page)

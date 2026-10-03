@@ -11,7 +11,7 @@ const typescript = require('typescript')
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 
 /** Compile production TSX; mock only the boundaries specified by each case. */
-export function createComponentLoader(mocks = {}) {
+export function createComponentLoader(mocks = {}, globals = {}) {
   const cache = new Map()
   function load(file) {
     const path = resolve(root, file)
@@ -36,6 +36,7 @@ export function createComponentLoader(mocks = {}) {
         return require(name)
       },
       console, URL, URLSearchParams, Intl,
+      ...globals,
     }, { filename: path })
     return module.exports
   }

@@ -207,6 +207,7 @@ test('root layout loads Vercel Analytics only when explicitly enabled', () => {
         }
         if (name === '@/components/layout/theme-provider') return { ThemeProvider: passthrough }
         if (name === '@/components/layout/owner-settings-provider') return { OwnerSettingsProvider: passthrough }
+        if (name === '@/components/layout/application-loading-shell') return { ApplicationLoadingShell: () => null }
         if (name === '@/components/ui/toaster') return { Toaster: () => null }
         if (name === './globals.css') return {}
         throw new Error(`Unexpected root layout import: ${name}`)
@@ -313,20 +314,23 @@ test('long tooltip content remains within phone and wider chart frames', () => {
 })
 
 test('interaction motion is brief and reduced-motion preference suppresses it', () => {
-  assert.match(button, /duration-150/)
-  assert.match(card, /duration-150/)
-  assert.match(button, /transition-\[[^\]]*translate/)
+  assert.match(button, /motion-control/)
+  assert.doesNotMatch(card, /duration-150/)
   assert.match(button, /motion-safe:active:translate-y-px/)
+  assert.match(button, /motion-safe:enabled:hover:-translate-y-px/)
   assert.match(button, /motion-reduce:active:translate-y-0/)
-  assert.match(source('../../components/page/work-items/work-item-card.tsx'), /motion-safe:hover:-translate-y-px/)
-  assert.match(css, /\[data-slot='dialog-content'\][\s\S]*?animation-duration:\s*180ms/)
+  assert.match(source('../../components/page/work-items/work-item-card.tsx'), /motion-card/)
+  assert.match(css, /--motion-fast:\s*160ms/)
+  assert.match(css, /--motion-overlay:\s*190ms/)
+  assert.match(css, /\.motion-card\s*\{[\s\S]*?transition-property:\s*translate, border-color, box-shadow/)
+  assert.match(css, /\[data-slot='dialog-content'\][\s\S]*?animation-duration:\s*var\(--motion-overlay\)/)
   assert.match(css, /@media \(prefers-reduced-motion:\s*reduce\)/)
   assert.match(css, /transition-duration:\s*0\.01ms !important/)
   assert.match(css, /animation-iteration-count:\s*1 !important/)
   assert.match(motionHook, /useSyncExternalStore/)
   assert.deepEqual(inspectMotionPreference(true), { snapshot: true, notifications: 1, added: 1, removed: 1 })
   assert.deepEqual(inspectMotionPreference(false), { snapshot: false, notifications: 1, added: 1, removed: 1 })
-  assert.match(dashboardChart, /animationDuration=\{150\}[\s\S]*isAnimationActive=\{!prefersReducedMotion\}/)
+  assert.match(dashboardChart, /animationDuration=\{MOTION_DURATION_MS\.chart\}[\s\S]*isAnimationActive=\{!prefersReducedMotion\}/)
   const analysis = source('../../app/analysis/page.tsx')
   assert.equal((analysis.match(/isAnimationActive=\{!prefersReducedMotion\}/g) ?? []).length, 2)
 })
