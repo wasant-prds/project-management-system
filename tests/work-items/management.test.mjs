@@ -807,3 +807,31 @@ test('Work Items detail and import UI expose Company, Daily Work, per-row reason
   assert.match(dialog, /Daily Work/)
   assert.match(dialog, /entry\.hours/)
 })
+
+test('Work Items loading state compares the complete shared filter key and fills its tab content', () => {
+  const presentation = loadTs('../../components/page/work-items/work-item-presentation.ts')
+  const page = readFileSync(new URL('../../app/work-items/page.tsx', import.meta.url), 'utf8')
+  const filters = {
+    year: '2026', month: 'all', project: 'all', company: 'all', dateRange: null,
+    status: 'all', priority: 'all', role: 'all', kind: 'all',
+    openOnly: false, overdueOnly: false, search: '  deployment  ',
+  }
+  const baseKey = presentation.createWorkItemFilterKey(filters)
+
+  assert.equal(presentation.createWorkItemFilterKey({ ...filters, search: 'deployment' }), baseKey)
+  for (const [field, value] of Object.entries({
+    year: '2025', month: '2', project: 'project-1', company: 'company-1',
+    dateRange: { startDate: '2026-01-01', endDate: '2026-01-31' },
+    status: 'in-progress', priority: 'high', role: 'developer', kind: 'Issue',
+    openOnly: true, overdueOnly: true,
+  })) {
+    assert.notEqual(presentation.createWorkItemFilterKey({ ...filters, [field]: value }), baseKey, `${field} changes the key`)
+  }
+  assert.equal(presentation.isWorkItemListLoading(null, baseKey, baseKey, null), true)
+  assert.equal(presentation.isWorkItemListLoading(baseKey, null, baseKey, null), false)
+  assert.equal(presentation.isWorkItemListLoading(baseKey, null, 'next-filter-key', null), true)
+  assert.equal(presentation.isWorkItemListLoading(null, null, baseKey, 'load failed'), false)
+  assert.equal((page.match(/createWorkItemFilterKey\(/g) ?? []).length, 2)
+  assert.match(page, /isWorkItemListLoading\(loadedFilterKey, loadingFilterKey, filterKey, loadError\)/)
+  assert.match(page, /className="block w-full min-w-0 rounded-lg border bg-card py-12 text-center text-muted-foreground" aria-live="polite"/)
+})

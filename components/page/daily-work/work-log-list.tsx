@@ -328,7 +328,7 @@ export function WorkLogList({
                   {logs.map((log) => (
                     <Card
                       key={log.id}
-                      className="border-l-4 shadow-sm"
+                      className="border-l-4"
                       style={{
                         borderLeftColor: log.project?.colorProject || DEFAULT_PROJECT_COLOR
                       }}

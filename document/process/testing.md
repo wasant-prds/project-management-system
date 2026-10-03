@@ -80,6 +80,8 @@ pnpm test:work-items
 node tests/run.mjs work-items
 ```
 
+The suite also covers the `/work-items` loading regression: request and display state share a complete key for all active filters, the loading state clears for matching results or an error, and its message spans the list width.
+
 Run the Daily Work/TimeEntry owner, positive Decimal, WorkItem/Project, Bangkok date, exact summary, and live logged-hours regressions:
 
 ```powershell
@@ -195,3 +197,14 @@ node tests/run.mjs settings
 ```
 
 The shared Bash reporter also supports `bash scripts/test-unit.sh settings`. API tests use an in-memory User/Prisma mock and mocked owner/auth boundary; UI and provider tests use mocked React/UI components and API requests to cover shared Settings/header state, load/save ordering, partial updates, and disabled inputs while saving. They do not open a browser or connect to PostgreSQL, Docker, network, external providers, or production data. Schema deployment checks remain separate and must use the verified database rollout gate.
+
+## Issue #26 — Shared responsive visual system
+
+Run the focused Neumorphism tokens, theme states, page shell, dialog, chart-boundary, reduced-motion, and test-runner contract checks:
+
+```powershell
+pnpm test:frontend-ui
+node tests/run.mjs frontend-ui
+```
+
+The focused suite checks local CSS and source contracts, compiles the Tailwind stylesheet and font tokens, renders the root layout under both Vercel Analytics settings, renders the Daily Work card with mocked UI primitives to verify native button markup, exercises reduced-motion subscription behavior, and checks tooltip positioning with the installed Recharts helper. It requires no PostgreSQL, Redis, browser, Docker, network, or external service. `pnpm test` also discovers the same `.test.mjs` cases as part of the full suite.

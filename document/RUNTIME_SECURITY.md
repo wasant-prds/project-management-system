@@ -17,6 +17,10 @@ Compose publish app และ PostgreSQL เฉพาะ `127.0.0.1`; ไม่�
 ตามการตัดสินใจล่าสุด ทุกค่า runtime และ credential อยู่ใน `.env` ที่ root ของ installation. ยกเลิก Docker secrets, secret mounts, secret directory และ `_FILE` injection แล้ว. Dev/UAT/Production แต่ละ installation ใช้ root `.env` และ data directory ของตัวเอง; ไม่แชร์ production credential กับ development และไม่สร้าง `.env.uat`/`.env.production` ใน installation เดียว.
 
 1. ใช้ `.env.example` เป็น template; ตั้ง `APP_ENV`, `APP_PORT`, `APP_ORIGIN`, `POSTGRES_DATA_DIR`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`, `OWNER_GATE_USERNAME`, `OWNER_GATE_PASSWORD`, `GITLAB_BASE_URL`, `GITLAB_TOKEN`. ปรับ origin ให้ตรง URL ของ browser; localhost กับ 127.0.0.1 เป็นคนละ origin.
+
+`APP_ORIGIN` ต้องตรงกับ origin ที่ browser ใช้ทุกส่วน (scheme, host, port) และ reverse proxy ต้องส่ง `Origin` เดิมถึง owner gate. Static assets รวมถึง `/_next/static/media/*.woff2` อยู่หลัง gate เช่นเดียวกับหน้าเว็บ; origin ไม่ตรงทำให้ได้ `403 ACCESS_DENIED`. คงการตรวจ origin ไว้และแก้ `APP_ORIGIN` ให้ตรงกับ public browser URL แทนการเปิดทางข้าม gate.
+
+Vercel Web Analytics ปิดไว้ตามค่าเริ่มต้น. ตั้ง `VERCEL_ANALYTICS_ENABLED=true` เฉพาะ deployment บน Vercel หลังเปิด Web Analytics ใน project dashboard แล้ว; self-hosted/Docker ไม่ต้องตั้งค่านี้.
 2. Owner password ต้องสุ่มอย่างน้อย 32 characters. แก้ `.env` ใน editor ที่ไม่เปิดเผยค่าใน logs/chat/history และจำกัด filesystem ACL ให้ operator ที่จำเป็น. `.env` ไม่เข้า git หรือ Docker image/build context.
 3. Docker Compose อ่าน root `.env` และ inject เฉพาะค่า environment ที่แต่ละ service ต้องใช้; credentials ไม่ผ่าน build args และไม่ใช้ `env_file` เพื่อส่งทุกค่าโดยไม่จำเป็น. PostgreSQL/app/migrations/backup ใช้ `POSTGRES_*` จากไฟล์เดียวกัน. Container entrypoint สร้าง encoded DATABASE_URL จาก POSTGRES_* โดยใช้ internal postgres:5432; host POSTGRES_PORT ใช้ publish loopback เท่านั้น.
 4. Local `pnpm dev/start/runtime:check` อ่าน root `.env`. ใช้ DATABASE_URL ที่ตั้งไว้ได้ หรือ derive จาก POSTGRES_* กับ host port เมื่อไม่ได้ตั้ง URL. `*_FILE` ของ credential ถูกปฏิเสธเพื่อไม่ให้แอบอ่าน secret file เก่า.

@@ -88,6 +88,18 @@ test('real HTTP protects pages/APIs and mutations, strips credentials, rejects b
   const success = await fetch(base + '/api/users', { headers }); assert.equal(success.status, 200);
   const result = await success.json();
   for (const key of ['authorization', 'x-middleware-subrequest', 'proxy-authorization']) assert.equal(result.headers[key], undefined);
+  const assetRequests = requests;
+  const deniedFont = await fetch(base + '/_next/static/media/font.woff2', {
+    headers: { ...headers, origin: 'http://127.0.0.1:3777' },
+  });
+  assert.equal(deniedFont.status, 403);
+  assert.equal((await deniedFont.json()).error.code, 'ACCESS_DENIED');
+  assert.equal(requests, assetRequests);
+  const allowedFont = await fetch(base + '/_next/static/media/font.woff2', {
+    headers: { ...headers, origin: env.APP_ORIGIN },
+  });
+  assert.equal(allowedFont.status, 200);
+  assert.equal(requests, assetRequests + 1);
   const before = requests;
   for (const method of ['POST', 'PATCH', 'DELETE']) for (const origin of [undefined, 'https://attacker.example.test']) {
     assert.equal((await fetch(base + '/api/work-items', { method, headers: { ...headers, ...(origin ? { origin } : {}) } })).status, 403);

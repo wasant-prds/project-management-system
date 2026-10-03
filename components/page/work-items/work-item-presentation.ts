@@ -18,6 +18,48 @@ export const MONTH_OPTIONS = [
   { value: '12', label: 'December' },
 ] as const
 
+type WorkItemFilterKeyInput = Readonly<{
+  year: string
+  month: string
+  project: string
+  company: string
+  dateRange: { startDate: string; endDate: string } | null
+  status: string
+  priority: string
+  role: string
+  kind: string
+  openOnly: boolean
+  overdueOnly: boolean
+  search: string
+}>
+
+export function createWorkItemFilterKey(filters: WorkItemFilterKeyInput): string {
+  return [
+    filters.year,
+    filters.month,
+    filters.project,
+    filters.company,
+    filters.dateRange?.startDate,
+    filters.dateRange?.endDate,
+    filters.status,
+    filters.priority,
+    filters.role,
+    filters.kind,
+    filters.openOnly,
+    filters.overdueOnly,
+    filters.search.trim(),
+  ].join('|')
+}
+
+export function isWorkItemListLoading(
+  loadedFilterKey: string | null,
+  loadingFilterKey: string | null,
+  filterKey: string,
+  loadError: string | null,
+): boolean {
+  return loadingFilterKey === filterKey || (loadedFilterKey !== filterKey && !loadError)
+}
+
 export function resolveProjectColor(color: string | null | undefined): string {
   return color?.trim() || DEFAULT_PROJECT_COLOR
 }

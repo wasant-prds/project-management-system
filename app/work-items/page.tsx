@@ -42,6 +42,8 @@ import { WorkItemViewDialog } from '@/components/page/work-items/work-item-view-
 import { WorkItemGroupedList } from '@/components/page/work-items/work-item-grouped-list'
 import { GitLabImportPanel } from '@/components/page/work-items/gitlab-import-panel'
 import {
+  createWorkItemFilterKey,
+  isWorkItemListLoading,
   MONTH_OPTIONS,
   workItemDateParts,
 } from '@/components/page/work-items/work-item-presentation'
@@ -481,7 +483,20 @@ export default function WorkItemsPage() {
 
   const load = useCallback(async () => {
     const generation = ++loadGenerationRef.current
-    const filterKey = [yearFilter, monthFilter, projectFilter, companyFilter, dashboardDateRange?.startDate, dashboardDateRange?.endDate, statusFilter, priorityFilter, roleFilter, dashboardKindFilter, dashboardOpenOnly, dashboardOverdueOnly, debouncedSearchQuery.trim()].join('|')
+    const filterKey = createWorkItemFilterKey({
+      year: yearFilter,
+      month: monthFilter,
+      project: projectFilter,
+      company: companyFilter,
+      dateRange: dashboardDateRange,
+      status: statusFilter,
+      priority: priorityFilter,
+      role: roleFilter,
+      kind: dashboardKindFilter,
+      openOnly: dashboardOpenOnly,
+      overdueOnly: dashboardOverdueOnly,
+      search: debouncedSearchQuery,
+    })
     loadControllerRef.current?.abort()
     const controller = new AbortController()
     loadControllerRef.current = controller
@@ -874,9 +889,22 @@ export default function WorkItemsPage() {
     }
   }
 
-  const filterKey = [yearFilter, monthFilter, projectFilter, statusFilter, priorityFilter, roleFilter, debouncedSearchQuery.trim()].join('|')
+  const filterKey = createWorkItemFilterKey({
+    year: yearFilter,
+    month: monthFilter,
+    project: projectFilter,
+    company: companyFilter,
+    dateRange: dashboardDateRange,
+    status: statusFilter,
+    priority: priorityFilter,
+    role: roleFilter,
+    kind: dashboardKindFilter,
+    openOnly: dashboardOpenOnly,
+    overdueOnly: dashboardOverdueOnly,
+    search: debouncedSearchQuery,
+  })
   const resultsAreCurrent = loadedFilterKey === filterKey
-  const isListLoading = loadingFilterKey === filterKey || (!resultsAreCurrent && !loadError)
+  const isListLoading = isWorkItemListLoading(loadedFilterKey, loadingFilterKey, filterKey, loadError)
 
   let listContent = (
     <WorkItemGroupedList
@@ -888,7 +916,7 @@ export default function WorkItemsPage() {
     />
   )
   if (isListLoading) {
-    listContent = <output className="rounded-lg border bg-card py-12 text-center text-muted-foreground">Loading work items…</output>
+    listContent = <output className="block w-full min-w-0 rounded-lg border bg-card py-12 text-center text-muted-foreground" aria-live="polite">Loading work items…</output>
   } else if (loadError && !resultsAreCurrent) {
     listContent = <div className="rounded-lg border bg-card py-12 text-center text-destructive" role="alert">{loadError}</div>
   }

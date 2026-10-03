@@ -53,7 +53,7 @@ export function WorkItemCard({
 
   return (
     <Card
-      className="card-shadow relative min-w-0 cursor-pointer gap-0 overflow-hidden py-0 transition-all duration-200 hover:-translate-y-px hover:shadow-md"
+      className="card-shadow relative min-w-0 cursor-pointer gap-0 overflow-hidden py-0 transition-[border-color,translate] duration-150 motion-safe:hover:-translate-y-px hover:border-primary/30 motion-reduce:transition-none"
       onClick={() => onView(item)}
     >
       <span

@@ -24,6 +24,7 @@ const suites = {
   dashboard: { directory: join(testRoot, "dashboard") },
   analysis: { directory: join(testRoot, "analysis") },
   settings: { directory: join(testRoot, "settings") },
+  "frontend-ui": { directory: join(testRoot, "frontend-ui") },
   "work-items": { directory: join(testRoot, "work-items") },
   "daily-work": { directory: join(testRoot, "daily-work") },
   runner: { directory: join(testRoot, "runner") },

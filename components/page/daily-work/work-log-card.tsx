@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Label } from "@/components/ui/label"
@@ -18,16 +19,12 @@ export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
   const project = workLog.project
   const [showRemarks, setShowRemarks] = useState(false)
 
-  const toggleRemarks = (e: React.MouseEvent) => {
-    e.stopPropagation()
+  const toggleRemarks = () => {
     setShowRemarks(!showRemarks)
   }
 
   return (
-    <Card
-      className="card-shadow cursor-pointer hover:shadow-md transition-shadow mb-2"
-      onClick={() => onClick(workLog)}
-    >
+    <Card className="card-shadow mb-2">
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -91,9 +88,11 @@ export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
                 <p className="text-sm font-medium">{workLog.description}</p>
               </div>
               {workLog.remarks && (
-                <Badge 
-                  variant="secondary" 
-                  className="text-xs action-remarks cursor-pointer hover:bg-secondary/80 transition-colors"
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1 px-2 text-xs action-remarks"
                   onClick={toggleRemarks}
                 >
                   {showRemarks ? (
@@ -107,7 +106,7 @@ export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
                       Remarks
                     </>
                   )}
-                </Badge>
+                </Button>
               )}
             </div>
           </div>
@@ -122,6 +121,11 @@ export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
             </div>
           )
         }
+        <div className="flex justify-end pt-1">
+          <Button type="button" variant="outline" size="sm" onClick={() => onClick(workLog)}>
+            ดูรายละเอียด
+          </Button>
+        </div>
       </CardContent>
     </Card>
   )

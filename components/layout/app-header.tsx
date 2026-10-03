@@ -18,7 +18,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle'
 // Memoized header component to prevent unnecessary re-renders
 export const AppHeader = memo(function AppHeader() {
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-3 shadow-md backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:h-16 sm:px-4 sticky top-0 z-50">
+    <header className="surface-soft sticky top-0 z-50 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:h-16 sm:px-4">
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <SidebarTrigger />
         <div className="relative hidden min-w-0 flex-1 max-w-md sm:block">

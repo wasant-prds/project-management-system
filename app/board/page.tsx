@@ -50,7 +50,7 @@ type CompanyOption = { id: string; name: string; displayName: string | null }
 type ProjectOption = { id: string; name: string; companyId: string | null }
 
 const INITIAL_FILTERS: BoardFilters = { companyId: 'all', projectId: 'all', role: 'all' }
-const SELECT_CLASS = 'h-9 w-full min-w-0 rounded-md border border-input bg-background px-3 text-sm text-foreground shadow-xs outline-none transition-[box-shadow,border-color] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50'
+const SELECT_CLASS = 'surface-inset h-9 w-full min-w-0 rounded-md border border-input bg-input px-3 text-sm text-foreground outline-none transition-[box-shadow,border-color] duration-150 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none'
 
 function filterLabel(company: CompanyOption) {
   return company.displayName?.trim() || company.name
@@ -94,7 +94,7 @@ function BoardWorkItemCard({
 }>) {
   const company = item.project.company?.displayName || item.project.company?.name
   return (
-    <Card className="min-w-0 border-border/70 bg-card shadow-sm">
+    <Card className="min-w-0 border-border/70 bg-card transition-[translate,border-color] duration-150 motion-safe:hover:-translate-y-px hover:border-primary/30 motion-reduce:transition-none">
       <CardContent className="space-y-3 p-3 sm:p-4">
         <div className="flex min-w-0 items-start justify-between gap-2">
           <button

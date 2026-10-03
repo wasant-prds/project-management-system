@@ -26,6 +26,7 @@
     "test:dashboard": "node tests/run.mjs dashboard",
     "test:analysis": "node tests/run.mjs analysis",
     "test:settings": "node tests/run.mjs settings",
+    "test:frontend-ui": "node tests/run.mjs frontend-ui",
     "test:work-items": "node tests/run.mjs work-items",
     "test:daily-work": "node tests/run.mjs daily-work",
     "test:runner": "node tests/run.mjs runner",

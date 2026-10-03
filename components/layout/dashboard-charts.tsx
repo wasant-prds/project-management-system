@@ -1,11 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis } from 'recharts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
 import { dashboardDailyWorkHref } from '@/lib/dashboard-links'
 import type { DashboardFilters } from '@/lib/dashboard'
+import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion'
 
 type LoggedHoursPoint = { date: string; hours: string }
 
@@ -13,6 +14,7 @@ export function DashboardCharts({
   data,
   filters,
 }: Readonly<{ data: LoggedHoursPoint[]; filters: DashboardFilters }>) {
+  const prefersReducedMotion = usePrefersReducedMotion()
   const sourceHref = dashboardDailyWorkHref(filters)
   const chartData = data.map((point) => ({ ...point, plottedHours: Number(point.hours) }))
 
@@ -33,24 +35,29 @@ export function DashboardCharts({
             config={{ plottedHours: { label: 'ชั่วโมง', color: 'var(--chart-2)' } }}
             className="h-[260px] min-w-0 w-full"
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 4, left: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.35} />
-                <XAxis
-                  dataKey="date"
-                  stroke="var(--muted-foreground)"
-                  fontSize={11}
-                  minTickGap={18}
-                  tickFormatter={(date: string) => date.slice(5)}
-                />
-                <YAxis stroke="var(--muted-foreground)" fontSize={11} width={36} />
-                <Tooltip
-                  content={<ChartTooltipContent />}
-                  labelFormatter={(date: string) => `วันที่ ${date}`}
-                />
-                <Bar dataKey="plottedHours" fill="var(--chart-2)" radius={[4, 4, 0, 0]} maxBarSize={36} />
-              </BarChart>
-            </ResponsiveContainer>
+            <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 4, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.35} />
+              <XAxis
+                dataKey="date"
+                stroke="var(--muted-foreground)"
+                fontSize={11}
+                minTickGap={18}
+                tickFormatter={(date: string) => date.slice(5)}
+              />
+              <YAxis stroke="var(--muted-foreground)" fontSize={11} width={36} />
+              <Tooltip
+                content={<ChartTooltipContent />}
+                labelFormatter={(date: string) => `วันที่ ${date}`}
+              />
+              <Bar
+                dataKey="plottedHours"
+                fill="var(--chart-2)"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={36}
+                animationDuration={150}
+                isAnimationActive={!prefersReducedMotion}
+              />
+            </BarChart>
           </ChartContainer>
         )}
       </CardContent>

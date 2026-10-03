@@ -38,6 +38,7 @@ import { bangkokCalendarPeriodRange, currentBangkokCalendarDate } from '@/lib/ba
 import { analysisDailyWorkHref, analysisWorkItemsHref } from '@/lib/analysis-links'
 import { generateAnalysisCsv, type AnalysisReport } from '@/lib/analysis-export'
 import { downloadTextFile } from '@/components/page/work-items/work-item-export'
+import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion'
 import {
   WORK_ITEM_KINDS,
   WORK_ITEM_PRIORITY_LABELS,
@@ -288,6 +289,7 @@ function HoursPeriodTable({ report }: Readonly<{ report: AnalysisReport }>) {
 }
 
 export default function AnalysisPage() {
+  const prefersReducedMotion = usePrefersReducedMotion()
   const [draftFilters, setDraftFilters] = useState<AnalysisFilters>(defaultFilters)
   const [appliedFilters, setAppliedFilters] = useState<AnalysisFilters>(defaultFilters)
   const [report, setReport] = useState<AnalysisReport | null>(null)
@@ -523,6 +525,8 @@ export default function AnalysisPage() {
                                   fill="var(--chart-1)"
                                   radius={[0, 4, 4, 0]}
                                   maxBarSize={24}
+                                  animationDuration={150}
+                                  isAnimationActive={!prefersReducedMotion}
                                   shape={(props: unknown) => <StatusChartLinkBar {...props as StatusBarShapeProps} />}
                                 />
                               </BarChart>
@@ -554,6 +558,8 @@ export default function AnalysisPage() {
                                   dataKey="plottedHours"
                                   stroke="var(--chart-2)"
                                   strokeWidth={2}
+                                  animationDuration={150}
+                                  isAnimationActive={!prefersReducedMotion}
                                   dot={(props) => {
                                     const point = props.payload as HoursChartPoint
                                     return (

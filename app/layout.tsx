@@ -18,6 +18,8 @@ export const metadata: Metadata = {
 // DB-backed app: skip static prerender so build does not require DATABASE_URL
 export const dynamic = "force-dynamic"
 
+const isVercelAnalyticsEnabled = process.env.VERCEL_ANALYTICS_ENABLED === "true"
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -36,7 +38,7 @@ export default function RootLayout({
           <OwnerSettingsProvider>
             <Suspense fallback={<div>Loading...</div>}>
               {children}
-              <Analytics />
+              {isVercelAnalyticsEnabled && <Analytics />}
             </Suspense>
             <Toaster />
           </OwnerSettingsProvider>

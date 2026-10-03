@@ -27,6 +27,10 @@
   --chart-4: oklch(0.70 0.12 195); /* teal — remaining / resolved */
   --chart-5: oklch(0.68 0.16 300); /* violet — on hold / accent */
   --radius: 0.5rem;
+  --surface-border: color-mix(in oklch, var(--border) 72%, transparent);
+  --surface-shadow-soft: 0 1px 3px oklch(0.25 0.02 258 / 0.1);
+  --surface-shadow-raised: 4px 4px 12px oklch(0.25 0.02 258 / 0.12), -4px -4px 12px oklch(1 0 0 / 0.82);
+  --surface-shadow-inset: inset 2px 2px 5px oklch(0.25 0.02 258 / 0.12), inset -2px -2px 5px oklch(1 0 0 / 0.78);
   --sidebar: oklch(0.97 0.005 247.86); /* #f1f5f9 - distinct sidebar background */
   --sidebar-foreground: oklch(0.09 0.01 258.34); /* #0f172a - very dark sidebar text */
   --sidebar-primary: oklch(0.4 0.2 162.68); /* #065f46 - emerald primary */
@@ -35,8 +39,6 @@
   --sidebar-accent-foreground: oklch(0.09 0.01 258.34); /* #0f172a - very dark accent text */
   --sidebar-border: oklch(0.8 0.01 247.86); /* #cbd5e1 - more visible border */
   --sidebar-ring: oklch(0.4 0.2 162.68 / 0.7); /* emerald focus ring with more opacity */
-  --font-playfair: "Playfair Display", serif;
-  --font-source-sans: "Source Sans Pro", sans-serif;
 }
 
 .dark {
@@ -109,6 +111,20 @@
   --sidebar-ring: oklch(0.75 0.18 162.68 / 0.7); /* bright emerald focus ring with more opacity */
 }
 
+.dark {
+  --surface-border: color-mix(in oklch, var(--border) 82%, transparent);
+  --surface-shadow-soft: 0 2px 5px oklch(0 0 0 / 0.24);
+  --surface-shadow-raised: 4px 4px 12px oklch(0 0 0 / 0.28), -3px -3px 10px oklch(1 0 0 / 0.035);
+  --surface-shadow-inset: inset 2px 2px 5px oklch(0 0 0 / 0.24), inset -2px -2px 5px oklch(1 0 0 / 0.025);
+}
+
+.special-dark {
+  --surface-border: color-mix(in oklch, var(--border) 82%, transparent);
+  --surface-shadow-soft: 0 2px 5px oklch(0 0 0 / 0.28);
+  --surface-shadow-raised: 4px 4px 12px oklch(0 0 0 / 0.34), -3px -3px 10px color-mix(in oklch, var(--primary) 16%, transparent);
+  --surface-shadow-inset: inset 2px 2px 5px oklch(0 0 0 / 0.28), inset -2px -2px 5px color-mix(in oklch, var(--primary) 9%, transparent);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -147,8 +163,9 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   /* Added custom font variables */
-  --font-heading: var(--font-playfair);
-  --font-sans: var(--font-source-sans);
+  --font-heading: var(--font-geist-sans);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
 @layer base {
@@ -240,6 +257,8 @@
     @apply text-foreground font-medium;
     font-weight: 500;
     line-height: 1.5;
+    box-shadow: var(--surface-shadow-inset);
+    transition: border-color 150ms ease, box-shadow 150ms ease;
   }
   
   /* Enhanced label text */
@@ -252,26 +271,11 @@
   /* Better card text contrast and visual separation */
   .card, [data-card] {
     @apply text-foreground;
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  }
-  
-  /* Dark mode card shadows */
-  .dark .card, .dark [data-card] {
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+    box-shadow: var(--surface-shadow-soft);
+    border-color: var(--surface-border);
   }
 
-  /* Card component box shadows */
-  .card-shadow {
-    box-shadow: -3px -3px 7px #ffffff73, 2px 2px 5px rgba(94, 104, 121, 0.288) !important;
-  }
-  
-  .dark .card-shadow {
-    box-shadow: -3px -3px 7px #505963, 2px 2px 5px rgba(94, 104, 121, 0.288) !important;
-  }
-
-  .special-dark .card-shadow {
-    box-shadow: -3px -3px 30px #3ba7ab, 2px 2px 5px rgba(94, 104, 121, 0.288) !important;
-  }
+  /* Card surfaces use theme-aware shadows rather than fixed theme colors. */
   
   /* Enhanced visual separation for different sections */
   .bg-muted {
@@ -427,5 +431,89 @@
     stroke: var(--background);
     stroke-width: 3px;
     r: 6px;
+  }
+}
+
+@layer utilities {
+  .surface-soft {
+    box-shadow: var(--surface-shadow-soft);
+    border-color: var(--surface-border);
+  }
+
+  .surface-raised {
+    box-shadow: var(--surface-shadow-raised);
+    border-color: var(--surface-border);
+  }
+
+  .card-shadow {
+    box-shadow: var(--surface-shadow-raised);
+  }
+}
+
+@utility surface-inset {
+  box-shadow: var(--surface-shadow-inset);
+}
+
+[data-slot='dialog-content'],
+[data-slot='alert-dialog-content'],
+[data-slot='sheet-content'],
+[data-slot='drawer-content'],
+[data-slot='dropdown-menu-content'],
+[data-slot='select-content'],
+[data-slot='popover-content'],
+[data-slot='hover-card-content'],
+[data-slot='context-menu-content'],
+[data-slot='menubar-content'] {
+  box-shadow: var(--surface-shadow-raised);
+  border-color: var(--surface-border);
+  animation-duration: 180ms;
+}
+
+[data-slot='chart'] {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  container-type: inline-size;
+  overflow: hidden;
+}
+
+[data-slot='chart'] .recharts-responsive-container,
+[data-slot='chart'] .recharts-wrapper {
+  min-width: 0;
+  max-width: 100%;
+}
+
+[data-slot='chart'] .recharts-default-legend {
+  display: flex !important;
+  max-width: 100%;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem 0.75rem;
+  white-space: normal;
+}
+
+[data-slot='chart'] .recharts-legend-item {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+[data-slot='chart'] .recharts-tooltip-wrapper {
+  max-width: min(15rem, calc(100cqw - 4rem));
+}
+
+[data-slot='chart'] .recharts-tooltip-wrapper > * {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

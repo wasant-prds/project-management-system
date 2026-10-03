@@ -146,6 +146,8 @@ Neumorphism ใช้กับ surface และ component ที่ช่วย
 
 Dashboard และ Analysis charts ต้องยืดตาม parent container (เช่นกำหนด `min-width: 0` ใน flex/grid context) และวางแกน, legend, tooltip และ label ให้อยู่ภายในกรอบ chart component ใช้ CSS transition หรือ animation utilities ที่มีอยู่สำหรับ hover/focus, dialog/dropdown, loading และ Board drag โดยประมาณ 120–180 ms สำหรับ hover/focus และ 160–220 ms สำหรับ dialog/dropdown ไม่เพิ่ม dependency โดยไม่จำเป็น และต้องรองรับ keyboard focus กับ `prefers-reduced-motion`; motion ต้องไม่หน่วง mutation หรือทำให้ layout shift
 
+Issue #26 implements this shared presentation contract with theme-aware raised/inset surface tokens for light, dark, and special-dark, shared card/form/button treatments, shrinkable menu/dialog shells, bounded Recharts labels/tooltips, and a global reduced-motion preference. It does not add an animation dependency or change API, schema, or business behavior. Focused regression command: `pnpm test:frontend-ui` (also `node tests/run.mjs frontend-ui`).
+
 ## 6. Key architecture decisions
 
 1. **Modular monolith:** match the existing deployable unit; introduce a service boundary in code rather than a new service fleet.

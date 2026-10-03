@@ -77,6 +77,7 @@ Route Handler ปัจจุบันมีดังนี้:
 
 ## Other Components
 
+- [Frontend visual system and accessibility — Issue #26](./frontend/visual-system.md) — shared themes/components, responsive charts/dialogs, reduced motion, browser asset notes และ verification commands.
 - [Board workflow — Issue #22](./board/workflow.md) — data flow, filters, status writes, date behavior และการตรวจสอบ
 - [Owner access gate](./operations/owner-access.md) — Basic credential gate, origin checks, middleware proof, owner resolution.
 - [Runtime operations](./operations/runtime.md) — start, health, logs และ troubleshooting; links ไปยัง Docker/DB runbooks.

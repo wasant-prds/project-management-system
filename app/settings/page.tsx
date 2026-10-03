@@ -240,7 +240,7 @@ export default function SettingsPage() {
                             <Label htmlFor="owner-theme">Theme</Label>
                             <select
                               id="owner-theme"
-                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              className="surface-inset flex h-10 w-full rounded-md border border-input bg-input px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                               disabled={isSavingPreferences}
                               value={preferences.theme}
                               onChange={(event) => {
@@ -255,7 +255,7 @@ export default function SettingsPage() {
                             <Label htmlFor="owner-locale">ภาษา</Label>
                             <select
                               id="owner-locale"
-                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              className="surface-inset flex h-10 w-full rounded-md border border-input bg-input px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                               disabled={isSavingPreferences}
                               value={preferences.locale}
                               onChange={(event) => {
