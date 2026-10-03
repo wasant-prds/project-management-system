@@ -6,7 +6,7 @@
 | เอกสาร | ข้อกำหนดทางธุรกิจ (TH) |
 | English version | [business-requirement.en.md](./business-requirement.en.md) |
 | เอกสารที่เกี่ยวข้อง | [scope.th.md](./scope.th.md) |
-| **สถานะ** | **เสร็จ** |
+| **สถานะ** | **Issue #25 implement ใน source; schema rollout ยัง pending** |
 | วันที่ | 2026-09-04 |
 
 เอกสารนี้บอก **สิ่งที่ผลิตภัณฑ์ต้องทำ** ขอบเขตทางเทคนิคอยู่ใน [ขอบเขตงาน](./scope.th.md)
@@ -15,9 +15,9 @@
 
 ## กรณีที่ 1 — จัดการการตั้งค่า
 
-ผู้ใช้เปิด `/settings` เพื่อแก้ไขโปรไฟล์ การแจ้งเตือน ความปลอดภัย และลักษณะที่ปรากฏ (รวม light / dark / special-dark). Target: แสดง timezone ระบบ `Asia/Bangkok` แบบคงที่ ไม่มี preference ที่เปลี่ยน timezone ของการบันทึก แสดงผล หรือ metrics
+เจ้าของระบบเปิด `/settings` เพื่ออ่าน/บันทึกชื่อ อีเมล เบอร์โทรศัพท์ theme (`light` / `dark` / `special-dark`) และ locale (`th` / `en`) ของบัญชี owner เดียว. แสดง timezone ระบบ `Asia/Bangkok` แบบคงที่และอ่านอย่างเดียว. Settings ไม่มี password/2FA หรือ notification controls จนกว่าจะเชื่อม provider ที่รองรับ.
 
-ลักษณะที่ปรากฏใช้ Neumorphism visual language ร่วมกับทั้งระบบผ่าน shared tokens โดยปรับตาม theme ที่เลือก; Settings คงตัวเลือก light / dark / special-dark เดิม และไม่เพิ่มตัวเลือก Neumorphism แยก
+Theme ที่บันทึกใช้ร่วมกันระหว่าง Settings, header และ ThemeProvider; locale ใช้กำหนด HTML language โดย UI ยังคงเป็นภาษาไทยเป็นหลักและ issue นี้ไม่ได้แปลข้อความทุกเมนู. ลักษณะที่ปรากฏใช้ Neumorphism visual language ร่วมกับทั้งระบบผ่าน shared tokens โดยไม่เพิ่มตัวเลือก Neumorphism แยก
 
 ---
 
@@ -55,7 +55,7 @@
 
 | กรณี | ถือว่าผ่านเมื่อ |
 | --- | --- |
-| 1 | แท็บและฟอร์มการตั้งค่ามองเห็นได้ |
+| 1 | Profile และ preferences ของ owner อ่าน/บันทึกและยังอยู่หลัง reload |
 | 2 | ส่วนหลักและแถบข้างเลื่อนได้เมื่อเนื้อหาสูงกว่าจอ |
 | 3 | ปุ่มทึบใช้ป้ายที่อ่านชัดทุกธีม; Neumorphism ไม่ลด contrast หรือแทน visible keyboard focus |
 | 4 | เลย์เอาต์โทรศัพท์/แท็บเล็ต/เดสก์ท็อปตรงกรณีที่ 4 |

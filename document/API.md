@@ -11,7 +11,7 @@
 | ขอบเขตข้อมูล | ยึด [Company → Project decision](./COMPANY_PROJECT_DECISION.md); GitLab import ยึด [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md) |
 | เอกสารเชื่อมโยง | [ENGINEERING_SPEC.md](./ENGINEERING_SPEC.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [BUSINESS_REQUIREMENT.md](./BUSINESS_REQUIREMENT.md) · [SCOPE.md](./SCOPE.md) · [DATABASE.md](./DATABASE.md) · [DATABASE_MAPPING.md](./DATABASE_MAPPING.md) · [DEPLOYMENT.md](./DEPLOYMENT.md) |
 
-> **ขอบเขต As-Is:** inventory อิง source code ใน repository โดยมี baseline 2026-09-27 และ implementation เพิ่มใน #17–#24; ไม่ใช่ผลตรวจ production database. **Target:** endpoint ที่ยังระบุว่าเป็นเป้าหมายไม่ถือว่าถูก implement หรือเปิดใช้งานแล้ว.
+> **ขอบเขต As-Is:** inventory อิง source code ใน repository โดยมี baseline 2026-09-27 และ implementation เพิ่มใน #17–#25; ไม่ใช่ผลตรวจ production database. **Target:** endpoint ที่ยังระบุว่าเป็นเป้าหมายไม่ถือว่าถูก implement หรือเปิดใช้งานแล้ว.
 
 ## 1. Endpoint ที่มีอยู่ใน repository (As-Is)
 
@@ -28,6 +28,7 @@
 | `POST` | `/api/work-items/import` | Work Items bulk import แบบแยกผลรายแถว | ตรวจ WorkItem input และ Project/owner references; valid rows ทำต่อได้เมื่อแถวอื่นผิด |
 | `GET` | `/api/dashboard/summary` | Dashboard aggregates สำหรับช่วงและ Company/Project/role/kind ที่เลือก (#23) | `{ meta, summary, filterOptions }`; query-time Prisma aggregates, `Cache-Control: no-store` |
 | `GET` | `/api/analysis/summary` | Analysis report สำหรับ WorkItems และ TimeEntries ตามช่วงและตัวกรอง (#24) | `{ meta, summary, breakdowns, loggedHoursByPeriod, workItems, timeEntries, filterOptions }`; owner-only, query-time, `Cache-Control: no-store` |
+| `GET`, `PATCH` | `/api/settings/me` | อ่าน/บันทึก profile และ preferences ของ owner ที่ยืนยันตัวตน (#25) | `{ profile, preferences }`; owner-scoped, validates fields, `Cache-Control: no-store` |
 | `GET` | `/api/integrations/gitlab/status` | ตรวจว่ามี GitLab server configuration พร้อมหรือไม่ | `{ configured }`; ไม่คืน token/secret metadata (#20) |
 | `GET`, `POST` | `/api/integrations/gitlab/projects` | อ่าน/สร้าง owner-managed GitLab Project mappings | `{ mappings }` / `{ mapping }`; exact label map และ Project relation (#20) |
 | `PATCH`, `DELETE` | `/api/integrations/gitlab/projects/{mappingId}` | แก้ mapping หรือถอน mapping โดยเก็บ imported history | `{ mapping }` / `{ deleted }`; move ปลายทางที่มี references เป็น `409` (#20) |
@@ -36,7 +37,7 @@
 | `GET` | `/api/work-logs/summary` | รวมชั่วโมง owner ทั้งหมดหรือช่วง Bangkok calendar dates | `{ summary: { hours, timezone, startDate?, endDate? } }`; Decimal string, `Cache-Control: no-store` |
 | `GET`, `PATCH`, `DELETE` | `/api/work-logs/{id}` | Daily Work อ่าน/แก้/ลบ TimeEntry | TimeEntry เดียว; wrapper `{ workLog }` |
 
-Settings persistence ยังไม่มี API route. Dashboard API เพิ่มใน #23 และ Analysis API เพิ่มใน #24; Board ไม่มี API route เฉพาะและใช้ `GET /api/work-items` สำหรับ cards กับ `PATCH /api/work-items/{id}` สำหรับ status mutation. Production rollout ของ Company/Project ที่บันทึกใน [Issue #18 implementation report](./COMPANY_PROJECT_IMPLEMENTATION.md) ผ่านการตรวจ Company/Project schema และ API smoke checks. GitLab schema ยังไม่ได้ apply กับ environment ใด; TimeEntry schema change ของ #21 ก็ยังไม่ได้ apply กับ environment ใดเช่นกัน.
+Dashboard API เพิ่มใน #23 และ Analysis API เพิ่มใน #24; Settings API เพิ่มใน #25. Board ไม่มี API route เฉพาะและใช้ `GET /api/work-items` สำหรับ cards กับ `PATCH /api/work-items/{id}` สำหรับ status mutation. Prisma schema changes ของ #20, #21 และ #25 ยังไม่ได้ apply กับ environment ใด.
 
 **สถานะ #17:** owner gate ตรวจ HTTP Basic และ origin ก่อน Next.js; middleware ปฏิเสธ page/API ที่ไม่มี internal proof ด้วย `401 OWNER_UNAUTHENTICATED` (หรือ gate `403 ACCESS_DENIED` เมื่อ origin ไม่ผ่าน). `GET /api/health` เป็นข้อยกเว้น. Route Handlers ของ Projects, Users, Work Items และ Work Logs ตรวจ owner ฝั่ง server. `GET /api/users` คืน owner หนึ่งคน; WorkItem create/import/update และ TimeEntry create/update ไม่ยอมรับ `assigneeId`/`userId` ที่ต่างจาก owner (`400 VALIDATION_ERROR`); list ของ Work Items/Work Logs กรอง owner. Browser ยังอาจส่ง ID owner เดิมเพื่อ compatibility แต่ server เป็นผู้กำหนดค่าเขียนจริง. Error อื่นของ legacy routes ยังมีรูปแบบเดิมและจะปรับใน issue ที่เกี่ยวข้อง.
 
@@ -126,9 +127,9 @@ Dashboard/Analysis คืน `period`, `timezone`, `filters` และ `metricVe
 | Analysis `/analysis` | `GET /api/analysis/summary`; query-time report จาก WorkItem + TimeEntry; ใช้ filter, timezone และสูตรเดียวกับ Dashboard | ไม่มี mutation; export/drill-through ใช้ filtered result และ source IDs เดิม |
 | Daily Work `/daily-work` | `GET /api/work-logs`; TimeEntry พร้อม WorkItem, Project, owner; รองรับวัน/ช่วงวันที่และ pagination | `POST/PATCH/DELETE /api/work-logs[/{id}]`; owner server-resolved, ชั่วโมงบวก, WorkItem required และ Project consistency ตรวจทุกครั้ง |
 | Company `/company` | Paginated `GET /api/company`; multiple Companies with Project, WorkItem, and TimeEntry aggregate summaries | `POST/PATCH/DELETE /api/company[/{id}]`; protect Dhas and Companies referenced by Projects; ไม่มี member/team administration |
-| Settings `/settings` | `GET /api/settings/me`; authenticated owner's profile และ persisted preferences | `PATCH /api/settings/me`; persist เฉพาะ field ที่ UI ใช้และระบบรองรับ; ไม่มี password/2FA หรือ notification channel ที่ยังไม่เชื่อม provider |
+| Settings `/settings` | `GET /api/settings/me`; owner profile และ persisted preferences จาก `User` | `PATCH /api/settings/me`; persist เฉพาะ field ที่ UI ใช้และระบบรองรับ; ไม่มี password/2FA หรือ notification channel ที่ยังไม่เชื่อม provider |
 
-ตารางนี้เป็น target contract; endpoint ที่ไม่มีใน inventory section 1 เป็น proposal. Server Components สามารถเรียก shared read/service module โดยตรงได้โดยไม่สร้าง HTTP hop เพิ่ม แต่ต้องใช้ validation/query semantics เดียวกับ API.
+ตารางนี้เป็น target contract ยกเว้นรายการที่ระบุ implementation ไว้ใน inventory section 1. Server Components สามารถเรียก shared read/service module โดยตรงได้โดยไม่สร้าง HTTP hop เพิ่ม แต่ต้องใช้ validation/query semantics เดียวกับ API.
 
 ## 4. Request/query contracts และ validation ตาม resource
 
@@ -210,9 +211,9 @@ Repository routes: `GET /api/integrations/gitlab/status`, `GET/POST /api/integra
 ### 4.5 Company และ Settings
 
 - Company collection/create/update/delete contracts ของ #18 ระบุไว้ในข้อ 4.1; Dhas เป็น Company หลักที่ห้ามลบ และ Company ที่มี Projects ใช้งานอยู่ลบไม่ได้.
-- `GET /api/settings/me`: คืน `{ profile, preferences }` ของเจ้าของที่ยืนยันแล้ว; หากยังไม่มี preferences ให้คืน default `theme=light`, `locale=th` และเพิ่ม `timezone=Asia/Bangkok` จาก system config แบบ read-only ไม่ใช่ค่าที่เจ้าของเลือก. ค่า timezone เป็นค่าระบบคงที่ทุก environment. ไม่มี identity selector. `PATCH` รับ partial updates ใน nested `profile` และ/หรือ `preferences` object เท่านั้น. `profile` รองรับ `name`, `email`, `phone`, `avatar`; `name` ต้องไม่ว่าง; email ต้องถูกต้องและ unique (`409 CONFLICT` เมื่อชน). Profile fields ที่ไม่มี backing field เช่น Bio หรือ first/last name แยกกันต้องไม่ถูกบันทึกเป็นข้อมูลใหม่.
-- Target preferences จำกัดที่ theme (`light`, `dark`, `special-dark`) และ locale (`th`, `en`). Timezone แสดงเป็น `Asia/Bangkok` แบบ read-only; ห้ามตั้ง preference ที่เปลี่ยน timezone ของการ parse, persistence หรือ business-date calculations. Unknown/unintegrated security หรือ notification fields ตอบ `400 VALIDATION_ERROR` และห้ามตอบสำเร็จโดยไม่ persist.
-- ตัวอย่าง target `PATCH /api/settings/me`:
+- `GET /api/settings/me`: คืน `{ profile, preferences }` ของ owner ที่ยืนยันแล้วจาก `User`; default ของ schema คือ `theme=light`, `locale=th` และ `timezone=Asia/Bangkok` มาจาก system config แบบ read-only ไม่ใช่ค่าที่เจ้าของเลือก. ไม่มี identity selector. `PATCH` รับ partial updates ใน nested `profile` และ/หรือ `preferences` object เท่านั้น. `profile` รองรับ `name`, `email`, `phone`, `avatar`; `name` ต้องไม่ว่าง; email ต้องถูกต้องและ unique (`409 CONFLICT` เมื่อชน). Avatar รับ HTTPS URL หรือ `null`; Bio และ first/last name แยกกันไม่มี backing field และไม่รองรับ.
+- Preferences ที่บันทึกจำกัดที่ theme (`light`, `dark`, `special-dark`) และ locale (`th`, `en`). Timezone แสดงเป็น `Asia/Bangkok` แบบ read-only; ห้ามตั้ง preference ที่เปลี่ยน timezone ของการ parse, persistence หรือ business-date calculations. Unknown/unintegrated security หรือ notification fields ตอบ `400 VALIDATION_ERROR` และไม่มีการบันทึก.
+- ตัวอย่าง `PATCH /api/settings/me`:
 
 ```jsonc
 {
@@ -227,7 +228,8 @@ Repository routes: `GET /api/integrations/gitlab/status`, `GET/POST /api/integra
 }
 ```
 
-- Owner preference storage ยังเป็น schema decision ที่เปิดอยู่ใน [ARCHITECTURE.md](./ARCHITECTURE.md); endpoint นี้จึงเป็น Target proposal ไม่ใช่ current API.
+- Owner preferences persist ใน `User.theme` และ `User.locale`; `ThemeProvider`, Settings และ header theme menu โหลด/บันทึกค่าชุดเดียวกัน. Locale ที่เลือกกำหนด `document.documentElement.lang`; การแปล UI ครบทุกเมนูไม่อยู่ใน #25. Security และ notification controls ที่ยังไม่มี provider ถูกนำออกจาก Settings.
+- Tests ใช้ in-memory Prisma mock; source schema เพิ่ม `UserTheme`/`UserLocale` และต้องผ่าน backup/restore, environment approval และ schema-hash gate ก่อน rollout ตาม [Database Rollout](./DATABASE_ROLLOUT.md).
 
 ## 5. Error cases ที่ consumer ต้องรองรับ
 
@@ -245,7 +247,7 @@ Mutation success คืน canonical resource หลัง server commit. UI อ
 
 ## 6. การพัฒนาตาม dependency และการตรวจ contract
 
-Route proposals ที่ยังไม่ implement ขึ้นกับ owner access, shared WorkItem/TimeEntry validation และ preference storage ตามลำดับใน [SCOPE.md](./SCOPE.md). Company/Project rollout ของ #18 ผ่านแล้ว; รายละเอียด migration เดิมเก็บไว้ใน [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) เพื่ออ้างอิงย้อนหลังเท่านั้น. GitLab import เป็น API ที่ implement ใน repository แล้ว (#20) แต่ยังไม่ได้ apply schema หรือเชื่อม instance จริง.
+Route proposals ที่ยังไม่ implement ขึ้นกับ owner access และ shared WorkItem/TimeEntry validation ตามลำดับใน [SCOPE.md](./SCOPE.md). Company/Project rollout ของ #18 ผ่านแล้ว; รายละเอียด migration เดิมเก็บไว้ใน [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) เพื่ออ้างอิงย้อนหลังเท่านั้น. GitLab import (#20) และ Settings (#25) implement ใน repository แล้ว แต่ schema source ของทั้งสอง issue ยังต้องผ่าน rollout gate ของ target environment.
 
 Contract regression tests ตรวจเอกสารและ route inventory; `pnpm test:gitlab` เพิ่ม mocked service/API behavior checks. คำสั่งดูที่ [Testing Commands](./process/testing.md): `pnpm test:api-contracts`, `pnpm test:contracts`, `pnpm test`, `pnpm test:gitlab`, `pnpm test:gitlab-contracts`.
 

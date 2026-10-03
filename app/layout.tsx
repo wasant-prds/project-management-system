@@ -5,6 +5,7 @@ import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import { ThemeProvider } from "@/components/layout/theme-provider"
+import { OwnerSettingsProvider } from "@/components/layout/owner-settings-provider"
 import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
@@ -23,21 +24,22 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="th" suppressHydrationWarning>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="light"
           themes={['light', 'dark', 'special-dark']}
           disableTransitionOnChange
           storageKey="project-management-theme"
         >
-          <Suspense fallback={<div>Loading...</div>}>
-            {children}
-            <Analytics />
-          </Suspense>
-          <Toaster />
+          <OwnerSettingsProvider>
+            <Suspense fallback={<div>Loading...</div>}>
+              {children}
+              <Analytics />
+            </Suspense>
+            <Toaster />
+          </OwnerSettingsProvider>
         </ThemeProvider>
       </body>
     </html>

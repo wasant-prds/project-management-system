@@ -35,11 +35,15 @@
 | `password` | String | credential field; schema ไม่บอก hashing/provider policy |
 | `role` | String, default `member` | field legacy ใน schema; comment ระบุ member/manager/admin แต่ไม่ใช่ Developer/Infra/SA |
 | `avatar`, `phone` | String? | รูป/เบอร์ติดต่อ |
+| `theme` | `UserTheme`, default `light` | Theme ที่ owner เลือกและ Settings/header ใช้ร่วมกัน (#25) |
+| `locale` | `UserLocale`, default `th` | Locale ที่ owner เลือก; ใช้กำหนด HTML language (#25) |
 | `status` | String, default `Active` | comment ระบุ Active/Inactive/Away |
 | `joinDate` | DateTime, default now | วันที่เริ่มงาน |
 | `createdAt`, `updatedAt` | DateTime | เวลาสร้าง/แก้ไข |
 
 Relations: assigned Work Items, Project memberships, comments, activity logs, notifications, time entries, created projects, documents.
+
+Issue #25 เพิ่ม `UserTheme` (`light`, `dark`, `special-dark`) และ `UserLocale` (`th`, `en`) พร้อม defaults ใน Prisma source. Owner profile ใช้ `User.name`, `email`, `phone`, `avatar`; ไม่มีการเก็บ password/2FA หรือ notification preferences. การเปลี่ยน schema ยังไม่ได้ apply กับ database environment ใด.
 
 **Business target:** มีผู้ใช้ระบบเพียงคนเดียวคือเจ้าของโปรเจ็ค และมี `User` record ที่แทนเจ้าของหนึ่งคน ค่า `User.role` ปัจจุบันเป็น implementation เดิม ไม่ได้กำหนด functional role ของงาน; Developer/Infra/SA อยู่ใน `WorkItem.role` เท่านั้น ตารางและ relations ปัจจุบันยังรองรับหลาย User ในเชิง schema แต่ไม่ใช่ requirement ของ product scope
 

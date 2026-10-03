@@ -37,7 +37,7 @@ Company → Project → Work Item → Daily Work (Time Entry)
 - Baseline 2026-09-27: Projects อ่าน `Project` และนับ/สรุป Work Items ได้; #18 เพิ่ม Company relation และ summary จาก WorkItem/TimeEntry ใน source แล้ว โดย rollout/backfill จริงยังต้องผ่าน gate
 - Dashboard, Board และ Analysis มีข้อมูลตัวอย่างฝังในหน้า; จึงไม่ใช่รายงานที่เชื่อถือได้จากฐานข้อมูล
 - Baseline 2026-09-27: Company อ่าน `Company`, `User`, `Project` และ `WorkItem` บางส่วนโดยไม่มี mutation; #18 เพิ่ม Company profile API และ UI ใน source แล้ว
-- Settings มีฟอร์มตัวอย่าง แต่ยังไม่พบ persistence/API สำหรับค่าที่แสดง
+- Baseline 2026-09-27: Settings มีฟอร์มตัวอย่าง; Issue #25 เพิ่ม persistence/API สำหรับ owner profile และ preferences ใน source
 - Prisma schema ปัจจุบันไม่มี authentication/session model หรือ Customer model; API ปัจจุบันไม่มีการบังคับตัวตนผู้เรียก
 - Schema ปัจจุบันมี `TimeEntry.projectId` และ `TimeEntry.workItemId` แยกกัน; application ตรวจความสอดคล้องของคู่ Project/Work Item ขณะบันทึก แต่ schema ไม่ได้บังคับความสัมพันธ์คู่นี้เอง
 
@@ -93,7 +93,7 @@ Company → Project → Work Item → Daily Work (Time Entry)
 | Analysis `/analysis` | อ่าน aggregation จาก WorkItem และ TimeEntry พร้อมช่วงเวลาและ filter ที่ระบุได้ |
 | Daily Work `/daily-work` | CRUD TimeEntry ที่อ้าง WorkItem; ช่วงวัน/สัปดาห์/เดือน/ปีใช้ timezone เดียวกัน |
 | Company `/company` | จัดการ Company หลายราย; สรุป Projects/Work Items/ชั่วโมงจาก DB; ไม่มี user/team administration หรือ Customer registry |
-| Settings `/settings` | แยก profile, preferences และ security; persist ตามเจ้าของ setting; ห้ามแสดงปุ่มบันทึกที่ไม่เกิดผล |
+| Settings `/settings` | Persist profile/preferences ของ owner; security controls มีเฉพาะเมื่อมี provider/API รองรับ; ไม่แสดงปุ่มบันทึกที่ไม่มีผล |
 
 ### 3.4.1 GitLab Issue import
 
@@ -179,3 +179,7 @@ Issue #20 implements owner-triggered GitLab → PMS only, explicit GitLab Projec
 ## Analysis จาก Work Items และ Daily Work ใน #24
 
 `GET /api/analysis/summary` owner-only Route Handler เรียก `lib/analysis.ts`. Service ใช้ `parseDashboardFilters`, `assertFilterRelations`, `selectedWorkItemWhere` และ `selectedTimeEntryWhere` จาก `lib/dashboard.ts`; date anchors, inclusive Bangkok period, Company/Project/role/kind filters, owner scope, open/completed/overdue formulas, completion rate, and metric version therefore match Dashboard. `status`, `kind` และ `priority` breakdowns คำนวณจาก matching WorkItems; current status is not treated as historical throughput. Exact Decimal TimeEntry values are grouped by Bangkok calendar day/week/month and the response includes all filtered WorkItem/TimeEntry source rows and filter options. The browser exports the same response rows to CSV and links back to the exact WorkItem or Daily Work date range. ไม่มี schema/migration, cache, worker หรือ external dependency ใหม่ใน #24.
+
+## Owner Settings ที่ implement ใน #25
+
+`GET/PATCH /api/settings/me` ตรวจ owner ผ่าน `getOwner()` และทำงานกับ `User.id` จาก server เท่านั้น. `User.name`, `email`, `phone`, `avatar` เป็น profile fields; `User.theme` (`light`, `dark`, `special-dark`) และ `User.locale` (`th`, `en`) เป็น preferences ที่บันทึกและอ่านกลับได้. GET/PATCH ไม่คืน password; unique email conflict ตอบ `409`, invalid/unknown field ตอบ `400` และ error จากฐานข้อมูลไม่มีรายละเอียดภายใน. Timezone เป็น `Asia/Bangkok` คงที่แบบ read-only. ไม่มี password/2FA action หรือ notification preferences ที่ไม่ได้เชื่อม provider. เพิ่ม Prisma enum/columns แบบ additive; ก่อน sync schema ต้องผ่าน verified backup/restore, environment approval และ schema-hash gate.

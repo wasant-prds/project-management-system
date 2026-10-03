@@ -44,7 +44,7 @@ flowchart LR
 - Work Items และ Daily Work ใช้ API และ persistent database records
 - Projects page ดึงข้อมูลผ่าน Prisma ฝั่ง server; Project API มี list/create และ detail read/update/delete
 - Company page อ่านบางข้อมูลผ่าน Prisma ฝั่ง server; ยังไม่พบ API สำหรับ Company/Customer persistence; ปุ่มสมาชิกปัจจุบันเป็น UI ที่ไม่ตรงกับ product scope แบบ single-owner
-- Settings เป็น form UI; ยังไม่พบ endpoint สำหรับบันทึก
+- Settings ใช้ owner-only `/api/settings/me` เพื่ออ่าน/บันทึก `User` profile และ theme/locale (#25); schema rollout ยังเป็น environment operation ที่ต้องผ่าน gate
 - Baseline 2026-09-27 ไม่มี owner gate หรือ Project summary; #17 เพิ่ม owner gate/resolver และ #18 เพิ่ม Company relation/API กับ Project summary ใน source โดยยังไม่ยืนยัน database rollout
 
 ## 3. Target logical architecture
@@ -121,7 +121,7 @@ erDiagram
 | Log/edit/delete hours | TimeEntry service → `TimeEntry` linked to WorkItem | Daily Work, Work Item details, Projects, Dashboard, Analysis |
 | Set a Project's Company | Company/Project service → `Project.companyId` | Projects, Dashboard, filters, Analysis |
 | Edit Company data | Company service → `Company`, `Project.companyId` | Company, Projects, Dashboard, Analysis |
-| Change owner preferences | Settings service → owner preference store (target schema decision) | Settings and shared UI |
+| Change owner profile/preferences | `getOwner()` → `User` profile/theme/locale fields | Settings, header theme control, shared ThemeProvider and HTML language |
 
 GitLab sync uses a separate import path into `WorkItem` plus an external reference; the linked PMS Project supplies its Company context. GitLab owns imported title, description, status, mapped types and due date; the PMS owner retains functional role, priority, work date, assignee and Daily Work. Removing a project mapping must not delete imported WorkItems or TimeEntries. The full identity, pagination, partial-result and retry contract is in [GitLab Issue Import Contract](./GITLAB_ISSUE_IMPORT.md). No menu owns a private copy of a Work Item or its status. Dashboard and Analysis are projections (query results), not write models. If one mutation changes related rows, commit the change transactionally and refresh/invalidate the affected query results.
 
@@ -182,7 +182,7 @@ Development, UAT and production use Docker Compose files already present. The sh
 - Owner authentication method and whether this single-owner installation sits behind an additional private network/access gate
 - Company multiplicity is decided for #18: the product supports multiple Companies, with one Company required per Project
 - Whether to add WorkItem status history and a dedicated `completedAt`
-- User preference persistence schema and whether Security settings are in current product scope
+- Custom Security provider: password/2FA settings stay out of scope until an authentication provider exposes safe actions
 - Retention/archive implementation for deleted Projects, Users, WorkItems and TimeEntries; until approved, reject deletion that would cascade into business history
 - GitLab instance/token provisioning, Project mapping, field/label mapping, conflict policy, and whether remote time tracking should create Daily Work entries
 
@@ -218,3 +218,7 @@ Client Component `/board` โหลด WorkItems, Company และ Project opti
 ## Analysis data flow ที่ implement ใน #24
 
 `app/analysis/page.tsx` อ่าน owner-only `GET /api/analysis/summary`. Route ยืนยัน owner แล้วเรียก `lib/analysis.ts`, ซึ่งใช้ parser, relation checks และ WorkItem/TimeEntry query predicates เดียวกับ Dashboard. Response ส่ง summary, current status/kind/priority breakdowns, Bangkok-grouped exact logged hours และ source rows; links ส่ง Company/Project/role/kind/period filters กลับไปยัง Work Items หรือ Daily Work. CSV export สร้างจาก filtered response เดียวกัน. Analysis read model ไม่มี write path, schema, cache, background worker, หรือ historical status projection.
+
+## Owner Settings data flow ที่ implement ใน #25
+
+`GET/PATCH /api/settings/me` ยืนยัน owner server-side แล้วอ่าน/แก้เฉพาะ profile และ preferences ของ `User.id` ที่ resolver คืนมา. `OwnerSettingsProvider` โหลด settings ครั้งเดียวแล้วแชร์ canonical state ให้ Settings และ header; บันทึกจากทั้งสอง UI ผ่าน PATCH กลางเดียวกันและอัปเดต `ThemeProvider` หลัง server ยืนยัน. `User.theme` และ `User.locale` มี schema defaults `light`/`th`; Locale ตั้ง `document.documentElement.lang`. ระหว่างโหลดหรือบันทึก preference จะล็อกการแก้ซ้ำเพื่อกัน response เก่าทับค่าล่าสุด. Timezone เป็นค่าระบบ read-only `Asia/Bangkok`; password/2FA และ notifications ไม่มี controls จนกว่าจะมี provider/integration.

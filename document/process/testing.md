@@ -184,3 +184,14 @@ docker build --target production -t pms-issue16-app-validation .
 $env:PMS_ROLLOUT_TEST_IMAGE = 'pms-issue16-app-validation'
 pnpm test:database-rollout-docker
 ```
+
+## Issue #25 — Owner Settings
+
+Run owner profile/preferences validation, authenticated API persistence/reload, fixed timezone, conflicts, safe database errors, and unsupported security/notification field checks:
+
+```powershell
+pnpm test:settings
+node tests/run.mjs settings
+```
+
+The shared Bash reporter also supports `bash scripts/test-unit.sh settings`. API tests use an in-memory User/Prisma mock and mocked owner/auth boundary; UI and provider tests use mocked React/UI components and API requests to cover shared Settings/header state, load/save ordering, partial updates, and disabled inputs while saving. They do not open a browser or connect to PostgreSQL, Docker, network, external providers, or production data. Schema deployment checks remain separate and must use the verified database rollout gate.

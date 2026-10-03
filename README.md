@@ -214,6 +214,7 @@ pnpm lint               # Run linter
 pnpm test               # Run all Node tests
 pnpm test:contracts     # Verify data and document contracts
 pnpm test:migration-contracts  # Verify Customer/Project migration and identity contract
+  pnpm test:settings      # Verify owner settings persistence and validation
 ```
 
 ### Database

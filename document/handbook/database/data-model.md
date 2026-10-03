@@ -12,7 +12,7 @@ Issue #18 ใช้ `Company → Project`: schema ปัจจุบันไม
 
 | Prisma model / table | ความสัมพันธ์และ API use |
 | --- | --- |
-| `User` / `User` | `getOwner()` อ่าน User ที่ยืนยันแล้ว; `/api/users` คืน owner. User เชื่อม WorkItem และ TimeEntry; `password` ไม่ถูก select/ส่งออก |
+| `User` / `User` | `getOwner()` อ่าน User ที่ยืนยันแล้ว; `/api/users` คืน owner. Settings อ่าน/แก้ profile และ `theme`/`locale`; User เชื่อม WorkItem และ TimeEntry; `password` ไม่ถูก select/ส่งออก |
 | `Company` / `Company` | เก็บ `code`, `name`, `displayName`, ที่ตั้ง, ข้อมูลติดต่อ และรายละเอียด; `code` unique แต่ nullable เพื่อสงวน `dhas`. หนึ่ง Company มีหลาย Projects. Company collection คำนวณจำนวน Project, WorkItem และชั่วโมง TimeEntry |
 | `Project` / `Project` | เก็บชื่อ, สถานะ, priority, date และ required `companyId`; Project แต่ละรายการอ้าง Company หนึ่งรายการ และ relation ใช้ `onDelete: Restrict`. Project เป็น parent ของ WorkItem และ TimeEntry |
 | `WorkItem` / `work_items` | ต้องอ้าง Project และ assignee User; มี status, priority, type, role และ date. API list/detail/create/update/import กรองหรือกำหนด assignee จาก owner |
@@ -50,6 +50,7 @@ Issue #18 ใช้ `Company → Project`: schema ปัจจุบันไม
 - Project API ปฏิเสธการลบเมื่อมี WorkItems, TimeEntries หรือ child history ที่นับใน handler.
 - Company API ปฏิเสธการลบ Dhas Company และ Company ที่ยังมี Projects.
 - WorkItem/TimeEntry ownership เป็น owner ID ที่ resolve ฝั่ง server ไม่ใช่ค่าที่ client ใช้เลือกเจ้าของ.
+- `User.theme` และ `User.locale` ถูกจำกัดด้วย Prisma enums/defaults; timezone ไม่ได้เก็บเป็น preference และ API คืน `Asia/Bangkok` คงที่.
 
 ## Verification และ operations
 

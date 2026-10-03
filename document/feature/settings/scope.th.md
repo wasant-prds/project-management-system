@@ -6,7 +6,7 @@
 | เอกสาร | ขอบเขตงาน (TH) |
 | English version | [scope.en.md](./scope.en.md) |
 | เอกสารที่เกี่ยวข้อง | [business-requirement.th.md](./business-requirement.th.md) |
-| **สถานะ** | **เสร็จ** |
+| **สถานะ** | **#25 implement ใน source; schema rollout ยัง pending** |
 | วันที่ | 2026-09-04 |
 
 เอกสารนี้บอก **สิ่งที่อยู่ใน/นอกงานนี้** และบริการใดที่ทำ ลักษณะผลิตภัณฑ์อยู่ใน [ข้อกำหนดทางธุรกิจ](./business-requirement.th.md)
@@ -20,7 +20,7 @@
 | รันไทม์ | Next.js **`app`** เท่านั้น (`pms-app-dev`) ไม่มีไมโครเซอร์วิสใหม่ |
 | หน้า | `app/settings/page.tsx` |
 | ธีม | `ThemeProvider` ที่มีอยู่ (`storageKey="project-management-theme"`); ใช้ Neumorphism shared tokens ของระบบกับ light/dark/special-dark โดยหน้านี้ไม่เพิ่ม style toggle |
-| API / Docker / migration ใหม่ | **ไม่มี** |
+| API / database | `GET/PATCH /api/settings/me`; เพิ่ม `User.theme` และ `User.locale`; rollout ใช้ schema gate เดิม |
 
 ---
 
@@ -28,7 +28,7 @@
 
 | กรณีธุรกิจ | ในขอบเขต |
 | --- | --- |
-| กรณีที่ 1 — การตั้งค่า | แท็บและฟอร์มที่มีอยู่ |
+| กรณีที่ 1 — การตั้งค่า | owner profile, theme, locale และ timezone แบบอ่านอย่างเดียวที่อ่าน/บันทึกจริง |
 | กรณีที่ 2 — เลื่อน | โครงแถบข้างร่วม + `PAGE_MAIN` |
 | กรณีที่ 3 — คอนทราสต์ | โทเค็นปุ่มร่วมและตัวแปร CSS ของธีม |
 | กรณีที่ 4 — ตอบสนอง | แท็บเลื่อนและฟอร์มเรียงซ้อน |
@@ -40,9 +40,9 @@
 
 | รายการ | นอกขอบเขต |
 | --- | --- |
-| บันทึกโปรไฟล์ | ไม่เพิ่ม API โปรไฟล์ใหม่ในรอบนี้หากฟอร์มยังเป็น UI ท้องถิ่น |
-| ผู้ให้บริการยืนยันตัวตน | ไม่เปลี่ยนล็อกอิน/SSO |
-| แพลตฟอร์ม | ไม่มี REST ใหม่ ไม่เปลี่ยนสคีมา Prisma ไม่มีบริการ Docker ใหม่ |
+| Security provider | ไม่เปลี่ยนล็อกอิน/SSO; ไม่มี password/2FA controls จนกว่าจะมี provider action ที่ปลอดภัย |
+| Notifications | ไม่มี preference controls จนกว่าจะเชื่อม notification channel |
+| แพลตฟอร์ม | ไม่มี Docker service ใหม่; schema rollout ต้องผ่าน verified backup/restore และ approval gate |
 
 ---
 

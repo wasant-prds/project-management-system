@@ -181,6 +181,8 @@ Baseline 2026-09-27: ผู้ใช้เปิด Work Items และ Daily W
 
 **เกณฑ์ยอมรับ:** ทุก control ที่แสดงบันทึก/อ่านค่าได้จริง; settings ผูกกับ account ของเจ้าของ; security actions ใช้ endpoint/provider ที่ปลอดภัย
 
+**Issue #25 implementation:** `GET/PATCH /api/settings/me` persist owner profile (`name`, `email`, `phone`) และ theme/locale; theme ถูกใช้ร่วมกันใน Settings/header/ThemeProvider, locale กำหนด HTML language. แสดง `Asia/Bangkok` แบบ read-only. นำ password/2FA และ notification controls ที่ไม่มี provider ออก. Schema source เพิ่ม `User.theme`/`User.locale`; database rollout ยังต้องผ่าน verified backup/restore และ approval gate.
+
 ## 5. กฎธุรกิจร่วมและ metric definitions
 
 | Metric | นิยามเริ่มต้นที่เสนอ |

@@ -1,0 +1,162 @@
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+import test from 'node:test'
+import vm from 'node:vm'
+
+const require = createRequire(import.meta.url)
+const typescript = require('typescript')
+
+function deferred() {
+  let resolve
+  let reject
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
+}
+
+function createReactRuntime() {
+  const states = new Map()
+  const refs = new Map()
+  let index = 0
+  const effects = []
+  return {
+    effects,
+    createContext: () => ({ Provider: function Provider() {} }),
+    useContext: (context) => context.value,
+    useEffect: (effect) => effects.push(effect),
+    useRef(initial) {
+      const slot = index++
+      if (!refs.has(slot)) refs.set(slot, { current: initial })
+      return refs.get(slot)
+    },
+    useState(initial) {
+      const slot = index++
+      if (!states.has(slot)) states.set(slot, typeof initial === 'function' ? initial() : initial)
+      return [states.get(slot), (next) => states.set(slot, typeof next === 'function' ? next(states.get(slot)) : next)]
+    },
+    render(Provider) {
+      index = 0
+      return Provider({ children: null })
+    },
+  }
+}
+
+function loadProvider({ fetcher, themeChanges, document }) {
+  const react = createReactRuntime()
+  const source = readFileSync(new URL('../../components/layout/owner-settings-provider.tsx', import.meta.url), 'utf8')
+  const output = typescript.transpileModule(source, {
+    compilerOptions: { module: typescript.ModuleKind.CommonJS, target: typescript.ScriptTarget.ES2022, jsx: typescript.JsxEmit.ReactJSX },
+  }).outputText
+  const loadedModule = { exports: {} }
+  vm.runInNewContext(output, {
+    module: loadedModule,
+    exports: loadedModule.exports,
+    require: (name) => {
+      if (name === 'react') return { ...react, createContext: (initialValue) => ({ ...react.createContext(), value: initialValue }) }
+      if (name === 'react/jsx-runtime') return { jsx: (type, props) => ({ type, props }) }
+      if (name === 'next-themes') return { useTheme: () => ({ setTheme: (theme) => themeChanges.push(theme) }) }
+      throw new Error(`Unexpected import: ${name}`)
+    },
+    fetch: fetcher,
+    document,
+    console,
+    Error,
+  }, { filename: 'components/layout/owner-settings-provider.tsx' })
+  return { ...react, OwnerSettingsProvider: loadedModule.exports.OwnerSettingsProvider }
+}
+
+function response(settings, ok = true) {
+  return { ok, json: async () => settings }
+}
+
+const lightSettings = {
+  profile: { name: 'Owner', email: 'owner@example.test', phone: null, avatar: null },
+  preferences: { theme: 'light', locale: 'th', timezone: 'Asia/Bangkok' },
+}
+
+test('Owner settings load completes before mutations; confirmed PATCH updates one shared canonical state', async () => {
+  const getRequest = deferred()
+  const patchRequest = deferred()
+  const calls = []
+  const themeChanges = []
+  const document = { documentElement: { lang: 'th' } }
+  const fetcher = async (path, init = {}) => {
+    calls.push({ path, init })
+    return init.method === 'PATCH' ? patchRequest.promise : getRequest.promise
+  }
+  const runtime = loadProvider({ fetcher, themeChanges, document })
+  let tree = runtime.render(runtime.OwnerSettingsProvider)
+  assert.equal(tree.props.value.isLoading, true)
+  const cleanup = runtime.effects[0]()
+  assert.equal(calls.length, 1)
+  assert.deepEqual(JSON.parse(JSON.stringify(calls[0].init)), { cache: 'no-store' })
+
+  await assert.rejects(tree.props.value.savePreferences({ theme: 'dark' }), /กำลังโหลดการตั้งค่า/)
+  assert.equal(calls.length, 1)
+
+  getRequest.resolve(response(lightSettings))
+  await new Promise((resolve) => setImmediate(resolve))
+  tree = runtime.render(runtime.OwnerSettingsProvider)
+  assert.equal(tree.props.value.isLoading, false)
+  assert.deepEqual(JSON.parse(JSON.stringify(tree.props.value.settings)), lightSettings)
+  assert.deepEqual(themeChanges, ['light'])
+  assert.equal(document.documentElement.lang, 'th')
+
+  const savePromise = tree.props.value.savePreferences({ theme: 'dark' })
+  assert.deepEqual(JSON.parse(calls[1].init.body), { preferences: { theme: 'dark' } })
+  tree = runtime.render(runtime.OwnerSettingsProvider)
+  assert.equal(tree.props.value.isSavingPreferences, true)
+  await assert.rejects(tree.props.value.savePreferences({ theme: 'light' }), /กำลังบันทึกการตั้งค่า/)
+
+  const darkSettings = {
+    ...lightSettings,
+    preferences: { ...lightSettings.preferences, theme: 'dark' },
+  }
+  patchRequest.resolve(response(darkSettings))
+  await savePromise
+  tree = runtime.render(runtime.OwnerSettingsProvider)
+  assert.equal(tree.props.value.isSavingPreferences, false)
+  assert.deepEqual(JSON.parse(JSON.stringify(tree.props.value.settings)), darkSettings)
+  assert.deepEqual(themeChanges, ['light', 'dark'])
+  assert.equal(calls.length, 2)
+  cleanup()
+})
+
+test('Owner settings reload blocks writes until its latest GET completes', async () => {
+  const firstLoad = deferred()
+  const retryLoad = deferred()
+  const patchRequest = deferred()
+  const calls = []
+  const themeChanges = []
+  const document = { documentElement: { lang: 'th' } }
+  const fetcher = async (path, init = {}) => {
+    calls.push({ path, init })
+    if (init.method === 'PATCH') return patchRequest.promise
+    return calls.filter((call) => call.init.method !== 'PATCH').length === 1 ? firstLoad.promise : retryLoad.promise
+  }
+  const runtime = loadProvider({ fetcher, themeChanges, document })
+  let tree = runtime.render(runtime.OwnerSettingsProvider)
+  runtime.effects[0]()
+  firstLoad.resolve(response({ error: { message: 'temporary failure' } }, false))
+  await new Promise((resolve) => setImmediate(resolve))
+  tree = runtime.render(runtime.OwnerSettingsProvider)
+  assert.equal(tree.props.value.loadError, 'temporary failure')
+
+  tree.props.value.reload()
+  tree = runtime.render(runtime.OwnerSettingsProvider)
+  assert.equal(tree.props.value.isLoading, true)
+  const nextEffect = runtime.effects.at(-1)
+  nextEffect()
+  await assert.rejects(tree.props.value.savePreferences({ locale: 'en' }), /กำลังโหลดการตั้งค่า/)
+  assert.equal(calls.filter((call) => call.init.method === 'PATCH').length, 0)
+
+  retryLoad.resolve(response(lightSettings))
+  await new Promise((resolve) => setImmediate(resolve))
+  tree = runtime.render(runtime.OwnerSettingsProvider)
+  assert.equal(tree.props.value.loadError, null)
+  assert.equal(tree.props.value.isLoading, false)
+  assert.equal(calls.filter((call) => call.init.method === 'PATCH').length, 0)
+})

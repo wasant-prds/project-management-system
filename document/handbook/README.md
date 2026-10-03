@@ -14,6 +14,8 @@ Issue #22 เชื่อม Board กับ WorkItem status ชุดเดี�
 
 Issue #24 เพิ่ม Analysis จาก WorkItem/TimeEntry จริงพร้อม shared filters/metrics, owner-only summary API, source tables, Bangkok-grouped logged-hour trends และ CSV export; ไม่มี status history หรือ historical throughput.
 
+Issue #25 เพิ่ม owner-only [Settings API](./api/settings/me.md) และ persistent owner profile/theme/locale. `OwnerSettingsProvider` แชร์ canonical settings state ระหว่าง Settings กับ header theme control; `User.theme`/`User.locale` มี schema defaults และ rollout ต้องผ่าน database gates.
+
 สำหรับ Issue #18 ระบบรองรับหลาย Company แต่ Project แต่ละรายการต้องอ้าง Company หนึ่งรายการผ่าน companyId. Prisma schema ปัจจุบันไม่มี Customer model; รายละเอียด Dhas, Company APIs และ Project APIs อยู่ในหน้า Company/Projects และ [Database model](./database/data-model.md). Handbook ยืนยันพฤติกรรมจาก repository; สถานะข้อมูลในฐานข้อมูล environment จริงต้องตรวจจาก environment นั้นแยกต่างหาก.
 
 ## API
@@ -51,6 +53,10 @@ Route Handler ปัจจุบันมีดังนี้:
 ### Analysis — Issue #24
 
 - [Analysis summary](./api/analysis/summary.md) — owner-only report API สำหรับ WorkItem/TimeEntry KPIs, breakdowns, source rows, Bangkok-grouped hours และ filtered CSV export
+
+### Settings — Issue #25
+
+- [Owner settings](./api/settings/me.md) — owner-only profile/preferences read and update; fixed Bangkok timezone
 
 ### Integrations — GitLab Issue import — Issue #20
 
@@ -91,3 +97,5 @@ Route Handler ปัจจุบันมีดังนี้:
 - [WorkItem export UI helpers](../../components/page/work-items/work-item-export.ts)
 - [Dashboard summary handler](../../app/api/dashboard/summary/route.ts)
 - [Dashboard query and metrics](../../lib/dashboard.ts)
+- [Owner Settings handler](../../app/api/settings/me/route.ts)
+- [Owner Settings provider](../../components/layout/owner-settings-provider.tsx)

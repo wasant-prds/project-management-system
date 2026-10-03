@@ -6,7 +6,7 @@
 | Document | Business requirement (EN) |
 | Thai version | [business-requirement.th.md](./business-requirement.th.md) |
 | Related | [scope.en.md](./scope.en.md) |
-| **Status** | **done** |
+| **Status** | **Issue #25 implemented in source; schema rollout pending** |
 | Date | 2026-09-04 |
 
 This document describes **what the product must do**. Technical boundaries are in the [scope](./scope.en.md).
@@ -15,9 +15,9 @@ This document describes **what the product must do**. Technical boundaries are i
 
 ## Case 1 — Manage preferences
 
-Users open `/settings` to edit profile, notifications, security, and appearance (including light / dark / special-dark). Target behavior: show the fixed system timezone, `Asia/Bangkok`, without a preference that can change stored dates, timestamps, formatting, or metrics.
+The owner opens `/settings` to read and update the single account's name, email, phone, theme (`light` / `dark` / `special-dark`), and locale (`th` / `en`). Show `Asia/Bangkok` as a fixed read-only system timezone. Omit password/2FA and notification controls until a supported provider or channel is integrated.
 
-Appearance uses the system-wide Neumorphism visual language through shared tokens that adapt to the selected theme. Keep the existing light / dark / special-dark choices; do not add a separate Neumorphism preference.
+The saved theme is shared by Settings, the header, and the ThemeProvider; the saved locale sets the HTML language. The interface remains Thai-first; this issue does not translate all menu copy. Appearance uses the system-wide Neumorphism visual language through shared tokens; do not add a separate Neumorphism preference.
 
 ---
 
@@ -55,7 +55,7 @@ Confirm dialogs (if any) use the same opaque card contrast as `/work-items`.
 
 | Case | Done when |
 | --- | --- |
-| 1 | Settings tabs and forms are visible. |
+| 1 | Owner profile and preferences load, persist, and remain saved after reload. |
 | 2 | Main pane and sidebar scroll when content is taller than the viewport. |
 | 3 | Buttons remain readable in every theme; Neumorphism does not reduce contrast or replace visible keyboard focus. |
 | 4 | Phone/tablet/desktop layouts match Case 4. |

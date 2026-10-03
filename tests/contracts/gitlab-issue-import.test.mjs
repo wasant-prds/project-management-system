@@ -29,7 +29,7 @@ test("GitLab import contract distinguishes implemented repository code from envi
   assert.match(syncRoute, /approveFirstSync/);
   assert.match(service, /Serializable/);
   assert.match(inventory ?? "", /\/api\/integrations\/gitlab\/sync/);
-  assert.match(api, /GitLab schema ยังไม่ได้ apply กับ environment/);
+  assert.match(api, /Prisma schema changes ของ #20, #21 และ #25 ยังไม่ได้ apply กับ environment/);
 });
 
 test("scope, owner access, and first-sync mapping gates are explicit", () => {

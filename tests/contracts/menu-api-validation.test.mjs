@@ -21,6 +21,7 @@ test("API handbook separates the actual Route Handler inventory from target prop
     ["app/api/work-items/import/route.ts", ["POST"]],
     ["app/api/dashboard/summary/route.ts", ["GET"]],
     ["app/api/analysis/summary/route.ts", ["GET"]],
+    ["app/api/settings/me/route.ts", ["GET", "PATCH"]],
     ["app/api/work-logs/route.ts", ["GET", "POST"]],
     ["app/api/work-logs/[id]/route.ts", ["GET", "PATCH", "DELETE"]],
   ];
@@ -42,11 +43,8 @@ test("API handbook separates the actual Route Handler inventory from target prop
   }
 
   assert.match(api, /Endpoint ที่มีอยู่ใน repository \(As-Is\)/i);
-  assert.match(api, /Target proposal/);
-  for (const proposedPath of [
-    "/api/analysis/summary",
-    "/api/settings/me",
-  ]) {
+  assert.match(api, /target contract/i);
+  for (const proposedPath of ["/api/analysis/summary"]) {
     assert.ok(api.includes(proposedPath), `Missing target endpoint ${proposedPath}`);
   }
   assert.doesNotMatch(api, /`\/api\/customers/);
@@ -173,7 +171,7 @@ test("target timestamps use the issue's +07:00 API contract and Bangkok persiste
   assert.match(coreRule, /Persist every date and timestamp using Bangkok calendar\/wall-clock semantics; do not convert stored values to UTC/);
   assert.match(dataRule, /Database timestamps represent Bangkok local wall-clock date\/time/);
   assert.match(settingsRule, /Settings must not allow an override/);
-  assert.match(api, /timezone=Asia\/Bangkok` จาก system config แบบ read-only/);
+  assert.match(api, /timezone=Asia\/Bangkok.*read-only/);
 });
 
 test("resource contracts cover create/update guards and shared aggregate filters", () => {
@@ -188,10 +186,10 @@ test("resource contracts cover create/update guards and shared aggregate filters
   assert.match(api, /เมื่อไม่ส่งใช้ทั้งเดือนปัจจุบันใน default time zone `Asia\/Bangkok`/);
   assert.match(api, /multiple Companies with Project, WorkItem, and TimeEntry aggregate summaries/);
   assert.match(api, /Company collection\/create\/update\/delete contracts ของ #18/);
-  assert.match(api, /Target preferences จำกัดที่ theme/);
+  assert.match(api, /Preferences ที่บันทึกจำกัดที่ theme/);
   assert.match(api, /`profile` รองรับ `name`, `email`, `phone`, `avatar`/);
-  assert.match(api, /GET \/api\/settings\/me.*หากยังไม่มี preferences ให้คืน default/);
-  assert.match(api, /คืน default `theme=light`, `locale=th` และเพิ่ม `timezone=Asia\/Bangkok` จาก system config แบบ read-only/);
+  assert.match(api, /GET \/api\/settings\/me.*default ของ schema คือ `theme=light`, `locale=th`/);
+  assert.match(api, /timezone=Asia\/Bangkok.*read-only/);
   assert.match(api, /ห้ามคืน raw database error หรือ stack trace/);
 });
 
@@ -208,4 +206,30 @@ test("focused API contract runner is reusable and documented", async () => {
   assert.match(api, /`pnpm test:api-contracts`, `pnpm test:contracts`, `pnpm test`/);
   assert.match(api, /`pnpm test:gitlab-contracts`/);
   assert.ok(checklist.includes("- [x] **#13** [Define Menu API and Validation Contracts]"));
+});
+
+test("Owner Settings route persists only supported profile/preferences and has a handbook", async () => {
+  const route = await read("app/api/settings/me/route.ts");
+  const service = await read("lib/settings.ts");
+  const schema = await read("prisma/schema.prisma");
+  const handbook = await read("document/handbook/api/settings/me.md");
+  const runner = await read("tests/run.mjs");
+  const packageJson = JSON.parse(await read("package.json"));
+  const guide = await read("document/process/testing.md");
+
+  assert.match(route, /getOwner\(\)/);
+  assert.match(route, /parseOwnerSettingsPatch/);
+  assert.match(route, /Cache-Control.*no-store/);
+  assert.match(service, /where: \{ id: ownerId \}/);
+  assert.match(service, /timezone: SYSTEM_TIMEZONE/);
+  assert.match(schema, /theme\s+UserTheme\s+@default\(light\)/);
+  assert.match(schema, /locale\s+UserLocale\s+@default\(th\)/);
+  assert.match(handbook, /`GET` and `PATCH \/api\/settings\/me`/);
+  assert.match(handbook, /Timezone เป็น read-only/);
+  assert.match(handbook, /never returns the `User\.password` field/);
+  assert.match(runner, /settings: \{ directory: join\(testRoot, "settings"\) \}/);
+  assert.equal(packageJson.scripts["test:settings"], "node tests/run.mjs settings");
+  assert.match(guide, /pnpm test:settings/);
+  assert.match(guide, /node tests\/run\.mjs settings/);
+  assert.match(guide, /bash scripts\/test-unit\.sh settings/);
 });

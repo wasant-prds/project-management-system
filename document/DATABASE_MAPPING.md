@@ -29,7 +29,7 @@ Target mapping: ค่า default time zone ของระบบ, application �
 | GitLab Project link | Target `GitLabProjectMapping` | GitLab instance/project ID → `Project.id`; owner-approved `approvedLabelMap` | Work Items sync setup; Project supplies Customer context | Owner-managed mapping; one GitLab Project maps to one PMS Project in phase one |
 | Company profile | `Company` | `Company.id` | Company, Projects, Work Item detail | Company API (#18) |
 | Project membership | Legacy `ProjectMember` relation | `ProjectMember.id` | As-Is Projects/Company counts only | No multi-member/team management in target scope |
-| Owner preferences | Target owner-scoped preference record or selected provider | owner key | Settings | Target Settings API |
+| Owner profile/preferences | `User.name`, `email`, `phone`, `avatar`, `theme`, `locale` | `User.id` จาก `getOwner()` | Settings และ shared ThemeProvider | `GET/PATCH /api/settings/me` (#25); ไม่มี timezone override, password/2FA หรือ unintegrated notifications |
 
 ## 2. Menu-to-data mapping
 
@@ -42,7 +42,7 @@ Target mapping: ค่า default time zone ของระบบ, application �
 | Analysis `/analysis` | `GET /api/analysis/summary` → `lib/analysis.ts` | `WorkItem`, `TimeEntry`, `Project`, `Company`; filtered source IDs | #24 shares Dashboard parser/where/formulas; returns status/kind/priority breakdown, exact Bangkok-grouped hours, filtered rows and source links/export; no throughput history |
 | Daily Work `/daily-work` | `/api/work-logs`; API persists to `TimeEntry` | `TimeEntry.date/hours/description/remarks/status/userId/projectId/workItemId`; nested User, Project, WorkItem | Derive `projectId` from WorkItem or enforce equality; resolve the sole owner identity server-side; summary uses exact rows |
 | Company `/company` | server Prisma query on `Company`, `User`, `Project`, `WorkItem` | company first row/fallback display; current User/team counts and memberships are legacy UI/schema | Implement Company profile and Customer registry persistence; show Customer → Projects → Work Items/hours; remove member/team administration |
-| Settings `/settings` | static form defaults and UI controls | No persistence/API mapping found | Profile/preferences map to the sole owner; security controls require owner authentication/provider integration |
+| Settings `/settings` | `GET/PATCH /api/settings/me` + `User` | `name`, `email`, `phone`, `avatar`, `theme`, `locale`; timezone มาจาก system config | #25 persist owner-scoped profile/preferences; ThemeProvider and header use saved theme; HTML `lang` follows locale; Bangkok timezone is read-only |
 
 ## 3. Field-level mapping
 

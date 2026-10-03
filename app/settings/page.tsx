@@ -1,7 +1,9 @@
 'use client'
 
-import { AppSidebar } from "@/components/layout/app-sidebar"
-import { AppHeader } from "@/components/layout/app-header"
+import { useState, type FormEvent } from 'react'
+import { AppSidebar } from '@/components/layout/app-sidebar'
+import { AppHeader } from '@/components/layout/app-header'
+import { useOwnerSettings } from '@/components/layout/owner-settings-provider'
 import {
   PAGE_HEADING,
   PAGE_INNER,
@@ -9,234 +11,288 @@ import {
   PAGE_MAIN,
   TAB_SCROLL_CLASS,
   TAB_TRIGGER_CLASS,
-} from "@/components/layout/page-layout"
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+} from '@/components/layout/page-layout'
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { SETTINGS_LOCALES, SETTINGS_THEMES, type OwnerSettings, type SettingsLocale, type SettingsTheme } from '@/lib/settings-input'
+
+type Feedback = { kind: 'success' | 'error'; message: string }
+type Profile = OwnerSettings['profile']
+type ProfileDraft = Partial<Profile>
+type PreferencesDraft = { theme?: SettingsTheme; locale?: SettingsLocale }
+
+const themeLabels: Record<SettingsTheme, string> = { light: 'สว่าง', dark: 'มืด', 'special-dark': 'มืดพิเศษ' }
+const localeLabels: Record<SettingsLocale, string> = { th: 'ไทย', en: 'English' }
+
+function getAvatarInitials(name: string) {
+  return Array.from(name.trim()).slice(0, 2).join('').toLocaleUpperCase('th') || 'PMS'
+}
+
+function changedProfile(profile: Profile, draft: ProfileDraft): ProfileDraft {
+  return Object.fromEntries(
+    Object.entries(draft).filter(([key, value]) => profile[key as keyof Profile] !== value),
+  ) as ProfileDraft
+}
 
 export default function SettingsPage() {
+  const {
+    settings,
+    isLoading,
+    loadError,
+    isSavingProfile,
+    isSavingPreferences,
+    reload,
+    saveProfile,
+    savePreferences,
+  } = useOwnerSettings()
+  const [profileDraft, setProfileDraft] = useState<ProfileDraft>({})
+  const [preferencesDraft, setPreferencesDraft] = useState<PreferencesDraft>({})
+  const [profileFeedback, setProfileFeedback] = useState<Feedback | null>(null)
+  const [preferencesFeedback, setPreferencesFeedback] = useState<Feedback | null>(null)
+
+  const profile = settings ? { ...settings.profile, ...profileDraft } : null
+  const preferences = settings
+    ? { ...settings.preferences, ...preferencesDraft }
+    : null
+  const profileChanges = settings ? changedProfile(settings.profile, profileDraft) : {}
+  const preferencesChanges = settings && preferences
+    ? {
+        ...(preferences.theme !== settings.preferences.theme ? { theme: preferences.theme } : {}),
+        ...(preferences.locale !== settings.preferences.locale ? { locale: preferences.locale } : {}),
+      }
+    : {}
+
+  async function handleProfileSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (Object.keys(profileChanges).length === 0) return
+    setProfileFeedback(null)
+    try {
+      await saveProfile(profileChanges)
+      setProfileDraft({})
+      setProfileFeedback({ kind: 'success', message: 'บันทึกโปรไฟล์แล้ว' })
+    } catch (error) {
+      setProfileFeedback({
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'บันทึกโปรไฟล์ไม่สำเร็จ',
+      })
+    }
+  }
+
+  async function handlePreferencesSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (Object.keys(preferencesChanges).length === 0) return
+    setPreferencesFeedback(null)
+    try {
+      await savePreferences(preferencesChanges)
+      setPreferencesDraft({})
+      setPreferencesFeedback({ kind: 'success', message: 'บันทึกการตั้งค่าแล้ว' })
+    } catch (error) {
+      setPreferencesFeedback({
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'บันทึกการตั้งค่าไม่สำเร็จ',
+      })
+    }
+  }
+
+  function cancelProfileChanges() {
+    setProfileDraft({})
+    setProfileFeedback(null)
+  }
+
+  function cancelPreferenceChanges() {
+    setPreferencesDraft({})
+    setPreferencesFeedback(null)
+  }
+
   return (
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
         <AppHeader />
-        <main className={PAGE_MAIN}>
+        <main className={PAGE_MAIN} aria-busy={isLoading}>
           <div className={PAGE_INNER}>
             <div>
-              <h1 className={PAGE_HEADING}>Settings</h1>
-              <p className={PAGE_LEAD}>Manage your account and application preferences</p>
+              <h1 className={PAGE_HEADING}>การตั้งค่า</h1>
+              <p className={PAGE_LEAD}>จัดการโปรไฟล์และการตั้งค่าของเจ้าของระบบ</p>
             </div>
 
-            <Tabs defaultValue="profile" className="space-y-4">
-              <div className={TAB_SCROLL_CLASS}>
-                <TabsList>
-                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="profile">Profile</TabsTrigger>
-                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="notifications">Notifications</TabsTrigger>
-                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="security">Security</TabsTrigger>
-                  <TabsTrigger className={TAB_TRIGGER_CLASS} value="appearance">Appearance</TabsTrigger>
-                </TabsList>
-              </div>
+            {isLoading && <output className="text-sm text-muted-foreground">กำลังโหลดการตั้งค่า...</output>}
+            {loadError && (
+              <Card>
+                <CardContent className="space-y-3 p-5">
+                  <p role="alert" className="text-sm text-destructive">{loadError}</p>
+                  <Button type="button" variant="outline" onClick={reload}>
+                    ลองโหลดอีกครั้ง
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
-              <TabsContent value="profile" className="space-y-4">
-                <Card className="card-shadow">
-                  <CardHeader>
-                    <CardTitle>Profile Information</CardTitle>
-                    <CardDescription>Update your personal information and profile details</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="flex items-center gap-4">
-                      <Avatar className="h-20 w-20 border-2 border-primary/20">
-                        <AvatarFallback className="bg-primary/10 text-primary text-xl font-semibold">AD</AvatarFallback>
-                      </Avatar>
-                      <div className="space-y-2">
-                        <Button variant="outline">
-                          Change Avatar
-                        </Button>
-                        <p className="text-xs text-muted-foreground">JPG, PNG or GIF. Max size 2MB.</p>
-                      </div>
-                    </div>
+            {!isLoading && !loadError && profile && preferences && (
+              <Tabs defaultValue="profile" className="space-y-4">
+                <div className={TAB_SCROLL_CLASS}>
+                  <TabsList aria-label="หมวดการตั้งค่า">
+                    <TabsTrigger className={TAB_TRIGGER_CLASS} value="profile">โปรไฟล์</TabsTrigger>
+                    <TabsTrigger className={TAB_TRIGGER_CLASS} value="preferences">การแสดงผล</TabsTrigger>
+                  </TabsList>
+                </div>
 
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="firstName">First Name</Label>
-                        <Input id="firstName" defaultValue="Admin" className="bg-secondary/50" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="lastName">Last Name</Label>
-                        <Input id="lastName" defaultValue="User" className="bg-secondary/50" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          defaultValue="admin@projecthub.com"
-                          className="bg-secondary/50"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="phone">Phone</Label>
-                        <Input id="phone" defaultValue="+1 (555) 123-4567" className="bg-secondary/50" />
-                      </div>
-                      <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="bio">Bio</Label>
-                        <Input id="bio" defaultValue="Project Manager at ProjectHub" className="bg-secondary/50" />
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline">
-                        Cancel
-                      </Button>
-                      <Button>Save Changes</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="notifications" className="space-y-4">
-                <Card className="card-shadow">
-                  <CardHeader>
-                    <CardTitle>Notification Preferences</CardTitle>
-                    <CardDescription>Manage how you receive notifications</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Email Notifications</Label>
-                          <p className="text-sm text-muted-foreground">Receive notifications via email</p>
+                <TabsContent value="profile" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>โปรไฟล์เจ้าของระบบ</CardTitle>
+                      <CardDescription>ข้อมูลนี้ผูกกับ owner account ที่ยืนยันตัวตนอยู่; อีเมลนี้ไม่เปลี่ยน credential ของ access gate</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <form className="space-y-6" onSubmit={handleProfileSubmit}>
+                        <div className="flex items-center gap-4">
+                          <Avatar className="h-16 w-16 border border-border">
+                            {profile.avatar && <AvatarImage src={profile.avatar} alt="รูปโปรไฟล์เจ้าของระบบ" />}
+                            <AvatarFallback className="bg-primary/10 font-semibold text-primary">
+                              {getAvatarInitials(profile.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <p className="text-sm text-muted-foreground">รูปโปรไฟล์จะแสดงเมื่อมี avatar ที่บันทึกไว้ในบัญชี</p>
                         </div>
-                        <Switch defaultChecked />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Work Item Assignments</Label>
-                          <p className="text-sm text-muted-foreground">Get notified when assigned to work items</p>
-                        </div>
-                        <Switch defaultChecked />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Project Updates</Label>
-                          <p className="text-sm text-muted-foreground">Receive updates on project progress</p>
-                        </div>
-                        <Switch defaultChecked />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Work Item Mentions</Label>
-                          <p className="text-sm text-muted-foreground">Get notified when mentioned in work items</p>
-                        </div>
-                        <Switch defaultChecked />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Weekly Reports</Label>
-                          <p className="text-sm text-muted-foreground">Receive weekly activity summaries</p>
-                        </div>
-                        <Switch />
-                      </div>
-                    </div>
 
-                    <div className="flex justify-end gap-2 pt-4">
-                      <Button variant="outline">
-                        Cancel
-                      </Button>
-                      <Button>Save Preferences</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="security" className="space-y-4">
-                <Card className="card-shadow">
-                  <CardHeader>
-                    <CardTitle>Security Settings</CardTitle>
-                    <CardDescription>Manage your password and security preferences</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="currentPassword">Current Password</Label>
-                        <Input id="currentPassword" type="password" className="bg-secondary/50" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="newPassword">New Password</Label>
-                        <Input id="newPassword" type="password" className="bg-secondary/50" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                        <Input id="confirmPassword" type="password" className="bg-secondary/50" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 pt-4 border-t border-border/50">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Two-Factor Authentication</Label>
-                          <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="owner-name">ชื่อที่แสดง</Label>
+                            <Input
+                              id="owner-name"
+                              autoComplete="name"
+                              maxLength={100}
+                              required
+                              disabled={isSavingProfile}
+                              value={profile.name}
+                              onChange={(event) => {
+                                const name = event.currentTarget.value
+                                setProfileDraft((draft) => ({ ...draft, name }))
+                              }}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="owner-email">อีเมล</Label>
+                            <Input
+                              id="owner-email"
+                              type="email"
+                              autoComplete="email"
+                              maxLength={254}
+                              required
+                              disabled={isSavingProfile}
+                              value={profile.email}
+                              onChange={(event) => {
+                                const email = event.currentTarget.value
+                                setProfileDraft((draft) => ({ ...draft, email }))
+                              }}
+                            />
+                          </div>
+                          <div className="space-y-2 sm:col-span-2">
+                            <Label htmlFor="owner-phone">เบอร์โทรศัพท์ <span className="text-muted-foreground">(ไม่บังคับ)</span></Label>
+                            <Input
+                              id="owner-phone"
+                              type="tel"
+                              autoComplete="tel"
+                              maxLength={40}
+                              disabled={isSavingProfile}
+                              value={profile.phone ?? ''}
+                              onChange={(event) => {
+                                const phone = event.currentTarget.value
+                                setProfileDraft((draft) => ({ ...draft, phone }))
+                              }}
+                            />
+                          </div>
                         </div>
-                        <Switch />
-                      </div>
-                    </div>
 
-                    <div className="flex justify-end gap-2 pt-4">
-                      <Button variant="outline">
-                        Cancel
-                      </Button>
-                      <Button>Update Password</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+                        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                          <Button type="button" variant="outline" disabled={isSavingProfile} onClick={cancelProfileChanges}>
+                            ยกเลิก
+                          </Button>
+                          <Button type="submit" disabled={isSavingProfile || Object.keys(profileChanges).length === 0}>
+                            {isSavingProfile ? 'กำลังบันทึก...' : 'บันทึกโปรไฟล์'}
+                          </Button>
+                        </div>
+                        {profileFeedback && (
+                          <output aria-live="polite" className={profileFeedback.kind === 'error' ? 'text-sm text-destructive' : 'text-sm text-primary'}>
+                            {profileFeedback.message}
+                          </output>
+                        )}
+                      </form>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
 
-              <TabsContent value="appearance" className="space-y-4">
-                <Card className="card-shadow">
-                  <CardHeader>
-                    <CardTitle>Appearance Settings</CardTitle>
-                    <CardDescription>Customize the look and feel of the application</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Dark Mode</Label>
-                          <p className="text-sm text-muted-foreground">Use dark theme across the application</p>
+                <TabsContent value="preferences" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>การแสดงผล</CardTitle>
+                      <CardDescription>ค่าที่บันทึกจะใช้ต่อเมื่อเปิดหน้าเว็บหรือ session ใหม่</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <form className="space-y-6" onSubmit={handlePreferencesSubmit}>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="owner-theme">Theme</Label>
+                            <select
+                              id="owner-theme"
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              disabled={isSavingPreferences}
+                              value={preferences.theme}
+                              onChange={(event) => {
+                                const theme = event.currentTarget.value as SettingsTheme
+                                setPreferencesDraft((draft) => ({ ...draft, theme }))
+                              }}
+                            >
+                              {SETTINGS_THEMES.map((theme) => <option key={theme} value={theme}>{themeLabels[theme]}</option>)}
+                            </select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="owner-locale">ภาษา</Label>
+                            <select
+                              id="owner-locale"
+                              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              disabled={isSavingPreferences}
+                              value={preferences.locale}
+                              onChange={(event) => {
+                                const locale = event.currentTarget.value as SettingsLocale
+                                setPreferencesDraft((draft) => ({ ...draft, locale }))
+                              }}
+                            >
+                              {SETTINGS_LOCALES.map((locale) => <option key={locale} value={locale}>{localeLabels[locale]}</option>)}
+                            </select>
+                            <p className="text-xs text-muted-foreground">บันทึก locale และกำหนด HTML language; ข้อความ UI ปัจจุบันแสดงภาษาไทย</p>
+                          </div>
+                          <div className="space-y-2 sm:col-span-2">
+                            <Label htmlFor="owner-timezone">Timezone ของระบบ</Label>
+                            <Input id="owner-timezone" value={preferences.timezone} readOnly aria-readonly="true" />
+                            <p className="text-xs text-muted-foreground">ระบบใช้ timezone นี้กับวันที่ การบันทึก และการคำนวณทุกเมนู และไม่สามารถเปลี่ยนได้</p>
+                          </div>
                         </div>
-                        <Switch defaultChecked />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Compact View</Label>
-                          <p className="text-sm text-muted-foreground">Reduce spacing for more content</p>
-                        </div>
-                        <Switch />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Show Animations</Label>
-                          <p className="text-sm text-muted-foreground">Enable smooth transitions and effects</p>
-                        </div>
-                        <Switch defaultChecked />
-                      </div>
-                    </div>
 
-                    <div className="flex justify-end gap-2 pt-4">
-                      <Button variant="outline">
-                        Cancel
-                      </Button>
-                      <Button>Save Preferences</Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
+                        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                          <Button type="button" variant="outline" disabled={isSavingPreferences} onClick={cancelPreferenceChanges}>
+                            ยกเลิก
+                          </Button>
+                          <Button type="submit" disabled={isSavingPreferences || Object.keys(preferencesChanges).length === 0}>
+                            {isSavingPreferences ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}
+                          </Button>
+                        </div>
+                        {preferencesFeedback && (
+                          <output aria-live="polite" className={preferencesFeedback.kind === 'error' ? 'text-sm text-destructive' : 'text-sm text-primary'}>
+                            {preferencesFeedback.message}
+                          </output>
+                        )}
+                      </form>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            )}
           </div>
         </main>
       </SidebarInset>

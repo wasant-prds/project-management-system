@@ -33,7 +33,7 @@ Step 1 จัดทำ baseline และข้อกำหนดครบชุ
 | Management — Analysis `/analysis` | KPI/charts/tables จาก WorkItem และ TimeEntry จริง | #24 ส่งมอบ owner-only summary API, shared filters/metrics, source tables, Bangkok grouping และ CSV export |
 | Management — Daily Work `/daily-work` | CRUD TimeEntry, period views, WorkItem/Project relation, hours | มี API/หน้าใช้งาน; เสริม auth, validation, date/time consistency |
 | Management — Company `/company` | จัดการหลาย Companies และ Project portfolio | #18 เพิ่ม Company API/UI; ไม่มีสมาชิกหลายคนหรือ Customer registry |
-| Settings `/settings` | Profile/preferences/security ของ owner account เดียวที่ persist | ปัจจุบันเป็น form UI; เพิ่ม persistence และ owner access control |
+| Settings `/settings` | Profile/preferences ของ owner account เดียวที่ persist; fixed read-only timezone | #25 เพิ่ม owner-only API, User schema fields, feedback และ persistent theme/locale; ไม่มี security/notification control ที่ยังไม่เชื่อม provider |
 
 ## 3. Data scope และระบบที่เชื่อมกัน
 
@@ -198,3 +198,7 @@ Dashboard ใช้ shared server query สำหรับหน้า `/` แ�
 ## ขอบเขตที่ส่งมอบใน Issue #24
 
 Analysis `/analysis` ใช้ `GET /api/analysis/summary` และ shared Dashboard filters/formulas เพื่อแสดง WorkItem status/kind/priority, open/completed/overdue, exact TimeEntry hours, source rows และ CSV export. Company, Project, functional role, kind และ inclusive Bangkok date range ใช้ชุดเดียวกับ KPI/charts/tables. WorkItem links เปิด exact source ID; Daily Work links คงวันที่และ filters. ไม่มี historical throughput, schema change, cache, worker หรือ Docker service.
+
+## ขอบเขตที่ส่งมอบใน Issue #25
+
+Settings `/settings` อ่านและบันทึก owner profile (`name`, `email`, `phone`) และ preferences (`theme`, `locale`) ผ่าน `GET/PATCH /api/settings/me`; server resolve owner เองและตรวจข้อมูลก่อนเขียน. Theme ใช้ร่วมกับ ThemeProvider/header, locale กำหนด HTML language และ `Asia/Bangkok` แสดงแบบ read-only. Security/notification controls ที่ไม่มี provider ถูกนำออก. Prisma schema เพิ่ม theme/locale defaults; ยังไม่ได้ apply schema หรือ deploy และต้องผ่าน rollout gates ของ environment เป้าหมาย.

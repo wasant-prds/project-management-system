@@ -164,3 +164,7 @@ Issue #23 เพิ่ม owner-only `GET /api/dashboard/summary` และ quer
 ## Analysis implementation ใน #24
 
 Issue #24 เพิ่ม owner-only `GET /api/analysis/summary` และ browser CSV export; ใช้ Next.js/Prisma runtime กับ owner gate เดิม. ไม่มี environment variable, worker, cache, schema sync, migration หรือ Docker service ใหม่. ก่อน release ให้รัน `pnpm test:analysis`, `pnpm test:dashboard`, `pnpm lint` และ `pnpm typecheck`. Issue นี้ไม่ได้ deploy หรือเปลี่ยนฐานข้อมูลจริง; target database ยังคงต้องผ่าน rollout/backup gates ของ source schema #21 ตาม environment ก่อนใช้งาน.
+
+## Owner Settings implementation ใน #25
+
+Issue #25 เพิ่ม owner-only `GET/PATCH /api/settings/me` และ Prisma fields/enums สำหรับ `User.theme`/`User.locale`; ไม่มี environment variable หรือ Docker service ใหม่. Schema source ยังไม่ได้ apply กับฐานข้อมูล environment ใด. ก่อน deploy ให้ตรวจ diff/schema hash, ทำ verified backup และ isolated restore, รับ explicit approval ของ environment แล้วใช้ migration service/`prisma db push` ที่ผ่าน rollout gate. รัน `pnpm test:settings`, `pnpm test:api-contracts`, `pnpm exec prisma validate`, `pnpm typecheck` และ `pnpm lint`. ไม่รัน DB sync หรือ deploy ใน Issue #25.
