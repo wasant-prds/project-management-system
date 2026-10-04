@@ -112,7 +112,8 @@ test('TC-28-06 metric changes and progress values use short, transform-based fee
   const { Progress } = load('components/ui/progress.tsx')
   const metric = renderToStaticMarkup(React.createElement(SummaryStatCard, { label: 'Open', value: 8 }))
   const progress = renderToStaticMarkup(React.createElement(Progress, { value: 78, 'aria-label': 'Project progress' }))
-  assert.match(metric, /class="motion-value-change"[^>]*>8<\/span>/)
+  assert.match(metric, /data-slot="animated-stat-value" class="motion-value-change"/)
+  assert.match(metric, /<span aria-hidden="true">8<\/span><span class="sr-only">8<\/span>/)
   assert.match(progress, /data-slot="progress-indicator"[^>]*class="motion-progress-indicator/)
   assert.match(progress, /transform:translateX\(-22%\)/)
   assert.match(css, /\.motion-progress-indicator\s*\{\s*transition:\s*transform var\(--motion-data\)/)
@@ -342,18 +343,278 @@ test('TC-28-17 compiled stagger preserves bounded delays instead of resetting th
   assert.ok(MOTION_DURATION_MS.staggerStep * 4 <= 100)
 })
 
-test('TC-28-18 KPI feedback restarts only when a primitive value changes and transforms an inline block', async () => {
+test('TC-28-18 exact formatted KPI feedback changes keys while integer counters retain their component', async () => {
   const { SummaryStatCard } = load('components/layout/summary-stat-card.tsx')
+  const { AnimatedStatValue } = load('components/ui/animated-stat-value.tsx')
   const valueSpan = (value) => descendants(SummaryStatCard({ label: 'Open', value }))
     .find((element) => element.type === 'span' && element.props.className === MOTION_CLASS.valueChange)
-  assert.equal(valueSpan(8).key, valueSpan(8).key)
-  assert.notEqual(valueSpan(8).key, valueSpan(9).key)
-  assert.equal(valueSpan(0).props.children, 0)
+  assert.equal(valueSpan('8').key, valueSpan('8').key)
+  assert.notEqual(valueSpan('8').key, valueSpan('9').key)
+  const counter = descendants(SummaryStatCard({ label: 'Open', value: 0 })).find((element) => element.type === AnimatedStatValue)
+  assert.equal(counter.props.value, 0)
+  const nextCounter = descendants(SummaryStatCard({ label: 'Open', value: 9 })).find((element) => element.type === AnimatedStatValue)
+  assert.equal(counter.key, nextCounter.key)
   assert.equal(valueSpan(React.createElement('strong', null, 'unavailable')), undefined)
   const styles = await compiledStyles
   let display
   styles.walkRules('.motion-value-change', (rule) => rule.walkDecls('display', (declaration) => { display = declaration.value }))
   assert.equal(display, 'inline-block')
+})
+
+test('TC-28-25 Board loading preserves status columns with decorative cards and local scrolling', () => {
+  const { ContentLoadingSkeleton } = load('components/layout/content-loading-skeleton.tsx')
+  const { WORK_ITEM_STATUSES } = load('lib/work-items.ts')
+  const html = renderToStaticMarkup(React.createElement(ContentLoadingSkeleton, { layout: 'board' }))
+  assert.match(html, /aria-hidden="true"[^>]*data-layout="board"/)
+  assert.match(html, /overflow-x-auto overscroll-contain/)
+  assert.equal((html.match(/data-slot="skeleton"/g) ?? []).length, WORK_ITEM_STATUSES.length * 3)
+  assert.doesNotMatch(html, /role="status"|role="alert"/)
+  assert.match(source('../../app/board/page.tsx'), /role="status" aria-busy="true"[^\n]*ContentLoadingSkeleton layout="board"/)
+  assert.match(source('../../app/work-items/page.tsx'), /PageState kind="loading" title="กำลังโหลด Work Items…" loadingLayout="rows"/)
+})
+
+test('TC-28-26 data and expanded group reveals preserve sticky positioning and reduced-motion behavior', async () => {
+  const styles = await compiledStyles
+  const entrance = matchingRules(styles, '.motion-data-enter').find((rule) => declaration(rule, 'animation'))
+  assert.match(declaration(entrance, 'animation'), /^pms-page-enter var\(--motion-fast\)/)
+  assert.equal(declaration(entrance, 'transform'), undefined)
+  let disabled = false
+  styles.walkAtRules('media', (rule) => {
+    if (rule.params.includes('prefers-reduced-motion: reduce') && rule.toString().includes('.motion-data-enter') && rule.toString().includes('animation: none')) disabled = true
+  })
+  assert.equal(disabled, true)
+  assert.match(source('../../components/page/work-items/work-item-grouped-list.tsx'), /motion-data-enter min-w-0 space-y-4/)
+})
+
+test('TC-28-27 tooltip and toast exit timing overrides entrance while accordion shares centralized timing', async () => {
+  const styles = await compiledStyles
+  for (const slot of ['tooltip-content', 'toast']) {
+    const exit = matchingRules(styles, `[data-state='closed'][data-slot='${slot}']`).find((rule) => !isLayered(rule))
+    assert.equal(declaration(exit, 'animation-duration'), 'var(--motion-fast)')
+    assert.equal(declaration(exit, 'animation-timing-function'), 'var(--ease-exit)')
+  }
+  const accordion = matchingRules(styles, "[data-slot='accordion-content']").find((rule) => !rule.selector.includes('closed'))
+  assert.equal(declaration(accordion, 'animation-duration'), 'var(--motion-overlay)')
+})
+
+function stickyFixture({ withRoot = true, withObserver = true, withView = true } = {}) {
+  const frames = new Map()
+  const listeners = new Map()
+  const measured = []
+  const observed = []
+  let id = 0
+  let reads = 0
+  let disconnected = false
+  let observerCallback
+  let top = 122
+  const view = {
+    requestAnimationFrame(callback) { frames.set(++id, callback); return id },
+    cancelAnimationFrame(frame) { frames.delete(frame) },
+    getComputedStyle() { reads++; return { paddingTop: '12px' } },
+    addEventListener(event, callback) { listeners.set(event, callback) },
+    removeEventListener(event) { listeners.delete(event) },
+  }
+  const header = { ownerDocument: { defaultView: withView ? view : null }, getBoundingClientRect() { reads++; return { height: 36, top } } }
+  const root = withRoot ? {
+    getBoundingClientRect() { reads++; return { top: 100 } },
+    addEventListener(event, callback, options) { assert.equal(options.passive, true); listeners.set(event, callback) },
+    removeEventListener(event) { listeners.delete(event) },
+  } : null
+  class Observer {
+    constructor(callback) { observerCallback = callback }
+    observe(element) { observed.push(element) }
+    disconnect() { disconnected = true }
+  }
+  const fixtureLoad = createComponentLoader({}, { ResizeObserver: withObserver ? Observer : undefined })
+  const { observeStickyHeader } = fixtureLoad('components/page/work-items/sticky-header-observer.ts')
+  const dispose = observeStickyHeader(header, root, 9, (height, stuck) => measured.push([height, stuck]))
+  return {
+    frames, listeners, measured, observed, dispose,
+    get reads() { return reads }, get disconnected() { return disconnected },
+    resize() { observerCallback?.() }, move(value) { top = value },
+    flush() { const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach((callback) => callback()) },
+  }
+}
+
+test('TC-28-28 sticky scroll bursts perform one geometry read per element per frame with correct offsets', () => {
+  const fixture = stickyFixture()
+  assert.deepEqual(fixture.measured, [[36, true]])
+  assert.equal(fixture.observed.length, 2)
+  for (let i = 0; i < 20; i++) fixture.listeners.get('scroll')()
+  fixture.listeners.get('resize')()
+  fixture.resize()
+  assert.equal(fixture.frames.size, 1)
+  assert.equal(fixture.reads, 3)
+  fixture.move(123)
+  fixture.flush()
+  assert.equal(fixture.reads, 6)
+  assert.deepEqual(fixture.measured.at(-1), [36, false])
+  fixture.dispose()
+})
+
+test('TC-28-29 sticky observer cancels pending work and supports missing root observer or browser view', () => {
+  const fixture = stickyFixture()
+  fixture.listeners.get('scroll')()
+  fixture.dispose()
+  fixture.flush()
+  assert.equal(fixture.frames.size, 0)
+  assert.equal(fixture.listeners.size, 0)
+  assert.equal(fixture.disconnected, true)
+  assert.equal(fixture.measured.length, 1)
+  const fallback = stickyFixture({ withRoot: false, withObserver: false })
+  assert.deepEqual(fallback.measured, [[36, false]])
+  fallback.listeners.get('resize')()
+  fallback.flush()
+  fallback.dispose()
+  const server = stickyFixture({ withView: false })
+  assert.equal(server.measured.length, 0)
+  assert.doesNotThrow(server.dispose)
+})
+
+function frameScheduler() {
+  const frames = new Map()
+  let id = 0
+  return {
+    frames,
+    requestAnimationFrame(callback) { frames.set(++id, callback); return id },
+    cancelAnimationFrame(frame) { frames.delete(frame) },
+    flush(time) { const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach((callback) => callback(time)) },
+  }
+}
+
+test('TC-28-30 only safe integer metrics interpolate while exact hours formatted values and unchanged counts do not', () => {
+  const { canTweenMetric, tweenMetric } = load('components/ui/metric-motion.ts')
+  for (const value of [0, 8, -4, Number.MAX_SAFE_INTEGER]) assert.equal(canTweenMetric(value), true)
+  for (const value of ['12.50', '1,024', 1.25, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) assert.equal(canTweenMetric(value), false)
+  const scheduler = frameScheduler()
+  const values = []
+  const dispose = tweenMetric(8, 8, scheduler, (value) => values.push(value))
+  assert.deepEqual(values, [8])
+  assert.equal(scheduler.frames.size, 0)
+  dispose()
+})
+
+test('TC-28-31 count updates stay within their bounds and finish at the exact target within shared duration', () => {
+  const { tweenMetric } = load('components/ui/metric-motion.ts')
+  for (const [from, to] of [[0, 12], [12, 0], [-8, 8]]) {
+    const scheduler = frameScheduler()
+    const values = []
+    tweenMetric(from, to, scheduler, (value) => values.push(value))
+    scheduler.flush(0)
+    scheduler.flush(MOTION_DURATION_MS.standard / 2)
+    scheduler.flush(MOTION_DURATION_MS.standard)
+    assert.equal(values[0], from)
+    assert.equal(values.at(-1), to)
+    assert.ok(values.every((value) => Number.isInteger(value) && value >= Math.min(from, to) && value <= Math.max(from, to)))
+    assert.equal(scheduler.frames.size, 0)
+  }
+})
+
+test('TC-28-32 cancelling count motion prevents stale frame writes after a replacement or unmount', () => {
+  const { tweenMetric } = load('components/ui/metric-motion.ts')
+  const scheduler = frameScheduler()
+  const values = []
+  const dispose = tweenMetric(0, 12, scheduler, (value) => values.push(value))
+  const stale = [...scheduler.frames.values()][0]
+  dispose()
+  stale(400)
+  assert.deepEqual(values, [0])
+  assert.equal(scheduler.frames.size, 0)
+})
+
+test('TC-28-33 integer metric starts exact resumes from the displayed value and snaps immediately for reduced motion', () => {
+  const scheduler = frameScheduler()
+  const node = { ownerDocument: { defaultView: scheduler }, textContent: '8' }
+  const refs = [{ current: node }, { current: 8 }]
+  let refIndex = 0
+  let effect
+  let reduced = false
+  const fixtureLoad = createComponentLoader({
+    react: { ...React, useRef: () => refs[refIndex++], useEffect: (callback) => { effect = callback } },
+    '@/hooks/use-prefers-reduced-motion': { usePrefersReducedMotion: () => reduced },
+  })
+  const { AnimatedStatValue } = fixtureLoad('components/ui/animated-stat-value.tsx')
+  const render = (value) => { refIndex = 0; return AnimatedStatValue({ value }) }
+  assert.equal(descendants(render(8)).find((element) => element.props.className === 'sr-only').props.children, 8)
+  effect()()
+  assert.equal(scheduler.frames.size, 0)
+  const updated = render(12)
+  let dispose = effect()
+  scheduler.flush(0)
+  scheduler.flush(MOTION_DURATION_MS.standard / 4)
+  const displayed = Number(node.textContent)
+  assert.ok(displayed > 8 && displayed < 12)
+  assert.equal(descendants(updated).find((element) => element.props.className === 'sr-only').props.children, 12)
+  dispose()
+  render(3)
+  dispose = effect()
+  assert.equal(Number(node.textContent), displayed)
+  dispose()
+  reduced = true
+  render(3)
+  effect()
+  assert.equal(node.textContent, '3')
+  assert.equal(scheduler.frames.size, 0)
+})
+
+test('TC-28-34 Daily Work summary uses skeletons while loading and never reports false zero on a failed read', () => {
+  const { StatsCard } = load('components/page/daily-work/stats-card.tsx')
+  const render = (props) => renderToStaticMarkup(React.createElement(StatsCard, { totalHours: '0', totalLogs: 0, ...props }))
+  const loading = render({ isLoading: true })
+  assert.equal((loading.match(/data-slot="skeleton"/g) ?? []).length, 2)
+  assert.doesNotMatch(loading, />0<\/span>/)
+  const failed = render({ unavailable: true })
+  assert.equal((failed.match(/>—<\/span>/g) ?? []).length, 2)
+  assert.doesNotMatch(failed, /data-slot="skeleton"|>0<\/span>/)
+  const loaded = render({ totalHours: '12.50000000000000000001', totalLogs: 3 })
+  assert.match(loaded, /12\.50000000000000000001/)
+})
+
+test('TC-28-35 Daily Work keeps latest loading feedback rejects stale reads and exposes error with working retry', async () => {
+  const states = []
+  const refs = []
+  let stateIndex = 0
+  let refIndex = 0
+  let effects = []
+  const pending = []
+  const fixtureLoad = createComponentLoader({
+    react: { ...React,
+      useState(initial) { const index = stateIndex++; if (!(index in states)) states[index] = typeof initial === 'function' ? initial() : initial; return [states[index], (value) => { states[index] = typeof value === 'function' ? value(states[index]) : value }] },
+      useRef(initial) { const index = refIndex++; refs[index] ??= { current: initial }; return refs[index] },
+      useEffect(callback) { effects.push(callback) },
+      useMemo: (callback) => callback(), useCallback: (callback) => callback,
+    },
+    'next/navigation': { useRouter: () => ({ replace() {} }), useSearchParams: () => new URLSearchParams('date=2026-10-04') },
+    '@/hooks/use-toast': { toast() {} },
+  }, { fetch: () => new Promise((resolve) => pending.push(resolve)) })
+  const Page = fixtureLoad('app/daily-work/page.tsx').default
+  const { PageState } = fixtureLoad('components/layout/page-state.tsx')
+  const { WorkLogList } = fixtureLoad('components/page/daily-work/work-log-list.tsx')
+  const render = () => { stateIndex = 0; refIndex = 0; effects = []; return descendants(Page()) }
+  const state = (tree) => tree.find((element) => element.type === PageState)
+  render()
+  effects[0]()
+  assert.equal(state(render()).props.kind, 'loading')
+  effects[1]()
+  render()
+  effects[1]()
+  const response = (workLogs) => ({ ok: true, json: async () => ({ workLogs }) })
+  pending[0](response([{ id: 'stale', hours: '2' }]))
+  await new Promise(setImmediate)
+  assert.equal(state(render()).props.kind, 'loading')
+  pending[1](response([{ id: 'latest', hours: '1.25' }]))
+  await new Promise(setImmediate)
+  assert.equal(render().find((element) => element.type === WorkLogList).props.workLogs[0].id, 'latest')
+  effects[1]()
+  pending[2]({ ok: false, status: 500, json: async () => ({ error: { code: 'INTERNAL_ERROR', message: 'Unavailable' } }) })
+  await new Promise(setImmediate)
+  const failed = state(render())
+  assert.equal(failed.props.kind, 'error')
+  failed.props.action.props.onClick()
+  assert.equal(state(render()).props.kind, 'loading')
+  pending[3](response([]))
+  await new Promise(setImmediate)
+  assert.equal(render().find((element) => element.type === WorkLogList).props.workLogs.length, 0)
 })
 
 test('TC-28-19 loading skeletons match cards, reports, rows and profiles and stay decorative', () => {

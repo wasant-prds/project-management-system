@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { MOTION_CLASS } from '@/components/ui/motion'
+import { AnimatedStatValue } from '@/components/ui/animated-stat-value'
+import { canTweenMetric } from '@/components/ui/metric-motion'
 import { cn } from '@/lib/utils'
 
 type SummaryStatCardProps = {
@@ -28,7 +30,7 @@ export function SummaryStatCard({
       </CardHeader>
       <CardContent className="px-3 sm:px-4">
         <div className={cn('min-w-0 break-all text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl', valueClassName)}>
-          <span key={valueKey} className={valueKey ? MOTION_CLASS.valueChange : undefined}>{value}</span>
+          {canTweenMetric(value) ? <AnimatedStatValue value={value} /> : <span key={valueKey} className={valueKey ? MOTION_CLASS.valueChange : undefined}>{value}</span>}
         </div>
         {hint && <div className="mt-2 text-xs leading-relaxed text-muted-foreground">{hint}</div>}
       </CardContent>

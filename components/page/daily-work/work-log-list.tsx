@@ -205,7 +205,7 @@ export function WorkLogList({
   }, [groupedByProject, buttonLabel])
 
   return (
-    <div className="space-y-3">
+    <div className="motion-data-enter space-y-3">
       <Card className="card-shadow">
         <CardHeader className="pb-0">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

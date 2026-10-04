@@ -1,6 +1,6 @@
 # Issue #27 — Premium Modern Neumorphism Frontend
 
-Follow-up ระบบสี iOS-inspired และ review fixes (2026-10-03): Light/Dark semantic tokens, themed Dashboard/Board dropdowns, MUI Calendar year/month selectors ที่ตรงกับ installed classes, retryable Company/Projects collection errors, themed PMS Project option popup และ Board detail modal ที่ใช้ shell width เดียวกับ Work Items. `pnpm quality` ล่าสุดผ่าน **341 tests: 332 PASS / 0 FAIL / 9 SKIP**; ESLint ไม่มี warnings/errors, typecheck/Prisma validation ผ่าน. Linux Docker production build หลัง UI follow-up ผ่าน; SonarQube gate ยัง pending เพราะไม่มี scanner/server configuration. รายละเอียดอยู่ใน [COLOR_SYSTEM.md](./COLOR_SYSTEM.md). ผลด้านล่างเป็นประวัติ redesign และ origin fix ก่อนเปลี่ยน palette.
+Follow-up ระบบสี iOS-inspired และ review fixes (2026-10-03): Light/Dark semantic tokens, themed Dashboard/Board dropdowns, MUI Calendar year/month selectors ที่ตรงกับ installed classes, retryable Company/Projects collection errors, themed PMS Project option popup และ Board detail modal ที่ใช้ shell width เดียวกับ Work Items. `pnpm quality` ล่าสุดผ่าน **341 tests: 332 PASS / 0 FAIL / 9 SKIP**; ESLint ไม่มี warnings/errors, typecheck/Prisma validation ผ่าน. Linux Docker production build หลัง UI follow-up ผ่าน; SonarQube ไม่ได้รันเพราะไม่มี scanner/server configuration. เมื่อ 2026-10-04 ผู้ใช้ยกเว้น gate และปิด checklist #27; ไม่ได้อ้างว่าไม่มี SonarQube findings. รายละเอียดอยู่ใน [COLOR_SYSTEM.md](./COLOR_SYSTEM.md). ผลด้านล่างเป็นประวัติ redesign และ origin fix ก่อนเปลี่ยน palette.
 
 วันที่ตรวจ: 2026-10-03 (Asia/Bangkok)
 
@@ -91,7 +91,7 @@ Windows local `pnpm build` compile/prerender ผ่าน แต่ standalone t
 
 Browser preview ใช้ production UI กับข้อมูล synthetic ผ่าน `node scripts/frontend-preview.mjs`, bind เฉพาะ `127.0.0.1:3791`, ไม่อ่าน `.env`, ไม่ใช้ DB/auth จริงและปฏิเสธ API writes. ตรวจ mobile drawer, active navigation, เปิดฟอร์ม edit, dialog dimensions/scrolling และ keyboard navigation เพิ่มเติม. ไม่ถือ preview นี้เป็น E2E ของ production API, hydration หรือ authentication; การยืนยัน DB persistence, real GitLab, auth proxy และ deployment เป็น integration/E2E แยกต่างหาก.
 
-ก่อนเปลี่ยน checklist #27 เป็น done ต้องมีผล SonarQube/quality gate จาก server หรือ CI ที่ตั้งค่าไว้. Workflow `.github/workflows/quality.yml` ต้องใช้ `SONAR_HOST_URL` และ `SONAR_TOKEN`; ไม่ควรส่ง token ในแชท. ไม่มีการอ้างว่า Sonar ไม่มี warnings/errors ขณะที่ยังไม่ได้ scan.
+เดิมกำหนดให้มีผล SonarQube/quality gate จาก server หรือ CI ก่อนปิด checklist #27; เมื่อ 2026-10-04 ผู้ใช้ยกเว้นเงื่อนไขนี้และสั่งปิด checklist. Workflow `.github/workflows/quality.yml` ต้องใช้ `SONAR_HOST_URL` และ `SONAR_TOKEN`; ไม่ควรส่ง token ในแชท. ไม่มีการอ้างว่า Sonar ไม่มี warnings/errors ขณะที่ยังไม่ได้ scan.
 
 ## Follow-up: บันทึก theme ถูกปฏิเสธ (2026-10-03)
 
@@ -112,6 +112,6 @@ Request จาก browser ที่ผู้ใช้ส่งมายืนย
 
 4 unit cases ใหม่ใช้ direct authorization/audit functions และ mocked Settings API ไม่ใช้ network/DB. อยู่ใน `tests/runtime/owner-origin.test.mjs` และ `tests/settings/provider.test.mjs`. Affected commands: `pnpm test:settings` **22 PASS / 0 FAIL / 0 SKIP**, `pnpm test:runtime-security` **13 PASS / 0 FAIL / 0 SKIP**. Runtime security suite เดิมมี synthetic localhost HTTP/subprocess checks จึงไม่เหมารวมว่าเป็น unit tests ที่ไม่มี network ทั้งหมด. ผล full regression 316 tests ด้านบนเป็นผลของ redesign ก่อนเพิ่ม follow-up 4 เคสนี้.
 
-Verification หลัง follow-up: **`pnpm quality` PASS** (lint ไม่มี ESLint warnings/errors, typecheck, Prisma schema valid และ **320 tests: 311 PASS / 0 FAIL / 9 SKIP**). Prisma CLI ยังแจ้ง deprecation เดิมของ `package.json#prisma`. ผู้ใช้รีเฟรช browser และยืนยันว่า **บันทึกธีมได้แล้ว**. ผลรายเคสล่าสุดอยู่ใน [issue-27-test-cases.txt](./issue-27-test-cases.txt); รวม follow-up 4 เคสด้วย. SonarQube ยังคงต้องตรวจผ่าน server/CI ตามข้อจำกัดเดิม.
+Verification หลัง follow-up: **`pnpm quality` PASS** (lint ไม่มี ESLint warnings/errors, typecheck, Prisma schema valid และ **320 tests: 311 PASS / 0 FAIL / 9 SKIP**). Prisma CLI ยังแจ้ง deprecation เดิมของ `package.json#prisma`. ผู้ใช้รีเฟรช browser และยืนยันว่า **บันทึกธีมได้แล้ว**. ผลรายเคสล่าสุดอยู่ใน [issue-27-test-cases.txt](./issue-27-test-cases.txt); รวม follow-up 4 เคสด้วย. ณ เวลาบันทึกยังต้องตรวจ SonarQube ผ่าน server/CI; ผู้ใช้ยกเว้น gate และสั่งปิด checklist #27 ในวันที่ 2026-10-04.
 
 **UNIT TESTS COMPLETE**

@@ -9,6 +9,7 @@ import { WorkItemCard } from './work-item-card'
 import { ProjectIdentity } from './project-identity'
 import type { UrgencySubgroup, WorkItemProjectGroup, WorkItemUrgencyBucket } from './work-item-export'
 import type { WorkItem } from './types'
+import { observeStickyHeader } from './sticky-header-observer'
 
 const URGENCY_SUBGROUP_BAR_CLASS: Record<UrgencySubgroup, string> = {
   overdue: 'border-l-4 border-danger bg-danger-subtle text-danger',
@@ -70,31 +71,10 @@ function useStickyHeader(enabled: boolean, offsetPx: number) {
 
     const root = getScrollParent(el)
 
-    const update = () => {
-      setHeight(el.getBoundingClientRect().height)
-      if (!root) {
-        setStuck(false)
-        return
-      }
-      const rootTop = root.getBoundingClientRect().top
-      const paddingTop = Number.parseFloat(getComputedStyle(root).paddingTop) || 0
-      setStuck(el.getBoundingClientRect().top <= rootTop + paddingTop + offsetPx + 1)
-    }
-
-    const observer = new ResizeObserver(update)
-    observer.observe(el)
-    update()
-
-    if (root) {
-      root.addEventListener('scroll', update, { passive: true })
-    }
-    window.addEventListener('resize', update)
-
-    return () => {
-      observer.disconnect()
-      if (root) root.removeEventListener('scroll', update)
-      window.removeEventListener('resize', update)
-    }
+    return observeStickyHeader(el, root, offsetPx, (nextHeight, nextStuck) => {
+      setHeight(nextHeight)
+      setStuck(nextStuck)
+    })
   }, [enabled, offsetPx])
 
   return { ref, height, stuck }
@@ -148,7 +128,7 @@ function SubgroupBranch({
         className={cn('z-10', open && 'sticky', stuck && STUCK_SURFACE, stuck && 'rounded-md')}
         style={open ? { top: stickyOffset } : undefined}
       >
-        <div className="flex min-w-0">
+        <div className="motion-data-enter flex min-w-0">
           <span aria-hidden className="relative h-8 w-4 shrink-0 sm:w-5">
             <span
               className={cn(
@@ -255,7 +235,7 @@ function ProjectBranch({
           </CollapsibleTrigger>
         </div>
         {open && (
-          <div className="ml-1 pt-1">
+          <div className="motion-data-enter ml-1 pt-1">
             {group.subgroups.map((subgroup, index) => (
               <SubgroupBranch
                 key={subgroup.key}
@@ -341,7 +321,7 @@ export function WorkItemGroupedList({
   }
 
   return (
-    <div className="min-w-0 space-y-4">
+    <div className="motion-data-enter min-w-0 space-y-4">
       {groups.map((group) => (
         <ProjectBranch
           key={group.projectId}

@@ -2,6 +2,7 @@
 
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { AppHeader } from "@/components/layout/app-header"
+import { PageState } from "@/components/layout/page-state"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   PAGE_HEADING,
@@ -15,7 +16,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Plus } from "lucide-react"
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { toast } from "@/hooks/use-toast"
 import { dateOnlyToPickerDate, formatDate } from "@/lib/utils"
@@ -97,6 +98,9 @@ export default function DailyWorkPage() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
   const [selectedWorkLog, setSelectedWorkLog] = useState<WorkLog | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [listLoading, setListLoading] = useState(true)
+  const [listError, setListError] = useState<string | null>(null)
+  const latestListLoad = useRef(0)
   const [searchQuery, setSearchQuery] = useState("")
   const [viewPeriod, setViewPeriod] = useState<ViewPeriod>("day")
   const [dashboardFilters, setDashboardFilters] = useState<DashboardWorkLogFilters | null>(null)
@@ -127,11 +131,16 @@ export default function DailyWorkPage() {
 
   const fetchWorkLogs = useCallback(async () => {
     if (!dashboardFiltersReady) return
+    const generation = ++latestListLoad.current
+    setListLoading(true)
+    setListError(null)
     try {
       const response = await fetch(`/api/work-logs${workLogQuery(date, viewPeriod, dashboardFilters)}`)
       const result = await readWorkLogsResponse<WorkLog>(response)
+      if (generation !== latestListLoad.current) return
       if (result.error) {
         setWorkLogs([])
+        setListError(result.error.message)
         toast({
           title: result.error.title,
           description: result.error.message,
@@ -141,18 +150,23 @@ export default function DailyWorkPage() {
       }
       setWorkLogs(result.workLogs)
     } catch (error) {
+      if (generation !== latestListLoad.current) return
+      setListError("โหลด Daily Work ไม่สำเร็จ กรุณาลองอีกครั้ง")
       console.error("Error fetching work logs:", error)
       toast({
         title: "Error",
         description: "Failed to fetch work logs",
         variant: "destructive",
       })
+    } finally {
+      if (generation === latestListLoad.current) setListLoading(false)
     }
   }, [date, viewPeriod, dashboardFilters, dashboardFiltersReady])
 
   // Fetch work logs based on selected date and view period.
   useEffect(() => {
     if (dashboardFiltersReady) void fetchWorkLogs()
+    return () => { latestListLoad.current += 1 }
   }, [fetchWorkLogs, dashboardFiltersReady])
 
   // Fetch projects on mount.
@@ -370,19 +384,23 @@ export default function DailyWorkPage() {
                   totalHours={totalHours}
                   totalLogs={totalTasks}
                   date={date}
+                  isLoading={listLoading}
+                  unavailable={Boolean(listError)}
                 />
               </div>
 
               {/* Work Logs */}
               <div className="space-y-4 lg:col-span-2">
-                <WorkLogList
+                {listLoading ? <PageState kind="loading" title="กำลังโหลด Daily Work…" /> : listError ? (
+                  <PageState kind="error" title="โหลด Daily Work ไม่สำเร็จ" description={listError} action={<Button type="button" variant="outline" onClick={() => void fetchWorkLogs()}>ลองอีกครั้ง</Button>} />
+                ) : <WorkLogList
                   workLogs={filteredWorkLogs}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
                   onWorkLogClick={handleViewDetails}
                   onAddClick={() => handleOpenDialog()}
                   buttonLabel={buttonLabel}
-                />
+                />}
               </div>
             </div>
           </div>

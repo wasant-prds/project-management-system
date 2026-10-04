@@ -1,13 +1,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatDate } from "@/lib/utils"
+import { Skeleton } from '@/components/ui/skeleton'
 
 type StatsCardProps = {
   totalHours: string
   totalLogs: number
   date?: Date
+  isLoading?: boolean
+  unavailable?: boolean
 }
 
-export function StatsCard({ totalHours, totalLogs, date }: Readonly<StatsCardProps>) {
+export function StatsCard({ totalHours, totalLogs, date, isLoading = false, unavailable = false }: Readonly<StatsCardProps>) {
   return (
     <Card className="card-shadow">
       <CardHeader>
@@ -16,11 +19,11 @@ export function StatsCard({ totalHours, totalLogs, date }: Readonly<StatsCardPro
       <CardContent className="space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">ชั่วโมงรวม</span>
-          <span className="text-xl font-semibold tabular-nums">{totalHours}</span>
+          {isLoading ? <Skeleton aria-hidden="true" className="h-7 w-20" /> : <span key={totalHours} className="motion-value-change text-xl font-semibold tabular-nums">{unavailable ? '—' : totalHours}</span>}
         </div>
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">รายการบันทึก</span>
-          <span className="text-xl font-semibold tabular-nums">{totalLogs}</span>
+          {isLoading ? <Skeleton aria-hidden="true" className="h-7 w-12" /> : <span key={totalLogs} className="motion-value-change text-xl font-semibold tabular-nums">{unavailable ? '—' : totalLogs}</span>}
         </div>
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">วันที่</span>

@@ -42,8 +42,18 @@ const server = createServer((request, response) => {
   if (url.pathname === '/preview.css') { response.setHeader('Content-Type', 'text/css'); response.end(stylesheet.css); return }
   if (url.pathname === '/favicon.ico') { response.writeHead(204); response.end(); return }
   if (url.pathname.startsWith('/api/')) {
-    const result = previewResponse(url, request.method)
-    response.writeHead(result.status, { 'Content-Type': 'application/json' }); response.end(JSON.stringify(result.value)); return
+    const mode = new URL(request.headers.referer ?? '/', 'http://127.0.0.1').searchParams.get('qa')
+    const result = request.method === 'GET' && mode === 'error'
+      ? { status: 503, value: { error: { code: 'PREVIEW_UNAVAILABLE', message: 'จำลอง load failure สำหรับตรวจ error/retry UI' } } }
+      : previewResponse(url, request.method)
+    const send = () => {
+      if (response.destroyed) return
+      response.writeHead(result.status, { 'Content-Type': 'application/json' })
+      response.end(JSON.stringify(result.value))
+    }
+    if (request.method === 'GET' && mode === 'slow') setTimeout(send, 1500)
+    else send()
+    return
   }
   response.setHeader('Content-Type', 'text/html'); response.end(html)
 })

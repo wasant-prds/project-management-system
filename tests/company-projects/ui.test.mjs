@@ -67,6 +67,10 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
     '@/components/ui/badge': { Badge: ui.Badge },
     '@/components/ui/progress': { Progress: ui.Progress },
     '@/components/ui/motion': { MOTION_CLASS: { valueChange: 'motion-value-change' } },
+    '@/components/ui/metric-motion': { canTweenMetric: (value) => typeof value === 'number' && Number.isSafeInteger(value) },
+    '@/components/ui/animated-stat-value': {
+      AnimatedStatValue: Object.assign(({ value }) => ({ type: 'span', props: { children: value } }), { renderInTest: true }),
+    },
     './content-loading-skeleton': { ContentLoadingSkeleton: component('ContentLoadingSkeleton') },
     '@/lib/utils': { cn: (...values) => values.filter(Boolean).join(' ') },
     'lucide-react': Object.fromEntries(['ArrowUpRight', 'CalendarDays', 'FolderKanban', 'Building2', 'MapPin', 'Phone', 'CircleAlert', 'Inbox', 'LoaderCircle'].map((name) => [name, component(name)])),

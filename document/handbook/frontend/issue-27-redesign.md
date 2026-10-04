@@ -75,12 +75,12 @@ docker build --target production -t pms-issue27-validation .
 
 Visual fixture ใช้ `node scripts/frontend-preview.mjs` ที่ `http://127.0.0.1:3791` และเลือก theme ผ่าน `?theme=light`, `?theme=dark` หรือ `?theme=special-dark`. Preview ใช้ synthetic fixtures, ไม่อ่าน `.env`/ฐานข้อมูล และปฏิเสธ API writes; ใช้ตรวจ presentation เท่านั้น ไม่ใช่หลักฐาน production authentication, database persistence หรือ E2E.
 
-ณ วันที่ 2026-10-03, `pnpm test:frontend-redesign` ผ่าน **22/22** และ `pnpm quality` ผ่าน **341 tests: 332 PASS / 0 FAIL / 9 SKIP**; Linux Docker production build ผ่าน. Prisma CLI ยังพิมพ์ deprecation warning เดิมของ `package.json#prisma`. SonarQube quality gate ยังไม่ยืนยัน เพราะ environment ที่ตรวจไม่มี scanner หรือ `SONAR_HOST_URL`/`SONAR_TOKEN`; จึงไม่อ้างว่า SonarQube ไม่มี findings และ Issue #27 ยังคง pending quality gate.
+ณ วันที่ 2026-10-03, `pnpm test:frontend-redesign` ผ่าน **22/22** และ `pnpm quality` ผ่าน **341 tests: 332 PASS / 0 FAIL / 9 SKIP**; Linux Docker production build ผ่าน. Prisma CLI ยังพิมพ์ deprecation warning เดิมของ `package.json#prisma`. SonarQube ไม่ได้รันเพราะ environment ไม่มี scanner หรือ `SONAR_HOST_URL`/`SONAR_TOKEN`. เมื่อ 2026-10-04 ผู้ใช้ยกเว้น gate และปิด checklist #27; ไม่มีการอ้างว่า SonarQube ไม่มี findings.
 
 ผล test รายเคส: [Issue #27 test report](../../issue-27-test-cases.txt). เงื่อนไขและผล implementation: [Issue #27 work item](../../../design/projects/project-management-system/work_items/27_dev_redesign-frontend-premium-neumorphism.md).
 
 ## ขอบเขตที่ยังไม่ยืนยัน
 
-- ยังไม่มี SonarQube quality-gate result จาก server/CI และไม่มี local scanner/configuration ใน environment ที่ตรวจ.
+- ไม่มี SonarQube quality-gate result จาก server/CI; gate นี้ถูกยกเว้นตามคำสั่งผู้ใช้เพื่อปิด checklist #27.
 - Unit/browser fixture checks ไม่แทน screen-reader certification, pixel audit ของทุก state หรือ production E2E.
 - Issue #27 ไม่เปลี่ยน API contract หรือ database schema; ข้อมูล runtime จริงต้องตรวจผ่าน environment ที่มีสิทธิ์เข้าถึงตาม runbook.

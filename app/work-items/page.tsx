@@ -68,6 +68,7 @@ import {
   type WorkItemFormValues,
 } from '@/components/page/work-items/work-item-dialog'
 import { SummaryStatCard } from '@/components/layout/summary-stat-card'
+import { PageState } from '@/components/layout/page-state'
 import {
   ACTION_LABEL_CLASS,
   FILTER_ROW,
@@ -916,7 +917,7 @@ export default function WorkItemsPage() {
     />
   )
   if (isListLoading) {
-    listContent = <output className="block w-full min-w-0 rounded-lg border bg-card py-12 text-center text-muted-foreground" aria-live="polite">Loading work items…</output>
+    listContent = <PageState kind="loading" title="กำลังโหลด Work Items…" loadingLayout="rows" />
   } else if (loadError && !resultsAreCurrent) {
     listContent = <div className="rounded-lg border bg-card py-12 text-center text-danger" role="alert">{loadError}</div>
   }

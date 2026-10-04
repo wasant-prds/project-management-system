@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRightLeft, CalendarDays, ChevronDown, Flag } from 'lucide-react'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
+import { ContentLoadingSkeleton } from '@/components/layout/content-loading-skeleton'
 import {
   PAGE_HEADING,
   PAGE_INNER,
@@ -395,7 +396,7 @@ export default function BoardPage() {
             {statusMessage && <output className="shrink-0 py-2 text-sm text-muted-foreground" aria-live="polite">{statusMessage}</output>}
 
             <section aria-label="Work Items by status" aria-busy={boardLoading} className="flex min-h-0 min-w-0 flex-1 flex-col pt-3">
-              {boardLoading && <output className="grid min-h-32 place-items-center text-sm text-muted-foreground" aria-live="polite">กำลังโหลด Work Items…</output>}
+              {boardLoading && <div role="status" aria-busy="true" className="min-h-0 space-y-3 overflow-hidden"><p className="text-sm text-muted-foreground">กำลังโหลด Work Items…</p><ContentLoadingSkeleton layout="board" /></div>}
               {!boardLoading && boardError && (
                 <div role="alert" className="m-auto flex max-w-lg flex-col items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-5 text-center">
                   <p className="text-sm text-danger">โหลด Board ไม่สำเร็จ: {boardError}</p>
@@ -403,7 +404,7 @@ export default function BoardPage() {
                 </div>
               )}
               {!boardLoading && !boardError && (
-                <div className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain">
+                <div className="motion-data-enter min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain">
                   <div className="flex min-h-full min-w-max items-start gap-3 pb-4 sm:gap-4">
                     {WORK_ITEM_STATUSES.map((status) => (
                       <BoardStatusColumn

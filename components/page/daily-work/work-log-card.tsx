@@ -25,7 +25,7 @@ export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
   }
 
   return (
-    <Card className="card-shadow mb-2">
+    <Card className="motion-card card-shadow mb-2">
       <CardHeader>
         <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-3">

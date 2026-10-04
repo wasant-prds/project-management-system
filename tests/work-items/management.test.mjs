@@ -833,5 +833,7 @@ test('Work Items loading state compares the complete shared filter key and fills
   assert.equal(presentation.isWorkItemListLoading(null, null, baseKey, 'load failed'), false)
   assert.equal((page.match(/createWorkItemFilterKey\(/g) ?? []).length, 2)
   assert.match(page, /isWorkItemListLoading\(loadedFilterKey, loadingFilterKey, filterKey, loadError\)/)
-  assert.match(page, /className="block w-full min-w-0 rounded-lg border bg-card py-12 text-center text-muted-foreground" aria-live="polite"/)
+  assert.match(page, /PageState kind="loading" title="กำลังโหลด Work Items…" loadingLayout="rows"/)
+  const pageState = readFileSync(new URL('../../components/layout/page-state.tsx', import.meta.url), 'utf8')
+  assert.match(pageState, /role=\{kind === 'error' \? 'alert' : 'status'\} aria-busy=\{kind === 'loading'\}/)
 })

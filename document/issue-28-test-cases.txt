@@ -1,108 +1,47 @@
-Issue #28 — Unit Test Suite — 2026-10-04
-Scope: Unit Test
-Real PostgreSQL: No
-Real Redis: No
-External Services: No
-Mocks: browser geometry/frame/ResizeObserver, selected React hooks, Next navigation/link,
-       Recharts boundaries and existing component loader; CSS/Tailwind compiler runs locally.
-Commands: pnpm test:frontend-motion
-          node tests/run.mjs frontend-motion
-          bash scripts/test-unit.sh frontend-motion (Bash + Node 22+)
-
-Test Cases — ชื่อ cases จากผลที่ execute จริง
- tests/frontend-ui/motion-system.test.mjs
-├── TC-28-01 shared duration and easing tokens match the CSS design system ........ PASS
-├── TC-28-02 App Router template gives each new route a short page entrance ........ PASS
-├── TC-28-03 entrance choreography animates compositor properties and is disabled for reduced motion ........ PASS
-├── TC-28-04 persistent navigation indicator centers and clamps at its route target ........ PASS
-├── TC-28-05 application fallback is an accessible shell-shaped skeleton ........ PASS
-├── TC-28-06 metric changes and progress values use short, transform-based feedback ........ PASS
-├── TC-28-07 Dashboard and Analysis chart reveals share timing and respect reduced motion ........ PASS
-├── TC-28-08 controls, interactive cards, data rows, overlays and touch states use shared motion rules ........ PASS
-├── TC-28-09 dashboard hierarchy gives recent work the focal grid and keeps risk queues paired ........ PASS
-├── TC-28-10 motion unit cases have a reusable isolated suite command and tree reporter name ........ PASS
-├── TC-28-11 navigation coalesces resize bursts into one measurement and accepts later updates ........ PASS
-├── TC-28-12 navigation unmount cancels pending frames and releases resize subscriptions ........ PASS
-├── TC-28-13 unmatched routes hide the marker without measuring a nonexistent destination ........ PASS
-├── TC-28-14 navigation works without ResizeObserver and without a browser view ........ PASS
-├── TC-28-15 lazy mobile marker mounts its measurement inside the navigation and cleans up ........ PASS
-├── TC-28-16 route motion preserves viewport positioning and content releases its transformed layer ........ PASS
-├── TC-28-17 compiled stagger preserves bounded delays instead of resetting them with a shorthand ........ PASS
-├── TC-28-18 KPI feedback restarts only when a primitive value changes and transforms an inline block ........ PASS
-├── TC-28-19 loading skeletons match cards, reports, rows and profiles and stay decorative ........ PASS
-├── TC-28-20 loading placeholders disappear for empty and error states while retry remains available ........ PASS
-├── TC-28-21 closing the mobile drawer restores keyboard focus to its registered trigger ........ PASS
-├── TC-28-22 card hover and pressed depth overrides raised surfaces and pressed wins on desktop ........ PASS
-├── TC-28-23 closed overlays use the shared exit duration and easing in the winning cascade ........ PASS
-└── TC-28-24 toast swipe cancel transitions translate while active swipe movement stays immediate ........ PASS
-
-Tests: 24
-PASS:  24
-FAIL:   0
-SKIP:   0
-
-Coverage by Case
-| Case | Category | Expected Behavior | Result |
-|---|---|---|---|
-| TC-28-01 | Design system | JS/CSS timing และ easing ตรงกัน | PASS |
-| TC-28-02 | Navigation | template รักษา children และใช้ entrance กลาง | PASS |
-| TC-28-03 | Accessibility/performance | compositor properties และ reduced-motion rules | PASS |
-| TC-28-04 | Geometry/boundary | centered/clamped marker รวม fractional position | PASS |
-| TC-28-05 | Loading/accessibility | app shell มี status/busy และ skeleton | PASS |
-| TC-28-06 | Data feedback | KPI ค่าจริง; progress transform และ timing กลาง | PASS |
-| TC-28-07 | Charts | actual Dashboard Bar props ตาม preference/empty data; Analysis shared wiring | PASS |
-| TC-28-08 | Interaction/responsive | shared components และ compiled touch rules | PASS |
-| TC-28-09 | Layout | recent work เป็น focal area; paired risk queues | PASS |
-| TC-28-10 | Test tooling | pnpm/shared runner/tree commands ถูกลงทะเบียน | PASS |
-| TC-28-11 | Performance | resize burst มีหนึ่ง frame และสอง geometry reads; รับรอบใหม่ได้ | PASS |
-| TC-28-12 | Cleanup | cancel frame, disconnect observer, remove listener | PASS |
-| TC-28-13 | Negative route | ไม่มี active link ให้ซ่อน marker และไม่อ่าน geometry | PASS |
-| TC-28-14 | Missing dependency | ไม่มี ResizeObserver/view ไม่ throw | PASS |
-| TC-28-15 | Mobile lifecycle | marker mount ภายใน lazy portal และคืน cleanup | PASS |
-| TC-28-16 | Positioning | route ไม่สร้าง transformed viewport; content จบ transform none | PASS |
-| TC-28-17 | Stagger | compiled delay 0–96 ms ไม่มี shorthand reset | PASS |
-| TC-28-18 | KPI edge cases | key คง/เปลี่ยนตามค่า; zero คงอยู่; ReactNode ไม่ re-key; inline-block | PASS |
-| TC-28-19 | Loading layout | cards/rows/report/profile มี placeholders แบบ decorative | PASS |
-| TC-28-20 | Error/empty | skeleton หายเมื่อไม่ loading; alert/retry ยังอยู่ | PASS |
-| TC-28-21 | Keyboard | drawer คืน focus ให้ trigger; unmounted trigger คง native handling | PASS |
-| TC-28-22 | Interaction/cascade | hover ยก surface; pressed depth override utility shadow และชนะ hover | PASS |
-| TC-28-23 | Overlay exit | closed state ใช้ duration/easing exit เหนือ enter rule | PASS |
-| TC-28-24 | Toast swipe | cancel transitions translate และ move คง pointer tracking แบบทันที | PASS |
-
-Coverage Assessment / Self-review
-- AC 1–7: cases ด้านบนตรวจ shared motion, navigation, controls, data transitions,
-  hierarchy, responsive rules และ reduced motion; themes ตรวจด้วย existing contrast tests/browser QA.
-- AC 8: compositor rules, frame coalescing/cleanup; unit tests ไม่ยืนยัน hardware frame rate.
-- AC 9: full regressions ตรวจ persisted workflows, form validation, owner/API/date behavior.
-- AC 10: lint/typecheck/schema validation/full tests ผ่าน; production Docker build ตรวจแยก.
-- AC 11: subjective visual judgment ตรวจผ่าน browser preview ไม่ใช่ unit assertion.
-- Happy/negative/empty/error/cleanup/boundary cases มี meaningful assertions.
-- CSS compiler ใช้จริง; Dashboard chart ตรวจ actual props. Analysis/layout/class checks
-  เป็น source contracts ไม่อ้างว่าเป็น browser behavior tests.
-- ไม่เพิ่มเคส ownership/timezone ซ้ำสำหรับ frontend-only code; regression suite เดิมยังรัน.
-- แก้ production defects: stagger shorthand, inline KPI transform, transformed route wrapper,
-  lazy mobile marker และ Escape focus. ปรับ mocks/assertions ให้ตรง UI ใหม่ โดยคง workflow checks.
-- Unit suite ไม่เชื่อม PostgreSQL/Redis/network/external services; ไม่ลด assertions เพื่อให้ผ่าน.
-
-Regression Summary
-pnpm quality: 362 total / 353 PASS / 0 FAIL / 9 SKIP.
-ผลทุก case รวม SKIP อยู่ใน document/issue-28-quality-results.txt.
-9 skips เป็น opt-in Docker/PostgreSQL integration cases; ไม่ใช่ motion unit cases.
-Prisma validate ใช้ placeholder DATABASE_URL เฉพาะ process โดยไม่เชื่อมฐานข้อมูล.
-Prisma CLI มี deprecation warning เดิมของ package.json#prisma.
-
-Browser QA — แยกจาก Unit Tests
-- 81 checks: 9 routes × Light/Dark/Special Dark × 1440×1000 / 768×1024 / 390×844.
-- ไม่พบ horizontal overflow หรือ console warnings/errors.
-- ตรวจ actual stagger delays 0/24/48/72/96 ms, mobile marker centered และ overlay 190 ms.
-- Enter เปิด drawer, Escape ปิด; หลัง focus fix ยืนยัน focus กลับปุ่มเปิดเมนู.
-- Dropdown เลือก Planning ด้วย Enter ได้. Preview ใช้ synthetic fixtures และปฏิเสธ API writes.
-- Matrix ทำก่อน focus fix; targeted mobile keyboard check ทำกับโค้ดหลังแก้.
-- ไม่ใช่ production-auth/database E2E, physical-device test หรือ profiler trace.
-
-Remaining Gate
-SonarQube: BLOCKED — ไม่มี scanner และ SONAR_HOST_URL/SONAR_TOKEN configuration.
-ยังอ้างว่าไม่มี SonarQube findings ไม่ได้; checklist #28 ต้อง pending gate.
-ไม่มี deployment/migration/production data changes.
-
-Final Status: UNIT TESTS COMPLETE
+Issue #28 — Competition-grade motion recheck — 2026-10-04
+Executed focused suite: pnpm test:frontend-motion — 35 PASS / 0 FAIL / 0 SKIP
+Case results below are taken from the final executed full quality run.
+Unit boundaries: React/browser/frame/fetch mocks and installed CSS compiler; no production data or database connection.
+✔ TC-28-01 shared duration and easing tokens match the CSS design system (2.6624ms)
+✔ TC-28-02 App Router template gives each new route a short page entrance (50.0082ms)
+✔ TC-28-03 entrance choreography animates compositor properties and is disabled for reduced motion (1961.0147ms)
+✔ TC-28-04 persistent navigation indicator centers and clamps at its route target (34.6403ms)
+✔ TC-28-05 application fallback is an accessible shell-shaped skeleton (94.9787ms)
+✔ TC-28-06 metric changes and progress values use short, transform-based feedback (156.4025ms)
+✔ TC-28-07 Dashboard and Analysis chart reveals share timing and respect reduced motion (53.8676ms)
+✔ TC-28-08 controls, interactive cards, data rows, overlays and touch states use shared motion rules (42.275ms)
+✔ TC-28-22 card hover and pressed depth overrides raised surfaces and pressed wins on desktop (4.9229ms)
+✔ TC-28-23 closed overlays use the shared exit duration and easing in the winning cascade (2.4203ms)
+✔ TC-28-24 toast swipe cancel transitions translate while active swipe movement stays immediate (3.7536ms)
+✔ TC-28-11 navigation coalesces resize bursts into one measurement and accepts later updates (14.642ms)
+✔ TC-28-12 navigation unmount cancels pending frames and releases resize subscriptions (10.8266ms)
+✔ TC-28-13 unmatched routes hide the marker without measuring a nonexistent destination (7.3334ms)
+✔ TC-28-14 navigation works without ResizeObserver and without a browser view (9.4423ms)
+✔ TC-28-15 lazy mobile marker mounts its measurement inside the navigation and cleans up (5.8044ms)
+✔ TC-28-16 route motion preserves viewport positioning and content releases its transformed layer (2.3527ms)
+✔ TC-28-17 compiled stagger preserves bounded delays instead of resetting them with a shorthand (2.1499ms)
+✔ TC-28-18 exact formatted KPI feedback changes keys while integer counters retain their component (2.9917ms)
+✔ TC-28-25 Board loading preserves status columns with decorative cards and local scrolling (30.8417ms)
+✔ TC-28-26 data and expanded group reveals preserve sticky positioning and reduced-motion behavior (4.5515ms)
+✔ TC-28-27 tooltip and toast exit timing overrides entrance while accordion shares centralized timing (5.9419ms)
+✔ TC-28-28 sticky scroll bursts perform one geometry read per element per frame with correct offsets (10.0943ms)
+✔ TC-28-29 sticky observer cancels pending work and supports missing root observer or browser view (28.4272ms)
+✔ TC-28-30 only safe integer metrics interpolate while exact hours formatted values and unchanged counts do not (1.3023ms)
+✔ TC-28-31 count updates stay within their bounds and finish at the exact target within shared duration (0.7981ms)
+✔ TC-28-32 cancelling count motion prevents stale frame writes after a replacement or unmount (0.3793ms)
+✔ TC-28-33 integer metric starts exact resumes from the displayed value and snaps immediately for reduced motion (49.2157ms)
+✔ TC-28-34 Daily Work summary uses skeletons while loading and never reports false zero on a failed read (18.0576ms)
+✔ TC-28-35 Daily Work keeps latest loading feedback rejects stale reads and exposes error with working retry (4902.1408ms)
+✔ TC-28-19 loading skeletons match cards, reports, rows and profiles and stay decorative (7.3582ms)
+✔ TC-28-20 loading placeholders disappear for empty and error states while retry remains available (23.0255ms)
+✔ TC-28-21 closing the mobile drawer restores keyboard focus to its registered trigger (106.5221ms)
+✔ TC-28-09 dashboard hierarchy gives recent work the focal grid and keeps risk queues paired (3.8244ms)
+✔ TC-28-10 motion unit cases have a reusable isolated suite command and tree reporter name (5.6193ms)
+Final pnpm quality: 376 tests / 367 PASS / 0 FAIL / 9 opt-in integration SKIP.
+ESLint: no warnings/errors. TypeScript: PASS. Prisma schema: valid.
+Production Docker build pms-issue-28-recheck:local: PASS (static generation 16/16).
+Browser: 108 settled route/theme/size checks; targeted slow/error/keyboard checks PASS.
+Injected failures intentionally log errors; no new normal-matrix console errors/warnings.
+Reduced motion: compiled CSS and runtime hook mocks; no OS emulation or physical-device profiling.
+SonarQube: NOT RUN, waived by user on 2026-10-04; no claim of zero findings.
+Existing Prisma CLI package.json#prisma deprecation warning remains.
