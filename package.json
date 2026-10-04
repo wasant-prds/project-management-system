@@ -49,6 +49,8 @@
     "test:schema-rollout-gate": "node tests/run.mjs schema-rollout-gate",
     "test:sql-schema": "node tests/run.mjs sql-schema",
     "test:sql-migrations-docker": "node tests/run.mjs sql-migrations-docker",
+    "test:sql-seeds": "node tests/run.mjs sql-seeds",
+    "test:sql-seeds-docker": "node tests/run.mjs sql-seeds-docker",
     "test:runtime-container": "node tests/run.mjs runtime-container"
   },
   "dependencies": {

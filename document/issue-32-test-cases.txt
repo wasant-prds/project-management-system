@@ -1,0 +1,63 @@
+========================================================================
+Issue #32 — Backup to SQL master seeds, deterministic migration, public UUIDv4
+ผ่านเมื่อ: assertion ตรงค่าที่คาด หรือ catalog/data ของ PostgreSQL 16 ตรงสัญญา
+SKIP ของไฟล์ Docker เมื่อไม่ได้ตั้ง flag = ปกติของ pnpm test; ไม่ใช่ผลของคำสั่งเฉพาะ
+========================================================================
+
+ชุด unit — ไม่ต่อ PostgreSQL/Redis/Docker/network
+คำสั่ง: node tests/run.mjs sql-seeds
+ผลล่าสุด: 23 PASS / 0 FAIL / 0 SKIP (2026-10-04)
+การแปลง authoritative backup เขียนลง temp directory เท่านั้น และข้ามเมื่อ checkout ไม่มี archive
+
+tests/sql/seeds-convert.test.mjs
+├─ COPY unescape keeps octal, hex, tab, newline and NULL exact
+├─ COPY short row fails without echoing the cell text
+├─ PostgreSQL array parser keeps quoted commas, NULL and doubled quotes
+├─ decimal literals stay exact text and reject Number values
+├─ calendar conversion accepts 00:00:00 and 09:00:00, keeps null, rejects 15:00:00
+├─ milestone due_date stays TIMESTAMP and project due_date stays DATE
+├─ legacy mappings sort Z before a by code point and reuse public ids
+├─ partial, drifted, live, checksum and duplicate mappings fail before new ids
+├─ corrupt JSON and an explicit missing map fail; an implicit missing map is empty
+├─ company policy is required; unknown or missing assignment and unsafe paths fail
+├─ a non-authoritative gzip does not replace an existing dataset
+├─ a corrupt gzip CRC fails closed
+├─ .dockerignore contains database/seeds/sql-master
+└─ authoritative conversion reuses public ids in a temp directory:
+   725 source rows, 719 target rows, unresolved activity { task: 3 },
+   workDate 09:00:00 = 236, fingerprint stable, staged manifest unchanged
+
+tests/sql/seed-runner.test.mjs
+├─ seed transaction orders schema guard and nonempty checks before inserts
+├─ seed file names cannot escape the dataset directory
+├─ manifest checksum and schema contract are enforced before SQL execution
+├─ SQL errors keep the error class and drop URL, LINE, email and password material
+├─ sequence repair resets only empty tables
+├─ a valid empty dataset is applied as one transaction
+├─ active application container and DATABASE_URL targets are refused
+├─ promotion restores the previous directory after failure and refuses JSON master
+└─ CLI flags are per command; inspect-archive fails closed; promote requires --dest
+
+ชุด integration — PostgreSQL 16 จริง, opt-in
+คำสั่ง: node tests/run.mjs sql-seeds-docker
+ผลล่าสุด: 2 PASS / 0 FAIL / 0 SKIP (2026-10-04)
+ถ้าไม่มี authoritative backup คำสั่งนี้ล้มเหลวชัดเจน
+
+tests/sql/seeds-docker.test.mjs
+├─ authoritative psql restore, schema mismatch, lock timeout, setval repair,
+│  tampered seed rollback, 719-row load, nonempty rejection, hours sum 1828,
+│  document URLs, activity project:1/task:3, sequence state, anomaly timestamps,
+│  normal UPDATE stamp and public-id equality
+└─ docker build COPY database/seeds excludes sql-master and keeps JSON master
+
+Dataset fingerprint หลัง review follow-up:
+  ac791aba9ee7f2bc2e3c06d98524c4091ef87f8da89b75d366703e5c304a7ad2
+
+คำสั่งที่ใช้รันซ้ำได้:
+  node scripts/sql-seeds.mjs inspect-archive
+  node scripts/sql-seeds.mjs convert
+  node scripts/sql-seeds.mjs verify-dataset
+  node scripts/sql-seeds.mjs seed --seed-dir database/seeds/sql-master --target docker:<name> --target-label <label>
+  node scripts/sql-seeds.mjs promote --source database/seeds/sql-master --dest <directory>
+  pnpm test:sql-seeds
+  pnpm test:sql-seeds-docker

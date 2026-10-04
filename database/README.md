@@ -4,6 +4,8 @@ This directory contains persistent database storage for the Project Management S
 
 Issue #31 adds an empty SQL target at `schema.sql` and `migrations/manifest.json`. It is not applied by Compose. The active migration path remains guarded `prisma db push` until Issue #33. Run `node scripts/sql-migrate.mjs` only against an explicit isolated target, never the `APP_ENV` database. See [SQL schema foundation](../document/handbook/database/issue-31-sql-schema.md).
 
+Issue #32 adds deterministic SQL master seeds at `database/seeds/sql-master/` (`manifest.json`, `legacy-id-map.json`, and 11 SQL tables). The dataset is gitignored and excluded from the Docker build context by `.dockerignore`. Company assignment policy is the tracked file `database/seed-policy/issue-32.json`. These seeds are staged for the target schema and are not applied to the live database or the active Prisma CUID workflow until Issue #33 runtime adoption. Promotion requires an explicit destination and does not replace `database/seeds/master` unless `--confirm-active-master` is set. See [SQL Master Seeds Handbook](../document/handbook/database/issue-32-sql-master-seeds.md).
+
 The target gives every table an internal BIGINT identity `id` and an immutable random UUIDv4 `public_id`. PK/FK relations use numeric keys; API/UI references use public UUIDs after #33 adoption. See the [identifier contract](../document/database/PUBLIC_IDENTIFIERS.md) and [project rule](../.cursor/rules/05-record-identifiers.mdc).
 
 ## Structure

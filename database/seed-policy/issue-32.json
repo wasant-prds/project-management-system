@@ -1,0 +1,19 @@
+{
+  "policyVersion": "1.0.0",
+  "evidence": "document/COMPANY_PROJECT_DECISION.md",
+  "dhasLegacyId": "seed-company-dhas",
+  "dhasCode": "dhas",
+  "dhasConfiguration": "lib/dhas-company.json",
+  "derivedTimestamp": "2025-10-17 10:30:43.000",
+  "derivedTimestampReason": "Dhas comes from reviewed configuration and has no backup timestamp. This Asia/Bangkok wall-clock value is synthetic provenance.",
+  "defaultProjectCompany": "dhas",
+  "projectCompanyMap": {},
+  "calendarTimes": ["00:00:00", "09:00:00"],
+  "userDefaults": {
+    "theme": "light",
+    "locale": "th",
+    "status": "Active",
+    "role": "member"
+  },
+  "projectMemberTimestamps": "copy-joined-at"
+}

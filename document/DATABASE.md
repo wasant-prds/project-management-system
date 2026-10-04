@@ -2,6 +2,8 @@
 
 > **Identifier decision 2026-10-04:** SQL target ทุก table ใช้ internal BIGINT id สำหรับ PK/FK และ immutable random UUIDv4 public_id สำหรับ API/frontend/URL. Active Prisma/API ยังใช้ legacy CUID จน #33 เปลี่ยน DB + runtime + DTO พร้อมกัน. ดู [public identifier contract](./database/PUBLIC_IDENTIFIERS.md) และ [project rules](../.cursor/rules/05-record-identifiers.mdc).
 
+> **Seed decision 2026-10-04:** Issue #32 แปลง production backup `pms_prod_backup_20260926_183540.sql.gz` เป็น deterministic SQL master seeds ใน `database/seeds/sql-master/` พร้อม `legacy-id-map.json` สำหรับ target schema. นโยบายบริษัทอยู่ที่ `database/seed-policy/issue-32.json`. Dataset ถูก git ignore และถูกกันจาก Docker build context. ยังคง `database/seeds/master/` ไว้สำหรับ active Prisma CUID runtime จนกว่าจะถึง Issue #33 และการ promote ต้องระบุปลายทางเอง. ดู [SQL master seeds handbook](./handbook/database/issue-32-sql-master-seeds.md).
+
 > **Owner decision 2026-09-29:** ยกเลิก Customer model และใช้ `Company → Project.companyId` โดย Project เดิมโยงกับ Dhas ตาม [Company → Project decision](./COMPANY_PROJECT_DECISION.md). Customer target ด้านล่างเป็นประวัติข้อเสนอเดิม.
 
 | รายการ | ค่า |

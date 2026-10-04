@@ -92,6 +92,6 @@ node scripts/sql-migrate.mjs empty-bootstrap --target docker:<isolated-container
 
 ## สิ่งที่ยังไม่เกิดขึ้น
 
-#31 ไม่ได้ migrate, seed, reset หรือ deploy. ไม่ได้เปลี่ยน entrypoint, Prisma schema หรือ JSON seed. #32 ยังไม่ได้สร้างแถว seed. #33 ยังไม่ได้สลับแอปมาใช้ internal numeric keys/public UUID API boundary. Downgrade อัตโนมัติไม่มี.
+#31 ไม่ได้ migrate, seed, reset หรือ deploy. ไม่ได้เปลี่ยน entrypoint, Prisma schema หรือ JSON seed. แถว SQL seed ของ backup อยู่ที่ [Issue #32](./issue-32-sql-master-seeds.md) และยังไม่ถูก apply เข้าแอป. #33 ยังไม่ได้สลับแอปมาใช้ internal numeric keys/public UUID API boundary. Downgrade อัตโนมัติไม่มี.
 
 SonarQube scanner, `SONAR_HOST_URL` และ `SONAR_TOKEN` ไม่พบในเครื่องนี้ จึงยังไม่มีผล quality gate ของ issue นี้.
