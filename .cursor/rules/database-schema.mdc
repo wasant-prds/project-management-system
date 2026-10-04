@@ -6,15 +6,15 @@ alwaysApply: false
 
 # Database schema
 
-- PostgreSQL 16 + Prisma 6 via `DATABASE_URL`. IDs `cuid()`. DateTime + `now()`. `updatedAt` `@updatedAt`.
+- PostgreSQL 16 + Prisma 6 via `DATABASE_URL`. Follow the always-on identifier standard in `05-record-identifiers.mdc`: internal BIGINT PK/FKs plus immutable random UUIDv4 public_id on every table. Active Prisma still uses legacy cuid() until #33 adopts the SQL target; do not treat that legacy shape as the standard for new target work.
 - Use `Asia/Bangkok` as the timezone for all persisted dates and timestamps. Date-only values represent Bangkok calendar dates; timestamp columns represent Bangkok local wall-clock values. Configure the PostgreSQL session timezone to `Asia/Bangkok` for database-generated defaults and use explicit application conversions; never normalize persisted values to UTC.
-- `WorkItem` maps to table `work_items`. Field `types` maps to column `labels_types` (`String[]`).
+- `WorkItem` maps to table `work_items`. Active legacy field `types` maps to `labels_types` (`String[]`); SQL target uses type_labels per dictionary.
 - Target: multiple Companies + `Project.companyId` (nullable only during Dhas backfill, then NOT NULL). No Customer model.
-- Target GitLab: `GitLabProjectMapping` unique(instanceUrl, gitLabProjectId). `ExternalWorkItemReference` unique(provider, instance, project, issueId) and unique(workItemId) in phase one. Never store tokens in tables.
+- Target integrations: external_project_mappings unique(provider, instance_url, external_project_id); external_work_item_references unique(provider, instance_url, external_project_id, external_issue_id) and unique(work_item_id). Local relations use numeric IDs; local client references use public UUIDs. Never store tokens in tables.
 - TimeEntry workflow requires `workItemId`. `projectId` must match the WorkItem. Schema today allows nulls and does not enforce the pair — close this in API now, DB when ready.
-- Set Decimal precision. Hours need fractional scale. Currency scale 2. Add checks: `hours > 0`, `progress BETWEEN 0 AND 100`.
+- Set Decimal precision. Retain current DECIMAL(65,30) for hours/budget/spending. Validate positive hours/progress in services; add DB checks only after reviewing existing rows.
 - Do not put Developer/Infra/SA on `User.role`. Reserve unique Company code `dhas` for the default existing-Project backfill. `ProjectMember` stays unused by product.
-- As-Is cascade: delete Project removes WorkItems/TimeEntries; delete WorkItem SetNulls `TimeEntry.workItemId`; delete User cascades TimeEntries. Add soft-delete/archive before history-destroying ops.
+- Current Project/WorkItem delete guards and restrictive relations preserve history; never infer cascade behavior from an older backup. Review archive/soft-delete policy before any change.
 - Indexes from real queries (`projectId+status`, `role+status`, `TimeEntry(date)`, `companyId+status`). Measure first.
-- Rollout: backup + restore test → additive nullable → backfill → validate → NOT NULL/unique. Prefer `db-push-safe`; versioned migrations when the team is ready.
+- Rollout: backup + restore test → additive nullable → backfill → validate → NOT NULL/unique. Active legacy runtime uses guarded db-push-safe until #33; SQL target uses its versioned runner after compatible adoption.
 - If multiple User rows exist, pick the owner with audit. Do not delete user rows until every FK is remapped.

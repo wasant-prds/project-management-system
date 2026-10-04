@@ -1,0 +1,83 @@
+========================================================================
+Issue #31 — SQL schema, numeric identity, timestamps, migrations
+ผ่านเมื่อ: assertion ตรงค่าที่คาด หรือ catalog ของ PostgreSQL 16 ตรงสัญญา
+SKIP ของไฟล์ Docker เมื่อไม่ได้ตั้ง flag = ปกติของ pnpm test; ไม่ใช่ผลของคำสั่งเฉพาะ
+========================================================================
+
+ชุด unit — ไม่ต่อ PostgreSQL/Redis/Docker/network
+คำสั่ง: node tests/run.mjs sql-schema
+ผลล่าสุด: 26 PASS / 0 FAIL / 0 SKIP (2026-10-04, public UUID follow-up)
+
+tests/sql/schema-contract.test.mjs
+├─ TC-31-01 schema snapshot declares only runtime-used business tables and migration history
+├─ every table has a unique database-generated public UUID and all FKs remain numeric
+├─ TC-31-02 snapshot preserves values and uses clear names with local numeric project references
+├─ schema documents every table and column with PostgreSQL comments and uses snake_case identifiers
+├─ external mappings and issue identities use provider-neutral names and provider-scoped unique keys
+├─ tables retained for Project deletion checks are still queried by the current API
+├─ TC-31-16 active Prisma runtime and migrate entrypoint stay on the CUID workflow
+└─ TC-31-15 fingerprint comparison detects an added catalog line and ignores order
+
+tests/sql/id-contract.test.mjs
+├─ public ID preserves canonical random UUIDv4 across API serialization
+├─ public ID rejects internal numeric IDs, legacy CUIDs and noncanonical or non-v4 UUIDs
+├─ TC-31 decimal ID accepts a canonical positive integer and preserves BIGINT max
+└─ TC-31 decimal ID rejects noncanonical syntax, zero, sign, fraction and non-strings
+
+tests/sql/legacy-id.test.mjs
+├─ legacy mappings retain both identifiers and reject missing or numeric public identity
+├─ TC-31 legacy mapping sorts by createdAt then old ID without locale rules
+├─ TC-31 legacy mapping keeps seed and live identities distinct
+└─ TC-31 legacy mapping rejects missing provenance, bad scope and noncanonical IDs
+
+tests/sql/migrate-runner.test.mjs
+├─ TC-31-11 inspect reports the baseline checksum and a rerun plan skips it before SQL writes
+├─ TC-31-11 changed applied checksum fails before another migration script runs
+├─ TC-31-13 nontransactional SQL and caller-owned transactions are rejected before queries
+├─ TC-31-14 unsafe paths, duplicate versions, nonempty targets and the application database are rejected
+├─ TC-31-12 bootstrap script takes the migration lock and records history without a connection string
+├─ TC-31-16 runner errors redact connection strings
+├─ TC-31-13 a failed migration script does not continue into another write
+├─ TC-31-13 mismatched dollar quotes and literals do not hide guarded SQL
+├─ TC-31-14 equivalent application targets are refused before a query
+└─ TC-31-16 URL target keeps the password out of process arguments
+
+ชุด integration — PostgreSQL 16 จริง, opt-in
+คำสั่ง: node tests/run.mjs sql-migrations-docker
+ผลล่าสุด: 18 PASS / 0 FAIL / 0 SKIP (2026-10-04, public UUID follow-up)
+
+tests/sql/migrations-docker.test.mjs
+├─ TC-31-01 empty bootstrap creates the business and technical tables
+├─ TC-31-02 catalog types, identity, enums, decimals and foreign-key actions match the contract
+├─ all live catalog tables and columns have nonempty comments and snake_case names
+├─ TC-31-03 generated IDs start at 1 and sequences are independent
+├─ TC-31-04 explicit import IDs align the sequence and an empty table still starts at 1
+├─ every table has public UUID metadata and generated UUIDs are unique and immutable
+├─ TC-31-05 concurrent inserts stay unique and a rolled-back insert leaves a gap
+├─ TC-31-06 ordinary writes own timestamps and ignore client no-op values
+├─ TC-31-07 Bangkok defaults do not follow a UTC session and DATE values do not shift
+├─ TC-31-08 controlled import keeps source timestamps and does not copy remote time into local history
+├─ TC-31-09 decimal, JSON, arrays, Thai text and enum literals round-trip
+├─ GitLab and GitHub mappings and references coexist without source identity collisions
+├─ TC-31-10 foreign-key delete actions and unique keys follow the current schema
+├─ TC-31-11 rerun skips the baseline and a changed checksum does not write
+├─ TC-31-12 a second runner fails on the migration lock without writing history
+├─ TC-31-13 failed SQL rolls back and a terminated backend leaves no history
+├─ TC-31-15 snapshot bootstrap and migration replay have the same catalog until an intentional drift
+└─ TC-31-15 replaying a later migration matches a snapshot that includes it
+
+TC-31-10 รวมการลบและเปลี่ยน id ของ User ที่มี ActivityLog: ต้องได้ foreign key error และแถว log เดิมต้องยังอยู่.
+TC-31-08 ตรวจ project_id ของ external reference เป็น local BIGINT FK และแยกจาก GitLab project ID ที่เป็น TEXT.
+Provider follow-up ตรวจ mapping default gitlab, การแยก source keys ตาม provider/instance, duplicate mapping/reference ที่ถูกปฏิเสธ, one reference per work item และ unmapping ที่ไม่ลบ imported work items/references. Fixture ใช้ GitHub key เพื่อทดสอบ SQL contract เท่านั้น ไม่เรียก GitHub API หรืออ้างว่า sync adapter ถูก implement.
+TC-31-14 ในชุด integration ถูกตรวจร่วมกับ TC-31-13 เรื่อง nonempty target, rollback และ terminate. ฝั่ง unit ตรวจ target ที่ host/port/database เดียวกันและ container ของแอป.
+TC-31-15 ฝั่ง replay เทียบ snapshot ที่รวม migration ถัดไป กับ bootstrap 0001 แล้ว upgrade 0002.
+TC-31-15 ตรวจพบ drift ของ COMMENT ON COLUMN ใน catalog fingerprint ด้วย.
+TC-31-16 ฝั่ง runtime อยู่ใน unit เพราะต้องพิสูจน์ว่า Prisma และ entrypoint เดิมไม่ถูกสลับ. URL target ส่ง password ทาง PGPASSWORD และไม่อยู่ใน argv.
+
+สรุปเคสที่ระบุในสัญญา
+TC-31-01 ถึง TC-31-13 และ TC-31-15 มีหลักฐาน PostgreSQL 16
+TC-31-14 และ TC-31-16 มีหลักฐาน unit โดยไม่ใช้ mock แทน catalog
+PASS = assertion ผ่าน
+SKIP ของ pnpm test = ไฟล์ Docker ไม่ได้เปิด flag
+
+Public UUID follow-up: ตรวจทุก table มี UUID default/NOT NULL/UNIQUE; update public_id ถูกปฏิเสธแม้เปิด timestamp-preservation, no-op รักษาค่า, controlled import UUID คงเดิม. Helper reject numeric/CUID/non-v4/newline inputs; mapping retain both IDs. API authorization/DTO leakage tests เป็น #33 ไม่อ้างว่า helper tests ตรวจ runtime boundary แล้ว.

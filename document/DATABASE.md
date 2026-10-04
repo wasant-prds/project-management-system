@@ -1,5 +1,7 @@
 # DATABASE
 
+> **Identifier decision 2026-10-04:** SQL target ทุก table ใช้ internal BIGINT id สำหรับ PK/FK และ immutable random UUIDv4 public_id สำหรับ API/frontend/URL. Active Prisma/API ยังใช้ legacy CUID จน #33 เปลี่ยน DB + runtime + DTO พร้อมกัน. ดู [public identifier contract](./database/PUBLIC_IDENTIFIERS.md) และ [project rules](../.cursor/rules/05-record-identifiers.mdc).
+
 > **Owner decision 2026-09-29:** ยกเลิก Customer model และใช้ `Company → Project.companyId` โดย Project เดิมโยงกับ Dhas ตาม [Company → Project decision](./COMPANY_PROJECT_DECISION.md). Customer target ด้านล่างเป็นประวัติข้อเสนอเดิม.
 
 | รายการ | ค่า |
@@ -20,8 +22,8 @@
 - Target mapping: calendar-only fields ใช้ PostgreSQL `DATE` และ Prisma `@db.Date`; timestamps ใช้ `TIMESTAMP(3) WITHOUT TIME ZONE` และ Prisma `@db.Timestamp(3)` โดยค่าที่เขียนเป็น Bangkok local wall-clock. `DateTime` ที่ไม่มี native annotation ใน Prisma ปัจจุบัน default-map เป็น `timestamp(3)`; ให้ระบุ native type ชัดเจนใน target schema เพื่อป้องกันความหมายเปลี่ยน
 - Prisma model จะ map ไป table ชื่อเดียวกันตาม default ยกเว้น `WorkItem` ซึ่ง map ไป table `work_items`
 - Prisma field `WorkItem.types` map ไป PostgreSQL column `labels_types` และเป็น `String[]`
-- ไม่มี schema migration folder ในรายการไฟล์ปัจจุบันที่ตรวจพบ; Docker migration service ใช้ guarded `prisma db push` ไม่ใช่ versioned migration history
-- จำนวน/scale ของ `Decimal` ยังไม่ได้กำหนดใน schema สำหรับ `budget`, `spent` และ `hours`
+- Active runtime ยังใช้ guarded `prisma db push` ใน Docker migration service จนถึง Issue #33. Issue #31 เพิ่ม target แยกที่ `database/schema.sql` และ `database/migrations/` แต่ยังไม่สลับ consumer และยังไม่ apply กับฐานข้อมูลใช้งาน. ดู [SQL decisions](./database/SQL_DATABASE_DECISIONS.md), [schema dictionary](./database/SQL_SCHEMA_DICTIONARY.md) และ [operations handbook](./handbook/database/issue-31-sql-schema.md)
+- Prisma `TimeEntry.hours` เป็น `DECIMAL(65,30)`. `Project.budget`/`spent` ไม่มี `@db.Decimal` แต่ Prisma 6 diff สร้างเป็น `DECIMAL(65,30)` เช่นกัน. SQL target ของ #31 คง precision นี้; ไม่ได้ย่อ currency เป็น scale 2
 
 ## 2. As-Is models
 

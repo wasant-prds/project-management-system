@@ -9,6 +9,7 @@ alwaysApply: true
 - Multiple Company profiles may exist; every Project belongs to exactly one Company. `Project.companyId` may be nullable only during the Dhas backfill; no orphans before NOT NULL.
 - TimeEntry must reference an existing WorkItem. `projectId` must equal that WorkItem's project (or be derived). Reject mismatch with 400/409; do not write the row.
 - Owner identity is resolved server-side. Never trust browser `userId` or `assigneeId` to switch users. Assignee and Daily Work logger are the same owner.
+- Identity standard is `05-record-identifiers.mdc`: internal numeric PK/FK, immutable random UUID public_id for client references. API relations resolve public UUIDs to authorized numeric keys; imported IDs and provider IDs stay separate namespaces.
 - Board columns are `WorkItem.status`. No private board records. Status writes go through the WorkItem service used by `/work-items`.
 - Dashboard, Analysis, and Project summaries use the shared metric formulas. Never hard-code sample arrays or treat API errors as zero.
 - System default time zone is `Asia/Bangkok` in every environment, including application and database sessions. Use it for date-only values, calendar/year boundaries, business dates, filters, date groups, and every timestamp written to the database. Do not convert stored values to UTC or infer dates from the browser/device timezone.

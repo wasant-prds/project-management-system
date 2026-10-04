@@ -2,6 +2,10 @@
 
 This directory contains persistent database storage for the Project Management System.
 
+Issue #31 adds an empty SQL target at `schema.sql` and `migrations/manifest.json`. It is not applied by Compose. The active migration path remains guarded `prisma db push` until Issue #33. Run `node scripts/sql-migrate.mjs` only against an explicit isolated target, never the `APP_ENV` database. See [SQL schema foundation](../document/handbook/database/issue-31-sql-schema.md).
+
+The target gives every table an internal BIGINT identity `id` and an immutable random UUIDv4 `public_id`. PK/FK relations use numeric keys; API/UI references use public UUIDs after #33 adoption. See the [identifier contract](../document/database/PUBLIC_IDENTIFIERS.md) and [project rule](../.cursor/rules/05-record-identifiers.mdc).
+
 ## Structure
 
 ```

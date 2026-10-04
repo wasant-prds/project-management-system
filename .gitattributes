@@ -1,2 +1,4 @@
 # Keep shell scripts LF so bind-mounted entrypoints work on Linux servers.
 *.sh text eol=lf
+database/**/*.sql text eol=lf
+database/**/*.json text eol=lf

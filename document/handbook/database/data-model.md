@@ -1,8 +1,10 @@
 # Database data model
 
+Target identity standard (user decision 2026-10-04): every table has internal BIGINT id/PK/FKs and immutable random UUIDv4 public_id; API/frontend reference only public UUIDs at #33 cutover. See [public identifier contract](../../database/PUBLIC_IDENTIFIERS.md).
+
 ## ภาพรวม
 
-Prisma ใช้ PostgreSQL. API ปัจจุบันอ่าน/เขียน model หลักด้านล่าง โดย `WorkItem` map ไปยังตารางจริง `work_items`; model อื่นใช้ชื่อ table ตาม Prisma model. ไม่มี migration history แบบ versioned migrations ใน repository ที่ตรวจพบ; Compose migrations service ใช้ guarded `prisma db push`.
+Prisma ใช้ PostgreSQL. API ปัจจุบันอ่าน/เขียน model หลักด้านล่าง โดย `WorkItem` map ไปยังตารางจริง `work_items`; model อื่นใช้ชื่อ table ตาม Prisma model. Active Compose migration ยังใช้ guarded `prisma db push` และ primary ID แบบ `cuid()`. Issue #31 เพิ่ม SQL target แยกที่ยังไม่ถูกสลับมาใช้: ดู [SQL schema foundation](./issue-31-sql-schema.md).
 
 Issue #18 ใช้ `Company → Project`: schema ปัจจุบันไม่มี `Customer` model และ `Project.companyId` เป็น required. ข้อความนี้ยืนยันเฉพาะ Prisma schema/API ใน repository; สถานะ physical tables หรือ rows ใน database ของแต่ละ environment — รวมถึงจำนวน Projects ที่ผูกกับ Dhas — **ไม่พบข้อมูลที่ยืนยันได้จาก implementation ปัจจุบัน**.
 

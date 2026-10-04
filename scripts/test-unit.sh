@@ -45,7 +45,7 @@ fi
 
 # Keep opt-in Docker/PostgreSQL suites out of the unit report.
 case "${1:-}" in
-  database-rollout-docker|runtime-container|runtime-docker|seed-docker)
+  database-rollout-docker|runtime-container|runtime-docker|seed-docker|sql-migrations-docker)
     echo "This reporter runs unit suites only; use the matching existing pnpm test:* suite command." >&2
     exit 2
     ;;

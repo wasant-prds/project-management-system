@@ -4,6 +4,8 @@
 
 สำหรับ #18 ให้ใช้ [Company → Project decision](./COMPANY_PROJECT_DECISION.md) และ [implementation/runbook](./COMPANY_PROJECT_IMPLEMENTATION.md) ซึ่งแทน Customer contract เดิม. ใช้ [Runtime Security](./RUNTIME_SECURITY.md) สำหรับ runtime secrets. #20 เพิ่ม GitLab schema source; ก่อนใช้ใน environment ให้ผ่าน verified backup, isolated restore และ rollout approval ตามขั้นตอนของเอกสารนี้.
 
+Issue #31 เพิ่ม SQL target และ `scripts/sql-migrate.mjs` สำหรับฐานข้อมูลทดลองที่ระบุชัดเจนเท่านั้น. คำสั่งนั้นยังไม่ใช่ขั้นตอน rollout ของเอกสารนี้ และห้ามชี้ไปที่ฐานข้อมูลของ `APP_ENV`. Active migration ยังเป็น guarded `prisma db push` จนถึง Issue #33.
+
 ## Configuration และขอบเขตความปลอดภัย
 
 รันที่ repository root ด้วย Node ของ local toolchain และ Docker CLI. Root `.env` เลือก `APP_ENV=local|dev|uat|prod`; container เป้าหมายคือ `pms-postgres-${APP_ENV}`. Dev/local ใช้ `docker-compose.yml`, UAT ใช้ `docker-compose.uat.yml`, Production ใช้ `docker-compose.prod.yml`; environment และ data/backup directories ต้องแยกจริงบน host.

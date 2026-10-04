@@ -12,6 +12,13 @@ const suites = {
   "work-item-schema-docker": { files: [join(testRoot, "seed", "docker.test.mjs")] },
   "runtime-docker": { files: [join(testRoot, "runtime", "docker.test.mjs")] },
   "schema-rollout-gate": { files: [join(testRoot, "runtime", "schema-rollout-gate.test.mjs")] },
+  "sql-schema": { files: [
+    join(testRoot, "sql", "id-contract.test.mjs"),
+    join(testRoot, "sql", "legacy-id.test.mjs"),
+    join(testRoot, "sql", "schema-contract.test.mjs"),
+    join(testRoot, "sql", "migrate-runner.test.mjs"),
+  ] },
+  "sql-migrations-docker": { files: [join(testRoot, "sql", "migrations-docker.test.mjs")] },
   "runtime-security": { files: [join(testRoot, "runtime", "security.test.mjs"), join(testRoot, "runtime", "launcher.test.mjs"), join(testRoot, "runtime", "owner-origin.test.mjs")] },
   "runtime-container": { files: [join(testRoot, "runtime", "container.test.mjs")] },
   gitlab: { directory: join(testRoot, "gitlab") },
@@ -41,6 +48,7 @@ if (requestedSuite === "database-rollout-docker") process.env.PMS_RUN_ROLLOUT_DO
 if (requestedSuite === "runtime-container") process.env.PMS_RUN_CONTAINER_TESTS = "1";
 if (requestedSuite === "runtime-docker") process.env.PMS_RUN_DOCKER_TESTS = "1";
 if (requestedSuite === "seed-docker") process.env.PMS_RUN_SEED_DOCKER_TESTS = "1";
+if (requestedSuite === "sql-migrations-docker") process.env.PMS_RUN_SQL_MIGRATION_DOCKER_TESTS = "1";
 if (requestedSuite === "work-item-schema-docker") {
   process.env.PMS_RUN_SEED_DOCKER_TESTS = "1";
   process.env.PMS_SKIP_INSTALLATION_SEED_DOCKER = "1";

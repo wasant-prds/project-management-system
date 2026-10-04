@@ -86,6 +86,7 @@ Route Handler ปัจจุบันมีดังนี้:
 - [Owner access gate](./operations/owner-access.md) — Basic credential gate, origin checks, middleware proof, owner resolution.
 - [Runtime operations](./operations/runtime.md) — start, health, logs และ troubleshooting; links ไปยัง Docker/DB runbooks.
 - [Database data model](./database/data-model.md) — relations และ tables ที่ current APIs ใช้.
+- [SQL schema, numeric IDs and migrations — Issue #31](./database/issue-31-sql-schema.md) — empty SQL snapshot (11 runtime-used business tables + schema_migrations), BIGINT identity PKs / random public UUIDs, Bangkok wall-clock timestamps, advisory locking, versioned migration runner และ isolated test evidence; ยังไม่ใช่ active runtime.
 - [GitLab integration](./integration/gitlab.md) — configuration, security, data ownership, sync behavior และ rollout readiness.
 
 ## Source references

@@ -1,0 +1,14 @@
+{
+  "revision": "31.0.0",
+  "lockTimeoutMs": 5000,
+  "statementTimeoutMs": 120000,
+  "migrations": [
+    {
+      "version": "0001",
+      "name": "initial_schema",
+      "kind": "baseline_snapshot",
+      "script": "database/schema.sql",
+      "checksum": "e17c32c0e0257de11cddfbec25998902fde6fc2c008b998ba66f12b06f080a8b"
+    }
+  ]
+}

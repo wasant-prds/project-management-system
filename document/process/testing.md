@@ -195,6 +195,25 @@ $env:PMS_ROLLOUT_TEST_IMAGE = 'pms-issue16-app-validation'
 pnpm test:database-rollout-docker
 ```
 
+## Issue #31 — SQL schema, numeric IDs and versioned migrations
+
+Unit contract tests do not connect to PostgreSQL, Redis, Docker or external services:
+
+```powershell
+pnpm test:sql-schema
+node tests/run.mjs sql-schema
+bash scripts/test-unit.sh sql-schema
+```
+
+Isolated PostgreSQL 16 evidence is a separate command. It starts disposable `postgres:16-alpine` containers with `--network none`, trust authentication and no published port, then removes them. It does not read root `.env` or the installation volume:
+
+```powershell
+pnpm test:sql-migrations-docker
+node tests/run.mjs sql-migrations-docker
+```
+
+`bash scripts/test-unit.sh sql-migrations-docker` is rejected because that reporter is for unit suites. `pnpm test` skips the Docker cases until the focused command sets the opt-in flag.
+
 ## Issue #25 — Owner Settings
 
 Run owner profile/preferences validation, authenticated API persistence/reload, fixed timezone, conflicts, safe database errors, and unsupported security/notification field checks:
