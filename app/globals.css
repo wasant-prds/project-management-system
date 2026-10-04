@@ -745,6 +745,8 @@
 }
 @utility surface-hover { box-shadow: var(--surface-shadow-hover); }
 @utility surface-pressed { box-shadow: var(--surface-shadow-pressed); }
+/* Break long identifiers only when needed, including inside shrinking flex/grid tracks. */
+@utility content-wrap { overflow-wrap: anywhere; }
 
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
   .motion-card:hover { translate: 0 -1px; border-color: color-mix(in srgb, var(--primary) 24%, var(--border)); box-shadow: var(--surface-shadow-hover); }
@@ -811,4 +813,5 @@ input[type='date'] { color-scheme: light; }
 .dark input[type='date'], .special-dark input[type='date'] { color-scheme: dark; }
 @media (pointer: coarse) {
   [data-slot='button'], [data-slot='select-trigger'], [data-slot='input'], [data-slot='tabs-trigger'], [data-slot='toggle'] { min-height: 2.75rem; }
+  [data-slot='dialog-close'] { width: 2.75rem; height: 2.75rem; }
 }

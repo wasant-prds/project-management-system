@@ -239,7 +239,7 @@ export function GitLabImportPanel({ projects, onSynced }: Readonly<{
     <section className="space-y-4 rounded-xl border bg-card p-4 shadow-sm sm:p-5" aria-labelledby="gitlab-import-title">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 id="gitlab-import-title" className="font-semibold">นำเข้า GitLab Issue</h2>
+          <h2 id="gitlab-import-title" className="content-wrap text-base font-semibold leading-snug">นำเข้า GitLab Issue</h2>
           <p className="mt-1 text-sm text-muted-foreground">นำเข้าด้วยตนเองทางเดียว ข้อมูล Work Item ที่จัดการใน PMS และ Daily Work จะคงเดิม</p>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={reload} disabled={loading}>

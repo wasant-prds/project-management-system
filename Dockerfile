@@ -70,6 +70,7 @@ ENV DATABASE_URL="postgresql://build:build@localhost:5432/build?schema=public"
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json pnpm-lock.yaml* ./
+COPY prisma.config.ts ./
 COPY prisma ./prisma
 COPY scripts ./scripts
 COPY database/seeds ./database/seeds
@@ -158,6 +159,7 @@ COPY package.json pnpm-lock.yaml* ./
 RUN pnpm install --ignore-scripts
 
 COPY prisma ./prisma
+COPY prisma.config.ts ./
 RUN ./node_modules/.bin/prisma generate
 
 COPY scripts/docker-entrypoint-dev.sh /usr/local/bin/docker-entrypoint-dev.sh

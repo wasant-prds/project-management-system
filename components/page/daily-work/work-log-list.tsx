@@ -14,6 +14,7 @@ import { ACTION_LABEL_CLASS } from "@/components/layout/page-layout"
 import { DIALOG_SHELL_WIDE_CLASS } from "@/components/ui/responsive-dialog"
 import { WorkItemDescription } from "@/components/page/work-items/work-item-description"
 import { formatBangkokDateLabel } from "@/lib/bangkok-datetime"
+import { PageState } from '@/components/layout/page-state'
 
 // Constants
 const DEFAULT_PROJECT_COLOR = "var(--project-accent)"
@@ -257,17 +258,13 @@ export function WorkLogList({
         </CardHeader>
       </Card>
       {workLogs.length === 0 ? (
-        <Card className="card-shadow">
-          <CardContent className="py-10 text-center">
-            <p className="text-muted-foreground">
-              {searchQuery.trim() ? 'No work logs match your search.' : 'No work logs for this date.'}
-            </p>
-            <Button className="mt-4 gap-2" onClick={onAddClick}>
+        <PageState title={searchQuery.trim() ? 'ไม่พบ Daily Work ที่ตรงกับคำค้นหา' : 'ยังไม่มี Daily Work ในวันที่เลือก'}
+          description={searchQuery.trim() ? 'ลองเปลี่ยนคำค้นหาเพื่อดูบันทึกอื่น' : 'เพิ่มบันทึกเวลาทำงานของ Work Item ในวันที่เลือก'}
+          action={<Button type="button" className="gap-2" onClick={onAddClick}>
               <Plus className="h-4 w-4" />
-              Add Work Log
-            </Button>
-          </CardContent>
-        </Card>
+              เพิ่ม Daily Work
+            </Button>}
+        />
       ) : (
         workLogs.map((log) => (
           <WorkLogCard key={log.id} workLog={log} onClick={onWorkLogClick} />

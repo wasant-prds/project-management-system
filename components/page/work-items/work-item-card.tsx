@@ -76,7 +76,7 @@ export function WorkItemCard({
             <div className="flex min-w-0 items-start gap-2">
               <h3
                 className={cn(
-                  'min-w-0 flex-1 break-words font-semibold leading-snug text-foreground line-clamp-2',
+                  'content-wrap min-w-0 flex-1 font-semibold leading-snug text-foreground line-clamp-2',
                   compact ? 'text-sm' : 'text-[15px]',
                 )}
               >
@@ -90,7 +90,7 @@ export function WorkItemCard({
             {preview && (
               <p
                 className={cn(
-                  'leading-relaxed text-muted-foreground',
+                  'content-wrap leading-relaxed text-muted-foreground',
                   compact ? 'line-clamp-1 text-xs' : 'line-clamp-2 text-sm',
                 )}
               >

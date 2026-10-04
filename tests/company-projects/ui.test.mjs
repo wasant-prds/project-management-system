@@ -66,6 +66,7 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
     '@/components/ui/button': { Button: ui.Button },
     '@/components/ui/badge': { Badge: ui.Badge },
     '@/components/ui/progress': { Progress: ui.Progress },
+    '@/components/ui/skeleton': { Skeleton: component('Skeleton') },
     '@/components/ui/motion': { MOTION_CLASS: { valueChange: 'motion-value-change' } },
     '@/components/ui/metric-motion': { canTweenMetric: (value) => typeof value === 'number' && Number.isSafeInteger(value) },
     '@/components/ui/animated-stat-value': {

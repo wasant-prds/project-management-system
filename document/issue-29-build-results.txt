@@ -1,0 +1,273 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 6.02kB 0.0s done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/node:24-alpine
+#2 DONE 2.9s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 769B 0.0s done
+#3 DONE 0.1s
+
+#4 [base 1/4] FROM docker.io/library/node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1
+#4 resolve docker.io/library/node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 0.1s done
+#4 DONE 0.1s
+
+#5 [internal] load build context
+#5 transferring context: 4.06MB 1.4s done
+#5 DONE 1.5s
+
+#6 [base 2/4] RUN apk add --no-cache libc6-compat openssl
+#6 CACHED
+
+#7 [base 3/4] WORKDIR /app
+#7 CACHED
+
+#8 [base 4/4] RUN corepack enable && corepack prepare pnpm@10.34.5 --activate
+#8 CACHED
+
+#9 [deps 1/2] COPY package.json pnpm-lock.yaml* ./
+#9 DONE 0.2s
+
+#10 [deps 2/2] RUN pnpm install --frozen-lockfile --ignore-scripts
+#10 1.434 Lockfile is up to date, resolution step is skipped
+#10 1.530 Progress: resolved 1, reused 0, downloaded 0, added 0
+#10 1.762 Packages: +597
+#10 1.762 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#10 2.539 Progress: resolved 597, reused 0, downloaded 46, added 46
+#10 2.651 
+#10 2.651    ╭──────────────────────────────────────────────╮
+#10 2.651    │                                              │
+#10 2.651    │     Update available! 10.34.5 → 12.9.1.      │
+#10 2.651    │     Changelog: https://pnpm.io/v/12.9.1      │
+#10 2.651    │   To update, run: corepack use pnpm@12.9.1   │
+#10 2.651    │                                              │
+#10 2.651    ╰──────────────────────────────────────────────╯
+#10 2.651 
+#10 3.546 Progress: resolved 597, reused 0, downloaded 107, added 98
+#10 4.547 Progress: resolved 597, reused 0, downloaded 140, added 140
+#10 5.547 Progress: resolved 597, reused 0, downloaded 174, added 174
+#10 6.549 Progress: resolved 597, reused 0, downloaded 234, added 230
+#10 7.549 Progress: resolved 597, reused 0, downloaded 290, added 289
+#10 8.550 Progress: resolved 597, reused 0, downloaded 354, added 350
+#10 9.557 Progress: resolved 597, reused 0, downloaded 526, added 506
+#10 10.56 Progress: resolved 597, reused 0, downloaded 592, added 592
+#10 11.57 Progress: resolved 597, reused 0, downloaded 594, added 594
+#10 12.91 Progress: resolved 597, reused 0, downloaded 595, added 594
+#10 13.92 Progress: resolved 597, reused 0, downloaded 595, added 595
+#10 15.45 Progress: resolved 597, reused 0, downloaded 596, added 595
+#10 15.76 Progress: resolved 597, reused 0, downloaded 597, added 597, done
+#10 16.45 
+#10 16.45 dependencies:
+#10 16.45 + @emotion/react 11.14.0
+#10 16.45 + @emotion/styled 11.14.1
+#10 16.45 + @hookform/resolvers 3.10.0
+#10 16.45 + @mui/material 7.3.4
+#10 16.45 + @mui/x-date-pickers 8.14.0
+#10 16.45 + @mui/x-date-pickers-pro 8.14.0
+#10 16.45 + @prisma/client 6.17.1
+#10 16.45 + @radix-ui/react-accordion 1.2.2
+#10 16.45 + @radix-ui/react-alert-dialog 1.1.4
+#10 16.45 + @radix-ui/react-aspect-ratio 1.1.1
+#10 16.45 + @radix-ui/react-avatar 1.1.2
+#10 16.45 + @radix-ui/react-checkbox 1.1.3
+#10 16.45 + @radix-ui/react-collapsible 1.1.2
+#10 16.45 + @radix-ui/react-context-menu 2.2.4
+#10 16.45 + @radix-ui/react-dialog 1.1.4
+#10 16.45 + @radix-ui/react-dropdown-menu 2.1.4
+#10 16.45 + @radix-ui/react-hover-card 1.1.4
+#10 16.45 + @radix-ui/react-label 2.1.1
+#10 16.45 + @radix-ui/react-menubar 1.1.4
+#10 16.45 + @radix-ui/react-navigation-menu 1.2.3
+#10 16.45 + @radix-ui/react-popover 1.1.4
+#10 16.45 + @radix-ui/react-progress 1.1.1
+#10 16.45 + @radix-ui/react-radio-group 1.2.2
+#10 16.45 + @radix-ui/react-scroll-area 1.2.2
+#10 16.45 + @radix-ui/react-select 2.1.4
+#10 16.45 + @radix-ui/react-separator 1.1.1
+#10 16.45 + @radix-ui/react-slider 1.2.2
+#10 16.45 + @radix-ui/react-slot 1.1.1
+#10 16.45 + @radix-ui/react-switch 1.1.2
+#10 16.45 + @radix-ui/react-tabs 1.1.2
+#10 16.45 + @radix-ui/react-toast 1.2.4
+#10 16.45 + @radix-ui/react-toggle 1.1.1
+#10 16.45 + @radix-ui/react-toggle-group 1.1.1
+#10 16.45 + @radix-ui/react-tooltip 1.1.6
+#10 16.45 + @vercel/analytics 1.5.0
+#10 16.45 + autoprefixer 10.4.21
+#10 16.45 + class-variance-authority 0.7.1
+#10 16.45 + clsx 2.1.1
+#10 16.45 + cmdk 1.0.4
+#10 16.45 + date-fns 4.1.0
+#10 16.45 + dayjs 1.11.18
+#10 16.45 + embla-carousel-react 8.5.1
+#10 16.45 + geist 1.5.1
+#10 16.45 + input-otp 1.4.1
+#10 16.45 + lucide-react 0.454.0
+#10 16.45 + luxon 3.7.2
+#10 16.45 + next 15.2.4
+#10 16.45 + next-themes 0.4.6
+#10 16.45 + react 19.2.0
+#10 16.45 + react-day-picker 9.8.0
+#10 16.45 + react-dom 19.2.0
+#10 16.45 + react-hook-form 7.64.0
+#10 16.45 + react-resizable-panels 2.1.9
+#10 16.45 + recharts 3.2.1
+#10 16.45 + sonner 1.7.4
+#10 16.45 + tailwind-merge 2.6.0
+#10 16.45 + tailwindcss-animate 1.0.7
+#10 16.45 + vaul 0.9.9
+#10 16.45 + zod 3.25.67
+#10 16.45 
+#10 16.45 devDependencies:
+#10 16.45 + @tailwindcss/postcss 4.1.14
+#10 16.45 + @types/node 22.18.8
+#10 16.45 + @types/react 19.2.1
+#10 16.45 + @types/react-dom 19.2.0
+#10 16.45 + eslint 8.57.1
+#10 16.45 + eslint-config-next 15.2.4
+#10 16.45 + postcss 8.5.6
+#10 16.45 + prisma 6.17.1
+#10 16.45 + tailwindcss 4.1.14
+#10 16.45 + tsx 4.20.6
+#10 16.45 + tw-animate-css 1.3.3
+#10 16.45 + typescript 5.9.3
+#10 16.45 
+#10 16.50 Done in 15.8s using pnpm v10.34.5
+#10 DONE 28.2s
+
+#11 [builder 1/6] WORKDIR /app
+#11 CACHED
+
+#12 [builder 2/6] COPY --from=deps /app/node_modules ./node_modules
+#12 DONE 20.9s
+
+#13 [builder 3/6] COPY . .
+#13 DONE 1.2s
+
+#14 [builder 4/6] RUN ./node_modules/.bin/prisma generate
+#14 1.819 Loaded Prisma config from prisma.config.ts.
+#14 1.819 
+#14 3.827 Prisma config detected, skipping environment variable loading.
+#14 3.828 Prisma schema loaded from prisma/schema.prisma
+#14 4.472 
+#14 4.472 ✔ Generated Prisma Client (v6.17.1) to ./node_modules/.pnpm/@prisma+client@6.17.1_prisma@6.17.1_typescript@5.9.3__typescript@5.9.3/node_modules/@prisma/client in 215ms
+#14 4.472 
+#14 4.472 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#14 4.472 
+#14 4.472 Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+#14 4.472 
+#14 DONE 4.7s
+
+#15 [builder 5/6] RUN PRISMA_CLIENT_DIR="$(find node_modules -type d -path '*/.prisma/client' | head -n 1)" &&     test -n "$PRISMA_CLIENT_DIR" &&     mkdir -p /prisma-export/.prisma /prisma-export/@prisma &&     cp -a "$(dirname "$PRISMA_CLIENT_DIR")" /prisma-export/ &&     CLIENT_PKG="$(dirname "$(find node_modules -type f -path '*/@prisma/client/package.json' | head -n 1)")" &&     cp -a "$CLIENT_PKG" /prisma-export/@prisma/client
+#15 DONE 3.2s
+
+#16 [builder 6/6] RUN pnpm build
+#16 1.114 
+#16 1.114 > project-management-system@0.1.0 build /app
+#16 1.114 > next build
+#16 1.114 
+#16 2.041    ▲ Next.js 15.2.4
+#16 2.041 
+#16 2.069    Creating an optimized production build ...
+#16 36.05  ✓ Compiled successfully
+#16 36.05    Linting and checking validity of types ...
+#16 47.08    Collecting page data ...
+#16 49.89    Generating static pages (0/16) ...
+#16 50.48    Generating static pages (4/16) 
+#16 50.51    Generating static pages (8/16) 
+#16 50.56    Generating static pages (12/16) 
+#16 50.56  ✓ Generating static pages (16/16)
+#16 51.37    Finalizing page optimization ...
+#16 51.37    Collecting build traces ...
+#16 68.76 
+#16 68.77 Route (app)                                           Size  First Load JS
+#16 68.77 ┌ ƒ /                                              5.19 kB         270 kB
+#16 68.77 ├ ƒ /_not-found                                      224 B         101 kB
+#16 68.77 ├ ƒ /analysis                                      14.8 kB         289 kB
+#16 68.77 ├ ƒ /api/analysis/summary                            224 B         101 kB
+#16 68.77 ├ ƒ /api/company                                     224 B         101 kB
+#16 68.77 ├ ƒ /api/company/[id]                                224 B         101 kB
+#16 68.77 ├ ƒ /api/dashboard/summary                           224 B         101 kB
+#16 68.77 ├ ƒ /api/health                                      224 B         101 kB
+#16 68.77 ├ ƒ /api/integrations/gitlab/projects                224 B         101 kB
+#16 68.77 ├ ƒ /api/integrations/gitlab/projects/[mappingId]    224 B         101 kB
+#16 68.77 ├ ƒ /api/integrations/gitlab/status                  224 B         101 kB
+#16 68.77 ├ ƒ /api/integrations/gitlab/sync                    224 B         101 kB
+#16 68.77 ├ ƒ /api/projects                                    224 B         101 kB
+#16 68.77 ├ ƒ /api/projects/[id]                               224 B         101 kB
+#16 68.77 ├ ƒ /api/settings/me                                 224 B         101 kB
+#16 68.77 ├ ƒ /api/users                                       224 B         101 kB
+#16 68.77 ├ ƒ /api/work-items                                  224 B         101 kB
+#16 68.77 ├ ƒ /api/work-items/[id]                             224 B         101 kB
+#16 68.77 ├ ƒ /api/work-items/import                           224 B         101 kB
+#16 68.77 ├ ƒ /api/work-logs                                   224 B         101 kB
+#16 68.77 ├ ƒ /api/work-logs/[id]                              224 B         101 kB
+#16 68.77 ├ ƒ /api/work-logs/summary                           224 B         101 kB
+#16 68.77 ├ ƒ /board                                         5.67 kB         175 kB
+#16 68.77 ├ ƒ /company                                       7.53 kB         162 kB
+#16 68.77 ├ ƒ /daily-work                                    78.8 kB         248 kB
+#16 68.77 ├ ƒ /issues                                          224 B         101 kB
+#16 68.77 ├ ƒ /projects                                      7.79 kB         169 kB
+#16 68.77 ├ ƒ /projects/[id]                                 7.26 kB         162 kB
+#16 68.77 ├ ƒ /settings                                      6.19 kB         161 kB
+#16 68.77 ├ ƒ /tasks                                           224 B         101 kB
+#16 68.77 └ ƒ /work-items                                    22.9 kB         197 kB
+#16 68.77 + First Load JS shared by all                       101 kB
+#16 68.77   ├ chunks/7569-62a41c479feac858.js                45.9 kB
+#16 68.77   ├ chunks/884316d7-82e2678ebb7af095.js            53.3 kB
+#16 68.77   └ other shared chunks (total)                    1.94 kB
+#16 68.77 
+#16 68.77 
+#16 68.77 ƒ Middleware                                       32.4 kB
+#16 68.77 
+#16 68.77 ƒ  (Dynamic)  server-rendered on demand
+#16 68.77 
+#16 DONE 69.5s
+
+#17 [production  2/11] RUN addgroup --system --gid 1001 nodejs &&     adduser --system --uid 1001 nextjs
+#17 CACHED
+
+#18 [production  3/11] COPY --from=builder /app/public ./public
+#18 CACHED
+
+#19 [production  4/11] COPY --from=builder /app/.next/standalone ./
+#19 DONE 3.0s
+
+#20 [production  5/11] COPY --from=builder /app/.next/static ./.next/static
+#20 DONE 0.3s
+
+#21 [production  6/11] COPY --from=builder /app/prisma ./prisma
+#21 DONE 0.2s
+
+#22 [production  7/11] COPY --from=builder /prisma-export /tmp/prisma-export
+#22 DONE 1.8s
+
+#23 [production  8/11] RUN rm -rf node_modules/.prisma node_modules/@prisma &&     mkdir -p node_modules &&     cp -a /tmp/prisma-export/.prisma node_modules/ &&     cp -a /tmp/prisma-export/@prisma node_modules/ &&     rm -rf /tmp/prisma-export
+#23 DONE 2.2s
+
+#24 [production  9/11] COPY scripts/runtime-*.mjs scripts/owner-gate.mjs scripts/database-url.mjs ./scripts/
+#24 DONE 0.4s
+
+#25 [production 10/11] COPY scripts/docker-entrypoint-app.sh /usr/local/bin/docker-entrypoint-app.sh
+#25 DONE 0.3s
+
+#26 [production 11/11] RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint-app.sh &&     chmod +x /usr/local/bin/docker-entrypoint-app.sh &&     chown -R nextjs:nodejs /app
+#26 DONE 35.9s
+
+#27 exporting to image
+#27 exporting layers
+#27 exporting layers 18.8s done
+#27 exporting manifest sha256:3c4675fcb851aec2c8906b9fcb78ae278fddcb9fc2ed8eb9048a4822d39ccc05 0.1s done
+#27 exporting config sha256:57f2037832201e74f7a1cf60c35560fba43c12f4ddf4be1807f5e9a70b501ef1 0.0s done
+#27 exporting attestation manifest sha256:f0196f1988bfb5c09d1873165a5ac7465f2639db510dade262b37263de3a5e03 0.0s done
+#27 exporting manifest list sha256:2784bd286790e0a51d875b1bc1d47ad4d3d5603e651114c46e5b8b8c9b25f395
+#27 exporting manifest list sha256:2784bd286790e0a51d875b1bc1d47ad4d3d5603e651114c46e5b8b8c9b25f395 0.1s done
+#27 naming to docker.io/library/pms-issue-29:local done
+#27 unpacking to docker.io/library/pms-issue-29:local
+#27 unpacking to docker.io/library/pms-issue-29:local 5.7s done
+#27 DONE 24.9s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/rkvwaqu2x74s49whpkf8c3kp1

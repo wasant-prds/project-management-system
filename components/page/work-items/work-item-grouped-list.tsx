@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronRight } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
+import { PageState } from '@/components/layout/page-state'
 import { Collapsible, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
 import { WorkItemCard } from './work-item-card'
@@ -281,11 +281,7 @@ export function WorkItemGroupedList({
 
   if (groups.length === 0) {
     return (
-      <Card className="card-shadow">
-        <CardContent className="py-12 text-center text-muted-foreground">
-          No work items match the current filters.
-        </CardContent>
-      </Card>
+      <PageState title="ไม่พบ Work Item ที่ตรงกับตัวกรอง" description="ลองปรับตัวกรองหรือคำค้นหาเพื่อดูรายการอื่น" />
     )
   }
 

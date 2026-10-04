@@ -9,20 +9,50 @@ export const summary = { total: 6, open: 5, completed: 1, cancelled: 0, overdue:
 export const dashboard = { meta, summary, filterOptions: { companies, projects } }
 export const analysis = { ...dashboard, breakdowns: { status: ['todo', 'in-progress', 'completed', 'sa-testing', 'backlog', 'blocked'].map((value) => ({ value, count: 1 })), kind: ['Task', 'Issue', 'Incident'].map((value) => ({ value, count: 2 })), priority: [{ value: 'medium', count: 5 }, { value: 'urgent', count: 1 }] }, workItems, timeEntries: workLogs, loggedHoursByPeriod: summary.loggedHoursByDate.map((row) => ({ startDate: row.date, endDate: row.date, hours: row.hours })) }
 
-export function previewResponse(url, method = 'GET') {
+export function previewData(mode) {
+  const data = structuredClone({ settings, companies, projects, workItems, workLogs, dashboard, analysis })
+  if (mode === 'edge') {
+    // Unbroken identifiers and exact Decimals expose clipping that ordinary Thai prose hides.
+    const visited = new WeakSet()
+    const expand = (value) => {
+      if (!value || typeof value !== 'object' || visited.has(value)) return
+      visited.add(value)
+      for (const [key, child] of Object.entries(value)) {
+        if (['name', 'displayName', 'title', 'description', 'remarks', 'phone', 'address'].includes(key) && typeof child === 'string') value[key] = `${child} ${'LongIdentifier'.repeat(12)}`
+        else if (['hours', 'loggedHours'].includes(key) && typeof child === 'string') value[key] = '12345678901234567890123456789012345.123456789012345678901234567890'
+        else expand(child)
+      }
+    }
+    expand(data)
+  }
+  if (mode === 'empty') {
+    data.companies = []; data.projects = []; data.workItems = []; data.workLogs = []
+    for (const report of [data.dashboard, data.analysis]) {
+      report.filterOptions = { companies: [], projects: [] }
+      Object.assign(report.summary, { total: 0, open: 0, completed: 0, cancelled: 0, overdue: 0, completionRate: 0, loggedHours: '0', recentWorkItems: [], urgentWorkItems: [], overdueWorkItems: [], recentProjects: [], loggedHoursByDate: [] })
+    }
+    Object.assign(data.analysis, { workItems: [], timeEntries: [], loggedHoursByPeriod: [], breakdowns: { status: [], kind: [], priority: [] } })
+  }
+  return data
+}
+
+export function previewResponse(url, method = 'GET', mode) {
   const path = url.pathname
   if (method !== 'GET') return { status: 405, value: { error: { code: 'PREVIEW_READ_ONLY', message: 'Preview นี้ใช้ข้อมูลจำลองและไม่บันทึกข้อมูล' } } }
+  const { settings, companies, projects, workItems, workLogs, dashboard, analysis } = previewData(mode)
+  const summary = dashboard.summary
   let value
   if (path === '/api/settings/me') value = settings
   else if (path === '/api/company') value = { companies, page: { nextCursor: null } }
   else if (path === '/api/projects') value = { projects, page: { nextCursor: null } }
   else if (path.startsWith('/api/projects/')) {
     const project = projects.find((item) => item.id === path.split('/').at(-1))
+    if (!project) return { status: 404, value: { error: { code: 'NOT_FOUND', message: 'ไม่พบ Project' } } }
     value = { project: { ...project, workItems: workItems.filter((item) => item.project.id === project?.id), timeEntries: workLogs.filter((item) => item.project.id === project?.id) } }
-  } else if (path === '/api/work-items') value = { workItems, summary: { ...summary, kinds: { Task: 2, Issue: 2, Incident: 2 } }, years: ['2026'], page: { nextCursor: null } }
+  } else if (path === '/api/work-items') value = { workItems, summary: { ...summary, kinds: { Task: mode === 'empty' ? 0 : 2, Issue: mode === 'empty' ? 0 : 2, Incident: mode === 'empty' ? 0 : 2 } }, years: ['2026'], page: { nextCursor: null } }
   else if (path.startsWith('/api/work-items/')) value = { workItem: workItems.find((item) => item.id === path.split('/').at(-1)) }
   else if (path === '/api/work-logs') value = { workLogs }
-  else if (path === '/api/work-logs/summary') value = { summary: { hours: '12.5', total: 3 } }
+  else if (path === '/api/work-logs/summary') value = { summary: { hours: summary.loggedHours, total: workLogs.length } }
   else if (path === '/api/analysis/summary') value = analysis
   else if (path === '/api/integrations/gitlab/status') value = { configured: false, instanceUrl: null }
   else if (path === '/api/integrations/gitlab/projects') value = { mappings: [] }

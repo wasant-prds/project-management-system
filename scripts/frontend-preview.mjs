@@ -20,8 +20,8 @@ const bundle = await esbuild.build({
       'next/link': 'export default function Link({href, children, ...props}) { return <a href={href} {...props}>{children}</a> }',
       'next/navigation': 'export const usePathname = () => window.location.pathname; export const useSearchParams = () => new URLSearchParams(window.location.search); export const useRouter = () => ({push: (url) => window.location.assign(url), replace: (url) => window.history.replaceState(null, "", url), refresh: () => window.location.reload()});',
       '@/lib/owner': 'export const getOwner = () => ({id: "owner-preview"});',
-      '@/lib/dashboard': `import {dashboard} from ${JSON.stringify(fixturePath)}; export const getDashboardSummary = () => dashboard; export class DashboardQueryError extends Error {}`,
-      '@/components/layout/owner-settings-provider': `import {settings} from ${JSON.stringify(fixturePath)}; export const useOwnerSettings = () => ({settings, isLoading: false, loadError: null, isSavingProfile: false, isSavingPreferences: false, reload() {}, async saveProfile() {throw new Error("Preview ไม่บันทึกข้อมูล")}, async savePreferences() {throw new Error("เปลี่ยน theme ผ่าน URL ?theme=dark หรือ special-dark")}});`,
+      '@/lib/dashboard': `import {previewData} from ${JSON.stringify(fixturePath)}; export const getDashboardSummary = () => previewData(new URLSearchParams(window.location.search).get('qa')).dashboard; export class DashboardQueryError extends Error {}`,
+      '@/components/layout/owner-settings-provider': `import {previewData} from ${JSON.stringify(fixturePath)}; export const useOwnerSettings = () => ({settings: previewData(new URLSearchParams(window.location.search).get('qa')).settings, isLoading: false, loadError: null, isSavingProfile: false, isSavingPreferences: false, reload() {}, async saveProfile() {throw new Error("Preview ไม่บันทึกข้อมูล")}, async savePreferences() {throw new Error("เปลี่ยน theme ผ่าน URL ?theme=dark หรือ special-dark")}});`,
     }
     build.onResolve({ filter: /^(next\/link|next\/navigation|@\/lib\/(owner|dashboard)|@\/components\/layout\/owner-settings-provider)$/ }, (args) => ({ path: args.path, namespace: 'preview-boundary' }))
     build.onResolve({ filter: /^\.\/owner-settings-provider$/ }, () => ({ path: '@/components/layout/owner-settings-provider', namespace: 'preview-boundary' }))
@@ -45,7 +45,7 @@ const server = createServer((request, response) => {
     const mode = new URL(request.headers.referer ?? '/', 'http://127.0.0.1').searchParams.get('qa')
     const result = request.method === 'GET' && mode === 'error'
       ? { status: 503, value: { error: { code: 'PREVIEW_UNAVAILABLE', message: 'จำลอง load failure สำหรับตรวจ error/retry UI' } } }
-      : previewResponse(url, request.method)
+      : previewResponse(url, request.method, mode)
     const send = () => {
       if (response.destroyed) return
       response.writeHead(result.status, { 'Content-Type': 'application/json' })

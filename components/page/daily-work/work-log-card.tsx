@@ -25,10 +25,10 @@ export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
   }
 
   return (
-    <Card className="motion-card card-shadow mb-2">
+    <Card data-work-log-card="" className="motion-card card-shadow mb-2">
       <CardHeader>
         <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div data-work-log-identity="" className="flex min-w-0 flex-1 basis-full items-center gap-3 sm:basis-64">
             <Avatar
               className="h-10 w-10 border-2"
               style={{
@@ -44,8 +44,8 @@ export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
                 {project?.name.substring(0, 3).toUpperCase() || 'N/A'}
               </AvatarFallback>
             </Avatar>
-            <div className="min-w-0">
-              <CardTitle className="break-words text-base">{project?.name || 'No Project'}</CardTitle>
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-base">{project?.name || 'No Project'}</CardTitle>
               {workLog.workItem?.title && (
                 <p className="truncate text-xs font-medium text-foreground/80">{workLog.workItem.title}</p>
               )}
@@ -54,7 +54,7 @@ export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
               </CardDescription>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
             {workLog.workItem && (
               <Badge variant="outline" className="gap-1 text-xs">
                 <CheckSquare className="h-3 w-3" />
@@ -66,9 +66,9 @@ export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
                 {workLog.status}
               </Badge>
             )}
-            <Badge variant="outline" className="gap-1">
-              <Clock className="h-3 w-3" />
-              {workLog.hours}h
+            <Badge variant="outline" className="min-w-0 max-w-full gap-1 whitespace-normal">
+              <Clock className="h-3 w-3 shrink-0" />
+              <span className="content-wrap min-w-0 tabular-nums">{workLog.hours}h</span>
             </Badge>
           </div>
         </div>
@@ -78,15 +78,15 @@ export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
           <div className="space-y-2 description-card">
             <div className="flex min-w-0 flex-1 items-center gap-3 p-2 rounded-lg bg-secondary/30 border border-border/50">
             <FileText className="h-4 w-4 flex-shrink-0 text-link" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">{workLog.description}</p>
+              <div className="min-w-0 flex-1">
+                <p className="content-wrap text-sm font-medium">{workLog.description}</p>
               </div>
               {workLog.remarks && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-7 gap-1 px-2 text-xs action-remarks"
+                  className="h-7 shrink-0 gap-1 px-2 text-xs action-remarks"
                   onClick={toggleRemarks}
                 >
                   {showRemarks ? (
@@ -110,7 +110,7 @@ export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
             <div className="space-y-2 remarks-card">
               <Label>Remarks</Label>
               <div className="p-3 rounded-lg bg-secondary/30 border border-border/50">
-                <p className="text-sm whitespace-pre-wrap">{workLog.remarks}</p>
+                <p className="content-wrap text-sm whitespace-pre-wrap">{workLog.remarks}</p>
               </div>
             </div>
           )

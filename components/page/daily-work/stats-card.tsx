@@ -17,9 +17,9 @@ export function StatsCard({ totalHours, totalLogs, date, isLoading = false, unav
         <CardTitle className="text-base">สรุปวันที่เลือก</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">ชั่วโมงรวม</span>
-          {isLoading ? <Skeleton aria-hidden="true" className="h-7 w-20" /> : <span key={totalHours} className="motion-value-change text-xl font-semibold tabular-nums">{unavailable ? '—' : totalHours}</span>}
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <span className="shrink-0 text-sm text-muted-foreground">ชั่วโมงรวม</span>
+          {isLoading ? <Skeleton aria-hidden="true" className="h-7 w-20" /> : <span key={totalHours} className="motion-value-change content-wrap min-w-0 text-right text-xl font-semibold tabular-nums">{unavailable ? '—' : totalHours}</span>}
         </div>
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">รายการบันทึก</span>

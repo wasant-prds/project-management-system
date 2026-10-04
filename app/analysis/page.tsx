@@ -31,6 +31,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
 import { Input } from '@/components/ui/input'
+import { WorkItemsTable, DailyWorkTable, HoursPeriodTable, displayRole, displayStatus } from '@/components/page/analysis/report-tables'
+import { PageState } from '@/components/layout/page-state'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -102,15 +104,6 @@ function analysisQuery(filters: AnalysisFilters) {
   return params.toString()
 }
 
-function displayRole(role: string | null) {
-  if (!role) return 'ไม่ระบุ'
-  return WORK_ITEM_ROLE_LABELS[role as keyof typeof WORK_ITEM_ROLE_LABELS] ?? role
-}
-
-function displayStatus(status: string) {
-  return WORK_ITEM_STATUS_LABELS[status as keyof typeof WORK_ITEM_STATUS_LABELS] ?? status
-}
-
 function activeFilterDescription(report: AnalysisReport) {
   const company = report.meta.filters.companyId
     ? report.filterOptions.companies.find((item) => item.id === report.meta.filters.companyId)?.displayName
@@ -163,130 +156,9 @@ function BreakdownCard({
             </li>
           ))}
         </ul>
+        {rows.length === 0 && <p className="text-sm leading-relaxed text-muted-foreground">ไม่พบ Work Item ในช่วงและตัวกรองนี้</p>}
       </CardContent>
     </Card>
-  )
-}
-
-function WorkItemsTable({ report }: Readonly<{ report: AnalysisReport }>) {
-  if (report.workItems.length === 0) {
-    return <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">ไม่พบ Work Item ในช่วงและตัวกรองนี้</p>
-  }
-
-  return (
-    <div className="min-w-0 overflow-hidden rounded-lg border">
-      <table className="w-full table-fixed text-left text-sm">
-        <thead className="bg-muted/50 text-xs text-muted-foreground">
-          <tr>
-            <th className="w-[48%] px-3 py-2 font-medium">Work Item / Project</th>
-            <th className="w-[28%] px-3 py-2 font-medium">สถานะ</th>
-            <th className="hidden w-[14%] px-3 py-2 font-medium sm:table-cell">ความสำคัญ</th>
-            <th className="hidden w-[14%] px-3 py-2 font-medium md:table-cell">Functional role</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border/60">
-          {report.workItems.map((item) => (
-            <tr key={item.id} className="align-top">
-              <td className="min-w-0 px-3 py-2">
-                <Link
-                  href={analysisWorkItemsHref(report.meta.filters, report.meta.period, { workItemId: item.id })}
-                  className="block break-words font-medium text-link underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label={`เปิด Work Item ${item.title}`}
-                >
-                  {item.title}
-                </Link>
-                <span className="mt-1 block break-words text-xs text-muted-foreground">
-                  {item.project.company?.displayName ?? item.project.company?.name ?? 'ไม่ระบุ Company'} · {item.project.name}
-                </span>
-                <span className="mt-1 block text-xs text-muted-foreground">วันที่อ้างอิง {item.workDate ?? item.dueDate ?? item.createdAt.slice(0, 10)}</span>
-              </td>
-              <td className="break-words px-3 py-2">{displayStatus(item.status)}</td>
-              <td className="hidden break-words px-3 py-2 sm:table-cell">{WORK_ITEM_PRIORITY_LABELS[item.priority as keyof typeof WORK_ITEM_PRIORITY_LABELS] ?? item.priority}</td>
-              <td className="hidden break-words px-3 py-2 md:table-cell">{displayRole(item.role)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-function DailyWorkTable({ report }: Readonly<{ report: AnalysisReport }>) {
-  if (report.timeEntries.length === 0) {
-    return <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">ไม่พบ Daily Work ในช่วงและตัวกรองนี้</p>
-  }
-
-  return (
-    <div className="min-w-0 overflow-hidden rounded-lg border">
-      <table className="w-full table-fixed text-left text-sm">
-        <thead className="bg-muted/50 text-xs text-muted-foreground">
-          <tr>
-            <th className="w-[27%] px-3 py-2 font-medium">วันที่</th>
-            <th className="w-[53%] px-3 py-2 font-medium">รายละเอียดต้นทาง</th>
-            <th className="w-[20%] px-3 py-2 text-right font-medium">ชั่วโมง</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border/60">
-          {report.timeEntries.map((entry) => {
-            const dayHref = analysisDailyWorkHref(report.meta.filters, { startDate: entry.date, endDate: entry.date })
-            return (
-              <tr key={entry.id} className="align-top">
-                <td className="px-3 py-2">
-                  <Link href={dayHref} className="text-link underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    {entry.date}
-                  </Link>
-                </td>
-                <td className="min-w-0 px-3 py-2">
-                  <span className="block break-words">{entry.description || entry.workItem?.title || 'ไม่มีรายละเอียด'}</span>
-                  {entry.workItem && (
-                    <span className="mt-1 block break-words text-xs text-muted-foreground">
-                      {entry.workItem.project.company?.displayName ?? entry.workItem.project.company?.name ?? 'ไม่ระบุ Company'} · {entry.workItem.project.name} · {entry.workItem.title}
-                    </span>
-                  )}
-                  {entry.remarks && <span className="mt-1 block break-words text-xs text-muted-foreground">หมายเหตุ: {entry.remarks}</span>}
-                  <span className="mt-1 block text-[11px] text-muted-foreground">TimeEntry {entry.id}</span>
-                </td>
-                <td className="px-3 py-2 text-right font-medium tabular-nums">{entry.hours}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-function HoursPeriodTable({ report }: Readonly<{ report: AnalysisReport }>) {
-  if (report.loggedHoursByPeriod.length === 0) return null
-
-  return (
-    <div className="mt-3 overflow-hidden rounded-md border">
-      <table className="w-full table-fixed text-left text-xs">
-        <thead className="bg-muted/50 text-muted-foreground">
-          <tr>
-            <th className="w-[58%] px-3 py-2 font-medium">ช่วงวันที่</th>
-            <th className="w-[20%] px-3 py-2 text-right font-medium">ชั่วโมง</th>
-            <th className="w-[22%] px-3 py-2 text-right font-medium">ต้นทาง</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border/60">
-          {report.loggedHoursByPeriod.map((row) => (
-            <tr key={row.startDate}>
-              <td className="break-words px-3 py-2">{row.startDate} – {row.endDate}</td>
-              <td className="px-3 py-2 text-right font-medium tabular-nums">{row.hours}</td>
-              <td className="px-3 py-2 text-right">
-                <Link
-                  href={analysisDailyWorkHref(report.meta.filters, { startDate: row.startDate, endDate: row.endDate })}
-                  className="text-link underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  Daily Work
-                </Link>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   )
 }
 
@@ -623,13 +495,11 @@ export default function AnalysisPage() {
               </div>
             )}
             {!isLoading && loadError && (
-              <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm" role="alert">
-                <p className="font-medium">โหลด Analysis ไม่สำเร็จ</p>
-                <p className="mt-1 text-muted-foreground">{loadError}</p>
-                <Button type="button" variant="outline" className="mt-3" onClick={() => setReloadKey((current) => current + 1)}>
+              <PageState kind="error" title="โหลด Analysis ไม่สำเร็จ" description={loadError} action={
+                <Button type="button" variant="outline" onClick={() => setReloadKey((current) => current + 1)}>
                   <RefreshCw className="h-4 w-4" /> ลองอีกครั้ง
                 </Button>
-              </div>
+              } />
             )}
           </div>
         </main>

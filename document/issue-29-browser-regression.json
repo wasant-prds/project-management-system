@@ -1,0 +1,414 @@
+{
+  "date": "2026-10-04",
+  "timezone": "Asia/Bangkok",
+  "source": "Actual production Daily Work DOM measured through isolated preview and Codex browser QA",
+  "command": "node scripts/frontend-preview.mjs",
+  "edgeUrl": "http://127.0.0.1:3791/daily-work?theme=light&qa=edge&layoutCheck=1",
+  "normalUrl": "http://127.0.0.1:3791/daily-work?theme=light&layoutCheck=1",
+  "scope": "Synthetic read-only browser checks, separate from unit tests and production E2E",
+  "pass": 42,
+  "fail": 0,
+  "consoleWarnings": 0,
+  "consoleErrors": 0,
+  "results": [
+    {
+      "mode": "edge",
+      "theme": "light",
+      "width": 320,
+      "height": 844,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 196,
+      "titleHeight": 192,
+      "headerHeight": 335
+    },
+    {
+      "mode": "normal",
+      "theme": "light",
+      "width": 320,
+      "height": 844,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "light",
+      "width": 390,
+      "height": 844,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 263,
+      "titleHeight": 144,
+      "headerHeight": 271
+    },
+    {
+      "mode": "normal",
+      "theme": "light",
+      "width": 390,
+      "height": 844,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "light",
+      "width": 639,
+      "height": 844,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 512,
+      "titleHeight": 96,
+      "headerHeight": 207
+    },
+    {
+      "mode": "normal",
+      "theme": "light",
+      "width": 639,
+      "height": 844,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "light",
+      "width": 640,
+      "height": 1024,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 489,
+      "titleHeight": 96,
+      "headerHeight": 207
+    },
+    {
+      "mode": "normal",
+      "theme": "light",
+      "width": 640,
+      "height": 1024,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "light",
+      "width": 768,
+      "height": 1024,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 617,
+      "titleHeight": 72,
+      "headerHeight": 150
+    },
+    {
+      "mode": "normal",
+      "theme": "light",
+      "width": 768,
+      "height": 1024,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "light",
+      "width": 1024,
+      "height": 768,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 367,
+      "titleHeight": 120,
+      "headerHeight": 247
+    },
+    {
+      "mode": "normal",
+      "theme": "light",
+      "width": 1024,
+      "height": 768,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "light",
+      "width": 1536,
+      "height": 960,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 708,
+      "titleHeight": 72,
+      "headerHeight": 150
+    },
+    {
+      "mode": "normal",
+      "theme": "light",
+      "width": 1536,
+      "height": 960,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "dark",
+      "width": 320,
+      "height": 844,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 196,
+      "titleHeight": 192,
+      "headerHeight": 335
+    },
+    {
+      "mode": "normal",
+      "theme": "dark",
+      "width": 320,
+      "height": 844,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "dark",
+      "width": 390,
+      "height": 844,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 263,
+      "titleHeight": 144,
+      "headerHeight": 271
+    },
+    {
+      "mode": "normal",
+      "theme": "dark",
+      "width": 390,
+      "height": 844,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "dark",
+      "width": 639,
+      "height": 844,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 512,
+      "titleHeight": 96,
+      "headerHeight": 207
+    },
+    {
+      "mode": "normal",
+      "theme": "dark",
+      "width": 639,
+      "height": 844,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "dark",
+      "width": 640,
+      "height": 1024,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 489,
+      "titleHeight": 96,
+      "headerHeight": 207
+    },
+    {
+      "mode": "normal",
+      "theme": "dark",
+      "width": 640,
+      "height": 1024,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "dark",
+      "width": 768,
+      "height": 1024,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 617,
+      "titleHeight": 72,
+      "headerHeight": 150
+    },
+    {
+      "mode": "normal",
+      "theme": "dark",
+      "width": 768,
+      "height": 1024,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "dark",
+      "width": 1024,
+      "height": 768,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 367,
+      "titleHeight": 120,
+      "headerHeight": 247
+    },
+    {
+      "mode": "normal",
+      "theme": "dark",
+      "width": 1024,
+      "height": 768,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "dark",
+      "width": 1536,
+      "height": 960,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 708,
+      "titleHeight": 72,
+      "headerHeight": 150
+    },
+    {
+      "mode": "normal",
+      "theme": "dark",
+      "width": 1536,
+      "height": 960,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "special-dark",
+      "width": 320,
+      "height": 844,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 196,
+      "titleHeight": 192,
+      "headerHeight": 335
+    },
+    {
+      "mode": "normal",
+      "theme": "special-dark",
+      "width": 320,
+      "height": 844,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "special-dark",
+      "width": 390,
+      "height": 844,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 263,
+      "titleHeight": 144,
+      "headerHeight": 271
+    },
+    {
+      "mode": "normal",
+      "theme": "special-dark",
+      "width": 390,
+      "height": 844,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "special-dark",
+      "width": 639,
+      "height": 844,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 512,
+      "titleHeight": 96,
+      "headerHeight": 207
+    },
+    {
+      "mode": "normal",
+      "theme": "special-dark",
+      "width": 639,
+      "height": 844,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "special-dark",
+      "width": 640,
+      "height": 1024,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 489,
+      "titleHeight": 96,
+      "headerHeight": 207
+    },
+    {
+      "mode": "normal",
+      "theme": "special-dark",
+      "width": 640,
+      "height": 1024,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "special-dark",
+      "width": 768,
+      "height": 1024,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 617,
+      "titleHeight": 72,
+      "headerHeight": 150
+    },
+    {
+      "mode": "normal",
+      "theme": "special-dark",
+      "width": 768,
+      "height": 1024,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "special-dark",
+      "width": 1024,
+      "height": 768,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 367,
+      "titleHeight": 120,
+      "headerHeight": 247
+    },
+    {
+      "mode": "normal",
+      "theme": "special-dark",
+      "width": 1024,
+      "height": 768,
+      "status": "pass",
+      "cards": 3
+    },
+    {
+      "mode": "edge",
+      "theme": "special-dark",
+      "width": 1536,
+      "height": 960,
+      "status": "pass",
+      "cards": 3,
+      "titleWidth": 708,
+      "titleHeight": 72,
+      "headerHeight": 150
+    },
+    {
+      "mode": "normal",
+      "theme": "special-dark",
+      "width": 1536,
+      "height": 960,
+      "status": "pass",
+      "cards": 3
+    }
+  ]
+}

@@ -906,6 +906,7 @@ export default function WorkItemsPage() {
   })
   const resultsAreCurrent = loadedFilterKey === filterKey
   const isListLoading = isWorkItemListLoading(loadedFilterKey, loadingFilterKey, filterKey, loadError)
+  const countsAvailable = !isListLoading && !loadError
 
   let listContent = (
     <WorkItemGroupedList
@@ -919,7 +920,7 @@ export default function WorkItemsPage() {
   if (isListLoading) {
     listContent = <PageState kind="loading" title="กำลังโหลด Work Items…" loadingLayout="rows" />
   } else if (loadError && !resultsAreCurrent) {
-    listContent = <div className="rounded-lg border bg-card py-12 text-center text-danger" role="alert">{loadError}</div>
+    listContent = <PageState kind="error" title="โหลด Work Items ไม่สำเร็จ" description={loadError} action={<Button type="button" variant="outline" onClick={load}>ลองอีกครั้ง</Button>} />
   }
 
   return (
@@ -1025,20 +1026,23 @@ export default function WorkItemsPage() {
             <GitLabImportPanel projects={projects} onSynced={refreshAfterMutation} />
 
             <div className={STAT_GRID}>
-              <SummaryStatCard label="Total" value={stats.total} />
+              <SummaryStatCard label="Total" value={stats.total} isLoading={isListLoading} unavailable={Boolean(loadError)} />
               <SummaryStatCard
                 label="In Progress"
                 value={stats.inProgress}
+                isLoading={isListLoading} unavailable={Boolean(loadError)}
                 valueClassName="text-info"
               />
               <SummaryStatCard
                 label="Completed"
                 value={stats.completed}
+                isLoading={isListLoading} unavailable={Boolean(loadError)}
                 valueClassName="text-success"
               />
               <SummaryStatCard
                 label="Overdue"
                 value={stats.overdue}
+                isLoading={isListLoading} unavailable={Boolean(loadError)}
                 valueClassName="text-danger"
               />
             </div>
@@ -1151,16 +1155,16 @@ export default function WorkItemsPage() {
               <div className={TAB_SCROLL_CLASS}>
                 <TabsList>
                   <TabsTrigger className={TAB_TRIGGER_CLASS} value="all">
-                    All ({workItemSummary?.total ?? filtered.length})
+                    All ({countsAvailable ? workItemSummary?.total ?? filtered.length : '—'})
                   </TabsTrigger>
                   <TabsTrigger className={TAB_TRIGGER_CLASS} value="Incident">
-                    Incidents ({workItemSummary?.kinds.Incident ?? filtered.filter((item) => item.kind === 'Incident').length})
+                    Incidents ({countsAvailable ? workItemSummary?.kinds.Incident ?? filtered.filter((item) => item.kind === 'Incident').length : '—'})
                   </TabsTrigger>
                   <TabsTrigger className={TAB_TRIGGER_CLASS} value="Issue">
-                    Issues ({workItemSummary?.kinds.Issue ?? filtered.filter((item) => item.kind === 'Issue').length})
+                    Issues ({countsAvailable ? workItemSummary?.kinds.Issue ?? filtered.filter((item) => item.kind === 'Issue').length : '—'})
                   </TabsTrigger>
                   <TabsTrigger className={TAB_TRIGGER_CLASS} value="Task">
-                    Tasks ({workItemSummary?.kinds.Task ?? filtered.filter((item) => item.kind === 'Task').length})
+                    Tasks ({countsAvailable ? workItemSummary?.kinds.Task ?? filtered.filter((item) => item.kind === 'Task').length : '—'})
                   </TabsTrigger>
                 </TabsList>
               </div>

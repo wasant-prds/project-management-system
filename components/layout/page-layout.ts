@@ -8,7 +8,7 @@ export const PAGE_INNER = 'min-w-0 mx-auto w-full max-w-[1600px] space-y-5 p-4 s
 export const PAGE_TOOLBAR =
   'page-toolbar flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between'
 
-export const PAGE_HEADING = 'page-heading text-2xl font-semibold tracking-tight text-balance sm:text-3xl'
+export const PAGE_HEADING = 'page-heading content-wrap min-w-0 text-2xl font-semibold tracking-tight text-balance sm:text-3xl'
 
 export const PAGE_LEAD = 'text-muted-foreground mt-2 max-w-2xl text-sm leading-relaxed'
 

@@ -19,8 +19,8 @@ export function PageState({ title, description, kind = 'empty', action, classNam
       <span className={cn('surface-soft flex size-11 items-center justify-center rounded-xl bg-card', kind === 'error' ? 'text-danger' : 'text-link')}>
         <Icon aria-hidden="true" className={cn('size-5', kind === 'loading' && 'motion-safe:animate-spin')} />
       </span>
-      <p className="font-semibold">{title}</p>
-      {description && <p className="max-w-md break-words text-sm text-muted-foreground">{description}</p>}
+      <p className="content-wrap max-w-full font-semibold leading-snug">{title}</p>
+      {description && <p className="content-wrap max-w-md text-sm leading-relaxed text-muted-foreground">{description}</p>}
       {kind === 'loading' && <ContentLoadingSkeleton layout={loadingLayout} />}
       {action}
     </div>

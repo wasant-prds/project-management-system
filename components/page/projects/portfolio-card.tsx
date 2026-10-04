@@ -23,7 +23,7 @@ export function PortfolioCard({ project, onEdit }: Readonly<{ project: Portfolio
           <span className="surface-inset flex size-10 shrink-0 items-center justify-center rounded-xl text-link"><FolderKanban aria-hidden="true" className="size-5" /></span>
           <div className="min-w-0 flex-1">
             <p className="mb-1 truncate text-xs text-muted-foreground">{project.company?.displayName ?? project.company?.name ?? 'ยังไม่ผูก Company'}</p>
-            <CardTitle><Link href={`/projects/${encodeURIComponent(project.id)}`} className="break-words hover:text-link">{project.name}</Link></CardTitle>
+            <CardTitle><Link href={`/projects/${encodeURIComponent(project.id)}`} className="content-wrap hover:text-link">{project.name}</Link></CardTitle>
           </div>
           <Button asChild size="icon-sm" variant="ghost"><Link href={`/projects/${encodeURIComponent(project.id)}`} aria-label={`เปิด Project ${project.name}`}><ArrowUpRight aria-hidden="true" /></Link></Button>
         </div>

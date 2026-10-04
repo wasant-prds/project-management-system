@@ -21,9 +21,9 @@ export function CompanyCard({ company, onEdit, onDelete }: Readonly<{ company: R
         </div>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
-        {(company.location || company.address) && <p className="flex items-start gap-2 break-words text-muted-foreground"><MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0" /><span>{company.location}{company.location && company.address && ' · '}{company.address}</span></p>}
-        {company.phone && <p className="flex items-center gap-2"><Phone aria-hidden="true" className="size-4 text-muted-foreground" />{company.phone}</p>}
-        {company.description && <p className="whitespace-pre-wrap break-words text-muted-foreground">{company.description}</p>}
+        {(company.location || company.address) && <p className="flex min-w-0 items-start gap-2 text-muted-foreground"><MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0" /><span className="content-wrap min-w-0">{company.location}{company.location && company.address && ' · '}{company.address}</span></p>}
+        {company.phone && <p className="flex min-w-0 items-start gap-2"><Phone aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><span className="content-wrap min-w-0">{company.phone}</span></p>}
+        {company.description && <p className="content-wrap whitespace-pre-wrap text-muted-foreground">{company.description}</p>}
         <dl className="grid grid-cols-3 gap-3 border-y border-border/60 py-3">
           <div><dt className="text-xs text-muted-foreground">Projects</dt><dd className="mt-1 text-lg font-semibold tabular-nums">{company.summary.projects}</dd></div>
           <div><dt className="text-xs text-muted-foreground">Work Items</dt><dd className="mt-1 text-lg font-semibold tabular-nums">{company.summary.workItems}</dd></div>

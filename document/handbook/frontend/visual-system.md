@@ -56,6 +56,7 @@ Actions บน Daily Work card สำหรับเปิดรายละเ�
 
 ## Source และ test references
 
+- [Final visual audit — Issue #29](./issue-29-polish.md) — ข้อมูลยาว, exact hours, shared feedback/table, modal focus และผล browser matrix ล่าสุด; ข้อจำกัด browser ของ #26 ด้านบนเป็นประวัติของรอบนั้น.
 - [Global styles and theme tokens](../../../app/globals.css)
 - [Dashboard charts](../../../components/layout/dashboard-charts.tsx) และ [Analysis page](../../../app/analysis/page.tsx)
 - [Frontend UI tests](../../../tests/frontend-ui/visual-system.test.mjs)

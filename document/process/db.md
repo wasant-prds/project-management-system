@@ -4,7 +4,7 @@
 
 ใช้ `bash` เรียกไฟล์ `.sh` (บน Windows ให้ใช้ Git Bash) เนื่องจาก PowerShell ไม่มีคำสั่ง `sh`
 
-`postinstall` ยังคงรัน `prisma generate` ส่วน Prisma seed ยังคงตั้งค่าเป็น `tsx prisma/seed.ts` ใน `package.json`
+`postinstall` ยังคงรัน `prisma generate` ส่วน Prisma seed ตั้งค่าเป็น `tsx prisma/seed.ts` ใน `prisma.config.ts` (`migrations.seed`). CLI config โหลด `.env` ที่ root ด้วย Node โดยคง environment จาก shell/container เป็นค่าหลัก; ถ้าไม่มี `.env` ใช้ environment ที่ provision ไว้ตามเดิม. ไม่เปลี่ยน schema, seed implementation หรือ approval gate ของ database operations.
 
 ตั้ง `APP_ENV` ใน `.env` ที่ root ของ repository เพื่อเลือก site เป้าหมาย โดยใช้ `.env` เพียงไฟล์เดียว: `local` หรือ `dev` สำหรับ development, `uat` สำหรับ UAT และ `prod` สำหรับ production สคริปต์จัดการฐานข้อมูลจะเลือก Compose file, container และ volume ตามค่านี้ หากกำหนด `SEED_PATH` ใน `.env` ให้ใช้ `database/seeds/master` ซึ่งเป็น path ที่อ้างอิงจาก root ของ `/app` ใน container
 

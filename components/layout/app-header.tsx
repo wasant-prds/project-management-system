@@ -37,7 +37,7 @@ export const AppHeader = memo(function AppHeader() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="break-words">{loadError ? 'โหลดโปรไฟล์ไม่สำเร็จ' : profileName}</DropdownMenuLabel>
+            <DropdownMenuLabel className="content-wrap">{loadError ? 'โหลดโปรไฟล์ไม่สำเร็จ' : profileName}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild><Link href="/settings">โปรไฟล์และการแสดงผล</Link></DropdownMenuItem>
             <DropdownMenuItem asChild><Link href="/projects">Projects ของคุณ</Link></DropdownMenuItem>

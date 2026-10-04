@@ -1,0 +1,45 @@
+========================================================================
+ชุด: unit (ไม่ต่อ PostgreSQL/Redis จริง)
+ผ่านเมื่อ: assertion ในแต่ละ test ตรงกับค่าที่คาด
+[no tests] = กลุ่มยังไม่มีไฟล์ *.test.mjs — ปกติ
+========================================================================
+
+ผลเทสต์
+────────────────────────────────────────────────────────────────────────
+tests/frontend-ui                                                       ok  3.18s
+└─ polish.test.mjs
+   ├─ TC-29-01 KPI labels reserve two lines so short and wrapped labels share the value baseline                              PASS  0.01s
+   ├─ TC-29-02 Company long contact text keeps every field and edit identity within shrinking tracks                          PASS  0.01s
+   ├─ TC-29-03 Daily Work summary preserves large exact Decimal text beside its fixed label                                   PASS  0.00s
+   ├─ TC-29-04 Input and Textarea retain invalid, disabled, label and change contracts after typography polish                PASS  0.01s
+   ├─ TC-29-05 modal long title reserves close-button space and comfortable multi-line leading                                PASS  0.00s
+   ├─ TC-29-06 shared modal close control remains optional and has a Thai accessible name                                     PASS  0.00s
+   ├─ TC-29-07 route error retry invokes the supplied reset once and conceals diagnostics                                     PASS  0.01s
+   ├─ TC-29-08 unknown route displays a themed recovery link without a fake retry or data fetch                               PASS  0.01s
+   ├─ TC-29-09 error and empty feedback retain unbroken titles and messages without clipping                                  PASS  0.01s
+   ├─ TC-29-10 polished Work Item table retains source identity, filters and Bangkok reference date                           PASS  0.00s
+   ├─ TC-29-11 polished Daily Work numeric cell wraps without rounding exact Decimal hours                                    PASS  0.00s
+   ├─ TC-29-12 Daily Work missing optional relation and description show a clear fallback                                     PASS  0.00s
+   ├─ TC-29-13 period table keeps exact hours and the same inclusive source interval                                          PASS  0.00s
+   ├─ TC-29-14 empty report tables describe missing sources without fabricated rows                                           PASS  0.00s
+   ├─ TC-29-15 compiled polish CSS breaks unbroken content and enlarges touch close controls only for coarse pointers         PASS  1.50s
+   ├─ TC-29-16 synthetic edge and empty fixtures are isolated and every preview write is rejected                             PASS  0.01s
+   ├─ TC-29-17 focused polish suite reuses the existing runner and remains in full frontend discovery                         PASS  0.00s
+   ├─ TC-29-18 Daily Work card retains exact hours, long details and the selected record callback                             PASS  0.23s
+   ├─ TC-29-19 long Project page headings use the same responsive wrapping contract                                           PASS  0.01s
+   ├─ TC-29-20 KPI loading and failure conceal stale counts while a successful empty result keeps zero                        PASS  0.01s
+   ├─ TC-29-21 Daily Work empty search and empty day preserve the add action with distinct Thai guidance                      PASS  1.05s
+   ├─ TC-29-22 controlled dialog without a Radix Trigger restores its opener without scrolling                                PASS  0.04s
+   ├─ TC-29-23 dialog respects custom autofocus, detached openers and the normal body fallback                                PASS  0.03s
+   ├─ TC-29-24 browser geometry verdict rejects the reviewed zero-width Project regression and accepts readable cards         PASS  0.07s
+   ├─ TC-29-25 layout audit waits for cards and catches local overflow or changed exact hours                                 PASS  0.00s
+   ├─ TC-29-26 Prisma CLI config preserves schema and seed command in local and tooling images without legacy warning config  PASS  0.01s
+   ├─ TC-29-27 Prisma config accepts an absent root env file but propagates read failures                                     PASS  0.02s
+   └─ TC-29-28 native env loading keeps shell/container values and reads missing values from the root env                     PASS  0.15s
+
+────────────────────────────────────────────────────────────────────────
+สรุป  กลุ่ม  1 ok  0 ไม่มีเทสต์  0 fail  0 skip
+      เคส       28 PASS  0 FAIL  0 SKIP
+PASS = assertion ผ่านตามค่าที่คาด
+SKIP = ข้ามเทสต์ — ไม่ใช่ FAIL
+────────────────────────────────────────────────────────────────────────
