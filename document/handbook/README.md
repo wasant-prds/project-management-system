@@ -77,6 +77,7 @@ Route Handler ปัจจุบันมีดังนี้:
 
 ## Other Components
 
+- [Frontend performance and production UX — Issue #30](./frontend/issue-30-performance.md) — การแบ่งโหลด chart/calendar/dialog, ความเสถียรของ loading/error states, collection refresh, pagination, bundle budgets และคำสั่งตรวจสอบซ้ำ.
 - [Final visual audit and polish — Issue #29](./frontend/issue-29-polish.md) — KPI/state consistency, long-content wrapping, Analysis tables, modal focus และ reusable test/browser commands พร้อมข้อจำกัด quality gate.
 - [Frontend motion and interaction — Issue #28](./frontend/issue-28-motion.md) — motion tokens, route/content transitions, tactile card/control states, overlay exits, toast swipe, reduced-motion support และการตรวจสอบล่าสุด.
 - [Frontend design system, themes and responsive dialogs — Issue #27](./frontend/issue-27-redesign.md) — Light/Dark/Special Dark tokens, shared Select options, Work Items/Board dialogs, theme persistence and verification.

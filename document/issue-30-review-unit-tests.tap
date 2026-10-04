@@ -1,0 +1,184 @@
+TAP version 13
+# Subtest: TC-30-01 pagination bounds initial DOM work to 50 of 10001 records without mutating sources
+ok 1 - TC-30-01 pagination bounds initial DOM work to 50 of 10001 records without mutating sources
+  ---
+  duration_ms: 6.1857
+  type: 'test'
+  ...
+# Subtest: TC-30-02 pagination exposes every record once including the incomplete final page
+ok 2 - TC-30-02 pagination exposes every record once including the incomplete final page
+  ---
+  duration_ms: 2.144
+  type: 'test'
+  ...
+# Subtest: TC-30-03 empty small and out-of-range pagination produces valid boundaries
+ok 3 - TC-30-03 empty small and out-of-range pagination produces valid boundaries
+  ---
+  duration_ms: 1.69
+  type: 'test'
+  ...
+# Subtest: TC-30-04 a refreshed report resets pagination even when its row count is unchanged
+ok 4 - TC-30-04 a refreshed report resets pagination even when its row count is unchanged
+  ---
+  duration_ms: 187.1753
+  type: 'test'
+  ...
+# Subtest: TC-30-05 pagination controls announce range and disable boundary actions
+ok 5 - TC-30-05 pagination controls announce range and disable boundary actions
+  ---
+  duration_ms: 66.9718
+  type: 'test'
+  ...
+# Subtest: TC-30-06 each report table renders at most 50 rows while CSV retains all filtered records and exact Decimal hours
+ok 6 - TC-30-06 each report table renders at most 50 rows while CSV retains all filtered records and exact Decimal hours
+  ---
+  duration_ms: 270.6919
+  type: 'test'
+  ...
+# Subtest: TC-30-07 concurrent equivalent collections share one complete paginated request chain and skip persistent cache
+ok 7 - TC-30-07 concurrent equivalent collections share one complete paginated request chain and skip persistent cache
+  ---
+  duration_ms: 35.9669
+  type: 'test'
+  ...
+# Subtest: TC-30-08 different collection filters remain independent
+ok 8 - TC-30-08 different collection filters remain independent
+  ---
+  duration_ms: 19.8004
+  type: 'test'
+  ...
+# Subtest: TC-30-09 API errors release shared pending state so a retry can succeed
+ok 9 - TC-30-09 API errors release shared pending state so a retry can succeed
+  ---
+  duration_ms: 11.7872
+  type: 'test'
+  ...
+# Subtest: TC-30-10 transport JSON malformed payload and repeated cursors fail without infinite reads
+ok 10 - TC-30-10 transport JSON malformed payload and repeated cursors fail without infinite reads
+  ---
+  duration_ms: 45.9138
+  type: 'test'
+  ...
+# Subtest: TC-30-11 collection reader rejects external origins before requesting data
+ok 11 - TC-30-11 collection reader rejects external origins before requesting data
+  ---
+  duration_ms: 8.0349
+  type: 'test'
+  ...
+# Subtest: TC-30-12 deferred section activates only near viewport and cleans its observer on activation and unmount
+ok 12 - TC-30-12 deferred section activates only near viewport and cleans its observer on activation and unmount
+  ---
+  duration_ms: 8.5193
+  type: 'test'
+  ...
+# Subtest: TC-30-13 missing IntersectionObserver uses immediate accessible section rendering
+ok 13 - TC-30-13 missing IntersectionObserver uses immediate accessible section rendering
+  ---
+  duration_ms: 8.0245
+  type: 'test'
+  ...
+# Subtest: TC-30-14 a failed heavy section shows recovery while keeping the error scoped to that section
+ok 14 - TC-30-14 a failed heavy section shows recovery while keeping the error scoped to that section
+  ---
+  duration_ms: 31.0294
+  type: 'test'
+  ...
+# Subtest: TC-30-15 chart animation stays premium for small sets and is bounded for large sets or reduced motion
+ok 15 - TC-30-15 chart animation stays premium for small sets and is bounded for large sets or reduced motion
+  ---
+  duration_ms: 20.4312
+  type: 'test'
+  ...
+# Subtest: TC-30-16 performance events report numeric vitals without query strings or Project identity
+ok 16 - TC-30-16 performance events report numeric vitals without query strings or Project identity
+  ---
+  duration_ms: 6.4644
+  type: 'test'
+  ...
+# Subtest: TC-30-17 bundle gate fails missing or oversized routes and accepts production Docker build rows
+ok 17 - TC-30-17 bundle gate fails missing or oversized routes and accepts production Docker build rows
+  ---
+  duration_ms: 0.808
+  type: 'test'
+  ...
+# Subtest: TC-30-18 heavy route chunks and telemetry are explicitly bounded without globally importing chart code
+ok 18 - TC-30-18 heavy route chunks and telemetry are explicitly bounded without globally importing chart code
+  ---
+  duration_ms: 11.0016
+  type: 'test'
+  ...
+# Subtest: TC-30-19 same-filter refresh keeps usable report through failure and retries without substituting zero data
+ok 19 - TC-30-19 same-filter refresh keeps usable report through failure and retries without substituting zero data
+  ---
+  duration_ms: 2421.1395
+  type: 'test'
+  ...
+# Subtest: TC-30-20 superseded Analysis request aborts and cannot overwrite a newer report
+ok 20 - TC-30-20 superseded Analysis request aborts and cannot overwrite a newer report
+  ---
+  duration_ms: 700.6264
+  type: 'test'
+  ...
+# Subtest: TC-30-21 chart fallbacks reserve exact plot heights and render real empty-state geometry
+ok 21 - TC-30-21 chart fallbacks reserve exact plot heights and render real empty-state geometry
+  ---
+  duration_ms: 80.4285
+  type: 'test'
+  ...
+# Subtest: TC-30-22 measured Recharts wrapper is not constrained against its zero-width internal shim
+ok 22 - TC-30-22 measured Recharts wrapper is not constrained against its zero-width internal shim
+  ---
+  duration_ms: 44.6159
+  type: 'test'
+  ...
+# Subtest: TC-30-23 calendar hydration and lazy placeholders reserve the measured 336px footprint
+ok 23 - TC-30-23 calendar hydration and lazy placeholders reserve the measured 336px footprint
+  ---
+  duration_ms: 4681.6941
+  type: 'test'
+  ...
+# Subtest: TC-30-24 fresh collection reads supersede pending reads without allowing old cleanup to evict the new chain
+ok 24 - TC-30-24 fresh collection reads supersede pending reads without allowing old cleanup to evict the new chain
+  ---
+  duration_ms: 30.6566
+  type: 'test'
+  ...
+# Subtest: TC-30-25 companies mutation refresh wins even when the pre-mutation request completes last
+ok 25 - TC-30-25 companies mutation refresh wins even when the pre-mutation request completes last
+  ---
+  duration_ms: 549.6724
+  type: 'test'
+  ...
+# Subtest: TC-30-26 projects mutation refresh wins even when the pre-mutation request completes last
+ok 26 - TC-30-26 projects mutation refresh wins even when the pre-mutation request completes last
+  ---
+  duration_ms: 643.4302
+  type: 'test'
+  ...
+# Subtest: TC-30-27 retry resets a rejected lazy component and invokes its loader again without replacing adjacent content
+ok 27 - TC-30-27 retry resets a rejected lazy component and invokes its loader again without replacing adjacent content
+  ---
+  duration_ms: 20.0442
+  type: 'test'
+  ...
+# Subtest: TC-30-28 deferred dialog stays dormant before first open and retains its controlled instance after closing
+ok 28 - TC-30-28 deferred dialog stays dormant before first open and retains its controlled instance after closing
+  ---
+  duration_ms: 107.4351
+  type: 'test'
+  ...
+# Subtest: TC-30-29 Analysis keeps its exact hours table outside lazy plot boundaries through errors
+ok 29 - TC-30-29 Analysis keeps its exact hours table outside lazy plot boundaries through errors
+  ---
+  duration_ms: 16.6374
+  type: 'test'
+  ...
+1..29
+# tests 29
+# suites 0
+# pass 29
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10780.7346

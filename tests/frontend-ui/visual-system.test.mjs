@@ -209,6 +209,7 @@ test('root layout loads Vercel Analytics only when explicitly enabled', () => {
         if (name === '@/components/layout/owner-settings-provider') return { OwnerSettingsProvider: passthrough }
         if (name === '@/components/layout/application-loading-shell') return { ApplicationLoadingShell: () => null }
         if (name === '@/components/ui/toaster') return { Toaster: () => null }
+        if (name === '@/components/layout/performance-metrics') return { PerformanceMetrics: () => null }
         if (name === './globals.css') return {}
         throw new Error(`Unexpected root layout import: ${name}`)
       },
@@ -268,14 +269,14 @@ test('responsive dialog shells fit phone, tablet and notebook viewports', () => 
 })
 
 test('ChartContainer owns one responsive container and Dashboard does not nest another', () => {
-  assert.match(chart, /<RechartsPrimitive\.ResponsiveContainer>/)
+  assert.match(chart, /<RechartsPrimitive\.ResponsiveContainer debounce=\{80\}>/)
   assert.match(chart, /min-w-0 w-full max-w-full/)
   assert.match(chart, /overflow-hidden/)
   assert.match(dashboardChart, /<ChartContainer/)
   assert.doesNotMatch(dashboardChart, /ResponsiveContainer/)
   assert.match(dashboardChart, /<BarChart/)
 
-  const analysis = source('../../app/analysis/page.tsx')
+  const analysis = source('../../components/page/analysis/analysis-charts.tsx')
   assert.match(analysis, /ChartContainer[^>]*className="h-\[320px\] min-w-0 w-full"/s)
   assert.doesNotMatch(analysis, /ResponsiveContainer/)
 })
@@ -330,9 +331,9 @@ test('interaction motion is brief and reduced-motion preference suppresses it', 
   assert.match(motionHook, /useSyncExternalStore/)
   assert.deepEqual(inspectMotionPreference(true), { snapshot: true, notifications: 1, added: 1, removed: 1 })
   assert.deepEqual(inspectMotionPreference(false), { snapshot: false, notifications: 1, added: 1, removed: 1 })
-  assert.match(dashboardChart, /animationDuration=\{MOTION_DURATION_MS\.chart\}[\s\S]*isAnimationActive=\{!prefersReducedMotion\}/)
-  const analysis = source('../../app/analysis/page.tsx')
-  assert.equal((analysis.match(/isAnimationActive=\{!prefersReducedMotion\}/g) ?? []).length, 2)
+  assert.match(dashboardChart, /animationDuration=\{MOTION_DURATION_MS\.chart\}[\s\S]*isAnimationActive=\{!prefersReducedMotion && data.length <= 100\}/)
+  const analysis = source('../../components/page/analysis/analysis-charts.tsx')
+  assert.equal((analysis.match(/isAnimationActive=\{!prefersReducedMotion(?: && hoursChartData.length <= 100)?\}/g) ?? []).length, 2)
 })
 
 test('focused UI suite has reusable pnpm and shared Node runner commands', () => {

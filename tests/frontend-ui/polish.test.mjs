@@ -12,6 +12,9 @@ import { checkWorkLogLayout } from './work-log-layout-check.mjs'
 
 const load = createComponentLoader({ 'next/link': { default: Link } })
 const render = (Component, props) => renderToStaticMarkup(React.createElement(Component, props))
+function renderTree(Component, props) {
+  let tree; renderToStaticMarkup(React.createElement(() => { tree = Component(props); return tree })); return tree
+}
 const longText = 'Identifier'.repeat(30)
 const exactHours = '12345678901234567890123456789012345.123456789012345678901234567890'
 const { SummaryStatCard } = load('components/layout/summary-stat-card.tsx')
@@ -131,8 +134,8 @@ test('TC-29-10 polished Work Item table retains source identity, filters and Ban
   const report = filteredReport()
   report.workItems = [report.workItems[0]]
   report.workItems[0].title = longText
-  const tree = WorkItemsTable({ report })
-  assert.equal(tree.type, Table)
+  const tree = renderTree(WorkItemsTable, { report })
+  assert.equal(descendants(tree).some((node) => node.type === Table), true)
   const link = descendants(tree).find((node) => node.type === Link)
   const params = new URL(link.props.href, 'https://unit.test').searchParams
   for (const [key, value] of Object.entries({ ...report.meta.filters, ...report.meta.period, workItemId: report.workItems[0].id })) assert.equal(params.get(key), value)
@@ -145,8 +148,8 @@ test('TC-29-10 polished Work Item table retains source identity, filters and Ban
 test('TC-29-11 polished Daily Work numeric cell wraps without rounding exact Decimal hours', () => {
   const report = filteredReport()
   report.timeEntries = [{ ...report.timeEntries[0], hours: exactHours, description: longText, id: longText }]
-  const tree = DailyWorkTable({ report })
-  assert.match(tree.props.className, /\[&_td\]:align-top/)
+  const tree = renderTree(DailyWorkTable, { report })
+  assert.match(descendants(tree).find((node) => node.type === Table).props.className, /\[&_td\]:align-top/)
   const numeric = descendants(tree).find((node) => node.type === TableCell && node.props.children === exactHours)
   assert.match(numeric.props.className, /content-wrap text-right font-medium tabular-nums/)
   const html = renderToStaticMarkup(tree)
@@ -170,7 +173,7 @@ test('TC-29-12 Daily Work missing optional relation and description show a clear
 test('TC-29-13 period table keeps exact hours and the same inclusive source interval', () => {
   const report = filteredReport()
   report.loggedHoursByPeriod = [{ startDate: '2026-10-01', endDate: '2026-10-31', hours: exactHours }]
-  const tree = HoursPeriodTable({ report })
+  const tree = renderTree(HoursPeriodTable, { report })
   const link = descendants(tree).find((node) => node.type === Link)
   const params = new URL(link.props.href, 'https://unit.test').searchParams
   assert.equal(params.get('startDate'), '2026-10-01')
@@ -182,7 +185,7 @@ test('TC-29-14 empty report tables describe missing sources without fabricated r
   const report = previewData('empty').analysis
   assert.match(render(WorkItemsTable, { report }), /ไม่พบ Work Item/)
   assert.match(render(DailyWorkTable, { report }), /ไม่พบ Daily Work/)
-  assert.equal(HoursPeriodTable({ report }), null)
+  assert.equal(renderTree(HoursPeriodTable, { report }), null)
   assert.doesNotMatch(render(WorkItemsTable, { report }), /<tr|<table/)
 })
 

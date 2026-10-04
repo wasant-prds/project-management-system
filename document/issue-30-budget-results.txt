@@ -1,0 +1,13 @@
+
+> project-management-system@0.1.0 performance:budget D:\Docker\All working\github\project-management-system
+> node scripts/frontend-performance-budget.mjs "document/issue-30-build-after.txt"
+
+PASS /: 166 kB / 185 kB
+PASS /analysis: 179 kB / 195 kB
+PASS /daily-work: 174 kB / 185 kB
+PASS /board: 175 kB / 185 kB
+PASS /work-items: 197 kB / 205 kB
+PASS /projects: 170 kB / 180 kB
+PASS /projects/[id]: 162 kB / 180 kB
+PASS /company: 163 kB / 175 kB
+PASS /settings: 161 kB / 175 kB

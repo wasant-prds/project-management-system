@@ -1,0 +1,27 @@
+
+> project-management-system@0.1.0 test:frontend-performance-review D:\Docker\All working\github\project-management-system
+> node scripts/frontend-performance-review-browser.mjs
+
+PASS Company mutation refresh old read finishes last
+PASS Company mutation refresh old read finishes first
+PASS Calendar failure and local retry light 375
+PASS Dialog failure and local retry light 375
+PASS Add and details Dialog exit motion light 375
+PASS Analysis chunk error geometry table identity and retry light 375
+PASS Calendar failure and local retry dark 375
+PASS Dialog failure and local retry dark 375
+PASS Add and details Dialog exit motion dark 375
+PASS Analysis chunk error geometry table identity and retry dark 375
+PASS Dashboard chunk error geometry and retry 375
+PASS Slow Dialog visible feedback cancel and reopen 375
+PASS Calendar failure and local retry light 1440
+PASS Dialog failure and local retry light 1440
+PASS Add and details Dialog exit motion light 1440
+PASS Analysis chunk error geometry table identity and retry light 1440
+PASS Calendar failure and local retry dark 1440
+PASS Dialog failure and local retry dark 1440
+PASS Add and details Dialog exit motion dark 1440
+PASS Analysis chunk error geometry table identity and retry dark 1440
+PASS Dashboard chunk error geometry and retry 1440
+PASS Slow Dialog visible feedback cancel and reopen 1440
+Review browser: 22 total / 22 PASS / 0 FAIL

@@ -1,0 +1,200 @@
+{
+  "scope": "Review regressions; isolated browser E2E with Webpack chunk runtime; no production hydration or field CWV claim",
+  "total": 22,
+  "pass": 22,
+  "fail": 0,
+  "results": [
+    {
+      "name": "Company mutation refresh old read finishes last",
+      "pass": true,
+      "evidence": {
+        "reads": 2,
+        "writes": 1,
+        "staleResultIgnored": true
+      }
+    },
+    {
+      "name": "Company mutation refresh old read finishes first",
+      "pass": true,
+      "evidence": {
+        "reads": 2,
+        "writes": 1,
+        "staleResultIgnored": true
+      }
+    },
+    {
+      "name": "Calendar failure and local retry light 375",
+      "pass": true,
+      "evidence": {
+        "beforeHeight": 336,
+        "errorHeight": 336,
+        "requests": 2
+      }
+    },
+    {
+      "name": "Dialog failure and local retry light 375",
+      "pass": true,
+      "evidence": {
+        "requests": 2,
+        "listRetained": true
+      }
+    },
+    {
+      "name": "Add and details Dialog exit motion light 375",
+      "pass": true,
+      "evidence": {
+        "addAndDetailsExit": true
+      }
+    },
+    {
+      "name": "Analysis chunk error geometry table identity and retry light 375",
+      "pass": true,
+      "evidence": {
+        "beforeHeight": 1116.5,
+        "errorHeight": 1116.5,
+        "afterHeight": 1116.5,
+        "requests": 2,
+        "tableRetained": true
+      }
+    },
+    {
+      "name": "Calendar failure and local retry dark 375",
+      "pass": true,
+      "evidence": {
+        "beforeHeight": 336,
+        "errorHeight": 336,
+        "requests": 2
+      }
+    },
+    {
+      "name": "Dialog failure and local retry dark 375",
+      "pass": true,
+      "evidence": {
+        "requests": 2,
+        "listRetained": true
+      }
+    },
+    {
+      "name": "Add and details Dialog exit motion dark 375",
+      "pass": true,
+      "evidence": {
+        "addAndDetailsExit": true
+      }
+    },
+    {
+      "name": "Analysis chunk error geometry table identity and retry dark 375",
+      "pass": true,
+      "evidence": {
+        "beforeHeight": 1116.5,
+        "errorHeight": 1116.5,
+        "afterHeight": 1116.5,
+        "requests": 2,
+        "tableRetained": true
+      }
+    },
+    {
+      "name": "Dashboard chunk error geometry and retry 375",
+      "pass": true,
+      "evidence": {
+        "errorHeight": 260,
+        "requests": 2
+      }
+    },
+    {
+      "name": "Slow Dialog visible feedback cancel and reopen 375",
+      "pass": true,
+      "evidence": {
+        "visibleFeedback": true,
+        "cancellationAndFocus": true,
+        "requests": 1
+      }
+    },
+    {
+      "name": "Calendar failure and local retry light 1440",
+      "pass": true,
+      "evidence": {
+        "beforeHeight": 336,
+        "errorHeight": 336,
+        "requests": 2
+      }
+    },
+    {
+      "name": "Dialog failure and local retry light 1440",
+      "pass": true,
+      "evidence": {
+        "requests": 2,
+        "listRetained": true
+      }
+    },
+    {
+      "name": "Add and details Dialog exit motion light 1440",
+      "pass": true,
+      "evidence": {
+        "addAndDetailsExit": true
+      }
+    },
+    {
+      "name": "Analysis chunk error geometry table identity and retry light 1440",
+      "pass": true,
+      "evidence": {
+        "beforeHeight": 600.5,
+        "errorHeight": 600.5,
+        "afterHeight": 600.5,
+        "requests": 2,
+        "tableRetained": true
+      }
+    },
+    {
+      "name": "Calendar failure and local retry dark 1440",
+      "pass": true,
+      "evidence": {
+        "beforeHeight": 336,
+        "errorHeight": 336,
+        "requests": 2
+      }
+    },
+    {
+      "name": "Dialog failure and local retry dark 1440",
+      "pass": true,
+      "evidence": {
+        "requests": 2,
+        "listRetained": true
+      }
+    },
+    {
+      "name": "Add and details Dialog exit motion dark 1440",
+      "pass": true,
+      "evidence": {
+        "addAndDetailsExit": true
+      }
+    },
+    {
+      "name": "Analysis chunk error geometry table identity and retry dark 1440",
+      "pass": true,
+      "evidence": {
+        "beforeHeight": 600.5,
+        "errorHeight": 600.5,
+        "afterHeight": 600.5,
+        "requests": 2,
+        "tableRetained": true
+      }
+    },
+    {
+      "name": "Dashboard chunk error geometry and retry 1440",
+      "pass": true,
+      "evidence": {
+        "errorHeight": 260,
+        "requests": 2
+      }
+    },
+    {
+      "name": "Slow Dialog visible feedback cancel and reopen 1440",
+      "pass": true,
+      "evidence": {
+        "visibleFeedback": true,
+        "cancellationAndFocus": true,
+        "requests": 1
+      }
+    }
+  ]
+}

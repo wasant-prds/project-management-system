@@ -1,0 +1,45 @@
+
+> project-management-system@0.1.0 test:frontend-performance-browser D:\Docker\All working\github\project-management-system
+> node scripts/frontend-performance-browser.mjs "--targeted"
+
+PASS Analysis large report pagination and full export-ready dataset
+PASS Analysis refresh failure preserves usable report and retries
+PASS /analysis slow loading retains page shell
+PASS /analysis empty state
+PASS /analysis error recovery
+PASS /daily-work slow loading retains page shell
+PASS /daily-work empty state
+PASS /daily-work error recovery
+PASS /projects slow loading retains page shell
+PASS /projects empty state
+PASS /projects error recovery
+PASS /work-items slow loading retains page shell
+PASS /work-items empty state
+PASS /work-items error recovery
+PASS /company slow loading retains page shell
+PASS /company empty state
+PASS /company error recovery
+PASS /board slow loading retains page shell
+PASS /board empty state
+PASS /board error recovery
+PASS Daily Work deferred add dialog opens with keyboard
+PASS Analysis deferred chart geometry light 375
+PASS Analysis deferred chart geometry light 768
+PASS Analysis deferred chart geometry light 1024
+PASS Analysis deferred chart geometry light 1440
+PASS Analysis deferred chart geometry dark 375
+PASS Analysis deferred chart geometry dark 768
+PASS Analysis deferred chart geometry dark 1024
+PASS Analysis deferred chart geometry dark 1440
+PASS Analysis deferred chart geometry special-dark 375
+PASS Analysis deferred chart geometry special-dark 768
+PASS Analysis deferred chart geometry special-dark 1024
+PASS Analysis deferred chart geometry special-dark 1440
+PASS Daily Work calendar lazy geometry 375
+PASS Daily Work calendar lazy geometry 768
+PASS Daily Work calendar lazy geometry 1024
+PASS Daily Work calendar lazy geometry 1440
+PASS Theme switching dark preserves chart nodes and layout
+PASS Theme switching special-dark preserves chart nodes and layout
+PASS Theme switching light preserves chart nodes and layout
+Browser: 40 total / 40 PASS / 0 FAIL

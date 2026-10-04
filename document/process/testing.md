@@ -255,3 +255,9 @@ node scripts/frontend-preview.mjs
 Preview ไม่อ่าน `.env`, ใช้ production UI กับ mocked Next/owner/data boundaries และปฏิเสธ API writes. ใช้ตรวจ layout/interaction; ไม่แทน production E2E/auth/hydration tests. Production standalone build บน Windows ที่ติด symlink EPERM ตรวจด้วย `docker build --target production -t pms-issue27-validation .` ได้โดยไม่ deploy. ดู [รายงาน #27](../FRONTEND_REDESIGN.md) และ [ผลทุกเคส](../issue-27-test-cases.txt).
 
 Theme save follow-up: `pnpm test:settings` ตรวจว่า origin-denied save คง persisted theme และ retry ได้; `pnpm test:runtime-security` รวม direct owner-origin unit cases (exact scheme/host/port และยังต้องมี valid credentials). ถ้า page โหลดได้แต่ PATCH เป็น `403 ACCESS_DENIED` ให้เทียบ browser origin กับ `APP_ORIGIN` ของ app container จริง. Dev compose publish พอร์ต 3777; `localhost` กับ `127.0.0.1` เป็นคนละ origin. การเปลี่ยน root `.env` ต้อง recreate เฉพาะ app เพื่อโหลด environment ใหม่; อย่าแก้ด้วยการข้าม origin/authentication check.
+
+## Issue #30 — Performance และ review regressions
+
+`pnpm test:frontend-performance` / `node tests/run.mjs frontend-performance` รัน 29 unit cases ด้วย mocks ไม่มี real infrastructure. Browser suites แยกชัดเจน: `pnpm test:frontend-performance-browser` ใช้ isolated preview matrix; `pnpm test:frontend-performance-review` เน้น fresh reads, local chunk recovery, preserved data nodes/geometry และ Dialog motion; `pnpm test:frontend-performance-production` ใช้ actual Next standalone test container พร้อม synthetic middleware proof/API fixtures เพื่อทดสอบ SSR/hydration/chunk retry. Build scratch ของ preview ถูกลบทิ้งหลังนำ assets เข้า memory.
+
+ดู [performance handbook](../handbook/frontend/issue-30-performance.md) สำหรับ setup, full commands, budget runner, cleanup และขอบเขตของหลักฐาน. Browser tests ไม่ใช่ unit tests และไม่อ้าง real auth/DB integration หรือ field Core Web Vitals.

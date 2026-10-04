@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/layout/theme-provider"
 import { OwnerSettingsProvider } from "@/components/layout/owner-settings-provider"
 import { ApplicationLoadingShell } from "@/components/layout/application-loading-shell"
 import { Toaster } from "@/components/ui/toaster"
+import { PerformanceMetrics } from "@/components/layout/performance-metrics"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -42,6 +43,7 @@ export default function RootLayout({
               {isVercelAnalyticsEnabled && <Analytics />}
             </Suspense>
             <Toaster />
+            {process.env.FRONTEND_PERFORMANCE_METRICS_ENABLED === 'true' && <PerformanceMetrics />}
           </OwnerSettingsProvider>
         </ThemeProvider>
       </body>

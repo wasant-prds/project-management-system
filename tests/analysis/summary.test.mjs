@@ -469,7 +469,7 @@ test('Analysis summary API requires owner access, validates filters, disables ca
 })
 
 test('Analysis page renders live data, filters, traceable tables, export, and safe states without sample datasets', () => {
-  const page = readFileSync(new URL('../../app/analysis/page.tsx', import.meta.url), 'utf8')
+  const page = readFileSync(new URL('../../app/analysis/page.tsx', import.meta.url), 'utf8') + readFileSync(new URL('../../components/page/analysis/analysis-charts.tsx', import.meta.url), 'utf8')
   const tables = readFileSync(new URL('../../components/page/analysis/report-tables.tsx', import.meta.url), 'utf8')
   const route = readFileSync(new URL('../../app/api/analysis/summary/route.ts', import.meta.url), 'utf8')
   assert.match(route, /getOwner\(\)/)
@@ -492,7 +492,7 @@ test('Analysis page renders live data, filters, traceable tables, export, and sa
   assert.match(page, /\[requestQuery, reloadKey\]/)
   assert.match(page, /setReloadKey\(\(current\) => current \+ 1\)/)
   assert.match(page, /shape=\{\(props: unknown\) => <StatusChartLinkBar/)
-  assert.match(page, /import \{ renderHoursChartDot \} from '@\/components\/page\/analysis\/hours-chart-dot'/)
+  assert.match(page, /import \{ renderHoursChartDot \} from '.\/hours-chart-dot'/)
   assert.match(page, /dot=\{renderHoursChartDot\}/)
   const chartDot = readFileSync(new URL('../../components/page/analysis/hours-chart-dot.tsx', import.meta.url), 'utf8')
   assert.match(chartDot, /<Link key=\{payload\.startDate\} href=\{payload\.href\} aria-label=\{payload\.accessibleName\}>/)

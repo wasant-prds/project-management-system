@@ -1,0 +1,149 @@
+
+> project-management-system@0.1.0 test:frontend-performance-browser D:\Docker\All working\github\project-management-system
+> node scripts/frontend-performance-browser.mjs
+
+PASS / light 375
+PASS /projects light 375
+PASS /projects/project-0 light 375
+PASS /work-items light 375
+PASS /board light 375
+PASS /analysis light 375
+PASS /daily-work light 375
+PASS /company light 375
+PASS /settings light 375
+PASS / light 768
+PASS /projects light 768
+PASS /projects/project-0 light 768
+PASS /work-items light 768
+PASS /board light 768
+PASS /analysis light 768
+PASS /daily-work light 768
+PASS /company light 768
+PASS /settings light 768
+PASS / light 1024
+PASS /projects light 1024
+PASS /projects/project-0 light 1024
+PASS /work-items light 1024
+PASS /board light 1024
+PASS /analysis light 1024
+PASS /daily-work light 1024
+PASS /company light 1024
+PASS /settings light 1024
+PASS / light 1440
+PASS /projects light 1440
+PASS /projects/project-0 light 1440
+PASS /work-items light 1440
+PASS /board light 1440
+PASS /analysis light 1440
+PASS /daily-work light 1440
+PASS /company light 1440
+PASS /settings light 1440
+PASS / dark 375
+PASS /projects dark 375
+PASS /projects/project-0 dark 375
+PASS /work-items dark 375
+PASS /board dark 375
+PASS /analysis dark 375
+PASS /daily-work dark 375
+PASS /company dark 375
+PASS /settings dark 375
+PASS / dark 768
+PASS /projects dark 768
+PASS /projects/project-0 dark 768
+PASS /work-items dark 768
+PASS /board dark 768
+PASS /analysis dark 768
+PASS /daily-work dark 768
+PASS /company dark 768
+PASS /settings dark 768
+PASS / dark 1024
+PASS /projects dark 1024
+PASS /projects/project-0 dark 1024
+PASS /work-items dark 1024
+PASS /board dark 1024
+PASS /analysis dark 1024
+PASS /daily-work dark 1024
+PASS /company dark 1024
+PASS /settings dark 1024
+PASS / dark 1440
+PASS /projects dark 1440
+PASS /projects/project-0 dark 1440
+PASS /work-items dark 1440
+PASS /board dark 1440
+PASS /analysis dark 1440
+PASS /daily-work dark 1440
+PASS /company dark 1440
+PASS /settings dark 1440
+PASS / special-dark 375
+PASS /projects special-dark 375
+PASS /projects/project-0 special-dark 375
+PASS /work-items special-dark 375
+PASS /board special-dark 375
+PASS /analysis special-dark 375
+PASS /daily-work special-dark 375
+PASS /company special-dark 375
+PASS /settings special-dark 375
+PASS / special-dark 768
+PASS /projects special-dark 768
+PASS /projects/project-0 special-dark 768
+PASS /work-items special-dark 768
+PASS /board special-dark 768
+PASS /analysis special-dark 768
+PASS /daily-work special-dark 768
+PASS /company special-dark 768
+PASS /settings special-dark 768
+PASS / special-dark 1024
+PASS /projects special-dark 1024
+PASS /projects/project-0 special-dark 1024
+PASS /work-items special-dark 1024
+PASS /board special-dark 1024
+PASS /analysis special-dark 1024
+PASS /daily-work special-dark 1024
+PASS /company special-dark 1024
+PASS /settings special-dark 1024
+PASS / special-dark 1440
+PASS /projects special-dark 1440
+PASS /projects/project-0 special-dark 1440
+PASS /work-items special-dark 1440
+PASS /board special-dark 1440
+PASS /analysis special-dark 1440
+PASS /daily-work special-dark 1440
+PASS /company special-dark 1440
+PASS /settings special-dark 1440
+PASS Analysis large report pagination and full export-ready dataset
+PASS Analysis refresh failure preserves usable report and retries
+PASS /analysis slow loading retains page shell
+PASS /analysis empty state
+PASS /analysis error recovery
+PASS /daily-work slow loading retains page shell
+PASS /daily-work empty state
+PASS /daily-work error recovery
+PASS /projects slow loading retains page shell
+PASS /projects empty state
+PASS /projects error recovery
+PASS /work-items slow loading retains page shell
+PASS /work-items empty state
+PASS /work-items error recovery
+PASS /company slow loading retains page shell
+PASS /company empty state
+PASS /company error recovery
+PASS /board slow loading retains page shell
+PASS /board empty state
+PASS /board error recovery
+PASS Daily Work deferred add dialog opens with keyboard
+PASS Analysis deferred chart geometry light 375
+PASS Analysis deferred chart geometry light 768
+PASS Analysis deferred chart geometry light 1024
+PASS Analysis deferred chart geometry light 1440
+PASS Analysis deferred chart geometry dark 375
+PASS Analysis deferred chart geometry dark 768
+PASS Analysis deferred chart geometry dark 1024
+PASS Analysis deferred chart geometry dark 1440
+PASS Analysis deferred chart geometry special-dark 375
+PASS Analysis deferred chart geometry special-dark 768
+PASS Analysis deferred chart geometry special-dark 1024
+PASS Analysis deferred chart geometry special-dark 1440
+PASS Theme switching dark preserves chart nodes and layout
+PASS Theme switching special-dark preserves chart nodes and layout
+PASS Theme switching light preserves chart nodes and layout
+Browser: 144 total / 144 PASS / 0 FAIL

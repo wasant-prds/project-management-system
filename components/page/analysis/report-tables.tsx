@@ -1,3 +1,6 @@
+'use client'
+
+import { useReportPage, ReportPagination } from '@/components/ui/report-pagination'
 import Link from 'next/link'
 import type { AnalysisReport } from '@/lib/analysis-export'
 import { analysisDailyWorkHref, analysisWorkItemsHref } from '@/lib/analysis-links'
@@ -14,11 +17,13 @@ export function displayStatus(status: string) {
 }
 
 export function WorkItemsTable({ report }: Readonly<{ report: AnalysisReport }>) {
+  const pagination = useReportPage(report.workItems)
   if (report.workItems.length === 0) {
     return <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">ไม่พบ Work Item ในช่วงและตัวกรองนี้</p>
   }
 
   return (
+    <>
     <Table className="w-full table-fixed text-left text-sm [&_th]:whitespace-normal [&_td]:whitespace-normal [&_td]:align-top">
       <TableHeader className="bg-muted/50 text-xs text-muted-foreground">
         <TableRow>
@@ -29,7 +34,7 @@ export function WorkItemsTable({ report }: Readonly<{ report: AnalysisReport }>)
         </TableRow>
       </TableHeader>
       <TableBody className="divide-y divide-border/60">
-        {report.workItems.map((item) => (
+        {pagination.rows.map((item) => (
           <TableRow key={item.id} className="align-top">
             <TableCell className="min-w-0 px-3 py-3">
               <Link
@@ -51,15 +56,19 @@ export function WorkItemsTable({ report }: Readonly<{ report: AnalysisReport }>)
         ))}
       </TableBody>
     </Table>
+    <ReportPagination {...pagination} />
+    </>
   )
 }
 
 export function DailyWorkTable({ report }: Readonly<{ report: AnalysisReport }>) {
+  const pagination = useReportPage(report.timeEntries)
   if (report.timeEntries.length === 0) {
     return <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">ไม่พบ Daily Work ในช่วงและตัวกรองนี้</p>
   }
 
   return (
+    <>
     <Table className="w-full table-fixed text-left text-sm [&_th]:whitespace-normal [&_td]:whitespace-normal [&_td]:align-top">
       <TableHeader className="bg-muted/50 text-xs text-muted-foreground">
         <TableRow>
@@ -69,7 +78,7 @@ export function DailyWorkTable({ report }: Readonly<{ report: AnalysisReport }>)
         </TableRow>
       </TableHeader>
       <TableBody className="divide-y divide-border/60">
-        {report.timeEntries.map((entry) => {
+        {pagination.rows.map((entry) => {
           const dayHref = analysisDailyWorkHref(report.meta.filters, { startDate: entry.date, endDate: entry.date })
           return (
             <TableRow key={entry.id} className="align-top">
@@ -94,13 +103,17 @@ export function DailyWorkTable({ report }: Readonly<{ report: AnalysisReport }>)
         })}
       </TableBody>
     </Table>
+    <ReportPagination {...pagination} />
+    </>
   )
 }
 
 export function HoursPeriodTable({ report }: Readonly<{ report: AnalysisReport }>) {
+  const pagination = useReportPage(report.loggedHoursByPeriod)
   if (report.loggedHoursByPeriod.length === 0) return null
 
   return (
+    <>
     <Table className="w-full table-fixed text-left text-xs [&_th]:whitespace-normal [&_td]:whitespace-normal [&_td]:align-top">
       <TableHeader className="bg-muted/50 text-muted-foreground">
         <TableRow>
@@ -110,7 +123,7 @@ export function HoursPeriodTable({ report }: Readonly<{ report: AnalysisReport }
         </TableRow>
       </TableHeader>
       <TableBody className="divide-y divide-border/60">
-        {report.loggedHoursByPeriod.map((row) => (
+        {pagination.rows.map((row) => (
           <TableRow key={row.startDate}>
             <TableCell className="content-wrap px-3 py-3">{row.startDate} – {row.endDate}</TableCell>
             <TableCell className="px-3 py-3 content-wrap text-right font-medium tabular-nums">{row.hours}</TableCell>
@@ -126,5 +139,7 @@ export function HoursPeriodTable({ report }: Readonly<{ report: AnalysisReport }
         ))}
       </TableBody>
     </Table>
+    <ReportPagination {...pagination} />
+    </>
   )
 }

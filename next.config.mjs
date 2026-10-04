@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    unoptimized: true,
+    formats: ['image/avif', 'image/webp'],
   },
   // Docker support - standalone output for optimal container size (production only)
   output: process.env.NODE_ENV === 'production' ? 'standalone' : undefined,

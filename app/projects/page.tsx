@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { PortfolioCard } from '@/components/page/projects/portfolio-card'
 import { PageState } from '@/components/layout/page-state'
 import { AppSidebar } from '@/components/layout/app-sidebar'
@@ -35,22 +35,26 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [saving, setSaving] = useState(false)
-  const reload = useCallback(async () => {
+  const loadGeneration = useRef(0)
+  const reload = useCallback(async (fresh = false) => {
+    const generation = ++loadGeneration.current
     setLoading(true)
     setLoadError('')
     try {
       const [projectData, companyData] = await Promise.all([
-        fetchCollection<Project>('/api/projects', 'projects'),
-        fetchCollection<Company>('/api/company', 'companies'),
+        fetchCollection<Project>('/api/projects', 'projects', { fresh }),
+        fetchCollection<Company>('/api/company', 'companies', { fresh }),
       ])
+      if (generation !== loadGeneration.current) return
       setProjects(projectData); setCompanies(companyData); setMessage('')
-    } catch (error) { setLoadError(error instanceof Error ? error.message : 'โหลดข้อมูลไม่สำเร็จ') }
-    finally { setLoading(false) }
+    } catch (error) { if (generation === loadGeneration.current) setLoadError(error instanceof Error ? error.message : 'โหลดข้อมูลไม่สำเร็จ') }
+    finally { if (generation === loadGeneration.current) setLoading(false) }
   }, [])
   useEffect(() => {
     const companyId = new URLSearchParams(window.location.search).get('companyId')
     if (companyId) setCompanyFilter(companyId)
     void reload()
+    return () => { loadGeneration.current += 1 }
   }, [reload])
 
   const submit = async (event: React.FormEvent) => {
@@ -59,7 +63,7 @@ export default function ProjectsPage() {
       await apiResponse(await fetch(editing ? `/api/projects/${editing}` : '/api/projects', {
         method: editing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form),
       }))
-      setEditing(null); setForm(initialForm); await reload()
+      setEditing(null); setForm(initialForm); await reload(true)
     } catch (error) { setMessage(error instanceof Error ? error.message : 'บันทึกไม่สำเร็จ') }
     finally { setSaving(false) }
   }

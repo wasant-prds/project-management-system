@@ -35,7 +35,7 @@ export function createComponentLoader(mocks = {}, globals = {}) {
         }
         return require(name)
       },
-      console, URL, URLSearchParams, Intl,
+      console, URL, URLSearchParams, Intl, AbortController,
       ...globals,
     }, { filename: path })
     return module.exports

@@ -1,0 +1,168 @@
+{
+  "scope": "Isolated browser E2E; synthetic data; no production CWV claim",
+  "total": 40,
+  "pass": 40,
+  "fail": 0,
+  "results": [
+    {
+      "name": "Analysis large report pagination and full export-ready dataset",
+      "pass": true
+    },
+    {
+      "name": "Analysis refresh failure preserves usable report and retries",
+      "pass": true
+    },
+    {
+      "name": "/analysis slow loading retains page shell",
+      "pass": true
+    },
+    {
+      "name": "/analysis empty state",
+      "pass": true
+    },
+    {
+      "name": "/analysis error recovery",
+      "pass": true
+    },
+    {
+      "name": "/daily-work slow loading retains page shell",
+      "pass": true
+    },
+    {
+      "name": "/daily-work empty state",
+      "pass": true
+    },
+    {
+      "name": "/daily-work error recovery",
+      "pass": true
+    },
+    {
+      "name": "/projects slow loading retains page shell",
+      "pass": true
+    },
+    {
+      "name": "/projects empty state",
+      "pass": true
+    },
+    {
+      "name": "/projects error recovery",
+      "pass": true
+    },
+    {
+      "name": "/work-items slow loading retains page shell",
+      "pass": true
+    },
+    {
+      "name": "/work-items empty state",
+      "pass": true
+    },
+    {
+      "name": "/work-items error recovery",
+      "pass": true
+    },
+    {
+      "name": "/company slow loading retains page shell",
+      "pass": true
+    },
+    {
+      "name": "/company empty state",
+      "pass": true
+    },
+    {
+      "name": "/company error recovery",
+      "pass": true
+    },
+    {
+      "name": "/board slow loading retains page shell",
+      "pass": true
+    },
+    {
+      "name": "/board empty state",
+      "pass": true
+    },
+    {
+      "name": "/board error recovery",
+      "pass": true
+    },
+    {
+      "name": "Daily Work deferred add dialog opens with keyboard",
+      "pass": true
+    },
+    {
+      "name": "Analysis deferred chart geometry light 375",
+      "pass": true
+    },
+    {
+      "name": "Analysis deferred chart geometry light 768",
+      "pass": true
+    },
+    {
+      "name": "Analysis deferred chart geometry light 1024",
+      "pass": true
+    },
+    {
+      "name": "Analysis deferred chart geometry light 1440",
+      "pass": true
+    },
+    {
+      "name": "Analysis deferred chart geometry dark 375",
+      "pass": true
+    },
+    {
+      "name": "Analysis deferred chart geometry dark 768",
+      "pass": true
+    },
+    {
+      "name": "Analysis deferred chart geometry dark 1024",
+      "pass": true
+    },
+    {
+      "name": "Analysis deferred chart geometry dark 1440",
+      "pass": true
+    },
+    {
+      "name": "Analysis deferred chart geometry special-dark 375",
+      "pass": true
+    },
+    {
+      "name": "Analysis deferred chart geometry special-dark 768",
+      "pass": true
+    },
+    {
+      "name": "Analysis deferred chart geometry special-dark 1024",
+      "pass": true
+    },
+    {
+      "name": "Analysis deferred chart geometry special-dark 1440",
+      "pass": true
+    },
+    {
+      "name": "Daily Work calendar lazy geometry 375",
+      "pass": true
+    },
+    {
+      "name": "Daily Work calendar lazy geometry 768",
+      "pass": true
+    },
+    {
+      "name": "Daily Work calendar lazy geometry 1024",
+      "pass": true
+    },
+    {
+      "name": "Daily Work calendar lazy geometry 1440",
+      "pass": true
+    },
+    {
+      "name": "Theme switching dark preserves chart nodes and layout",
+      "pass": true
+    },
+    {
+      "name": "Theme switching special-dark preserves chart nodes and layout",
+      "pass": true
+    },
+    {
+      "name": "Theme switching light preserves chart nodes and layout",
+      "pass": true
+    }
+  ]
+}

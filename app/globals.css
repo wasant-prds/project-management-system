@@ -614,10 +614,15 @@
   overflow: hidden;
 }
 
-[data-slot='chart'] .recharts-responsive-container,
-[data-slot='chart'] .recharts-wrapper {
+[data-slot='chart'] .recharts-responsive-container {
   min-width: 0;
   max-width: 100%;
+}
+
+/* Recharts places its measured wrapper in a zero-width overflow shim.
+   A percentage max-width there collapses the SVG; the outer chart clips it safely. */
+[data-slot='chart'] .recharts-wrapper {
+  min-width: 0;
 }
 
 [data-slot='chart'] .recharts-default-legend {

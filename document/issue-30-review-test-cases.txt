@@ -1,0 +1,46 @@
+========================================================================
+ชุด: unit (ไม่ต่อ PostgreSQL/Redis จริง)
+ผ่านเมื่อ: assertion ในแต่ละ test ตรงกับค่าที่คาด
+[no tests] = กลุ่มยังไม่มีไฟล์ *.test.mjs — ปกติ
+========================================================================
+
+ผลเทสต์
+────────────────────────────────────────────────────────────────────────
+tests/frontend-ui                                                       ok  10.04s
+└─ performance.test.mjs
+   ├─ TC-30-01 pagination bounds initial DOM work to 50 of 10001 records without mutating sources                        PASS  0.01s
+   ├─ TC-30-02 pagination exposes every record once including the incomplete final page                                  PASS  0.00s
+   ├─ TC-30-03 empty small and out-of-range pagination produces valid boundaries                                         PASS  0.00s
+   ├─ TC-30-04 a refreshed report resets pagination even when its row count is unchanged                                 PASS  0.19s
+   ├─ TC-30-05 pagination controls announce range and disable boundary actions                                           PASS  0.07s
+   ├─ TC-30-06 each report table renders at most 50 rows while CSV retains all filtered records and exact Decimal hours  PASS  0.27s
+   ├─ TC-30-07 concurrent equivalent collections share one complete paginated request chain and skip persistent cache    PASS  0.04s
+   ├─ TC-30-08 different collection filters remain independent                                                           PASS  0.02s
+   ├─ TC-30-09 API errors release shared pending state so a retry can succeed                                            PASS  0.01s
+   ├─ TC-30-10 transport JSON malformed payload and repeated cursors fail without infinite reads                         PASS  0.05s
+   ├─ TC-30-11 collection reader rejects external origins before requesting data                                         PASS  0.01s
+   ├─ TC-30-12 deferred section activates only near viewport and cleans its observer on activation and unmount           PASS  0.01s
+   ├─ TC-30-13 missing IntersectionObserver uses immediate accessible section rendering                                  PASS  0.01s
+   ├─ TC-30-14 a failed heavy section shows recovery while keeping the error scoped to that section                      PASS  0.03s
+   ├─ TC-30-15 chart animation stays premium for small sets and is bounded for large sets or reduced motion              PASS  0.02s
+   ├─ TC-30-16 performance events report numeric vitals without query strings or Project identity                        PASS  0.01s
+   ├─ TC-30-17 bundle gate fails missing or oversized routes and accepts production Docker build rows                    PASS  0.00s
+   ├─ TC-30-18 heavy route chunks and telemetry are explicitly bounded without globally importing chart code             PASS  0.01s
+   ├─ TC-30-19 same-filter refresh keeps usable report through failure and retries without substituting zero data        PASS  2.42s
+   ├─ TC-30-20 superseded Analysis request aborts and cannot overwrite a newer report                                    PASS  0.70s
+   ├─ TC-30-21 chart fallbacks reserve exact plot heights and render real empty-state geometry                           PASS  0.08s
+   ├─ TC-30-22 measured Recharts wrapper is not constrained against its zero-width internal shim                         PASS  0.04s
+   ├─ TC-30-23 calendar hydration and lazy placeholders reserve the measured 336px footprint                             PASS  4.68s
+   ├─ TC-30-24 fresh collection reads supersede pending reads without allowing old cleanup to evict the new chain        PASS  0.03s
+   ├─ TC-30-25 companies mutation refresh wins even when the pre-mutation request completes last                         PASS  0.55s
+   ├─ TC-30-26 projects mutation refresh wins even when the pre-mutation request completes last                          PASS  0.64s
+   ├─ TC-30-27 retry resets a rejected lazy component and invokes its loader again without replacing adjacent content    PASS  0.02s
+   ├─ TC-30-28 deferred dialog stays dormant before first open and retains its controlled instance after closing         PASS  0.11s
+   └─ TC-30-29 Analysis keeps its exact hours table outside lazy plot boundaries through errors                          PASS  0.02s
+
+────────────────────────────────────────────────────────────────────────
+สรุป  กลุ่ม  1 ok  0 ไม่มีเทสต์  0 fail  0 skip
+      เคส       29 PASS  0 FAIL  0 SKIP
+PASS = assertion ผ่านตามค่าที่คาด
+SKIP = ข้ามเทสต์ — ไม่ใช่ FAIL
+────────────────────────────────────────────────────────────────────────

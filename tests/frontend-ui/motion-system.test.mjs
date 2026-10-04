@@ -132,14 +132,16 @@ test('TC-28-07 Dashboard and Analysis chart reveals share timing and respect red
   const props = { data: [{ date: '2026-10-04', hours: '1.25' }], filters: {} }
   for (const preference of [false, true, false]) {
     reducedMotion = preference
-    const bar = descendants(DashboardCharts(props)).find((element) => element.type === Bar)
+    let chartTree; renderToStaticMarkup(React.createElement(() => { chartTree = DashboardCharts(props); return chartTree }));
+    const bar = descendants(chartTree).find((element) => element.type === Bar)
     assert.equal(bar.props.animationDuration, MOTION_DURATION_MS.chart)
     assert.equal(bar.props.isAnimationActive, !preference)
   }
-  assert.equal(descendants(DashboardCharts({ ...props, data: [] })).some((element) => element.type === Bar), false)
-  const analysis = source('../../app/analysis/page.tsx')
+  let emptyTree; renderToStaticMarkup(React.createElement(() => { emptyTree = DashboardCharts({ ...props, data: [] }); return emptyTree }));
+  assert.equal(descendants(emptyTree).some((element) => element.type === Bar), false)
+  const analysis = source('../../components/page/analysis/analysis-charts.tsx')
   assert.equal((analysis.match(/animationDuration=\{MOTION_DURATION_MS\.chart\}/g) ?? []).length, 2)
-  assert.equal((analysis.match(/isAnimationActive=\{!prefersReducedMotion\}/g) ?? []).length, 2)
+  assert.equal((analysis.match(/isAnimationActive=\{!prefersReducedMotion(?: && hoursChartData.length <= 100)?\}/g) ?? []).length, 2)
 })
 
 test('TC-28-08 controls, interactive cards, data rows, overlays and touch states use shared motion rules', async () => {

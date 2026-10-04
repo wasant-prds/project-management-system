@@ -17,6 +17,8 @@ function createRuntime(initialState = {}) {
   const state = new Map(Object.entries(initialState).map(([index, value]) => [Number(index), value]))
   const effects = []
   let index = 0
+  const refs = []
+  let refIndex = 0
   return {
     useState(initial) {
       const slot = index++
@@ -24,10 +26,12 @@ function createRuntime(initialState = {}) {
       return [state.get(slot), (next) => state.set(slot, typeof next === 'function' ? next(state.get(slot)) : next)]
     },
     useEffect(effect) { effects.push(effect) },
+    useRef(initial) { const slot = refIndex++; refs[slot] ??= { current: initial }; return refs[slot] },
     useCallback(callback) { return callback },
     use(value) { return { id: 'project-1' } },
     render(Page, props = {}) {
       index = 0
+      refIndex = 0
       return Page(props)
     },
     effects,

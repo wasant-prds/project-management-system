@@ -30,7 +30,7 @@ if (route === '/qa/not-found') {
   pageContent = <ProjectDetail params={detailParams} />
 }
 if (root) createRoot(root).render(
-  <ThemeProvider attribute="class" defaultTheme="light" forcedTheme={theme} themes={['light', 'dark', 'special-dark']}>
+  <ThemeProvider attribute="class" defaultTheme="light" forcedTheme={new URLSearchParams(window.location.search).get('themeSwitch') === '1' ? undefined : theme} themes={['light', 'dark', 'special-dark']}>
     <Template>{pageContent}</Template>
     {route === '/daily-work' && new URLSearchParams(window.location.search).get('layoutCheck') === '1' && <WorkLogLayoutAudit />}
     <Toaster />

@@ -1,0 +1,172 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 6.02kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/node:24-alpine
+#2 DONE 1.9s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 769B done
+#3 DONE 0.0s
+
+#4 [internal] load build context
+#4 DONE 0.0s
+
+#5 [base 1/4] FROM docker.io/library/node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1
+#5 resolve docker.io/library/node:24-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 0.1s done
+#5 DONE 0.1s
+
+#4 [internal] load build context
+#4 transferring context: 792.39kB 0.5s done
+#4 DONE 0.5s
+
+#6 [base 2/4] RUN apk add --no-cache libc6-compat openssl
+#6 CACHED
+
+#7 [base 3/4] WORKDIR /app
+#7 CACHED
+
+#8 [base 4/4] RUN corepack enable && corepack prepare pnpm@10.34.5 --activate
+#8 CACHED
+
+#9 [builder 1/6] WORKDIR /app
+#9 CACHED
+
+#10 [deps 1/2] COPY package.json pnpm-lock.yaml* ./
+#10 CACHED
+
+#11 [deps 2/2] RUN pnpm install --frozen-lockfile --ignore-scripts
+#11 CACHED
+
+#12 [builder 2/6] COPY --from=deps /app/node_modules ./node_modules
+#12 CACHED
+
+#13 [builder 3/6] COPY . .
+#13 DONE 0.6s
+
+#14 [builder 4/6] RUN ./node_modules/.bin/prisma generate
+#14 1.679 Loaded Prisma config from prisma.config.ts.
+#14 1.679 
+#14 2.827 Prisma config detected, skipping environment variable loading.
+#14 2.828 Prisma schema loaded from prisma/schema.prisma
+#14 3.255 
+#14 3.255 ✔ Generated Prisma Client (v6.17.1) to ./node_modules/.pnpm/@prisma+client@6.17.1_prisma@6.17.1_typescript@5.9.3__typescript@5.9.3/node_modules/@prisma/client in 166ms
+#14 3.255 
+#14 3.255 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#14 3.255 
+#14 3.255 Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+#14 3.255 
+#14 DONE 5.9s
+
+#15 [builder 5/6] RUN PRISMA_CLIENT_DIR="$(find node_modules -type d -path '*/.prisma/client' | head -n 1)" &&     test -n "$PRISMA_CLIENT_DIR" &&     mkdir -p /prisma-export/.prisma /prisma-export/@prisma &&     cp -a "$(dirname "$PRISMA_CLIENT_DIR")" /prisma-export/ &&     CLIENT_PKG="$(dirname "$(find node_modules -type f -path '*/@prisma/client/package.json' | head -n 1)")" &&     cp -a "$CLIENT_PKG" /prisma-export/@prisma/client
+#15 DONE 3.7s
+
+#16 [builder 6/6] RUN pnpm build
+#16 0.893 
+#16 0.893 > project-management-system@0.1.0 build /app
+#16 0.893 > next build
+#16 0.893 
+#16 1.658    ▲ Next.js 15.2.4
+#16 1.658 
+#16 1.680    Creating an optimized production build ...
+#16 24.89  ✓ Compiled successfully
+#16 24.89    Linting and checking validity of types ...
+#16 36.04    Collecting page data ...
+#16 38.73    Generating static pages (0/16) ...
+#16 39.44    Generating static pages (4/16) 
+#16 39.52    Generating static pages (8/16) 
+#16 39.52    Generating static pages (12/16) 
+#16 39.64  ✓ Generating static pages (16/16)
+#16 40.46    Finalizing page optimization ...
+#16 40.46    Collecting build traces ...
+#16 63.95 
+#16 63.96 Route (app)                                           Size  First Load JS
+#16 63.96 ┌ ƒ /                                              3.99 kB         166 kB
+#16 63.96 ├ ƒ /_not-found                                      224 B         102 kB
+#16 63.96 ├ ƒ /analysis                                      11.1 kB         179 kB
+#16 63.96 ├ ƒ /api/analysis/summary                            224 B         102 kB
+#16 63.96 ├ ƒ /api/company                                     224 B         102 kB
+#16 63.96 ├ ƒ /api/company/[id]                                224 B         102 kB
+#16 63.96 ├ ƒ /api/dashboard/summary                           224 B         102 kB
+#16 63.96 ├ ƒ /api/health                                      224 B         102 kB
+#16 63.96 ├ ƒ /api/integrations/gitlab/projects                224 B         102 kB
+#16 63.96 ├ ƒ /api/integrations/gitlab/projects/[mappingId]    224 B         102 kB
+#16 63.96 ├ ƒ /api/integrations/gitlab/status                  224 B         102 kB
+#16 63.96 ├ ƒ /api/integrations/gitlab/sync                    224 B         102 kB
+#16 63.96 ├ ƒ /api/projects                                    224 B         102 kB
+#16 63.96 ├ ƒ /api/projects/[id]                               224 B         102 kB
+#16 63.96 ├ ƒ /api/settings/me                                 224 B         102 kB
+#16 63.96 ├ ƒ /api/users                                       224 B         102 kB
+#16 63.96 ├ ƒ /api/work-items                                  224 B         102 kB
+#16 63.96 ├ ƒ /api/work-items/[id]                             224 B         102 kB
+#16 63.96 ├ ƒ /api/work-items/import                           224 B         102 kB
+#16 63.96 ├ ƒ /api/work-logs                                   224 B         102 kB
+#16 63.96 ├ ƒ /api/work-logs/[id]                              224 B         102 kB
+#16 63.96 ├ ƒ /api/work-logs/summary                           224 B         102 kB
+#16 63.96 ├ ƒ /board                                         7.69 kB         175 kB
+#16 63.96 ├ ƒ /company                                        7.8 kB         163 kB
+#16 63.96 ├ ƒ /daily-work                                    13.6 kB         174 kB
+#16 63.96 ├ ƒ /issues                                          224 B         102 kB
+#16 63.96 ├ ƒ /projects                                      8.07 kB         170 kB
+#16 63.96 ├ ƒ /projects/[id]                                 7.26 kB         162 kB
+#16 63.96 ├ ƒ /settings                                      6.19 kB         161 kB
+#16 63.96 ├ ƒ /tasks                                           224 B         102 kB
+#16 63.96 └ ƒ /work-items                                    23.1 kB         197 kB
+#16 63.96 + First Load JS shared by all                       101 kB
+#16 63.96   ├ chunks/7569-61de3870b92bfff2.js                45.9 kB
+#16 63.96   ├ chunks/884316d7-e43b4bb93cc1ebd2.js            53.3 kB
+#16 63.96   └ other shared chunks (total)                    2.14 kB
+#16 63.96 
+#16 63.96 
+#16 63.96 ƒ Middleware                                       32.4 kB
+#16 63.96 
+#16 63.96 ƒ  (Dynamic)  server-rendered on demand
+#16 63.96 
+#16 DONE 64.7s
+
+#17 [production  2/11] RUN addgroup --system --gid 1001 nodejs &&     adduser --system --uid 1001 nextjs
+#17 CACHED
+
+#18 [production  3/11] COPY --from=builder /app/public ./public
+#18 CACHED
+
+#19 [production  4/11] COPY --from=builder /app/.next/standalone ./
+#19 DONE 4.8s
+
+#20 [production  5/11] COPY --from=builder /app/.next/static ./.next/static
+#20 DONE 0.5s
+
+#21 [production  6/11] COPY --from=builder /app/prisma ./prisma
+#21 DONE 0.2s
+
+#22 [production  7/11] COPY --from=builder /prisma-export /tmp/prisma-export
+#22 DONE 1.8s
+
+#23 [production  8/11] RUN rm -rf node_modules/.prisma node_modules/@prisma &&     mkdir -p node_modules &&     cp -a /tmp/prisma-export/.prisma node_modules/ &&     cp -a /tmp/prisma-export/@prisma node_modules/ &&     rm -rf /tmp/prisma-export
+#23 DONE 3.3s
+
+#24 [production  9/11] COPY scripts/runtime-*.mjs scripts/owner-gate.mjs scripts/database-url.mjs ./scripts/
+#24 DONE 0.3s
+
+#25 [production 10/11] COPY scripts/docker-entrypoint-app.sh /usr/local/bin/docker-entrypoint-app.sh
+#25 DONE 0.2s
+
+#26 [production 11/11] RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint-app.sh &&     chmod +x /usr/local/bin/docker-entrypoint-app.sh &&     chown -R nextjs:nodejs /app
+#26 DONE 27.1s
+
+#27 exporting to image
+#27 exporting layers
+#27 exporting layers 15.3s done
+#27 exporting manifest sha256:2ae1fb9474efbaddc20b3f3b9fd20dbf675820696cd19d7761ad9da8e5f36017 0.0s done
+#27 exporting config sha256:b1164c69ed9a1145ba377f38543bfb4da0afad768438b22b17a7ee8fc94afbff 0.0s done
+#27 exporting attestation manifest sha256:73d9ce062ac751c2d91c0c8a8b0d05b495f0cc4d476bf3b7aa204d6f33a3fa0d
+#27 exporting attestation manifest sha256:73d9ce062ac751c2d91c0c8a8b0d05b495f0cc4d476bf3b7aa204d6f33a3fa0d 0.0s done
+#27 exporting manifest list sha256:0d0162ad7013d122fc5ee5a9039a7e08e834b7d59cb85a4631fa51eb542d1e8e 0.0s done
+#27 naming to docker.io/library/pms-issue30-optimized:local done
+#27 unpacking to docker.io/library/pms-issue30-optimized:local
+#27 unpacking to docker.io/library/pms-issue30-optimized:local 4.9s done
+#27 DONE 20.4s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/zpacdhxpg3leb3cddrue49zlx

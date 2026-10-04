@@ -1,17 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { AnalysisChartsDeferred } from '@/components/page/analysis/analysis-charts-deferred'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+
 import { Download, RefreshCw } from 'lucide-react'
 import { AppHeader } from '@/components/layout/app-header'
 import { AppSidebar } from '@/components/layout/app-sidebar'
@@ -29,20 +21,16 @@ import {
 } from '@/components/layout/page-layout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
 import { Input } from '@/components/ui/input'
-import { WorkItemsTable, DailyWorkTable, HoursPeriodTable, displayRole, displayStatus } from '@/components/page/analysis/report-tables'
+import { WorkItemsTable, DailyWorkTable, displayRole, displayStatus } from '@/components/page/analysis/report-tables'
 import { PageState } from '@/components/layout/page-state'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { bangkokCalendarPeriodRange, currentBangkokCalendarDate } from '@/lib/bangkok-datetime'
-import { analysisDailyWorkHref, analysisWorkItemsHref } from '@/lib/analysis-links'
+import { analysisWorkItemsHref } from '@/lib/analysis-links'
 import { generateAnalysisCsv, type AnalysisReport } from '@/lib/analysis-export'
 import { downloadTextFile } from '@/components/page/work-items/work-item-export'
-import { renderHoursChartDot } from '@/components/page/analysis/hours-chart-dot'
-import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion'
-import { MOTION_DURATION_MS } from '@/components/ui/motion'
 import { ContentLoadingSkeleton } from '@/components/layout/content-loading-skeleton'
 import {
   WORK_ITEM_KINDS,
@@ -63,25 +51,6 @@ type AnalysisFilters = {
 
 type BreakdownRow = { value: string; count: number }
 type FilterOptions = AnalysisReport['filterOptions']
-type StatusChartPoint = { href: string; accessibleName: string }
-type StatusBarShapeProps = {
-  x?: number
-  y?: number
-  width?: number
-  height?: number
-  fill?: string
-  payload?: StatusChartPoint
-}
-
-function StatusChartLinkBar({ x = 0, y = 0, width = 0, height = 0, fill = 'var(--chart-1)', payload }: StatusBarShapeProps) {
-  if (!payload) return <g />
-  return (
-    <Link href={payload.href} aria-label={payload.accessibleName}>
-      <rect x={x} y={y} width={width} height={height} rx={4} fill={fill} />
-    </Link>
-  )
-}
-
 function defaultDateRange() {
   const today = currentBangkokCalendarDate()
   return bangkokCalendarPeriodRange(today, 'month') ?? { startDate: today, endDate: today }
@@ -121,12 +90,6 @@ function activeFilterDescription(report: AnalysisReport) {
   return `Company: ${company} · Project: ${project} · Functional role: ${role} · ชนิดงาน: ${kind}`
 }
 
-function shortPeriodLabel(startDate: string, endDate: string, grouping: string) {
-  if (grouping === 'month') return startDate.slice(0, 7)
-  if (startDate === endDate) return startDate.slice(5)
-  return `${startDate.slice(5)}–${endDate.slice(5)}`
-}
-
 function BreakdownCard({
   title,
   rows,
@@ -163,7 +126,6 @@ function BreakdownCard({
 }
 
 export default function AnalysisPage() {
-  const prefersReducedMotion = usePrefersReducedMotion()
   const [draftFilters, setDraftFilters] = useState<AnalysisFilters>(defaultFilters)
   const [appliedFilters, setAppliedFilters] = useState<AnalysisFilters>(defaultFilters)
   const [report, setReport] = useState<AnalysisReport | null>(null)
@@ -172,6 +134,7 @@ export default function AnalysisPage() {
   const [dateError, setDateError] = useState<string | null>(null)
   const [exportMessage, setExportMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
+  const loadedQuery = useRef<string | null>(null)
   const requestQuery = useMemo(() => analysisQuery(appliedFilters), [appliedFilters])
   const filtersDirty = useMemo(
     () => analysisQuery(draftFilters) !== analysisQuery(appliedFilters),
@@ -183,7 +146,8 @@ export default function AnalysisPage() {
     setIsLoading(true)
     setLoadError(null)
     setExportMessage(null)
-    setReport(null)
+    // Keep usable content on refresh, but never label old data with new filters.
+    if (loadedQuery.current !== requestQuery) setReport(null)
 
     fetch(`/api/analysis/summary?${requestQuery}`, { signal: controller.signal })
       .then(async (response) => {
@@ -191,7 +155,11 @@ export default function AnalysisPage() {
         if (!response.ok) throw new Error(body.error?.message ?? 'ไม่สามารถอ่านข้อมูล Analysis ได้')
         return body as AnalysisReport
       })
-      .then(setReport)
+      .then((data) => {
+        if (controller.signal.aborted) return
+        loadedQuery.current = requestQuery
+        setReport(data)
+      })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
         const message = error instanceof Error ? error.message : 'ไม่สามารถอ่านข้อมูล Analysis ได้'
@@ -217,6 +185,7 @@ export default function AnalysisPage() {
       return
     }
     setDateError(null)
+    if (analysisQuery(draftFilters) === requestQuery) setReloadKey((current) => current + 1)
     setAppliedFilters({ ...draftFilters })
   }
 
@@ -246,19 +215,6 @@ export default function AnalysisPage() {
     role: appliedFilters.role === 'all' ? null : appliedFilters.role,
     kind: appliedFilters.kind === 'all' ? null : appliedFilters.kind,
   }
-  const statusChartData = report?.breakdowns.status.map((row) => ({
-    name: displayStatus(row.value),
-    value: row.count,
-    href: analysisWorkItemsHref(sourceFilters, period, { status: row.value }),
-    accessibleName: `เปิด Work Items สถานะ ${displayStatus(row.value)} จำนวน ${row.count} รายการ`,
-  })) ?? []
-  const hoursChartData = report?.loggedHoursByPeriod.map((row) => ({
-    ...row,
-    label: shortPeriodLabel(row.startDate, row.endDate, report.meta.loggedHoursGrouping),
-    plottedHours: Number(row.hours),
-    href: analysisDailyWorkHref(sourceFilters, { startDate: row.startDate, endDate: row.endDate }),
-    accessibleName: `เปิด Daily Work ช่วง ${row.startDate} ถึง ${row.endDate} รวม ${row.hours} ชั่วโมง`,
-  })) ?? []
 
   return (
     <SidebarProvider>
@@ -379,71 +335,7 @@ export default function AnalysisPage() {
                   </div>
 
                   <TabsContent value="overview" className="min-w-0 space-y-4">
-                    <div className="grid min-w-0 gap-4 xl:grid-cols-2">
-                      <Card className="motion-content-enter min-w-0 overflow-hidden card-shadow">
-                        <CardHeader>
-                          <CardTitle>สถานะ Work Items</CardTitle>
-                          <CardDescription>สถานะปัจจุบันของรายการที่ตรงกับช่วงและตัวกรอง</CardDescription>
-                        </CardHeader>
-                        <CardContent className="min-w-0 overflow-hidden">
-                          {report.summary.total === 0 ? (
-                            <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">ไม่มี Work Item ให้แสดงในกราฟนี้</p>
-                          ) : (
-                            <ChartContainer config={{ value: { label: 'Work Items', color: 'var(--chart-1)' } }} className="h-[320px] min-w-0 w-full">
-                              <BarChart data={statusChartData} layout="vertical" margin={{ top: 4, right: 12, bottom: 4, left: 4 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.35} />
-                                <XAxis type="number" allowDecimals={false} stroke="var(--muted-foreground)" fontSize={11} />
-                                <YAxis dataKey="name" type="category" width={104} stroke="var(--muted-foreground)" fontSize={10} />
-                                <Tooltip content={<ChartTooltipContent />} />
-                                <Bar
-                                  dataKey="value"
-                                  fill="var(--chart-1)"
-                                  radius={[0, 4, 4, 0]}
-                                  maxBarSize={24}
-                                  animationDuration={MOTION_DURATION_MS.chart}
-                                  isAnimationActive={!prefersReducedMotion}
-                                  shape={(props: unknown) => <StatusChartLinkBar {...props as StatusBarShapeProps} />}
-                                />
-                              </BarChart>
-                            </ChartContainer>
-                          )}
-                        </CardContent>
-                      </Card>
-
-                      <Card className="motion-content-enter min-w-0 overflow-hidden card-shadow">
-                        <CardHeader>
-                          <CardTitle>Logged hours ตามช่วงเวลา</CardTitle>
-                          <CardDescription>รวมจาก TimeEntry.date ด้วย grouping แบบ {report.meta.loggedHoursGrouping} ตาม Asia/Bangkok</CardDescription>
-                        </CardHeader>
-                        <CardContent className="min-w-0 overflow-hidden">
-                          {hoursChartData.length === 0 ? (
-                            <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">ไม่มี Daily Work ให้แสดงในกราฟนี้</p>
-                          ) : (
-                            <ChartContainer config={{ plottedHours: { label: 'ชั่วโมง', color: 'var(--chart-2)' } }} className="h-[320px] min-w-0 w-full">
-                              <LineChart data={hoursChartData} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.35} />
-                                <XAxis dataKey="label" stroke="var(--muted-foreground)" fontSize={10} minTickGap={16} />
-                                <YAxis stroke="var(--muted-foreground)" fontSize={11} width={42} />
-                                <Tooltip content={<ChartTooltipContent labelFormatter={(_label, payload) => {
-                                  const point = payload?.[0]?.payload as { startDate?: string; endDate?: string } | undefined
-                                  return point ? `${point.startDate} – ${point.endDate}` : ''
-                                }} />} />
-                                <Line
-                                  type="monotone"
-                                  dataKey="plottedHours"
-                                  stroke="var(--chart-2)"
-                                  strokeWidth={2}
-                                  animationDuration={MOTION_DURATION_MS.chart}
-                                  isAnimationActive={!prefersReducedMotion}
-                                  dot={renderHoursChartDot}
-                                />
-                              </LineChart>
-                            </ChartContainer>
-                          )}
-                          <HoursPeriodTable report={report} />
-                        </CardContent>
-                      </Card>
-                    </div>
+                    <AnalysisChartsDeferred report={report} />
 
                     <div className="grid min-w-0 gap-4 md:grid-cols-3">
                       <BreakdownCard
@@ -490,7 +382,7 @@ export default function AnalysisPage() {
 
             {isLoading && (
               <div role="status" className="space-y-4 rounded-xl border border-border/60 p-6 text-sm text-muted-foreground" aria-busy="true">
-                <p>กำลังโหลดรายงานจากข้อมูลจริง...</p>
+                <p>{report ? 'กำลังอัปเดตรายงาน…' : 'กำลังโหลดรายงานจากข้อมูลจริง...'}</p>
                 {!report && <ContentLoadingSkeleton layout="report" />}
               </div>
             )}

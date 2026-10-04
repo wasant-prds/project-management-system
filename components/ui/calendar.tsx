@@ -6,6 +6,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 import { DateCalendar } from '@mui/x-date-pickers/DateCalendar'
 import { cn } from '@/lib/utils'
+import { CALENDAR_HEIGHT_CLASS } from './calendar-layout'
 
 interface CalendarProps {
   readonly className?: string
@@ -23,10 +24,10 @@ const selectedStyle = {
 function Calendar({ className, selectedDate, onDateChange }: CalendarProps) {
   const [isMounted, setIsMounted] = React.useState(false)
   React.useEffect(() => { setIsMounted(true) }, [])
-  if (!isMounted) return <div role="status" className={cn('grid min-h-80 place-items-center text-sm text-muted-foreground', className)}>กำลังโหลดปฏิทิน…</div>
+  if (!isMounted) return <div role="status" className={cn('grid place-items-center text-sm text-muted-foreground', CALENDAR_HEIGHT_CLASS, className)}>กำลังโหลดปฏิทิน…</div>
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <div data-slot="calendar" className={cn('min-w-0 w-full', className)}>
+      <div data-slot="calendar" className={cn('min-w-0 w-full', CALENDAR_HEIGHT_CLASS, className)}>
         <DateCalendar
           value={selectedDate ? dayjs(selectedDate) : null}
           onChange={(value) => onDateChange?.(value ? value.toDate() : null)}

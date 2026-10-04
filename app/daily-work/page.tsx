@@ -14,7 +14,6 @@ import {
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
 import { Plus } from "lucide-react"
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -27,7 +26,7 @@ import { fetchCollection } from "@/lib/fetch-collection"
 import { dailyWorkHrefWithoutDashboardFilters } from "@/lib/dashboard-links"
 import { WorkLog, Project, WorkLogFormData, emptyWorkLogForm } from "@/components/page/daily-work/types"
 import { WorkLogList } from "@/components/page/daily-work/work-log-list"
-import { WorkLogDialog } from "@/components/page/daily-work/work-log-dialog"
+import { DeferredCalendar as Calendar, DeferredWorkLogDialog as WorkLogDialog } from '@/components/page/daily-work/deferred-widgets'
 import { StatsCard } from "@/components/page/daily-work/stats-card"
 
 type ViewPeriod = "day" | "week" | "month" | "year"
@@ -101,6 +100,7 @@ export default function DailyWorkPage() {
   const [listLoading, setListLoading] = useState(true)
   const [listError, setListError] = useState<string | null>(null)
   const latestListLoad = useRef(0)
+  const listController = useRef<AbortController | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [viewPeriod, setViewPeriod] = useState<ViewPeriod>("day")
   const [dashboardFilters, setDashboardFilters] = useState<DashboardWorkLogFilters | null>(null)
@@ -131,13 +131,16 @@ export default function DailyWorkPage() {
 
   const fetchWorkLogs = useCallback(async () => {
     if (!dashboardFiltersReady) return
+    listController.current?.abort()
+    const controller = new AbortController()
+    listController.current = controller
     const generation = ++latestListLoad.current
     setListLoading(true)
     setListError(null)
     try {
-      const response = await fetch(`/api/work-logs${workLogQuery(date, viewPeriod, dashboardFilters)}`)
+      const response = await fetch(`/api/work-logs${workLogQuery(date, viewPeriod, dashboardFilters)}`, { signal: controller.signal, cache: "no-store" })
       const result = await readWorkLogsResponse<WorkLog>(response)
-      if (generation !== latestListLoad.current) return
+      if (controller.signal.aborted || generation !== latestListLoad.current) return
       if (result.error) {
         setWorkLogs([])
         setListError(result.error.message)
@@ -150,7 +153,7 @@ export default function DailyWorkPage() {
       }
       setWorkLogs(result.workLogs)
     } catch (error) {
-      if (generation !== latestListLoad.current) return
+      if (controller.signal.aborted || generation !== latestListLoad.current) return
       setListError("โหลด Daily Work ไม่สำเร็จ กรุณาลองอีกครั้ง")
       console.error("Error fetching work logs:", error)
       toast({
@@ -166,7 +169,7 @@ export default function DailyWorkPage() {
   // Fetch work logs based on selected date and view period.
   useEffect(() => {
     if (dashboardFiltersReady) void fetchWorkLogs()
-    return () => { latestListLoad.current += 1 }
+    return () => { latestListLoad.current += 1; listController.current?.abort() }
   }, [fetchWorkLogs, dashboardFiltersReady])
 
   // Fetch projects on mount.
@@ -287,7 +290,7 @@ export default function DailyWorkPage() {
     })
   }, [workLogs, searchQuery])
 
-  const totalHours = sumDecimalHours(filteredWorkLogs.map((log) => log.hours))
+  const totalHours = useMemo(() => sumDecimalHours(filteredWorkLogs.map((log) => log.hours)), [filteredWorkLogs])
   const totalTasks = filteredWorkLogs.length
 
   // Generate button label based on view period

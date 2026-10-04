@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { CompanyCard } from '@/components/page/company/company-card'
 import { PageState } from '@/components/layout/page-state'
 import { AppSidebar } from '@/components/layout/app-sidebar'
@@ -41,16 +41,20 @@ export default function CompanyPage() {
   const [saving, setSaving] = useState(false)
   const [deleteCompany, setDeleteCompany] = useState<Company | null>(null)
   const [deleting, setDeleting] = useState(false)
-  const reload = useCallback(async () => {
+  const loadGeneration = useRef(0)
+  const reload = useCallback(async (fresh = false) => {
+    const generation = ++loadGeneration.current
     setLoading(true)
     setLoadError('')
     try {
-      setCompanies(await fetchCollection<Company>('/api/company', 'companies'))
+      const rows = await fetchCollection<Company>('/api/company', 'companies', { fresh })
+      if (generation !== loadGeneration.current) return
+      setCompanies(rows)
       setMessage('')
-    } catch (error) { setLoadError(error instanceof Error ? error.message : 'โหลด Company ไม่สำเร็จ') }
-    finally { setLoading(false) }
+    } catch (error) { if (generation === loadGeneration.current) setLoadError(error instanceof Error ? error.message : 'โหลด Company ไม่สำเร็จ') }
+    finally { if (generation === loadGeneration.current) setLoading(false) }
   }, [])
-  useEffect(() => { reload() }, [reload])
+  useEffect(() => { void reload(); return () => { loadGeneration.current += 1 } }, [reload])
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault(); setSaving(true)
@@ -58,7 +62,7 @@ export default function CompanyPage() {
       await readJson(await fetch(editing ? `/api/company/${editing}` : '/api/company', {
         method: editing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form),
       }))
-      setEditing(null); setForm(emptyForm); await reload()
+      setEditing(null); setForm(emptyForm); await reload(true)
       setMessage('บันทึก Company แล้ว')
     } catch (error) { setMessage(error instanceof Error ? error.message : 'บันทึกไม่สำเร็จ') }
     finally { setSaving(false) }
@@ -73,7 +77,7 @@ export default function CompanyPage() {
     setDeleting(true)
     try {
       await readJson(await fetch(`/api/company/${deleteCompany.id}`, { method: 'DELETE' }))
-      await reload(); setMessage('ลบ Company แล้ว')
+      await reload(true); setMessage('ลบ Company แล้ว')
       setDeleteCompany(null)
     } catch (error) { setMessage(error instanceof Error ? error.message : 'ลบ Company ไม่สำเร็จ') }
     finally { setDeleting(false) }

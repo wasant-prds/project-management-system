@@ -1,0 +1,24 @@
+
+> project-management-system@0.1.0 test:frontend-performance-production D:\Docker\All working\github\project-management-system
+> node scripts/frontend-performance-production-browser.mjs
+
+PASS Next production hydration /daily-work light 375
+PASS Next production hydration /analysis light 375
+PASS Next production hydration /company light 375
+PASS Next production hydration /projects light 375
+PASS Next production hydration /daily-work dark 375
+PASS Next production hydration /analysis dark 375
+PASS Next production hydration /company dark 375
+PASS Next production hydration /projects dark 375
+PASS Next production hydration /daily-work light 1440
+PASS Next production hydration /analysis light 1440
+PASS Next production hydration /company light 1440
+PASS Next production hydration /projects light 1440
+PASS Next production hydration /daily-work dark 1440
+PASS Next production hydration /analysis dark 1440
+PASS Next production hydration /company dark 1440
+PASS Next production hydration /projects dark 1440
+PASS Next production calendar chunk failure and retry
+PASS Next production dialog chunk failure and retry
+PASS Next production analysis chunk failure and retry
+Production browser: 19 total / 19 PASS / 0 FAIL
