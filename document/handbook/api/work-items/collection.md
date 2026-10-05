@@ -34,9 +34,9 @@ GET summary คำนวณจาก WorkItem ที่ตรงกับ owner 
 
 | Parameter | Type | Validation / behavior |
 | --- | --- | --- |
-| projectId | string | จำกัดรายการตาม Project ID; ID ที่ไม่มีผลเป็นรายการว่าง |
-| companyId | string | จำกัดตาม Company ของ Project |
-| assigneeId | string | Compatibility filter; หากส่งต้องเท่ากับ owner ID |
+| projectId | string | จำกัดรายการตาม Project public UUIDv4; ID ที่ไม่มีผลเป็นรายการว่าง |
+| companyId | string | จำกัดตาม Company public UUIDv4 ของ Project |
+| assigneeId | string | Compatibility filter; หากส่งต้องเท่ากับ owner public UUIDv4 |
 | kind | enum | Incident, Issue หรือ Task |
 | status | enum | backlog, todo, in-progress, blocked, sa-testing, pm-testing, completed หรือ cancelled; parser รับ Prisma underscore form ด้วย |
 | priority | enum | none, low, medium, high หรือ urgent |
@@ -57,7 +57,7 @@ GET summary คำนวณจาก WorkItem ที่ตรงกับ owner 
 | Field | Type | Required | Validation / behavior |
 | --- | --- | --- | --- |
 | title | string | Yes | trim แล้วต้องไม่ว่าง |
-| projectId | string | Yes | trim แล้วต้องเป็น Project ที่มีอยู่ |
+| projectId | string | Yes | trim แล้วต้องเป็น public UUIDv4 ของ Project ที่มีอยู่ |
 | kind | enum | Yes | Incident, Issue หรือ Task |
 | status | enum | No | default backlog; public response ใช้ hyphen; input รองรับ Prisma underscore form |
 | priority | enum | No | default none; none, low, medium, high หรือ urgent |
@@ -66,8 +66,8 @@ GET summary คำนวณจาก WorkItem ที่ตรงกับ owner 
 | description | string or null | No | trim; empty/null กลายเป็น null |
 | workDate | YYYY-MM-DD, null or empty string | No | valid Bangkok calendar date; null/empty กลายเป็น null |
 | dueDate | YYYY-MM-DD, null or empty string | No | valid Bangkok calendar date; null/empty กลายเป็น null |
-| assigneeId | string, null or empty string | No | หากเป็น string ต้องตรง owner; ค่าบันทึกจริงมาจาก server |
-| id | string | No | parser ตรวจค่า non-empty แต่ collection POST ลบทิ้งก่อน insert; ID ที่ส่งมาไม่ถูกใช้ |
+| assigneeId | string, null or empty string | No | หากเป็น string ต้องตรง owner public UUIDv4; ค่าบันทึกจริงมาจาก server |
+| id | string | No | ไม่กำหนด identity ให้ record ใหม่; collection POST ไม่ใช้ค่านี้และ database สร้าง public UUIDv4 |
 
 Input ที่ไม่ระบุ id ใหม่จะได้ ID จาก Prisma. Parser ใช้เฉพาะ fields ที่ระบุในตาราง; unknown fields ไม่ถูกบันทึก.
 
@@ -88,7 +88,7 @@ GET ตอบ HTTP 200; POST ตอบ HTTP 201. WorkItem object ของ colle
 | Response field | Description |
 | --- | --- |
 | workItems | Array ของ WorkItem ที่ตรงกับ owner และ filters; GET เท่านั้น |
-| workItems[].id | Primary key ของ WorkItem |
+| workItems[].id | Public UUIDv4 ของ WorkItem |
 | workItems[].title | ชื่องาน |
 | workItems[].description | รายละเอียดงาน หรือ null |
 | workItems[].kind | Incident, Issue หรือ Task |
@@ -101,21 +101,24 @@ GET ตอบ HTTP 200; POST ตอบ HTTP 201. WorkItem object ของ colle
 | workItems[].submittedAt | Bangkok wall-clock timestamp ที่มี offset +07:00 หรือ null |
 | workItems[].createdAt | เวลาสร้าง Bangkok wall-clock พร้อม offset +07:00 |
 | workItems[].updatedAt | เวลาแก้ไขล่าสุด Bangkok wall-clock พร้อม offset +07:00 |
-| workItems[].projectId | Foreign key ของ Project |
-| workItems[].assigneeId | Foreign key ของ owner User |
+| workItems[].projectId | Public UUIDv4 ของ Project |
 | workItems[].assignee | Owner User relation |
-| workItems[].assignee.id | Primary key ของ owner |
+| workItems[].assignee.id | Public UUIDv4 ของ owner |
 | workItems[].assignee.name | ชื่อ owner |
 | workItems[].assignee.email | Email owner |
 | workItems[].assignee.avatar | Avatar URL หรือ null |
 | workItems[].project | Project relation |
-| workItems[].project.id | Primary key ของ Project |
+| workItems[].project.id | Public UUIDv4 ของ Project |
 | workItems[].project.name | ชื่อ Project |
 | workItems[].project.colorProject | สี Project หรือ null |
 | workItems[].project.company | Company relation ของ Project |
-| workItems[].project.company.id | Primary key ของ Company |
+| workItems[].project.company.id | Public UUIDv4 ของ Company |
 | workItems[].project.company.name | ชื่อ Company |
 | workItems[].project.company.displayName | ชื่อแสดง Company หรือ null |
+| workItems[].source | External GitLab source metadata หรือ null เมื่อไม่มี GitLab reference |
+| workItems[].source.provider | `gitlab` เมื่อมี source |
+| workItems[].source.url | GitLab Issue URL ที่บันทึกไว้ |
+| workItems[].source.issueIid | GitLab Issue IID ซึ่งเป็น provider identity ไม่ใช่ PMS ID |
 | workItem | WorkItem object ที่เพิ่งสร้าง; POST เท่านั้น ใช้ fields รูปแบบเดียวกับ workItems[] |
 | page | ข้อมูล cursor pagination; GET เท่านั้น |
 | page.limit | จำนวนสูงสุดที่ขอในหน้านี้ |

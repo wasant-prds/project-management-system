@@ -31,7 +31,7 @@ PATCH ใช้ `Serializable` transaction. DELETE ไม่ cascade ไป exte
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `mappingId` | string | Yes | ID ของ mapping ใน PMS |
+| `mappingId` | string | Yes | public UUIDv4 ของ mapping ใน PMS; numeric internal ID ไม่รองรับ |
 
 ### PATCH body
 
@@ -39,7 +39,7 @@ PATCH ใช้ `Serializable` transaction. DELETE ไม่ cascade ไป exte
 
 | Field | Type | Required | Validation / behavior |
 | --- | --- | --- | --- |
-| `projectId` | string | Optional | เมื่อระบุต้องไม่ว่างและต้องมี PMS Project อยู่; ย้ายไม่ได้หากมี external references ของ GitLab Project นี้ |
+| `projectId` | string | Optional | เมื่อระบุต้องเป็น public UUIDv4 ของ PMS Project; ย้ายไม่ได้หากมี external references ของ GitLab Project นี้ |
 | `approvedLabelMap` | object ของ string → string | Optional | กฎเดียวกับ [สร้าง mapping](./gitlab-projects.md#post): ไม่เกิน 100 labels, label ไม่ว่าง/ยาวไม่เกิน 255 และ target ต้องเป็น WorkItem type ที่รองรับ |
 
 เมื่อ Project ปลายทางหรือ label map เปลี่ยน `firstSyncApprovedAt` จะถูก reset เป็น `null`; ถ้าส่งค่าเดิม approval ไม่ถูก reset.
@@ -69,19 +69,19 @@ curl -i -X DELETE -u "$OWNER_GATE_USERNAME:$OWNER_GATE_PASSWORD" \
 | Response field | Description |
 | --- | --- |
 | `mapping` | Mapping ที่แก้สำเร็จ |
-| `mapping.id` | Primary key ของ mapping ใน PMS |
+| `mapping.id` | Public UUIDv4 ของ mapping ใน PMS |
 | `mapping.instanceUrl` | Canonical GitLab base URL จาก server config |
 | `mapping.gitLabProjectId` | GitLab Project ID ในรูป string |
-| `mapping.projectId` | PMS Project ID ปลายทาง |
+| `mapping.projectId` | Public UUIDv4 ของ PMS Project ปลายทาง |
 | `mapping.approvedLabelMap` | Exact label → WorkItem type map |
 | `mapping.firstSyncApprovedAt` | เวลา first-sync approval ใน `+07:00`; reset เป็น `null` เมื่อ destination/label map เปลี่ยน |
 | `mapping.createdAt` | เวลาสร้าง mapping ใน `+07:00` |
 | `mapping.updatedAt` | เวลาแก้ mapping ล่าสุดใน `+07:00` |
 | `mapping.project` | Project context ที่แนบกับ mapping |
-| `mapping.project.id` | Project ID |
+| `mapping.project.id` | Public UUIDv4 ของ PMS Project |
 | `mapping.project.name` | ชื่อ Project |
 | `mapping.project.company` | Company ที่เชื่อมกับ Project |
-| `mapping.project.company.id` | Company ID |
+| `mapping.project.company.id` | Public UUIDv4 ของ Company |
 | `mapping.project.company.name` | ชื่อ Company |
 | `mapping.project.company.displayName` | ชื่อแสดงผลของ Company; string หรือ `null` |
 

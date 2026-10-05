@@ -4,10 +4,16 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { createHash } from 'node:crypto'
 import vm from 'node:vm'
+import { resolveTestImport } from '../support/identity-modules.mjs'
 
 const require = createRequire(import.meta.url)
 const ts = require('typescript')
-const owner = { id: 'owner-1', name: 'Owner', email: 'owner@example.test', avatar: null }
+const owner = { id: '11111111-1111-4111-8111-111111111111', internalId: 7n, name: 'Owner', email: 'owner@example.test', avatar: null }
+const PROJECT_1 = '33333333-3333-4333-8333-333333333333'
+const PROJECT_2 = '44444444-4444-4444-8444-444444444444'
+const COMPANY_1 = '55555555-5555-4555-8555-555555555555'
+const COMPANY_2 = '66666666-6666-4666-8666-666666666666'
+process.env.PMS_CURSOR_SECRET ??= 'work-item-test-cursor-secret'
 const response = { json: (body, options = {}) => ({ status: options.status ?? 200, body }) }
 
 function loadTs(path, mocks = {}) {
@@ -20,13 +26,15 @@ function loadTs(path, mocks = {}) {
     module: loaded,
     exports: loaded.exports,
     require: (name) => {
-      if (!(name in mocks)) throw new Error(`Unexpected import: ${name}`)
-      return mocks[name]
+      const resolved = resolveTestImport(name, mocks)
+      if (resolved === undefined) throw new Error(`Unexpected import: ${name}`)
+      return resolved
     },
     Date,
     URL,
     URLSearchParams,
     Buffer,
+    process,
     console: { error() {} },
   }, { filename: path })
   return loaded.exports
@@ -35,8 +43,8 @@ function loadTs(path, mocks = {}) {
 function makeSystem() {
   const state = {
     projects: new Map([
-      ['project-1', { id: 'project-1', name: 'Project One', colorProject: '#123456', company: { id: 'company-1', name: 'Company One', displayName: 'One' }, companyId: 'company-1' }],
-      ['project-2', { id: 'project-2', name: 'Project Two', colorProject: null, company: { id: 'company-2', name: 'Company Two', displayName: null }, companyId: 'company-2' }],
+      [PROJECT_1, { id: 1n, publicId: PROJECT_1, name: 'Project One', colorProject: '#123456', company: { id: 11n, publicId: COMPANY_1, name: 'Company One', displayName: 'One' }, companyId: 11n }],
+      [PROJECT_2, { id: 2n, publicId: PROJECT_2, name: 'Project Two', colorProject: null, company: { id: 12n, publicId: COMPANY_2, name: 'Company Two', displayName: null }, companyId: 12n }],
     ]),
     workItems: new Map(),
     timeEntries: [],
@@ -56,13 +64,16 @@ function makeSystem() {
   const now = new Date(Date.UTC(2026, 8, 30, 9, 30, 0))
   const asResponseItem = (item, includeEntries = false) => ({
     ...item,
-    project: state.projects.get(item.projectId),
-    assignee: { id: item.assigneeId, name: owner.name, email: owner.email, avatar: null },
-    externalReference: state.externalReferences.get(item.id) ?? null,
-    ...(includeEntries ? { timeEntries: state.timeEntries.filter((entry) => entry.workItemId === item.id && entry.userId === owner.id) } : {}),
+    project: [...state.projects.values()].find((project) => project.id === item.projectId),
+    assignee: { publicId: owner.id, name: owner.name, email: owner.email, avatar: null },
+    externalReference: (() => {
+      const reference = state.externalReferences.get(item.publicId) ?? state.externalReferences.get(item.id) ?? null
+      return reference ? { provider: 'gitlab', ...reference } : null
+    })(),
+    ...(includeEntries ? { timeEntries: state.timeEntries.filter((entry) => (entry.workItemId === item.id || entry.workItemId === item.publicId) && (entry.userId === owner.internalId || entry.userId === owner.id)) } : {}),
   })
   const matchesFilter = (item, where) => {
-    const project = state.projects.get(item.projectId)
+    const project = [...state.projects.values()].find((row) => row.id === item.projectId)
     if (where.assigneeId && item.assigneeId !== where.assigneeId) return false
     if (where.projectId && item.projectId !== where.projectId) return false
     if (where.kind && item.kind !== where.kind) return false
@@ -87,8 +98,9 @@ function makeSystem() {
       if (condition === null && value !== null) return false
     }
 
-    if (where.id && typeof where.id === 'string' && item.id !== where.id) return false
-    if (where.id?.lt && item.id >= where.id.lt) return false
+    if (where.publicId && item.publicId !== where.publicId) return false
+    if (typeof where.id === 'bigint' && item.id !== where.id) return false
+    if (where.id?.lt !== undefined && item.id >= where.id.lt) return false
     if (where.title?.contains && !item.title.toLowerCase().includes(where.title.contains.toLowerCase())) return false
     if (where.description?.contains && !String(item.description ?? '').toLowerCase().includes(where.description.contains.toLowerCase())) return false
     if (where.assignee?.is?.name?.contains && !owner.name.toLowerCase().includes(where.assignee.is.name.contains.toLowerCase())) return false
@@ -103,13 +115,19 @@ function makeSystem() {
       state.lastTransactionOptions = options
       return callback(prisma)
     },
+    company: {
+      async findUnique({ where }) {
+        const match = [...state.projects.values()].find((project) => project.company.publicId === where.publicId || project.company.id === where.id)
+        return match ? { id: match.company.id, publicId: match.company.publicId } : null
+      },
+    },
     project: {
       async findUnique({ where }) {
         if (state.projectLookupFailures > 0) {
           state.projectLookupFailures -= 1
           throw new Error('fixture project lookup failure')
         }
-        return state.projects.get(where.id) ?? null
+        return [...state.projects.values()].find((project) => project.publicId === where.publicId || project.id === where.id) ?? null
       },
       async findMany() { return [...state.projects.values()] },
     },
@@ -124,13 +142,13 @@ function makeSystem() {
         state.lastFindMany = args
         state.lastWhere = where
         return [...state.workItems.values()]
-          .filter((item) => state.projects.has(item.projectId) && matchesFilter(item, where))
-          .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime() || right.id.localeCompare(left.id))
+          .filter((item) => [...state.projects.values()].some((project) => project.id === item.projectId) && matchesFilter(item, where))
+          .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime() || (right.id > left.id ? 1 : right.id < left.id ? -1 : 0))
           .slice(0, args.take)
           .map((item) => asResponseItem(item))
       },
       async findFirst({ where, include }) {
-        const item = state.workItems.get(where.id)
+        const item = [...state.workItems.values()].find((candidate) => candidate.publicId === where.publicId || candidate.id === where.id)
         if (!item || item.assigneeId !== where.assigneeId) return null
         return asResponseItem(item, Boolean(include?.timeEntries))
       },
@@ -139,16 +157,18 @@ function makeSystem() {
           state.workItemLookupFailures -= 1
           throw new Error('fixture work item lookup failure')
         }
-        const item = state.workItems.get(where.id)
-        return item ? { id: item.id } : null
+        const item = [...state.workItems.values()].find((candidate) => candidate.publicId === (where.publicId ?? where.id) || candidate.id === where.id)
+        return item ? { id: item.id, publicId: item.publicId } : null
       },
       async create({ data }) {
-        if (data.id && state.workItems.has(data.id)) throw { code: 'P2002' }
-        if (!state.projects.has(data.projectId)) throw { code: 'P2003' }
+        if (data.publicId && [...state.workItems.values()].some((item) => item.publicId === data.publicId)) throw { code: 'P2002' }
+        if (![...state.projects.values()].some((project) => project.id === data.projectId)) throw { code: 'P2003' }
         if (data.title === state.failTitle) throw new Error('fixture database failure')
-        const id = data.id ?? `work-${state.workItems.size + 1}`
+        const id = BigInt(state.workItems.size + 1)
+        const publicId = data.publicId ?? `77777777-7777-4777-8777-${String(state.workItems.size + 1).padStart(12, '0')}`
         const item = {
           id,
+          publicId,
           title: data.title,
           description: data.description,
           kind: data.kind,
@@ -164,27 +184,27 @@ function makeSystem() {
           projectId: data.projectId,
           assigneeId: data.assigneeId,
         }
-        state.workItems.set(id, item)
+        state.workItems.set(publicId, item)
         state.writes += 1
         return asResponseItem(item)
       },
       async update({ where, data }) {
-        const item = state.workItems.get(where.id)
+        const item = [...state.workItems.values()].find((candidate) => candidate.id === where.id || candidate.publicId === where.publicId)
         if (!item) throw { code: 'P2025' }
         const next = { ...item, ...data, updatedAt: now }
         if (data.project?.connect) next.projectId = data.project.connect.id
         if (data.assignee?.connect) next.assigneeId = data.assignee.connect.id
         delete next.project
         delete next.assignee
-        state.workItems.set(where.id, next)
+        state.workItems.set(next.publicId, next)
         state.updates += 1
         return asResponseItem(next)
       },
       async deleteMany({ where }) {
-        const item = state.workItems.get(where.id)
+        const item = [...state.workItems.values()].find((candidate) => candidate.id === where.id || candidate.publicId === where.publicId)
         if (!item || item.assigneeId !== where.assigneeId) return { count: 0 }
-        if (state.timeEntries.some((entry) => entry.workItemId === where.id)) throw { code: 'P2003' }
-        state.workItems.delete(where.id)
+        if (state.timeEntries.some((entry) => entry.workItemId === item.id || entry.workItemId === item.publicId)) throw { code: 'P2003' }
+        state.workItems.delete(item.publicId)
         return { count: 1 }
       },
     },
@@ -239,7 +259,7 @@ const request = (body) => ({ json: async () => body })
 const context = (id) => ({ params: Promise.resolve({ id }) })
 const validInput = (overrides = {}) => ({
   title: 'Fix the workflow',
-  projectId: 'project-1',
+  projectId: PROJECT_1,
   kind: 'Issue',
   status: 'todo',
   priority: 'high',
@@ -283,7 +303,7 @@ test('shared input validation rejects malformed bodies, missing fields, foreign 
   const system = makeSystem()
   assert.match(system.parser.parseWorkItemInput(null, owner.id).error, /object/)
   assert.match(system.parser.parseWorkItemInput([], owner.id).error, /object/)
-  assert.match(system.parser.parseWorkItemInput({ projectId: 'project-1' }, owner.id).error, /required/)
+  assert.match(system.parser.parseWorkItemInput({ projectId: PROJECT_1 }, owner.id).error, /required/)
   assert.match(system.parser.parseWorkItemInput(validInput({ title: '   ' }), owner.id).error, /required/)
   assert.match(system.parser.parseWorkItemInput(validInput({ projectId: '   ' }), owner.id).error, /required/)
   assert.match(system.parser.parseWorkItemInput(validInput({ assigneeId: 'foreign-owner' }), owner.id).error, /authenticated owner/)
@@ -338,11 +358,11 @@ test('invalid create and update inputs or missing Projects do not write partial 
 
   const invalidEnum = await system.list.POST(request(validInput({ status: 'archived' })))
   assert.equal(invalidEnum.status, 400)
-  const missingProject = await system.list.POST(request(validInput({ projectId: 'missing-project' })))
+  const missingProject = await system.list.POST(request(validInput({ projectId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' })))
   assert.equal(missingProject.status, 404)
   const invalidPatch = await system.detail.PATCH(request({ dueDate: '2026-02-31' }), context(id))
   assert.equal(invalidPatch.status, 400)
-  const badProjectPatch = await system.detail.PATCH(request({ projectId: 'missing-project' }), context(id))
+  const badProjectPatch = await system.detail.PATCH(request({ projectId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' }), context(id))
   assert.equal(badProjectPatch.status, 404)
   const foreignOwner = await system.detail.PATCH(request({ assigneeId: 'other-user' }), context(id))
   assert.equal(foreignOwner.status, 400)
@@ -354,10 +374,10 @@ test('invalid create and update inputs or missing Projects do not write partial 
   const findProject = system.prisma.project.findUnique
   system.prisma.project.findUnique = async ({ where }) => {
     const project = await findProject({ where })
-    if (where.id === 'project-2') system.state.projects.delete(where.id)
+    if (where.publicId === PROJECT_2) system.state.projects.delete(PROJECT_2)
     return project
   }
-  const projectRace = await system.list.POST(request(validInput({ projectId: 'project-2' })))
+  const projectRace = await system.list.POST(request(validInput({ projectId: PROJECT_2 })))
   assert.equal(projectRace.status, 404)
   assert.equal(projectRace.body.error.code, 'NOT_FOUND')
   assert.equal(system.state.writes, writes)
@@ -372,23 +392,24 @@ test('Work Item Project changes run serializably and reject moves with linked Da
   const system = makeSystem()
   const created = await system.list.POST(request(validInput()))
   const id = created.body.workItem.id
-  const entry = { id: 'time-1', workItemId: id, projectId: 'project-1', userId: owner.id }
+  const stored = system.state.workItems.get(id)
+  const entry = { id: 'time-1', workItemId: stored.id, projectId: 1n, userId: owner.internalId }
   system.state.timeEntries.push(entry)
 
-  const rejected = await system.detail.PATCH(request({ projectId: 'project-2' }), context(id))
+  const rejected = await system.detail.PATCH(request({ projectId: PROJECT_2 }), context(id))
   assert.equal(rejected.status, 409)
   assert.equal(rejected.body.error.code, 'RELATION_MISMATCH')
   assert.equal(rejected.body.error.field, 'projectId')
-  assert.equal(system.state.workItems.get(id).projectId, 'project-1')
+  assert.equal(system.state.workItems.get(id).projectId, 1n)
   assert.equal(system.state.updates, 0)
   assert.equal(system.state.lastTransactionOptions.isolationLevel, 'Serializable')
   assert.equal(system.state.lockedWorkItems.length, 1)
   assert.match(system.state.lockedWorkItems[0].strings.join(''), /FOR UPDATE/)
-  assert.deepEqual(Array.from(system.state.lockedWorkItems[0].values), [id, owner.id])
+  assert.deepEqual(Array.from(system.state.lockedWorkItems[0].values), [stored.id, owner.internalId])
 
-  const unchangedProject = await system.detail.PATCH(request({ projectId: 'project-1' }), context(id))
+  const unchangedProject = await system.detail.PATCH(request({ projectId: PROJECT_1 }), context(id))
   assert.equal(unchangedProject.status, 200)
-  assert.equal(system.state.workItems.get(id).projectId, 'project-1')
+  assert.equal(system.state.workItems.get(id).projectId, 1n)
   assert.equal(system.state.lockedWorkItems.length, 2)
 })
 
@@ -403,11 +424,11 @@ test('imported GitLab WorkItems cannot move outside their mapped Project', async
     gitLabIssueIid: '17',
   })
 
-  const moved = await system.detail.PATCH(request({ projectId: 'project-2' }), context(id))
+  const moved = await system.detail.PATCH(request({ projectId: PROJECT_2 }), context(id))
   assert.equal(moved.status, 409)
   assert.equal(moved.body.error.code, 'HISTORY_CONFLICT')
   assert.equal(moved.body.error.field, 'projectId')
-  assert.equal(system.state.workItems.get(id).projectId, 'project-1')
+  assert.equal(system.state.workItems.get(id).projectId, 1n)
   assert.equal(system.state.updates, 0)
 })
 
@@ -419,12 +440,12 @@ test('Work Item filters validate shared enums and apply owner, Project, Company,
   assert.equal(defaultDateRange.getUTCFullYear(), Number(system.bangkok.currentBangkokCalendarDate().slice(0, 4)))
 
   const result = await system.list.GET({
-    url: 'http://local/api/work-items?year=all&month=all&projectId=project-1&companyId=company-1&kind=Issue&status=in-progress&priority=high&role=infra&search=bug',
+    url: 'http://local/api/work-items?year=all&month=all&projectId=33333333-3333-4333-8333-333333333333&companyId=55555555-5555-4555-8555-555555555555&kind=Issue&status=in-progress&priority=high&role=infra&search=bug',
   })
   assert.equal(result.status, 200)
-  assert.equal(system.state.lastWhere.assigneeId, owner.id)
-  assert.equal(system.state.lastWhere.projectId, 'project-1')
-  assert.equal(system.state.lastWhere.project.is.companyId, 'company-1')
+  assert.equal(system.state.lastWhere.assigneeId, owner.internalId)
+  assert.equal(system.state.lastWhere.projectId, 1n)
+  assert.equal(system.state.lastWhere.project.is.companyId, 11n)
   assert.equal(system.state.lastWhere.kind, 'Issue')
   assert.equal(system.state.lastWhere.status, 'in_progress')
   assert.equal(system.state.lastWhere.priority, 'high')
@@ -441,19 +462,20 @@ test('Work Item filters validate shared enums and apply owner, Project, Company,
 test('Dashboard Work Item links preserve inclusive dates, Company, Project, role, kind, and open overdue filters', async () => {
   const system = makeSystem()
   const records = [
-    ['dashboard-open-overdue', 'project-1', owner.id, 'Task', 'Developer', 'todo', '2026-10-01', '2026-10-01'],
-    ['dashboard-open-current', 'project-1', owner.id, 'Task', 'Developer', 'in_progress', '2026-10-02', '2026-10-02'],
-    ['dashboard-completed', 'project-1', owner.id, 'Task', 'Developer', 'completed', '2026-10-01', '2026-10-01'],
-    ['dashboard-cancelled', 'project-1', owner.id, 'Task', 'Developer', 'cancelled', '2026-10-01', '2026-10-01'],
-    ['dashboard-other-project', 'project-2', owner.id, 'Task', 'Developer', 'todo', '2026-10-01', '2026-10-01'],
-    ['dashboard-other-kind', 'project-1', owner.id, 'Issue', 'Developer', 'todo', '2026-10-01', '2026-10-01'],
-    ['dashboard-other-role', 'project-1', owner.id, 'Task', 'infra', 'todo', '2026-10-01', '2026-10-01'],
-    ['dashboard-foreign-owner', 'project-1', 'other-owner', 'Task', 'Developer', 'todo', '2026-10-01', '2026-10-01'],
+    ['dashboard-open-overdue', 1n, owner.internalId, 'Task', 'Developer', 'todo', '2026-10-01', '2026-10-01'],
+    ['dashboard-open-current', 1n, owner.internalId, 'Task', 'Developer', 'in_progress', '2026-10-02', '2026-10-02'],
+    ['dashboard-completed', 1n, owner.internalId, 'Task', 'Developer', 'completed', '2026-10-01', '2026-10-01'],
+    ['dashboard-cancelled', 1n, owner.internalId, 'Task', 'Developer', 'cancelled', '2026-10-01', '2026-10-01'],
+    ['dashboard-other-project', 2n, owner.internalId, 'Task', 'Developer', 'todo', '2026-10-01', '2026-10-01'],
+    ['dashboard-other-kind', 1n, owner.internalId, 'Issue', 'Developer', 'todo', '2026-10-01', '2026-10-01'],
+    ['dashboard-other-role', 1n, owner.internalId, 'Task', 'infra', 'todo', '2026-10-01', '2026-10-01'],
+    ['dashboard-foreign-owner', 1n, 8n, 'Task', 'Developer', 'todo', '2026-10-01', '2026-10-01'],
   ]
-  for (const [id, projectId, assigneeId, kind, role, status, workDate, dueDate] of records) {
-    system.state.workItems.set(id, {
-      id,
-      title: id,
+  for (const [publicId, projectId, assigneeId, kind, role, status, workDate, dueDate] of records) {
+    system.state.workItems.set(publicId, {
+      id: BigInt(system.state.workItems.size + 1),
+      publicId,
+      title: publicId,
       projectId,
       assigneeId,
       kind,
@@ -469,14 +491,14 @@ test('Dashboard Work Item links preserve inclusive dates, Company, Project, role
   }
 
   const result = await system.list.GET({
-    url: 'http://local/api/work-items?startDate=2026-10-01&endDate=2026-10-02&companyId=company-1&projectId=project-1&role=Developer&kind=Task&openOnly=true&overdue=true',
+    url: 'http://local/api/work-items?startDate=2026-10-01&endDate=2026-10-02&companyId=55555555-5555-4555-8555-555555555555&projectId=33333333-3333-4333-8333-333333333333&role=Developer&kind=Task&openOnly=true&overdue=true',
   })
 
   assert.equal(result.status, 200)
   assert.deepEqual(Array.from(result.body.workItems, (item) => item.id), ['dashboard-open-overdue'])
-  assert.equal(system.state.lastWhere.assigneeId, owner.id)
-  assert.equal(system.state.lastWhere.projectId, 'project-1')
-  assert.equal(system.state.lastWhere.project.is.companyId, 'company-1')
+  assert.equal(system.state.lastWhere.assigneeId, owner.internalId)
+  assert.equal(system.state.lastWhere.projectId, 1n)
+  assert.equal(system.state.lastWhere.project.is.companyId, 11n)
   assert.equal(system.state.lastWhere.role, 'Developer')
   assert.equal(system.state.lastWhere.kind, 'Task')
   assert.deepEqual(JSON.parse(JSON.stringify(system.state.lastWhere.AND.slice(0, 3))), [
@@ -488,7 +510,7 @@ test('Dashboard Work Item links preserve inclusive dates, Company, Project, role
   assert.equal(dateAnchors[0].workDate.gte.toISOString(), '2026-10-01T00:00:00.000Z')
   assert.equal(dateAnchors[0].workDate.lt.toISOString(), '2026-10-03T00:00:00.000Z')
   const inclusiveEnd = await system.list.GET({
-    url: 'http://local/api/work-items?startDate=2026-10-01&endDate=2026-10-02&companyId=company-1&projectId=project-1&role=Developer&kind=Task',
+    url: 'http://local/api/work-items?startDate=2026-10-01&endDate=2026-10-02&companyId=55555555-5555-4555-8555-555555555555&projectId=33333333-3333-4333-8333-333333333333&role=Developer&kind=Task',
   })
   assert.ok(inclusiveEnd.body.workItems.some((item) => item.id === 'dashboard-open-current'))
   assert.ok(inclusiveEnd.body.workItems.some((item) => item.id === 'dashboard-cancelled'))
@@ -500,13 +522,15 @@ test('Dashboard Work Item links preserve inclusive dates, Company, Project, role
 
 test('Work Item collection uses bounded stable cursor pages bound to its filters', async () => {
   const system = makeSystem()
-  for (const id of ['work-a', 'work-b', 'work-c', 'work-d']) {
-    const created = await system.list.POST(request(validInput({ id, title: id })))
+  const createdIds = []
+  for (const title of ['work-a', 'work-b', 'work-c', 'work-d']) {
+    const created = await system.list.POST(request(validInput({ title })))
     assert.equal(created.status, 201)
+    createdIds.push(created.body.workItem.id)
   }
 
   const first = await system.list.GET({ url: 'http://local/api/work-items?year=all&month=all&limit=2' })
-  assert.deepEqual(Array.from(first.body.workItems, (item) => item.id), ['work-4', 'work-3'])
+  assert.deepEqual(Array.from(first.body.workItems, (item) => item.id), [createdIds[3], createdIds[2]])
   assert.equal(first.body.page.limit, 2)
   assert.equal(typeof first.body.page.nextCursor, 'string')
   assert.equal(first.body.summary.total, 4)
@@ -517,11 +541,11 @@ test('Work Item collection uses bounded stable cursor pages bound to its filters
   const second = await system.list.GET({
     url: `http://local/api/work-items?year=all&month=all&limit=2&cursor=${encodeURIComponent(first.body.page.nextCursor)}`,
   })
-  assert.deepEqual(Array.from(second.body.workItems, (item) => item.id), ['work-2', 'work-1'])
+  assert.deepEqual(Array.from(second.body.workItems, (item) => item.id), [createdIds[1], createdIds[0]])
   assert.equal(second.body.page.nextCursor, null)
 
   const changedFilters = await system.list.GET({
-    url: `http://local/api/work-items?year=all&month=all&limit=2&projectId=project-1&cursor=${encodeURIComponent(first.body.page.nextCursor)}`,
+    url: `http://local/api/work-items?year=all&month=all&limit=2&projectId=33333333-3333-4333-8333-333333333333&cursor=${encodeURIComponent(first.body.page.nextCursor)}`,
   })
   assert.equal(changedFilters.status, 400)
   assert.equal(changedFilters.body.error.field, 'cursor')
@@ -532,9 +556,9 @@ test('Work Item collection uses bounded stable cursor pages bound to its filters
 
 test('overdue Work Item cursors expire when the Bangkok business date changes', async () => {
   const system = makeSystem()
-  for (const id of ['overdue-a', 'overdue-b']) {
+  for (const title of ['overdue-a', 'overdue-b']) {
     const created = await system.list.POST(request(validInput({
-      id,
+      title,
       kind: 'Task',
       workDate: '2026-10-01',
       dueDate: '2026-10-01',
@@ -574,21 +598,22 @@ test('foreign-owner WorkItems are hidden from collection and detail reads and ca
   const system = makeSystem()
   const created = await system.list.POST(request(validInput({ title: 'Owned item' })))
   const ownedItem = system.state.workItems.get(created.body.workItem.id)
-  const foreignItem = { ...ownedItem, id: 'foreign-item', title: 'Foreign item', assigneeId: 'legacy-owner' }
-  system.state.workItems.set(foreignItem.id, foreignItem)
+  const foreignPublicId = '22222222-2222-4222-8222-222222222222'
+  const foreignItem = { ...ownedItem, id: 99n, publicId: foreignPublicId, title: 'Foreign item', assigneeId: 8n }
+  system.state.workItems.set(foreignPublicId, foreignItem)
 
   const list = await system.list.GET({ url: 'http://local/api/work-items?year=all&month=all' })
-  assert.deepEqual(Array.from(list.body.workItems, (item) => item.id), [ownedItem.id])
+  assert.deepEqual(Array.from(list.body.workItems, (item) => item.id), [ownedItem.publicId])
   assert.equal(list.body.summary.total, 1)
 
-  const detail = await system.detail.GET({}, context(foreignItem.id))
-  const update = await system.detail.PATCH(request({ title: 'Attempted takeover' }), context(foreignItem.id))
-  const remove = await system.detail.DELETE({}, context(foreignItem.id))
+  const detail = await system.detail.GET({}, context(foreignPublicId))
+  const update = await system.detail.PATCH(request({ title: 'Attempted takeover' }), context(foreignPublicId))
+  const remove = await system.detail.DELETE({}, context(foreignPublicId))
   for (const result of [detail, update, remove]) {
     assert.equal(result.status, 404)
     assert.equal(result.body.error.code, 'NOT_FOUND')
   }
-  assert.equal(system.state.workItems.get(foreignItem.id).title, 'Foreign item')
+  assert.equal(system.state.workItems.get(foreignPublicId).title, 'Foreign item')
 })
 
 test('collection metrics do not count cancelled or completed overdue items as overdue', async () => {
@@ -609,7 +634,7 @@ test('collection metrics do not count cancelled or completed overdue items as ov
 test('detail API maps repository failures to safe internal errors', async () => {
   const getSystem = makeSystem()
   getSystem.prisma.workItem.findFirst = async () => { throw new Error('private database detail') }
-  const getResult = await getSystem.detail.GET({}, context('item-1'))
+  const getResult = await getSystem.detail.GET({}, context('77777777-7777-4777-8777-777777777777'))
   assert.equal(getResult.status, 500)
   assert.deepEqual(JSON.parse(JSON.stringify(getResult.body.error)), {
     code: 'INTERNAL_ERROR', message: 'Failed to fetch work item',
@@ -683,11 +708,12 @@ test('delete refuses imported GitLab WorkItems to preserve their external identi
 test('bulk import reports each bad row and preserves valid and existing rows independently', async () => {
   const system = makeSystem()
   system.state.failTitle = 'DB failure'
-  const existing = await system.list.POST(request(validInput({ title: 'Existing', id: 'existing-id' })))
+  const existing = await system.list.POST(request(validInput({ title: 'Existing' })))
   assert.equal(existing.status, 201)
   const duplicateId = existing.body.workItem.id
+  const goodId = '88888888-8888-4888-8888-888888888888'
   const body = [
-    validInput({ title: 'Good row', id: 'good-id' }),
+    validInput({ title: 'Good row', id: goodId }),
     validInput({ title: 'Bad enum', kind: 'Bug' }),
     validInput({ title: 'Missing project', projectId: 'missing-project' }),
     validInput({ title: 'Duplicate', id: duplicateId }),
@@ -704,7 +730,7 @@ test('bulk import reports each bad row and preserves valid and existing rows ind
   assert.equal(result.body.rows[2].error.field, 'projectId')
   assert.equal(result.body.rows[3].error.code, 'DUPLICATE')
   assert.equal(system.state.workItems.get(duplicateId).title, 'Existing')
-  assert.equal(system.state.workItems.get('good-id').title, 'Good row')
+  assert.equal(system.state.workItems.get(goodId).title, 'Good row')
 
   const malformed = await system.importer.POST({ json: async () => { throw new SyntaxError('bad json') } })
   assert.equal(malformed.status, 400)
@@ -715,19 +741,19 @@ test('bulk import reports a Project foreign-key race per row and continues with 
   const findProject = system.prisma.project.findUnique
   system.prisma.project.findUnique = async ({ where }) => {
     const project = await findProject({ where })
-    if (where.id === 'project-2') system.state.projects.delete(where.id)
+    if (where.publicId === PROJECT_2) system.state.projects.delete(PROJECT_2)
     return project
   }
 
   const result = await system.importer.POST(request([
-    validInput({ title: 'Project deleted during import', projectId: 'project-2' }),
+    validInput({ title: 'Project deleted during import', projectId: PROJECT_2 }),
     validInput({ title: 'Still imported' }),
   ]))
   assert.equal(result.status, 200)
   assert.equal(result.body.imported, 1)
   assert.deepEqual(Array.from(result.body.rows, (row) => row.outcome), ['failed', 'created'])
   assert.equal(result.body.rows[0].error.code, 'NOT_FOUND')
-  assert.equal(system.state.workItems.get('work-1').title, 'Still imported')
+  assert.equal([...system.state.workItems.values()].find((item) => item.title === 'Still imported').title, 'Still imported')
 })
 
 test('bulk import reports Project and duplicate-ID lookup failures per row and continues safely', async () => {
@@ -738,7 +764,7 @@ test('bulk import reports Project and duplicate-ID lookup failures per row and c
   const result = await system.importer.POST(request([
     validInput({ title: 'Project lookup failure' }),
     validInput({ title: 'Created after Project failure' }),
-    validInput({ title: 'ID lookup failure', id: 'lookup-id' }),
+    validInput({ title: 'ID lookup failure', id: '99999999-9999-4999-8999-999999999999' }),
     validInput({ title: 'Created after ID failure' }),
   ]))
 
@@ -747,8 +773,8 @@ test('bulk import reports Project and duplicate-ID lookup failures per row and c
   assert.deepEqual(Array.from(result.body.rows, (row) => row.outcome), ['failed', 'created', 'failed', 'created'])
   assert.equal(result.body.rows[0].error.code, 'IMPORT_FAILED')
   assert.equal(result.body.rows[2].error.code, 'IMPORT_FAILED')
-  assert.equal(system.state.workItems.get('work-1').title, 'Created after Project failure')
-  assert.equal(system.state.workItems.get('work-2').title, 'Created after ID failure')
+  assert.equal([...system.state.workItems.values()].some((item) => item.title === 'Created after Project failure'), true)
+  assert.equal([...system.state.workItems.values()].some((item) => item.title === 'Created after ID failure'), true)
 })
 
 test('bulk import rejects an empty array before attempting any database writes', async () => {
@@ -778,13 +804,13 @@ test('Work Items JSON export is importable and urgency uses the Bangkok calendar
   const item = {
     id: 'work-1', title: 'Task', description: null, kind: 'Task', priority: 'high', role: 'infra',
     status: 'in-progress', types: ['bug'], workDate: '2026-09-30', dueDate: '2026-10-01',
-    project: { id: 'project-1', name: 'Project One', colorProject: null },
+    project: { id: PROJECT_1, name: 'Project One', colorProject: null },
     assignee: { name: 'Owner' },
   }
   const rows = JSON.parse(workItems.generateWorkItemsJson([item]))
   assert.deepEqual(JSON.parse(JSON.stringify(rows[0])), {
     id: 'work-1', title: 'Task', description: null, kind: 'Task', priority: 'high', role: 'infra',
-    status: 'in-progress', types: ['bug'], workDate: '2026-09-30', dueDate: '2026-10-01', projectId: 'project-1',
+    status: 'in-progress', types: ['bug'], workDate: '2026-09-30', dueDate: '2026-10-01', projectId: PROJECT_1,
   })
   assert.equal(workItems.urgencySubgroup({ ...item, dueDate: '2026-09-30' }, new Date('2026-09-30T17:30:00.000Z')), 'overdue')
   assert.match(workItems.generateWorkItemsMarkdown([item], 'recent-activity'), /_Exported 2026-09-30\./)

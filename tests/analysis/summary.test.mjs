@@ -3,6 +3,7 @@ import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
+import { resolveTestImport } from '../support/identity-modules.mjs'
 
 const require = createRequire(import.meta.url)
 const ts = require('typescript')
@@ -17,8 +18,9 @@ function loadTs(path, mocks = {}, globals = {}) {
     module: loaded,
     exports: loaded.exports,
     require: (name) => {
-      if (!(name in mocks)) throw new Error(`Unexpected import: ${name}`)
-      return mocks[name]
+      const resolved = resolveTestImport(name, mocks)
+      if (resolved === undefined) throw new Error(`Unexpected import: ${name}`)
+      return resolved
     },
     URL,
     URLSearchParams,
@@ -53,14 +55,19 @@ const sourceLinks = loadTs('../../lib/analysis-links.ts')
 const analysisExport = loadTs('../../lib/analysis-export.ts')
 
 const fixedNow = new Date('2026-10-02T04:00:00.000Z')
-const ownerId = 'owner-1'
+const OWNER_PUBLIC = '11111111-1111-4111-8111-111111111111'
+const ownerId = 7n
+const COMPANY_A = '55555555-5555-4555-8555-555555555555'
+const COMPANY_B = '66666666-6666-4666-8666-666666666666'
+const PROJECT_A = '33333333-3333-4333-8333-333333333331'
+const PROJECT_B = '44444444-4444-4444-8444-444444444444'
 const companies = [
-  { id: 'company-a', name: 'Alpha Company', displayName: 'Alpha' },
-  { id: 'company-b', name: 'Beta Company', displayName: null },
+  { id: 11n, publicId: COMPANY_A, name: 'Alpha Company', displayName: 'Alpha' },
+  { id: 12n, publicId: COMPANY_B, name: 'Beta Company', displayName: null },
 ]
 const projects = [
-  { id: 'project-a', name: 'Alpha Project', companyId: 'company-a', status: 'In Progress', priority: 'High', dueDate: day('2026-10-31'), createdAt: new Date('2026-09-20T04:00:00.000Z'), company: companies[0] },
-  { id: 'project-b', name: 'Beta Project', companyId: 'company-b', status: 'Planning', priority: 'Low', dueDate: day('2026-10-31'), createdAt: new Date('2026-09-17T04:00:00.000Z'), company: companies[1] },
+  { id: 1n, publicId: PROJECT_A, name: 'Alpha Project', companyId: 11n, status: 'In Progress', priority: 'High', dueDate: day('2026-10-31'), createdAt: new Date('2026-09-20T04:00:00.000Z'), company: companies[0] },
+  { id: 3n, publicId: PROJECT_B, name: 'Beta Project', companyId: 12n, status: 'Planning', priority: 'Low', dueDate: day('2026-10-31'), createdAt: new Date('2026-09-17T04:00:00.000Z'), company: companies[1] },
 ]
 
 function day(value) {
@@ -68,9 +75,10 @@ function day(value) {
 }
 
 function workItem(id, overrides = {}) {
-  const project = projects.find((row) => row.id === (overrides.projectId ?? 'project-a'))
+  const project = projects.find((row) => row.id === (overrides.projectId ?? 1n))
   return {
     id,
+    publicId: id,
     title: id,
     kind: 'Task',
     priority: 'medium',
@@ -80,10 +88,10 @@ function workItem(id, overrides = {}) {
     dueDate: day('2026-10-05'),
     createdAt: new Date('2026-10-01T02:00:00.000Z'),
     updatedAt: new Date('2026-10-01T03:00:00.000Z'),
-    projectId: project.id,
     assigneeId: ownerId,
-    project: { id: project.id, name: project.name, company: project.company },
+    project: { id: project.id, publicId: project.publicId, name: project.name, company: project.company },
     ...overrides,
+    projectId: overrides.projectId ?? project.id,
   }
 }
 
@@ -95,15 +103,15 @@ function makeFixtures() {
     workItem('urgent-today', { status: 'in_progress', priority: 'urgent', role: 'SA', workDate: day('2026-10-02'), dueDate: day('2026-10-02') }),
     workItem('fallback-due', { workDate: null, dueDate: day('2026-10-02') }),
     workItem('fallback-created', { workDate: null, dueDate: null, createdAt: new Date('2026-10-02T00:00:00.000Z') }),
-    workItem('other-company', { projectId: 'project-b', project: { id: 'project-b', name: 'Beta Project', company: companies[1] } }),
-    workItem('foreign-owner', { assigneeId: 'owner-2' }),
+    workItem('other-company', { projectId: 3n }),
+    workItem('foreign-owner', { assigneeId: 8n }),
     workItem('previous-month', { workDate: day('2026-09-30'), dueDate: day('2026-09-30') }),
   ]
   const entries = [
     { id: 'time-1', userId: ownerId, date: day('2026-10-01'), hours: '0.1', description: 'Review, phase "one"', remarks: 'line one\nline two', workItemId: 'overdue-open' },
     { id: 'time-2', userId: ownerId, date: day('2026-10-02'), hours: '0.2', description: 'Completed work', remarks: null, workItemId: 'completed' },
     { id: 'time-3', userId: ownerId, date: day('2026-10-02'), hours: '4.9', description: 'Other company work', remarks: null, workItemId: 'other-company' },
-    { id: 'time-4', userId: 'owner-2', date: day('2026-10-02'), hours: '50', description: 'Foreign', remarks: null, workItemId: 'overdue-open' },
+    { id: 'time-4', userId: 8n, date: day('2026-10-02'), hours: '50', description: 'Foreign', remarks: null, workItemId: 'overdue-open' },
     { id: 'time-5', userId: ownerId, date: day('2026-09-30'), hours: '8', description: 'Earlier work', remarks: null, workItemId: 'overdue-open' },
     { id: 'time-legacy', userId: ownerId, date: day('2026-10-02'), hours: '0.000000000000000000000000000001', description: 'Legacy entry', remarks: null, workItemId: null },
   ]
@@ -112,7 +120,8 @@ function makeFixtures() {
 
 function matchesWorkItem(item, where = {}) {
   if (where.assigneeId && item.assigneeId !== where.assigneeId) return false
-  if (where.projectId && item.projectId !== where.projectId) return false
+  if (where.projectId?.in && !where.projectId.in.some((id) => id === item.projectId)) return false
+  if (where.projectId && !where.projectId.in && item.projectId !== where.projectId) return false
   if (where.kind && item.kind !== where.kind) return false
   if (Object.hasOwn(where, 'role') && item.role !== where.role) return false
   if (where.status && typeof where.status === 'string' && item.status !== where.status) return false
@@ -168,11 +177,11 @@ function fakeDatabase({ items, entries }) {
   const matchingEntries = (where) => entries.filter((entry) => matchesTimeEntry(entry, where, items))
   return {
     company: {
-      findUnique: async ({ where }) => companies.find((company) => company.id === where.id) ?? null,
+      findUnique: async ({ where }) => companies.find((company) => company.publicId === where.publicId || company.id === where.id) ?? null,
       findMany: async () => companies,
     },
     project: {
-      findUnique: async ({ where }) => projects.find((project) => project.id === where.id) ?? null,
+      findUnique: async ({ where }) => projects.find((project) => project.publicId === where.publicId || project.id === where.id) ?? null,
       findMany: async ({ where = {}, orderBy, take }) => takeRows(orderRows(projects.filter((project) =>
         (!where.id || project.id === where.id) && (!where.companyId || project.companyId === where.companyId),
       ).slice(), orderBy), take),
@@ -192,7 +201,14 @@ function fakeDatabase({ items, entries }) {
       },
     },
     timeEntry: {
-      findMany: async ({ where, orderBy, take }) => takeRows(orderRows(matchingEntries(where), orderBy), take),
+      findMany: async ({ where, orderBy, take }) => takeRows(orderRows(matchingEntries(where), orderBy), take).map((entry) => {
+        const item = items.find((row) => row.id === entry.workItemId)
+        return {
+          ...entry,
+          publicId: entry.id,
+          workItem: item ? { publicId: item.publicId, title: item.title, project: item.project } : null,
+        }
+      }),
       aggregate: async ({ where }) => ({ _sum: { hours: decimal.sumDecimalHours(matchingEntries(where).map((entry) => entry.hours)) } }),
       groupBy: async ({ where }) => {
         const groups = new Map()
@@ -232,7 +248,7 @@ test('Analysis defaults to the current Bangkok calendar month independent of the
 
 test('Analysis shares Dashboard WorkItem formulas, date anchors, owner scope, and exact hour filters', async () => {
   const fixture = makeFixtures()
-  const params = new URLSearchParams(`${periodParams}&companyId=company-a`)
+  const params = new URLSearchParams(`${periodParams}&companyId=55555555-5555-4555-8555-555555555555`)
   const [analysisResult, dashboardResult] = await Promise.all([
     analysis.getAnalysisSummary(ownerId, params, fakeDatabase(fixture), fixedNow),
     dashboard.getDashboardSummary(ownerId, params, fakeDatabase(fixture), fixedNow),
@@ -282,14 +298,14 @@ test('Analysis overdue count comes from the same WorkItem snapshot as its source
 })
 
 test('Company, Project, functional role, and kind filters constrain WorkItems and linked TimeEntries', async () => {
-  const value = await report(`${periodParams}&companyId=company-a&projectId=project-a&role=Developer&kind=Task`)
+  const value = await report(`${periodParams}&companyId=55555555-5555-4555-8555-555555555555&projectId=33333333-3333-4333-8333-333333333331&role=Developer&kind=Task`)
   assert.deepEqual(value.workItems.map((item) => item.id).sort(), ['overdue-open', 'completed', 'cancelled', 'fallback-due', 'fallback-created'].sort())
   assert.deepEqual(value.timeEntries.map((entry) => entry.id).sort(), ['time-1', 'time-2'].sort())
   assert.equal(value.summary.loggedHours, '0.3')
   assert.deepEqual(JSON.parse(JSON.stringify(value.meta.filters)), {
-    companyId: 'company-a', projectId: 'project-a', role: 'Developer', kind: 'Task',
+    companyId: COMPANY_A, projectId: PROJECT_A, role: 'Developer', kind: 'Task',
   })
-  assert.deepEqual(value.filterOptions.projects.map((project) => project.id).sort(), ['project-a', 'project-b'])
+  assert.deepEqual(value.filterOptions.projects.map((project) => project.id).sort(), [PROJECT_A, PROJECT_B].sort())
   const noRole = await report(`${periodParams}&role=none`)
   assert.deepEqual(noRole.workItems.map((item) => item.id), [])
 })
@@ -338,9 +354,9 @@ test('Analysis rejects incomplete, invalid, reversed dates and unsupported filte
 })
 
 test('Analysis returns safe relation errors for missing filters and Company/Project mismatch', async () => {
-  await assert.rejects(report(`${periodParams}&companyId=missing`), (error) => error.status === 404 && error.field === 'companyId')
-  await assert.rejects(report(`${periodParams}&projectId=missing`), (error) => error.status === 404 && error.field === 'projectId')
-  await assert.rejects(report(`${periodParams}&companyId=company-b&projectId=project-a`), (error) => error.code === 'RELATION_MISMATCH')
+  await assert.rejects(report(`${periodParams}&companyId=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa`), (error) => error.status === 404 && error.field === 'companyId')
+  await assert.rejects(report(`${periodParams}&projectId=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab`), (error) => error.status === 404 && error.field === 'projectId')
+  await assert.rejects(report(`${periodParams}&companyId=66666666-6666-4666-8666-666666666666&projectId=33333333-3333-4333-8333-333333333331`), (error) => error.code === 'RELATION_MISMATCH')
 })
 
 test('Analysis returns real zero totals and empty source sets for a no-match range', async () => {
@@ -429,7 +445,7 @@ test('Analysis summary API requires owner access, validates filters, disables ca
     '@/lib/owner': {
       getOwner: async () => {
         if (state.ownerError) throw state.ownerError
-        return { id: ownerId }
+        return { id: OWNER_PUBLIC, internalId: ownerId }
       },
       ownerErrorResponse: (error) => error.message === 'unauthenticated'
         ? { status: 401, body: { error: { code: 'OWNER_UNAUTHENTICATED' } } }
@@ -446,10 +462,10 @@ test('Analysis summary API requires owner access, validates filters, disables ca
     },
   }, { console: { error: () => {} } })
 
-  const ok = await route.GET(new Request('http://local/api/analysis/summary?companyId=company-a'))
+  const ok = await route.GET(new Request('http://local/api/analysis/summary?companyId=55555555-5555-4555-8555-555555555555'))
   assert.equal(ok.status, 200)
   assert.equal(ok.headers['Cache-Control'], 'no-store')
-  assert.equal(state.params.get('companyId'), 'company-a')
+  assert.equal(state.params.get('companyId'), COMPANY_A)
 
   state.summaryError = new MockDashboardQueryError(400, 'VALIDATION_ERROR', 'Invalid date range', 'startDate')
   const invalid = await route.GET(new Request('http://local/api/analysis/summary'))
@@ -473,7 +489,7 @@ test('Analysis page renders live data, filters, traceable tables, export, and sa
   const tables = readFileSync(new URL('../../components/page/analysis/report-tables.tsx', import.meta.url), 'utf8')
   const route = readFileSync(new URL('../../app/api/analysis/summary/route.ts', import.meta.url), 'utf8')
   assert.match(route, /getOwner\(\)/)
-  assert.match(route, /getAnalysisSummary\(owner\.id/)
+  assert.match(route, /getAnalysisSummary\(owner\.internalId/)
   assert.match(page, /\/api\/analysis\/summary/)
   assert.match(page, /<WorkItemsTable report={report}/)
   assert.match(page, /<DailyWorkTable report={report}/)

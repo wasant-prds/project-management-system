@@ -16,7 +16,7 @@
 - อ้างอิง `prisma/schema.prisma` หลัง implement #18: มี `Customer` และ `Project.customerId` แบบ nullable compatibility stage ใน source แล้ว; ยังไม่มี `GitLabProjectMapping` หรือ `ExternalWorkItemReference`. การมี source code ไม่ได้ยืนยันว่า schema ถูก apply ในฐานข้อมูลจริง.
 - `Project.id` เป็น primary key; `WorkItem.projectId` required; `TimeEntry.projectId` และ `TimeEntry.workItemId` nullable ใน schema ปัจจุบัน.
 - การลบ Project ปัจจุบัน cascade ไป WorkItem และ TimeEntry; การลบ WorkItem ตั้ง `TimeEntry.workItemId` เป็น null. ต้องไม่ใช้ behavior นี้ระหว่าง backfill.
-- repository ใช้ guarded `prisma db push` ผ่าน `scripts/db-push-safe.sh` และยังไม่พบ versioned migration history. แผนนี้จึงใช้ schema rollout แบบ compatibility สองช่วง; ต้องตรวจ schema diff ที่จะ apply ทุกครั้ง.
+- แผน Issue #12 เขียนตอน repository ใช้ guarded `prisma db push`. Startup ปัจจุบันใช้ SQL baseline ผ่าน `scripts/sql-runtime.mjs` ตาม [Database Rollout](./DATABASE_ROLLOUT.md). ต้องตรวจ schema diff ของเป้าหมายทุกครั้ง และห้ามใช้สคริปต์นี้ทับฐานข้อมูลที่ตัดไปใช้ numeric key แล้วโดยไม่มีแผนแยก.
 - ไม่มี Project inventory หรือ Customer mapping ที่ยืนยันแล้วใน repository. ห้ามใช้ seed/sample data, ชื่อคล้ายกัน หรือค่าเดาเป็นหลักฐานแทนข้อมูลจาก environment เป้าหมาย.
 
 Issue #12 กำหนดสัญญาและขั้นตอนเท่านั้น: ไม่เชื่อมต่อหรือเปลี่ยนฐานข้อมูลจริง และไม่สร้าง Customer หรือ GitLab mapping ตัวอย่าง

@@ -180,7 +180,7 @@ async function DashboardContent({ searchParams }: DashboardPageProps) {
   try {
     const params = toSearchParams(searchParams ? await searchParams : {})
     const owner = await getOwner()
-    data = await getDashboardSummary(owner.id, params)
+    data = await getDashboardSummary(owner.internalId, params)
   } catch (error) {
     const message = error instanceof DashboardQueryError
       ? error.message

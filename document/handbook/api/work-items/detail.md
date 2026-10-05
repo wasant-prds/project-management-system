@@ -30,7 +30,7 @@
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| id | string | Yes | WorkItem ID |
+| id | string | Yes | public UUIDv4 ของ WorkItem; numeric internal ID ไม่รองรับ |
 
 GET และ DELETE ไม่มี query/body.
 
@@ -49,8 +49,8 @@ GET และ DELETE ไม่มี query/body.
 | types | string array or null | No | ค่าต้องอยู่ใน WorkItem type list; null กลายเป็น [] และค่าซ้ำถูกตัด |
 | workDate | YYYY-MM-DD, null or empty string | No | valid Bangkok calendar date; null/empty ล้างค่า |
 | dueDate | YYYY-MM-DD, null or empty string | No | valid Bangkok calendar date; null/empty ล้างค่า |
-| projectId | string | No | ต้องไม่ว่าง; เมื่อเปลี่ยน Project จะตรวจ Project และ TimeEntry ใน transaction |
-| assigneeId | string | No | ถ้าส่งต้องเท่ากับ owner ID; ไม่สามารถเปลี่ยน owner |
+| projectId | string | No | public UUIDv4; เมื่อเปลี่ยน Project จะตรวจ Project และ TimeEntry ใน transaction |
+| assigneeId | string | No | ถ้าส่งต้องเท่ากับ owner public UUIDv4; ไม่สามารถเปลี่ยน owner |
 | id | any | No | ไม่อนุญาตให้เปลี่ยน identity; ถ้ามี key นี้จะตอบ 400 |
 
 Unknown fields ไม่ได้ถูกนำไป update. ตัวอย่าง:
@@ -70,7 +70,7 @@ GET และ PATCH ตอบ HTTP 200 ด้วย {workItem}. PATCH response �
 | Response field | Description |
 | --- | --- |
 | workItem | WorkItem ที่อ่านหรือแก้ไข |
-| workItem.id | Primary key |
+| workItem.id | Public UUIDv4 ของ WorkItem |
 | workItem.title | ชื่องาน |
 | workItem.description | รายละเอียด หรือ null |
 | workItem.kind | Incident, Issue หรือ Task |
@@ -83,23 +83,26 @@ GET และ PATCH ตอบ HTTP 200 ด้วย {workItem}. PATCH response �
 | workItem.submittedAt | Bangkok wall-clock timestamp +07:00 หรือ null |
 | workItem.createdAt | เวลาสร้าง Bangkok wall-clock +07:00 |
 | workItem.updatedAt | เวลาแก้ล่าสุด Bangkok wall-clock +07:00 |
-| workItem.projectId | Foreign key ของ Project |
-| workItem.assigneeId | Foreign key ของ owner User |
+| workItem.projectId | Public UUIDv4 ของ Project |
 | workItem.assignee | Owner relation |
-| workItem.assignee.id | Primary key ของ owner |
+| workItem.assignee.id | Public UUIDv4 ของ owner |
 | workItem.assignee.name | ชื่อ owner |
 | workItem.assignee.email | Email owner |
 | workItem.assignee.avatar | Avatar URL หรือ null |
 | workItem.project | Project relation |
-| workItem.project.id | Primary key ของ Project |
+| workItem.project.id | Public UUIDv4 ของ Project |
 | workItem.project.name | ชื่อ Project |
 | workItem.project.colorProject | สี Project หรือ null |
 | workItem.project.company | Company ของ Project |
-| workItem.project.company.id | Primary key ของ Company |
+| workItem.project.company.id | Public UUIDv4 ของ Company |
 | workItem.project.company.name | ชื่อ Company |
 | workItem.project.company.displayName | ชื่อแสดง Company หรือ null |
+| workItem.source | External GitLab source metadata หรือ null เมื่อไม่มี GitLab reference |
+| workItem.source.provider | `gitlab` เมื่อมี source |
+| workItem.source.url | GitLab Issue URL ที่บันทึกไว้ |
+| workItem.source.issueIid | GitLab Issue IID ซึ่งเป็น provider identity ไม่ใช่ PMS ID |
 | workItem.timeEntries | Array ของ Daily Work; มีเฉพาะ GET detail |
-| workItem.timeEntries[].id | Primary key ของ TimeEntry |
+| workItem.timeEntries[].id | Public UUIDv4 ของ TimeEntry |
 | workItem.timeEntries[].date | Bangkok calendar date YYYY-MM-DD |
 | workItem.timeEntries[].hours | Decimal ชั่วโมงที่ serialize เป็น string |
 | workItem.timeEntries[].description | รายละเอียด Daily Work หรือ null |
@@ -110,7 +113,7 @@ GET detail response example:
 
     {
       "workItem": {
-        "id": "work-item-id", // Primary key ของ WorkItem
+        "id": "work-item-id", // public UUIDv4 ของ WorkItem
         "title": "Review login", // ชื่องาน
         "description": null, // รายละเอียดหรือ null
         "kind": "Issue", // WorkItem kind
@@ -123,27 +126,27 @@ GET detail response example:
         "submittedAt": null, // Bangkok wall-clock timestamp +07:00 หรือ null
         "createdAt": "2026-09-29T10:00:00.000+07:00", // เวลาสร้าง Bangkok
         "updatedAt": "2026-09-30T12:00:00.000+07:00", // เวลาแก้ล่าสุด Bangkok
-        "projectId": "project-id", // Project foreign key
-        "assigneeId": "owner-id", // Owner foreign key
+        "projectId": "project-id", // public UUIDv4 ของ Project
         "assignee": {
-          "id": "owner-id", // User primary key
+          "id": "owner-id", // public UUIDv4 ของ owner
           "name": "Owner", // ชื่อ owner
           "email": "owner@example.invalid", // Email owner
           "avatar": null // Avatar URL หรือ null
         },
         "project": {
-          "id": "project-id", // Project primary key
+          "id": "project-id", // public UUIDv4 ของ Project
           "name": "Website", // ชื่อ Project
           "colorProject": null, // สี Project หรือ null
           "company": {
-            "id": "company-id", // Company primary key
+            "id": "company-id", // public UUIDv4 ของ Company
             "name": "Example Company", // ชื่อ Company
             "displayName": null // ชื่อแสดง Company หรือ null
           }
         },
+        "source": null, // metadata จาก provider ภายนอก หรือ null ถ้าไม่ใช่ imported issue
         "timeEntries": [
           {
-            "id": "time-entry-id", // TimeEntry primary key
+            "id": "time-entry-id", // public UUIDv4 ของ TimeEntry
             "date": "2026-09-30", // Bangkok calendar date
             "hours": "1.5", // Decimal ชั่วโมง string
             "description": "Code review", // รายละเอียดหรือ null

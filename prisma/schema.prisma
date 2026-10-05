@@ -1,9 +1,12 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// SQL target runtime adopted by issue #33.
+// database/schema.sql owns DDL, identity columns, triggers and comments.
+// @default(autoincrement()) tells Prisma to omit id on insert so PostgreSQL
+// IDENTITY assigns it. Do not prisma db push this file onto a database.
+// Ordinary creates omit id and publicId. SQL generates both.
+// DTO id values come from publicId, never from the numeric primary key.
 
 generator client {
   provider      = "prisma-client-js"
-  // native = build host; linux-musl = Alpine production image
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
@@ -16,6 +19,8 @@ enum WorkItemKind {
   Incident
   Issue
   Task
+
+  @@map("work_item_kind")
 }
 
 enum WorkItemPriority {
@@ -24,12 +29,16 @@ enum WorkItemPriority {
   medium
   high
   urgent
+
+  @@map("work_item_priority")
 }
 
 enum WorkItemRole {
   Developer
   infra
   SA
+
+  @@map("work_item_role")
 }
 
 enum WorkItemStatus {
@@ -41,86 +50,93 @@ enum WorkItemStatus {
   pm_testing  @map("pm-testing")
   completed
   cancelled
+
+  @@map("work_item_status")
 }
 
 enum UserTheme {
   light
   dark
   special_dark @map("special-dark")
+
+  @@map("user_theme")
 }
 
 enum UserLocale {
   th
   en
+
+  @@map("user_locale")
 }
 
-// User and Authentication
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
+  id        BigInt     @id @default(autoincrement())
+  publicId  String     @unique @default(dbgenerated("pg_catalog.gen_random_uuid()")) @map("public_id") @db.Uuid
+  email     String     @unique
   name      String
-  password  String
-  role      String   @default("member") // member, manager, admin
-  avatar    String?
+  password  String     @map("password_hash")
+  role      String     @default("member")
+  avatar    String?    @map("avatar_url")
   phone     String?
   theme     UserTheme  @default(light)
   locale    UserLocale @default(th)
-  status    String   @default("Active") // Active, Inactive, Away
-  joinDate  DateTime @default(now())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  status    String     @default("Active")
+  joinDate  DateTime   @default(dbgenerated("public.pms_bangkok_now()")) @map("joined_at") @db.Timestamp(3)
+  createdAt DateTime   @default(dbgenerated("public.pms_bangkok_now()")) @map("created_at") @db.Timestamp(3)
+  updatedAt DateTime   @default(dbgenerated("public.pms_bangkok_now()")) @map("updated_at") @db.Timestamp(3)
 
   assignedWorkItems  WorkItem[]      @relation("WorkItemAssignee")
   projectMemberships ProjectMember[]
-  comments           Comment[]
   activityLogs       ActivityLog[]
-  notifications      Notification[]
   timeEntries        TimeEntry[]
   createdProjects    Project[]       @relation("ProjectCreator")
   documents          Document[]
 
-  @@index([email])
+  @@index([email], map: "users_email_idx")
+  @@map("users")
 }
 
-// Company Information
 model Company {
-  id          String    @id @default(cuid())
-  code        String?   @unique // Reserved stable code for Dhas; other Companies may leave it unset.
-  displayName String? // Dhas
+  id          BigInt    @id @default(autoincrement())
+  publicId    String    @unique @default(dbgenerated("pg_catalog.gen_random_uuid()")) @map("public_id") @db.Uuid
+  code        String?   @unique
+  displayName String?   @map("display_name")
   location    String?
   name        String
   industry    String?
   email       String?
   phone       String?
   address     String?
-  website     String?
-  logo        String?
+  website     String?   @map("website_url")
+  logo        String?   @map("logo_url")
   description String?
-  createdAt   DateTime  @default(now()) @db.Timestamp(3)
-  updatedAt   DateTime  @updatedAt @db.Timestamp(3)
+  createdAt   DateTime  @default(dbgenerated("public.pms_bangkok_now()")) @map("created_at") @db.Timestamp(3)
+  updatedAt   DateTime  @default(dbgenerated("public.pms_bangkok_now()")) @map("updated_at") @db.Timestamp(3)
   projects    Project[]
+
+  @@map("companies")
 }
 
-// Project
 model Project {
-  id           String   @id @default(cuid())
+  id           BigInt   @id @default(autoincrement())
+  publicId     String   @unique @default(dbgenerated("pg_catalog.gen_random_uuid()")) @map("public_id") @db.Uuid
   name         String
   description  String?
-  status       String   @default("Planning") // Planning, In Progress, Review, Completed, On Hold
-  priority     String   @default("Medium") // Low, Medium, High, Critical
-  startDate    DateTime @db.Date
-  dueDate      DateTime @db.Date
-  budget       Decimal?
-  spent        Decimal? @default(0)
-  progress     Int      @default(0) // 0-100
-  colorProject String? // Project color for visual identification
-  createdAt    DateTime @default(now()) @db.Timestamp(3)
-  updatedAt    DateTime @updatedAt @db.Timestamp(3)
+  status       String   @default("Planning")
+  priority     String   @default("Medium")
+  startDate    DateTime @map("start_date") @db.Date
+  dueDate      DateTime @map("due_date") @db.Date
+  budget       Decimal? @map("budget_amount") @db.Decimal(65, 30)
+  spent        Decimal? @default(0) @map("spent_amount") @db.Decimal(65, 30)
+  progress     Int      @default(0) @map("progress_percent")
+  colorProject String?  @map("color")
+  createdAt    DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("created_at") @db.Timestamp(3)
+  updatedAt    DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("updated_at") @db.Timestamp(3)
 
-  creatorId             String?
-  companyId             String
-  company               Company                @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  creator               User?                  @relation("ProjectCreator", fields: [creatorId], references: [id])
+  creatorId             BigInt?  @map("creator_id")
+  companyId             BigInt   @map("company_id")
+  company               Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  creator               User?    @relation("ProjectCreator", fields: [creatorId], references: [id], onDelete: SetNull)
   members               ProjectMember[]
   workItems             WorkItem[]
   documents             Document[]
@@ -128,207 +144,192 @@ model Project {
   activityLogs          ActivityLog[]
   timeEntries           TimeEntry[]
   gitLabProjectMappings GitLabProjectMapping[]
+  externalWorkItemReferences ExternalWorkItemReference[]
 
-  @@index([status])
-  @@index([priority])
-  @@index([creatorId])
-  @@index([companyId, status])
+  @@index([status], map: "projects_status_idx")
+  @@index([priority], map: "projects_priority_idx")
+  @@index([creatorId], map: "projects_creator_id_idx")
+  @@index([companyId, status], map: "projects_company_id_status_idx")
+  @@map("projects")
 }
 
-// Project Members
 model ProjectMember {
-  id       String   @id @default(cuid())
-  role     String   @default("member") // member, lead, manager
-  joinedAt DateTime @default(now())
+  id        BigInt   @id @default(autoincrement())
+  publicId  String   @unique @default(dbgenerated("pg_catalog.gen_random_uuid()")) @map("public_id") @db.Uuid
+  role      String   @default("member")
+  joinedAt  DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("joined_at") @db.Timestamp(3)
+  createdAt DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("created_at") @db.Timestamp(3)
+  updatedAt DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("updated_at") @db.Timestamp(3)
 
-  projectId String
+  projectId BigInt  @map("project_id")
   project   Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
-  userId    String
+  userId    BigInt  @map("user_id")
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([projectId, userId])
-  @@index([projectId])
-  @@index([userId])
+  @@unique([projectId, userId], map: "project_members_project_id_user_id_key")
+  @@index([projectId], map: "project_members_project_id_idx")
+  @@index([userId], map: "project_members_user_id_idx")
+  @@map("project_members")
 }
 
 model WorkItem {
-  id          String           @id @default(cuid())
+  id          BigInt           @id @default(autoincrement())
+  publicId    String           @unique @default(dbgenerated("pg_catalog.gen_random_uuid()")) @map("public_id") @db.Uuid
   title       String
   description String?
   kind        WorkItemKind
   priority    WorkItemPriority @default(none)
-  role        WorkItemRole?
+  role        WorkItemRole?    @map("functional_role")
   status      WorkItemStatus   @default(backlog)
-  types       String[]         @default([]) @map("labels_types")
-  workDate    DateTime?        @db.Date
-  dueDate     DateTime?        @db.Date
-  submittedAt DateTime?        @db.Timestamp(3)
-  createdAt   DateTime         @default(now()) @db.Timestamp(3)
-  updatedAt   DateTime         @updatedAt @db.Timestamp(3)
+  types       String[]         @default([]) @map("type_labels")
+  workDate    DateTime?        @map("work_date") @db.Date
+  dueDate     DateTime?        @map("due_date") @db.Date
+  submittedAt DateTime?        @map("submitted_at") @db.Timestamp(3)
+  createdAt   DateTime         @default(dbgenerated("public.pms_bangkok_now()")) @map("created_at") @db.Timestamp(3)
+  updatedAt   DateTime         @default(dbgenerated("public.pms_bangkok_now()")) @map("updated_at") @db.Timestamp(3)
 
-  projectId         String
-  project           Project                    @relation(fields: [projectId], references: [id], onDelete: Restrict)
-  assigneeId        String
-  assignee          User                       @relation("WorkItemAssignee", fields: [assigneeId], references: [id])
+  projectId         BigInt  @map("project_id")
+  project           Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  assigneeId        BigInt  @map("assignee_id")
+  assignee          User    @relation("WorkItemAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
   timeEntries       TimeEntry[]
   externalReference ExternalWorkItemReference?
 
-  @@index([projectId])
-  @@index([assigneeId])
-  @@index([kind])
-  @@index([status])
-  @@index([priority])
-  @@index([workDate])
-  @@index([dueDate])
-  @@index([createdAt])
+  @@index([projectId], map: "work_items_project_id_idx")
+  @@index([assigneeId], map: "work_items_assignee_id_idx")
+  @@index([kind], map: "work_items_kind_idx")
+  @@index([status], map: "work_items_status_idx")
+  @@index([priority], map: "work_items_priority_idx")
+  @@index([workDate], map: "work_items_work_date_idx")
+  @@index([dueDate], map: "work_items_due_date_idx")
+  @@index([createdAt], map: "work_items_created_at_idx")
   @@map("work_items")
 }
 
-// Mapping is owner-managed. Deleting it never deletes imported WorkItems or references.
 model GitLabProjectMapping {
-  id                         String    @id @default(cuid())
-  canonicalGitLabInstanceUrl String
-  gitLabProjectId            String
-  projectId                  String
-  approvedLabelMap           Json      @default("{}") @db.JsonB
-  firstSyncApprovedAt        DateTime? @db.Timestamp(3)
-  createdAt                  DateTime  @default(now()) @db.Timestamp(3)
-  updatedAt                  DateTime  @updatedAt @db.Timestamp(3)
+  id                         BigInt    @id @default(autoincrement())
+  publicId                   String    @unique @default(dbgenerated("pg_catalog.gen_random_uuid()")) @map("public_id") @db.Uuid
+  provider                   String    @default("gitlab")
+  canonicalGitLabInstanceUrl String    @map("instance_url")
+  gitLabProjectId            String    @map("external_project_id")
+  projectId                  BigInt    @map("project_id")
+  approvedLabelMap           Json      @default("{}") @map("approved_label_map") @db.JsonB
+  firstSyncApprovedAt        DateTime? @map("first_sync_approved_at") @db.Timestamp(3)
+  createdAt                  DateTime  @default(dbgenerated("public.pms_bangkok_now()")) @map("created_at") @db.Timestamp(3)
+  updatedAt                  DateTime  @default(dbgenerated("public.pms_bangkok_now()")) @map("updated_at") @db.Timestamp(3)
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
 
-  @@unique([canonicalGitLabInstanceUrl, gitLabProjectId])
-  @@index([projectId])
+  @@unique([provider, canonicalGitLabInstanceUrl, gitLabProjectId], map: "external_project_mappings_source_key")
+  @@index([projectId], map: "external_project_mappings_project_id_idx")
+  @@map("external_project_mappings")
 }
 
-// Kept independent of GitLabProjectMapping so unmapping retains external identity and history.
 model ExternalWorkItemReference {
-  id                         String   @id @default(cuid())
+  id                         BigInt   @id @default(autoincrement())
+  publicId                   String   @unique @default(dbgenerated("pg_catalog.gen_random_uuid()")) @map("public_id") @db.Uuid
   provider                   String   @default("gitlab")
-  canonicalGitLabInstanceUrl String
-  gitLabProjectId            String
-  gitLabGlobalIssueId        String
-  gitLabIssueIid             String
-  externalUrl                String
-  projectId                  String
-  remoteCreatedAt            DateTime @db.Timestamp(3)
-  remoteUpdatedAt            DateTime @db.Timestamp(3)
-  lastSyncedAt               DateTime @db.Timestamp(3)
-  workItemId                 String   @unique
+  canonicalGitLabInstanceUrl String   @map("instance_url")
+  gitLabProjectId            String   @map("external_project_id")
+  gitLabGlobalIssueId        String   @map("external_issue_id")
+  gitLabIssueIid             String   @map("external_issue_number")
+  externalUrl                String   @map("external_url")
+  projectId                  BigInt   @map("project_id")
+  remoteCreatedAt            DateTime @map("remote_created_at") @db.Timestamp(3)
+  remoteUpdatedAt            DateTime @map("remote_updated_at") @db.Timestamp(3)
+  lastSyncedAt               DateTime @map("last_synced_at") @db.Timestamp(3)
+  createdAt                  DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("created_at") @db.Timestamp(3)
+  updatedAt                  DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("updated_at") @db.Timestamp(3)
+  workItemId                 BigInt   @unique @map("work_item_id")
   workItem                   WorkItem @relation(fields: [workItemId], references: [id], onDelete: Restrict)
+  project                    Project  @relation(fields: [projectId], references: [id], onDelete: Restrict)
 
-  @@unique([provider, canonicalGitLabInstanceUrl, gitLabProjectId, gitLabGlobalIssueId])
-  @@index([projectId])
+  @@unique([provider, canonicalGitLabInstanceUrl, gitLabProjectId, gitLabGlobalIssueId], map: "external_work_item_references_source_key")
+  @@index([projectId], map: "external_work_item_references_project_id_idx")
+  @@map("external_work_item_references")
 }
 
-// Comment
-model Comment {
-  id        String   @id @default(cuid())
-  content   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  authorId String
-  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
-
-  @@index([authorId])
-}
-
-// Milestone
 model Milestone {
-  id          String   @id @default(cuid())
+  id          BigInt   @id @default(autoincrement())
+  publicId    String   @unique @default(dbgenerated("pg_catalog.gen_random_uuid()")) @map("public_id") @db.Uuid
   name        String
   description String?
-  dueDate     DateTime
-  status      String   @default("Not Started") // Not Started, In Progress, Completed
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  dueDate     DateTime @map("due_date") @db.Timestamp(3)
+  status      String   @default("Not Started")
+  createdAt   DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("created_at") @db.Timestamp(3)
+  updatedAt   DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("updated_at") @db.Timestamp(3)
 
-  projectId String
+  projectId BigInt  @map("project_id")
   project   Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
 
-  @@index([projectId])
+  @@index([projectId], map: "project_milestones_project_id_idx")
+  @@map("project_milestones")
 }
 
-// Document
 model Document {
-  id          String   @id @default(cuid())
+  id          BigInt   @id @default(autoincrement())
+  publicId    String   @unique @default(dbgenerated("pg_catalog.gen_random_uuid()")) @map("public_id") @db.Uuid
   name        String
   description String?
-  fileUrl     String
-  fileSize    Int? // in bytes
-  fileType    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  fileUrl     String   @map("file_url")
+  fileSize    Int?     @map("file_size_bytes")
+  fileType    String?  @map("file_type")
+  createdAt   DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("created_at") @db.Timestamp(3)
+  updatedAt   DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("updated_at") @db.Timestamp(3)
 
-  projectId  String?
+  projectId  BigInt?  @map("project_id")
   project    Project? @relation(fields: [projectId], references: [id], onDelete: Restrict)
-  uploaderId String?
-  uploader   User?    @relation(fields: [uploaderId], references: [id])
+  uploaderId BigInt?  @map("uploader_id")
+  uploader   User?    @relation(fields: [uploaderId], references: [id], onDelete: SetNull)
 
-  @@index([projectId])
-  @@index([uploaderId])
+  @@index([projectId], map: "project_documents_project_id_idx")
+  @@index([uploaderId], map: "project_documents_uploader_id_idx")
+  @@map("project_documents")
 }
 
-// Time Entry
 model TimeEntry {
-  id          String   @id @default(cuid())
+  id          BigInt   @id @default(autoincrement())
+  publicId    String   @unique @default(dbgenerated("pg_catalog.gen_random_uuid()")) @map("public_id") @db.Uuid
   description String?
   remarks     String?
   hours       Decimal  @db.Decimal(65, 30)
-  date        DateTime @default(now()) @db.Date
-  status      String? // To Do, In Progress, Review, Completed, Blocked
-  createdAt   DateTime @default(now()) @db.Timestamp(3)
-  updatedAt   DateTime @updatedAt @db.Timestamp(3)
+  date        DateTime @default(dbgenerated("public.pms_bangkok_today()")) @map("work_date") @db.Date
+  status      String?
+  createdAt   DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("created_at") @db.Timestamp(3)
+  updatedAt   DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("updated_at") @db.Timestamp(3)
 
-  userId     String
+  userId     BigInt    @map("user_id")
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  projectId  String?
+  projectId  BigInt?   @map("project_id")
   project    Project?  @relation(fields: [projectId], references: [id], onDelete: Restrict)
-  workItemId String?
+  workItemId BigInt?   @map("work_item_id")
   workItem   WorkItem? @relation(fields: [workItemId], references: [id], onDelete: Restrict)
 
-  @@index([userId])
-  @@index([projectId])
-  @@index([workItemId])
-  @@index([date])
+  @@index([userId], map: "work_logs_user_id_idx")
+  @@index([projectId], map: "work_logs_project_id_idx")
+  @@index([workItemId], map: "work_logs_work_item_id_idx")
+  @@index([date], map: "work_logs_work_date_idx")
+  @@map("work_logs")
 }
 
-// Activity Log
 model ActivityLog {
-  id          String   @id @default(cuid())
-  action      String // created, updated, deleted, commented, assigned, etc.
-  entity      String // project, work_item, etc.
-  entityId    String
+  id          BigInt   @id @default(autoincrement())
+  publicId    String   @unique @default(dbgenerated("pg_catalog.gen_random_uuid()")) @map("public_id") @db.Uuid
+  action      String
+  entity      String
+  entityId    String   @map("entity_id")
   description String?
-  metadata    Json? // Additional data about the action
-  createdAt   DateTime @default(now())
+  metadata    Json?    @db.JsonB
+  createdAt   DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("created_at") @db.Timestamp(3)
 
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
-  projectId String?
-  project   Project? @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  userId    BigInt?  @map("user_id")
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  projectId BigInt?  @map("project_id")
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
-  @@index([userId])
-  @@index([projectId])
-  @@index([entity, entityId])
-  @@index([createdAt])
-}
-
-// Notification
-model Notification {
-  id        String   @id @default(cuid())
-  title     String
-  message   String
-  type      String   @default("info") // info, success, warning, error
-  read      Boolean  @default(false)
-  link      String?
-  createdAt DateTime @default(now())
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([read])
-  @@index([createdAt])
+  @@index([userId], map: "activity_logs_user_id_idx")
+  @@index([projectId], map: "activity_logs_project_id_idx")
+  @@index([entity, entityId], map: "activity_logs_entity_entity_id_idx")
+  @@index([createdAt], map: "activity_logs_created_at_idx")
+  @@map("activity_logs")
 }

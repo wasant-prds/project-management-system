@@ -7,6 +7,8 @@ import { serializeWorkItem, workItemDetailInclude, workItemInclude } from '@/lib
 import { Prisma } from '@prisma/client'
 import { getOwner, ownerErrorResponse } from '@/lib/owner'
 import { lockOwnedWorkItemForUpdate } from '@/lib/work-item-lock'
+import { parsePublicId } from '@/lib/public-id'
+import type { OwnerIdentity } from '@/lib/owner'
 
 type RouteContext = { params: Promise<{ id: string }> }
 type WorkItemPatchData = Extract<ReturnType<typeof parseWorkItemPatch>, { data: unknown }>['data']
@@ -15,7 +17,7 @@ type WorkItemUpdateOutcome =
   | { kind: 'history-conflict' }
   | { kind: 'external-project-conflict' }
   | { kind: 'project-missing' }
-  | { kind: 'updated'; workItem: Awaited<ReturnType<typeof prisma.workItem.update>> }
+  | { kind: 'updated'; workItem: Prisma.WorkItemGetPayload<{ include: typeof workItemInclude }> }
 
 function validationError(message: string, field?: string) {
   return NextResponse.json({
@@ -72,35 +74,38 @@ function hasErrorCode(error: unknown, code: string) {
     && error.code === code
 }
 
-async function updateOwnedWorkItem(id: string, ownerId: string, changes: WorkItemPatchData): Promise<WorkItemUpdateOutcome> {
-  const { assigneeId, projectId, ...fields } = changes
-  delete fields.id
+async function updateOwnedWorkItem(publicId: string, owner: OwnerIdentity, changes: WorkItemPatchData): Promise<WorkItemUpdateOutcome> {
+  const { assigneeId, projectId, id: _clientId, ...fields } = changes
+  void _clientId
 
   return prisma.$transaction(async (transaction) => {
-    await lockOwnedWorkItemForUpdate(transaction, id, ownerId)
     const existing = await transaction.workItem.findFirst({
-      where: { id, assigneeId: ownerId },
+      where: { publicId, assigneeId: owner.internalId },
       select: { id: true, projectId: true, submittedAt: true, externalReference: { select: { provider: true } } },
     })
     if (!existing) return { kind: 'missing' }
+    await lockOwnedWorkItemForUpdate(transaction, existing.id, owner.internalId)
 
     const data: Prisma.WorkItemUpdateInput = { ...fields }
-    if (projectId && projectId !== existing.projectId) {
-      if (existing.externalReference?.provider === 'gitlab') return { kind: 'external-project-conflict' }
-      const project = await transaction.project.findUnique({ where: { id: projectId }, select: { id: true } })
+    if (projectId) {
+      const projectPublicId = parsePublicId(projectId)
+      if (!projectPublicId) return { kind: 'project-missing' }
+      const project = await transaction.project.findUnique({ where: { publicId: projectPublicId }, select: { id: true } })
       if (!project) return { kind: 'project-missing' }
-
-      const linkedWork = await transaction.timeEntry.count({ where: { workItemId: id } })
-      if (linkedWork > 0) return { kind: 'history-conflict' }
-      data.project = { connect: { id: project.id } }
+      if (project.id !== existing.projectId) {
+        if (existing.externalReference?.provider === 'gitlab') return { kind: 'external-project-conflict' }
+        const linkedWork = await transaction.timeEntry.count({ where: { workItemId: existing.id } })
+        if (linkedWork > 0) return { kind: 'history-conflict' }
+        data.project = { connect: { id: project.id } }
+      }
     }
-    if (assigneeId) data.assignee = { connect: { id: assigneeId } }
+    if (assigneeId) data.assignee = { connect: { id: owner.internalId } }
     if (fields.status && shouldStampSubmittedAt(fields.status) && !existing.submittedAt) {
       data.submittedAt = currentBangkokWallClockDate()
     }
 
     const workItem = await transaction.workItem.update({
-      where: { id },
+      where: { id: existing.id },
       data,
       include: workItemInclude,
     })
@@ -112,10 +117,11 @@ async function updateOwnedWorkItem(id: string, ownerId: string, changes: WorkIte
 export async function GET(_request: Request, { params }: RouteContext) {
   try {
     const owner = await getOwner()
-    const { id } = await params
+    const publicId = parsePublicId((await params).id)
+    if (!publicId) return validationError('ต้องเป็น public UUID', 'id')
     const workItem = await prisma.workItem.findFirst({
-      where: { id, assigneeId: owner.id, project: { is: {} } },
-      include: workItemDetailInclude(owner.id),
+      where: { publicId, assigneeId: owner.internalId, project: { is: {} } },
+      include: workItemDetailInclude(owner.internalId),
     })
 
     if (!workItem) return notFound('Work item not found')
@@ -132,7 +138,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
 export async function PATCH(request: Request, { params }: RouteContext) {
   try {
     const owner = await getOwner()
-    const { id } = await params
+    const publicId = parsePublicId((await params).id)
+    if (!publicId) return validationError('ต้องเป็น public UUID', 'id')
     let body: unknown
     try {
       body = await request.json()
@@ -142,8 +149,9 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
     const parsed = parseWorkItemPatch(body, owner.id)
     if ('error' in parsed) return validationError(parsed.error)
+    if (parsed.data.projectId && !parsePublicId(parsed.data.projectId)) return validationError('ต้องเป็น public UUID', 'projectId')
 
-    const outcome = await updateOwnedWorkItem(id, owner.id, parsed.data)
+    const outcome = await updateOwnedWorkItem(publicId, owner, parsed.data)
 
     if (outcome.kind === 'missing') return notFound('Work item not found')
     if (outcome.kind === 'history-conflict') return projectHistoryConflict()
@@ -164,18 +172,19 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 export async function DELETE(_request: Request, { params }: RouteContext) {
   try {
     const owner = await getOwner()
-    const { id } = await params
+    const publicId = parsePublicId((await params).id)
+    if (!publicId) return validationError('ต้องเป็น public UUID', 'id')
     const workItem = await prisma.workItem.findFirst({
-      where: { id, assigneeId: owner.id },
+      where: { publicId, assigneeId: owner.internalId },
       select: { id: true, externalReference: { select: { provider: true } } },
     })
     if (!workItem) return notFound('Work item not found')
     if (workItem.externalReference?.provider === 'gitlab') return importedWorkItemConflict()
 
-    const linkedWork = await prisma.timeEntry.count({ where: { workItemId: id } })
+    const linkedWork = await prisma.timeEntry.count({ where: { workItemId: workItem.id } })
     if (linkedWork > 0) return historyConflict()
 
-    const result = await prisma.workItem.deleteMany({ where: { id, assigneeId: owner.id } })
+    const result = await prisma.workItem.deleteMany({ where: { id: workItem.id, assigneeId: owner.internalId } })
     if (!result.count) return notFound('Work item not found')
 
     return NextResponse.json({ message: 'Work item deleted successfully' }, { status: 200 })

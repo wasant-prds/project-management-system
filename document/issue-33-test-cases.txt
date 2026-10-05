@@ -1,0 +1,141 @@
+========================================================================
+Issue #33 — numeric keys, public UUIDs, SQL runtime, upgrade and recovery
+ผ่านเมื่อ: assertion ของ unit/mocked suite ตรงสัญญา
+SKIP ของ PostgreSQL, image และ browser = ยังไม่ได้รันในรอบนี้ และไม่นับเป็น PASS
+========================================================================
+
+คำสั่งรอบนี้ (2026-10-04):
+- node tests/run.mjs identity → 12 PASS / 0 FAIL / 0 SKIP
+- node tests/run.mjs → 496 tests, 485 PASS / 0 FAIL / 11 SKIP
+  11 SKIP เป็น opt-in Docker และไม่ถูกนับเป็นผลผ่านของ TC ด้านล่าง
+- pnpm typecheck → ผ่าน
+- pnpm lint → ไม่มี ESLint warnings หรือ errors
+- pnpm exec prisma validate → schema valid เมื่อใส่ synthetic DATABASE_URL เฉพาะ process; ไม่ได้เชื่อมฐานข้อมูล
+  CLI แสดงข้อความว่ามี Prisma 8 ให้ติดตั้ง และข้อความนั้นไม่ใช่ schema error
+
+TC-33-01 PASS
+  tests/identity/runtime-boundary.test.mjs
+  ปฏิเสธตัวเลข, CUID, UUID ตัวพิมพ์ใหญ่ และ UUID ที่ไม่ใช่เวอร์ชัน 4
+
+TC-33-02 PASS (unit) / SKIP (PostgreSQL)
+  PASS: serializeDecimalId คงค่า 9223372036854775807 และปฏิเสธ 0
+  SKIP: การสร้าง, uniqueness และ immutability ของ public_id บน PostgreSQL 16
+  อยู่ใน tests/sql/migrations-docker.test.mjs ซึ่งไม่ได้รันในรอบนี้
+
+TC-33-03 PASS (mocked)
+  Company, Project, WorkItem, TimeEntry, Dashboard และ Analysis ส่ง public UUID
+  ในชุด unit ที่ผ่านก่อนเพิ่ม identity suite
+  ไม่ได้ตรวจ JSON จากเบราว์เซอร์จริง
+
+TC-33-04 PASS
+  identity suite ปฏิเสธ seed map และตัวเลือก owner ที่เป็นตัวเลข
+  เส้นทาง owner อื่นอยู่ในชุด auth ของชุดเต็มรอบก่อน
+
+TC-33-05 PASS (mocked)
+  tests/company-projects รวม CRUD, summary และ delete conflict
+  Project ที่ companyId ว่างตอบ 409 เมื่อยังไม่ส่ง Company
+
+TC-33-06 PASS (mocked)
+  tests/work-items รวม CRUD, filter, import ที่เก็บ public UUID,
+  การปฏิเสธ id จาก client ในการสร้างปกติ และ export
+
+TC-33-07 PASS (mocked)
+  tests/daily-work รวมชั่วโมงแบบ Decimal, วันที่ Bangkok และ row lock
+  ไม่ได้รัน race บน PostgreSQL จริง
+
+TC-33-08 PASS
+  cursor ที่เข้ารหัสไม่โชว์ owner UUID หรือฟิลด์ id
+  cursor รุ่นเก่าและตัวกรองที่ไม่ตรงกันใช้ไม่ได้
+  เมื่อไม่มี secret ระบบไม่ออกโทเค็น
+
+TC-33-09 SKIP (PostgreSQL round trip)
+  พฤติกรรมวันที่ของแอปอยู่ใน daily-work unit ที่ผ่านในชุดเต็มรอบก่อน
+  การคง timestamp ตอน import และการห้ามแก้ public_id บน PostgreSQL ไม่ได้รันในรอบนี้
+
+TC-33-10 PASS (mocked) / SKIP (browser)
+  Board, Daily Work, Dashboard, Analysis และ Settings ผ่านชุด unit รอบก่อน
+  ไม่ได้เปิดเบราว์เซอร์ตรวจ theme หรือการนำทาง
+
+TC-33-11 PASS (mocked) / SKIP (GitLab จริง)
+  tests/gitlab ตรวจ identity, การส่ง owner internal id และ provider=gitlab
+  ไม่ได้เรียก GitLab และไม่ได้ตรวจ unmap บนฐานข้อมูลจริง
+
+TC-33-12 PASS (schema file) / SKIP (catalog)
+  pnpm exec prisma validate ผ่านด้วย synthetic DATABASE_URL และไม่ได้เชื่อม PostgreSQL
+  ไม่ได้เทียบ client กับ catalog ของฐานข้อมูลจริง
+
+TC-33-13 SKIP
+  ไม่ได้ build migration image และไม่ได้ตั้ง PMS_RUN_DOCKER_TESTS=1
+  tests/runtime/docker.test.mjs จึงถูกข้าม
+
+TC-33-14 PASS (unit)
+  sql-runtime ปฏิเสธการ apply เมื่อไม่มี PMS_SQL_RUNTIME_APPLY,
+  โหมด destructive และฐานข้อมูลที่มีข้อมูลแต่ไม่มี migration history
+  ไม่ได้ยิง gate กับฐานข้อมูลจริง
+
+TC-33-15 SKIP
+  ไม่ได้ apply schema และ SQL seed บนฐานข้อมูลว่าง
+  ค่า RUN_SEED=false ถูกตรวจจาก source ใน TC-33-23
+
+TC-33-16 SKIP
+  ไม่ได้ทดสอบการปฏิเสธ seed บนฐานข้อมูลที่มีข้อมูลหรือคนละ schema
+
+TC-33-17 PASS (planner) / SKIP (ข้อมูลจริง)
+  ตัววางแผนจำแนก schema เดิมและกัน Comment กับ Notification ไว้เป็น archive
+  ไม่ได้แปลงแถวจริง
+
+TC-33-18 PASS (planner) / SKIP (ข้อมูลจริง)
+  ใช้ live mapping เดิม, ปฏิเสธการชนกับ seed map และแถวต้นทางซ้ำ
+  ไม่ได้ตรวจแถวที่เกิดหลัง snapshot บน PostgreSQL
+
+TC-33-19 PASS (planner) / SKIP (การหยุดเขียนจริง)
+  checklist มีขั้นตอนหยุดเขียนและ pms_align_identity เฉพาะชื่อตาราง snake_case
+
+TC-33-20 PASS (planner) / SKIP (ฐานข้อมูลจริง)
+  เมื่อ migration หรือ owner check ล้มเหลว คำตัดสินคือเก็บฐานข้อมูลต้นทาง
+
+TC-33-21 PASS (planner) / SKIP (การเขียนหลัง cutover)
+  แผนก่อนเขียนข้อมูลกับแผน reconcile หลังมีเขียนใหม่ถูกแยกกัน
+  ไม่ได้ซ้อมบนฐานข้อมูล
+
+TC-33-22 PASS
+  plain SQL gzip ใช้ psql และ custom dump ใช้ pg_restore เมื่อใบเสร็จตรง
+
+TC-33-23 PASS
+  entrypoint เรียก sql-runtime.mjs apply
+  ไม่เรียก db-push-safe.sh หรือ prisma db seed
+  db-manage reset ถูกปฏิเสธ
+  prisma/seed.ts ทำงานเมื่อมี PMS_JSON_SEED_ISOLATED_TEST=1 เท่านั้น
+
+TC-33-24 SKIP
+  ไม่ได้เปิดเบราว์เซอร์ส่ง public UUID
+  ไม่ได้ตรวจ BigInt JSON 500 หรือการปฏิเสธข้าม owner บนเซิร์ฟเวอร์ที่รันจริง
+
+========================================================================
+Review recheck — 2026-10-05 (addendum; prior results above remain historical)
+========================================================================
+
+คำสั่งและผลใหม่:
+- pnpm test → 508 total / 496 PASS / 0 FAIL / 12 SKIP
+- focused review regressions (identity, rollout gate, SQL runtime, owner-scoped Project detail, migration runner)
+  → 59 PASS / 0 FAIL / 0 SKIP
+- PMS_RUN_SQL_LIVE_UPGRADE_DOCKER_TESTS=1 node --test --test-concurrency=1 --test-isolation=none tests/identity/live-upgrade-docker.test.mjs
+  → 1 PASS / 0 FAIL / 0 SKIP; PostgreSQL 16 source/target containers are ephemeral and use --network none
+- pnpm test:sql-migrations-docker → 18 PASS / 0 FAIL / 0 SKIP
+- pnpm lint, pnpm typecheck, Prisma validate with process-only synthetic DATABASE_URL,
+  Prisma generate, Linux production Docker build, git diff --check → PASS
+
+Review findings closed:
+- REPRO-01: psql target removes Prisma-only URI parameters and decodes URL-encoded libpq options;
+  unit cases plus PostgreSQL runtime/integration suite verify timezone options and migration execution.
+- REPRO-02/03: rollout approval binds APP_ENV, normalized target identity, ordered migration checksum set,
+  schema/revision and fresh matching isolated-restore receipt. Target/user/migration changes invalidate approval.
+- REPRO-04: source and target duplicate identities now fail exact equivalence checks; row coverage and payload drift are checked.
+- REPRO-05: nested Project WorkItems and TimeEntries are filtered to the authenticated owner; the summary uses only those rows.
+- Upgrade gap: durable source-scoped mappings and numeric ID/FK allocation feed a real converter/loader. The PostgreSQL fixture
+  verified backup receipt, source immutability, exact conversion, mapping reuse, preserved history, repeat-run refusal,
+  sequence alignment and export of inserted/updated post-cutover rows for reconciliation.
+
+The full `pnpm test` run contains 12 opt-in integration skips; those are not counted as passes. SonarQube and real-browser
+TC-33-24 remain unverified. The Windows standalone Next.js trace failed while creating symlinks (EPERM); the Linux production
+Docker build completed successfully. No live database was migrated, seeded, deployed or cut over.

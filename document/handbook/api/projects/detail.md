@@ -31,7 +31,7 @@
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | string | Yes | Project ID |
+| `id` | string | Yes | public UUIDv4 ของ Project; numeric internal ID ไม่รองรับ |
 
 GET/DELETE ไม่มี query/body.
 
@@ -42,7 +42,7 @@ GET/DELETE ไม่มี query/body.
 | Field | Type | Required | Validation / description |
 | --- | --- | --- | --- |
 | `name` | string | No | trim แล้วต้องไม่ว่าง |
-| `companyId` | string | No | ต้องเป็น non-empty ID ของ Company ที่มีอยู่; `null` ไม่รับ |
+| `companyId` | string | No | public UUIDv4 ของ Company ที่มีอยู่; `null` ไม่รับ |
 | `description` | string \| null | No | รายละเอียด Project |
 | `status` | string | No | ค่าเดียวกับ [Project collection POST](./collection.md#post-body) |
 | `priority` | string | No | ค่าเดียวกับ Project collection POST |
@@ -59,25 +59,26 @@ GET/PATCH สำเร็จตอบ `200` `{ "project": ... }`.
 
 | Response field | Description |
 | --- | --- |
-| `project.id`, `name`, `description`, `status`, `priority`, `budget`, `spent`, `colorProject`, `creatorId`, `companyId` | Project model values; description, budget, spent, creatorId และ colorProject อาจเป็น null; `companyId` เป็น required string |
+| `project.id`, `name`, `description`, `status`, `priority`, `budget`, `spent`, `colorProject`, `companyId` | Project DTO; `id` และ `companyId` เป็น public UUIDv4; description, budget, spent และ colorProject อาจเป็น null; ไม่มี `creatorId` ใน response |
 | `project.startDate`, `dueDate` | Calendar date `YYYY-MM-DD` |
 | `project.createdAt`, `updatedAt` | ISO timestamp ที่ serializer ต่อท้าย `+07:00` |
 | `project.company` | Company relation ที่ schema ปัจจุบันกำหนดว่ามีเสมอ |
-| `project.company.id` | Company primary key |
+| `project.company.id` | Public UUIDv4 ของ Company |
 | `project.company.name` | ชื่อ Company |
 | `project.company.displayName` | ชื่อแสดง Company หรือ null |
 | `project.workItems` | WorkItems ของ Project เรียงใหม่ไปเก่า พร้อม assignee `{name, avatar}` |
-| `workItems[].id`, `title`, `description`, `kind`, `priority`, `role`, `status`, `types`, `projectId`, `assigneeId` | WorkItem fields; status serialize เป็น public hyphen format |
+| `workItems[].id`, `projectId` | Public UUIDv4 ของ WorkItem และ Project ตามลำดับ |
+| `workItems[].title`, `description`, `kind`, `priority`, `role`, `status`, `types` | WorkItem fields; status serialize เป็น public hyphen format |
 | `workItems[].workDate`, `dueDate` | Calendar date `YYYY-MM-DD` หรือ null |
 | `workItems[].submittedAt`, `createdAt`, `updatedAt` | Timestamp ที่ serializer ต่อท้าย `+07:00`; submittedAt nullable |
 | `workItems[].assignee` | ข้อมูล assignee ที่ include มา |
 | `workItems[].assignee.name` | ชื่อ assignee |
 | `workItems[].assignee.avatar` | Avatar URL หรือ null |
 | `project.timeEntries` | TimeEntry summary rows ของ Project |
-| `timeEntries[].id` | TimeEntry ID |
+| `timeEntries[].id` | Public UUIDv4 ของ TimeEntry |
 | `timeEntries[].hours` | Decimal hours เป็น string |
 | `timeEntries[].date` | Calendar date `YYYY-MM-DD` |
-| `timeEntries[].workItemId` | WorkItem ID หรือ null |
+| `timeEntries[].workItemId` | Public UUIDv4 ของ WorkItem หรือ null |
 | `project.summary` | Derived counts/progress/hours ดูนิยามใน [collection](./collection.md#response) |
 | `project.progress` | Alias ของ `summary.progress` |
 | DELETE `message` | ยืนยันข้อความ `ลบ Project แล้ว` |

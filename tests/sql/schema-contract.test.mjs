@@ -121,13 +121,14 @@ test('tables retained for Project deletion checks are still queried by the curre
   assert.ok(BUSINESS_TABLES.includes('project_members'));
 });
 
-test('TC-31-16 active Prisma runtime and migrate entrypoint stay on the CUID workflow', () => {
-  assert.match(prismaSchema, /@default\(cuid\(\)\)/);
+test('TC-33-13 active Prisma runtime and migrate entrypoint use the SQL workflow', () => {
+  assert.match(prismaSchema, /publicId\s+String\s+@unique/);
+  assert.match(prismaSchema, /BigInt\s+@id @default\(autoincrement\(\)\)/);
   assert.match(prismaSchema, /provider\s*=\s*"postgresql"/);
-  assert.doesNotMatch(prismaSchema, /created_at|BigInt @id|@db\.BigInt/);
-  assert.match(entrypoint, /db-push-safe\.sh/);
+  assert.doesNotMatch(prismaSchema, /@default\(cuid\(\)\)|@updatedAt/);
   assert.match(entrypoint, /db-schema-rollout-gate\.mjs/);
-  assert.doesNotMatch(entrypoint, /sql-migrate\.mjs/);
+  assert.match(entrypoint, /sql-runtime\.mjs apply/);
+  assert.doesNotMatch(entrypoint, /db-push-safe\.sh|prisma db seed/);
   assert.equal(packageJson.scripts['test:sql-schema'], 'node tests/run.mjs sql-schema');
   assert.equal(packageJson.scripts['test:sql-migrations-docker'], 'node tests/run.mjs sql-migrations-docker');
   assert.match(packageJson.scripts.test, /tests\/run\.mjs/);

@@ -147,30 +147,8 @@ status() {
 reset() {
   print_header
   echo
-  print_warning "WARNING: This will delete all database data for APP_ENV=$DB_SITE."
-  echo
-  read -r -p "Are you sure you want to reset this database? (yes/no): " confirm
-  if [ "$confirm" != "yes" ]; then
-    print_info "Reset cancelled"
-    return 0
-  fi
-
-  if [ "$DATA_DIR" = "/" ] || [ "$DATA_DIR" = "$ROOT" ]; then
-    print_error "Refusing to clear unsafe data directory: $DATA_DIR"
-    return 1
-  fi
-
-  print_info "Stopping the $DB_SITE Compose stack..."
-  compose down
-  print_info "Removing database files from: $DATA_DIR"
-  mkdir -p "$DATA_DIR"
-  shopt -s dotglob nullglob
-  local data_items=("$DATA_DIR"/*)
-  if [ "${#data_items[@]}" -gt 0 ]; then
-    rm -rf -- "${data_items[@]}"
-  fi
-  print_success "Database reset complete for APP_ENV=$DB_SITE"
-  print_info "Start the selected site with: bash $START_SCRIPT start"
+  print_error "Reset is refused. Rehearse on an isolated disposable database instead of deleting the selected site."
+  return 1
 }
 
 connect() {
@@ -212,26 +190,8 @@ seed() {
 force_seed() {
   print_header
   echo
-  require_container
-  print_warning "WARNING: This will delete all data in the $DB_SITE database and reseed it."
-  read -r -p "Are you sure you want to force reseed? (yes/no): " confirm
-  if [ "$confirm" != "yes" ]; then
-    print_info "Force seed cancelled"
-    return 0
-  fi
-
-  local db_user db_name
-  db_user=$(read_database_setting POSTGRES_USER)
-  db_name=$(read_database_setting POSTGRES_DB)
-  print_info "Resetting and reseeding the $DB_SITE database..."
-  db_docker exec -i "$CONTAINER_NAME" psql -U "$db_user" "$db_name" <<EOF
-DROP SCHEMA public CASCADE;
-CREATE SCHEMA public;
-GRANT ALL ON SCHEMA public TO $db_user;
-GRANT ALL ON SCHEMA public TO public;
-EOF
-  run_seed_mode force-seed
-  print_success "Database reseeded for APP_ENV=$DB_SITE"
+  print_error "Force seed is refused. SQL startup does not delete data or replay a snapshot over a used database."
+  return 1
 }
 
 usage() {
@@ -243,7 +203,7 @@ usage() {
   echo
   echo "Commands:"
   echo "  status       Show selected site's database status"
-  echo "  reset        Reset selected site's database (deletes all data)"
+  echo "  reset        Refused. Does not delete the selected site"
   echo "  backup       Back up selected site's database"
   echo "  restore      Rehearse custom archive in an isolated disposable database"
   echo "  verify-rollout <archive> <stage>  Check staged rollout and exact history"
@@ -252,7 +212,7 @@ usage() {
   echo "  connect      Connect to selected site's database (psql)"
   echo "  logs         Show selected site's PostgreSQL logs"
   echo "  seed         Run Prisma seed against the configured DATABASE_URL"
-  echo "  force-seed   Delete selected site's data and reseed"
+  echo "  force-seed   Refused. Does not delete data or force a reseed"
   echo
 }
 

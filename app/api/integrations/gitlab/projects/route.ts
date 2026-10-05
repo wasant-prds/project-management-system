@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { getOwner, ownerErrorResponse } from '@/lib/owner'
 import { getGitLabConfiguration, validateApprovedLabelMap } from '@/lib/gitlab-issue-import'
 import { serializeBangkokTimestamp } from '@/lib/bangkok-datetime'
+import { parsePublicId } from '@/lib/public-id'
 
 function requestError(code: string, message: string, status: number, field?: string) {
   return NextResponse.json({ error: { code, message, ...(field ? { field } : {}) } }, {
@@ -12,27 +13,40 @@ function requestError(code: string, message: string, status: number, field?: str
   })
 }
 
+const projectSelect = {
+  publicId: true,
+  name: true,
+  company: { select: { publicId: true, name: true, displayName: true } },
+} as const
+
 function safeMapping(mapping: {
-  id: string
+  publicId: string
   canonicalGitLabInstanceUrl: string
   gitLabProjectId: string
-  projectId: string
   approvedLabelMap: unknown
   firstSyncApprovedAt: Date | null
   createdAt: Date
   updatedAt: Date
-  project: { id: string; name: string; company: { id: string; name: string; displayName: string | null } }
+  project: { publicId: string; name: string; company: { publicId: string; name: string; displayName: string | null } }
 }) {
   return {
-    id: mapping.id,
+    id: mapping.publicId,
     instanceUrl: mapping.canonicalGitLabInstanceUrl,
     gitLabProjectId: mapping.gitLabProjectId,
-    projectId: mapping.projectId,
+    projectId: mapping.project.publicId,
     approvedLabelMap: mapping.approvedLabelMap,
     firstSyncApprovedAt: mapping.firstSyncApprovedAt ? serializeBangkokTimestamp(mapping.firstSyncApprovedAt) : null,
     createdAt: serializeBangkokTimestamp(mapping.createdAt),
     updatedAt: serializeBangkokTimestamp(mapping.updatedAt),
-    project: mapping.project,
+    project: {
+      id: mapping.project.publicId,
+      name: mapping.project.name,
+      company: {
+        id: mapping.project.company.publicId,
+        name: mapping.project.company.name,
+        displayName: mapping.project.company.displayName,
+      },
+    },
   }
 }
 
@@ -45,7 +59,7 @@ function parseMappingBody(value: unknown) {
   const body = value as Record<string, unknown>
   if (Object.keys(body).some((key) => !['gitLabProjectId', 'projectId', 'approvedLabelMap'].includes(key))) return null
   if (typeof body.gitLabProjectId !== 'string' || !/^[1-9]\d*$/.test(body.gitLabProjectId)) return null
-  if (typeof body.projectId !== 'string' || body.projectId.trim() === '') return null
+  if (typeof body.projectId !== 'string' || !parsePublicId(body.projectId)) return null
   const approvedLabelMap = validateApprovedLabelMap(body.approvedLabelMap)
   if (!approvedLabelMap) return null
   return { gitLabProjectId: body.gitLabProjectId, projectId: body.projectId, approvedLabelMap }
@@ -55,7 +69,8 @@ export async function GET() {
   try {
     await getOwner()
     const mappings = await prisma.gitLabProjectMapping.findMany({
-      include: { project: { select: { id: true, name: true, company: { select: { id: true, name: true, displayName: true } } } } },
+      where: { provider: 'gitlab' },
+      include: { project: { select: projectSelect } },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     })
     return NextResponse.json({ mappings: mappings.map(safeMapping) }, {
@@ -78,26 +93,27 @@ export async function POST(request: Request) {
     const body = parseMappingBody(await parseJson(request))
     if (!body) return requestError('VALIDATION_ERROR', 'กรุณาระบุ GitLab Project ID, PMS Project และ label mapping ที่รองรับ', 400)
 
-    const project = await prisma.project.findUnique({ where: { id: body.projectId }, select: { id: true } })
+    const project = await prisma.project.findUnique({ where: { publicId: body.projectId }, select: { id: true } })
     if (!project) return requestError('VALIDATION_ERROR', 'ไม่พบ PMS Project ที่เลือก', 400, 'projectId')
     const conflictingReference = await prisma.externalWorkItemReference.findFirst({
       where: {
         provider: 'gitlab',
         canonicalGitLabInstanceUrl: config.baseUrl,
         gitLabProjectId: body.gitLabProjectId,
-        projectId: { not: body.projectId },
+        projectId: { not: project.id },
       },
       select: { id: true },
     })
     if (conflictingReference) return requestError('CONFLICT', 'GitLab Project นี้มี Work Items ที่เชื่อมกับ PMS Project อื่นอยู่แล้ว', 409)
     const mapping = await prisma.gitLabProjectMapping.create({
       data: {
+        provider: 'gitlab',
         canonicalGitLabInstanceUrl: config.baseUrl,
         gitLabProjectId: body.gitLabProjectId,
-        projectId: body.projectId,
+        projectId: project.id,
         approvedLabelMap: body.approvedLabelMap,
       },
-      include: { project: { select: { id: true, name: true, company: { select: { id: true, name: true, displayName: true } } } } },
+      include: { project: { select: projectSelect } },
     })
     return NextResponse.json({ mapping: safeMapping(mapping) }, { status: 201, headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {

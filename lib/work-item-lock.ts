@@ -5,13 +5,13 @@ type WorkItemLockTransaction = Pick<PrismaTypes.TransactionClient, '$queryRaw'>
 
 export async function lockOwnedWorkItemForUpdate(
   transaction: WorkItemLockTransaction,
-  workItemId: string,
-  ownerId: string,
+  workItemId: bigint,
+  ownerId: bigint,
 ) {
   await transaction.$queryRaw(Prisma.sql`
     SELECT "id"
     FROM "work_items"
-    WHERE "id" = ${workItemId} AND "assigneeId" = ${ownerId}
+    WHERE "id" = ${workItemId} AND "assignee_id" = ${ownerId}
     FOR UPDATE
   `)
 }

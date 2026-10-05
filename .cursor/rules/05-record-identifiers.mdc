@@ -22,7 +22,7 @@ alwaysApply: true
 - Controlled imports may supply reviewed UUIDv4 values. Persist the source-scoped old ID → internal ID + public UUID mapping and reuse it for reproducible conversions; never regenerate UUIDs on reruns.
 - Live and seed mappings have distinct provenance. Preserve existing valid public UUIDs and resolve/reject legacy CUID URLs only through reviewed compatibility mapping, never by guessing identities.
 - Retain PostgreSQL comments on every table and column. Test UUID generation, uniqueness, nullability, immutability, numeric FKs, public-ID validation and authorization/DTO leakage at the API boundary.
-- Current transition: SQL target implements this standard; active Prisma/API still uses legacy CUIDs until compatible #33 adoption. Do not point the old application at the numeric target or claim UUID-only public APIs are deployed before integration.
+- Current transition: application code follows this standard. Live database cutover is not complete. Do not point this build at a legacy CUID database or claim a production cutover until an isolated rehearsal and explicit approval exist.
 
 Example target DTO: `{ id: project.public_id, companyId: project.company.public_id }`.
 Example storage relation: `work_logs.work_item_id BIGINT REFERENCES work_items(id)`.

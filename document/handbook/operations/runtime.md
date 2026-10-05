@@ -54,7 +54,7 @@ docker compose logs --tail=100 app postgres migrations
 
 ## Database startup
 
-Compose รอ PostgreSQL healthy แล้วรัน one-shot `migrations` service ผ่าน schema rollout gate และ `scripts/db-push-safe.sh`; optional seed ควบคุมด้วย `RUN_SEED`. Gate ปิด schema sync ไว้จนกว่าจะยืนยัน backup/isolated restore, approval ของ target environment และ SHA-256 ของ Prisma schema. App เริ่มหลัง migrations สำเร็จ. Repository ใช้ `prisma db push`, ไม่ควรอนุมานว่ามี migration file history. ทำ schema/restore operation ตาม [Database Rollout](../../DATABASE_ROLLOUT.md); อย่า reset production เพื่อวินิจฉัยปัญหา.
+Compose รอ PostgreSQL healthy แล้วรัน one-shot `migrations` service ผ่าน schema rollout gate และ `scripts/sql-runtime.mjs apply`. `RUN_SEED` ค่าเริ่มต้นคือ `false`. Gate ปิดการเขียนไว้จนกว่าจะยืนยัน backup/isolated restore หรือฐานข้อมูลว่าง, approval ของ target environment, hash ของ Prisma schema, checksum ของ SQL, revision และ release fingerprint. App เริ่มหลัง migrations สำเร็จ. `reset` และ `force-seed` ถูกปฏิเสธ. ทำ schema/restore operation ตาม [Database Rollout](../../DATABASE_ROLLOUT.md) และ [Issue #33 handbook](../database/issue-33-sql-runtime.md).
 
 ## Background processing
 

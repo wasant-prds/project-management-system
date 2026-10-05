@@ -29,7 +29,7 @@ Body รองรับ JSON array ที่ไม่ว่าง หรือ o
 | Field | Type | Required | Validation / behavior |
 | --- | --- | --- | --- |
 | title | string | Yes | trim แล้วต้องไม่ว่าง |
-| projectId | string | Yes | ต้องเป็น Project ที่มีอยู่ |
+| projectId | string | Yes | public UUIDv4 ของ Project หรือ legacy nonnumeric source ID ที่มี exact live mapping |
 | kind | enum | Yes | Incident, Issue หรือ Task |
 | status | enum | No | default backlog; sa-testing/completed ประทับ submittedAt |
 | priority | enum | No | default none |
@@ -37,8 +37,8 @@ Body รองรับ JSON array ที่ไม่ว่าง หรือ o
 | types | string array or null | No | ใช้ allowed WorkItem type list; null/duplicates normalize เป็น []/unique list |
 | description | string or null | No | empty/null กลายเป็น null |
 | workDate, dueDate | YYYY-MM-DD, null or empty string | No | valid Bangkok calendar date; null/empty กลายเป็น null |
-| id | non-empty string | No | คง ID นี้ไว้เมื่อสร้าง; ถ้ามี WorkItem ใช้ ID แล้วจะ skip โดยไม่แก้ record เดิม |
-| assigneeId | string, null or empty string | No | ถ้าเป็น string ต้องตรง owner; ค่าเขียนจริงมาจาก server |
+| id | non-empty string | No | public UUIDv4 ที่คงไว้ หรือ legacy nonnumeric source ID ที่มี exact live mapping; duplicate public identity จะ skip โดยไม่แก้ record เดิม |
+| assigneeId | string, null or empty string | No | ถ้าเป็น string ต้องตรง owner public UUIDv4; ค่าเขียนจริงมาจาก server |
 
 Unknown fields ไม่ได้ถูกนำไปบันทึก.
 
@@ -54,7 +54,7 @@ Unknown fields ไม่ได้ถูกนำไปบันทึก.
       }
     ]
 
-การส่ง stable id ช่วยให้ retry ข้ามแถวที่สร้างไปแล้ว. หากไม่ส่ง id การ retry แถวที่สร้างสำเร็จไปแล้วอาจสร้าง WorkItem ซ้ำด้วย Prisma-generated ID.
+Import เป็น exception สำหรับ identity ที่ผ่านการตรวจ: `id` ที่เป็น canonical public UUIDv4 จะถูกใช้ซ้ำเพื่อให้ retry คง public identity; legacy nonnumeric source ID ใช้ได้ต่อเมื่อ resolve ได้แบบ exact จาก live identity map ซึ่ง default อยู่ที่ `database/live-identity/mappings.json` หรือกำหนด path ผ่าน `OWNER_IDENTITY_MAP`. Numeric internal IDs และ legacy IDs ที่ไม่มี mapping ถูกปฏิเสธ. หากละ `id`, database จะสร้าง UUIDv4 ใหม่ ดังนั้น retry แถวนั้นอาจสร้าง record ซ้ำ.
 
 ## Response
 
@@ -66,7 +66,7 @@ Unknown fields ไม่ได้ถูกนำไปบันทึก.
 | rows | ผลลัพธ์ต่อแถว เรียงตาม request |
 | rows[].row | ลำดับแถวเริ่มจาก 1 |
 | rows[].outcome | created, skipped หรือ failed |
-| rows[].workItemId | WorkItem ID ที่สร้าง; มีเฉพาะ outcome created |
+| rows[].workItemId | WorkItem public UUIDv4; มีเมื่อมี record สร้างหรือ duplicate ที่มีอยู่แล้ว |
 | rows[].error | เหตุผลของ skipped/failed; optional |
 | rows[].error.code | VALIDATION_ERROR, NOT_FOUND, DUPLICATE หรือ IMPORT_FAILED |
 | rows[].error.message | สาเหตุแบบปลอดภัยสำหรับแสดงผู้ใช้ |
@@ -80,7 +80,7 @@ Example ที่มีหนึ่งแถวสร้างสำเร็จ
         {
           "row": 1, // ลำดับใน request
           "outcome": "created", // แถวนี้สร้างสำเร็จ
-          "workItemId": "work-item-id" // ID ที่สร้างใน PMS
+          "workItemId": "work-item-id" // public UUIDv4 ของ WorkItem ใน PMS
         },
         {
           "row": 2, // ลำดับใน request
@@ -120,7 +120,7 @@ row error field เป็น optional; validation ที่ parser รายง�
 
 owner gate → resolve owner → parse JSON/envelope → วนทุก row ตามลำดับ → shared parser และบังคับ owner → ตรวจ Project → ตรวจ duplicate ID ถ้าส่งมา → create WorkItem และ submittedAt → เก็บผลแถว → ส่ง imported และ rows.
 
-Import เป็น partial-success operation. ห้ามสมมติว่า failed หนึ่งแถว rollback แถวก่อนหน้า; ใช้ ID คงที่สำหรับ retry-safe rows.
+Import เป็น partial-success operation. ห้ามสมมติว่า failed หนึ่งแถว rollback แถวก่อนหน้า; ใช้ UUIDv4 หรือ source reference ที่มี durable mapping สำหรับ retry-safe rows. Public UUID ในผลลัพธ์เป็น local PMS identity; legacy source IDs ใช้เพียง lookup ผ่าน mapping และไม่ถูกส่งกลับแทน UUID.
 
 ## Verification
 

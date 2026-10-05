@@ -7,6 +7,13 @@ import { authorize, formatBangkokTimestamp } from '../../scripts/owner-gate.mjs'
 
 const require = createRequire(import.meta.url)
 const ts = require('typescript')
+const sharedIdentity = {}
+const OWNER_PUBLIC = '11111111-1111-4111-8111-111111111111'
+const ITEM_PUBLIC = '77777777-7777-4777-8777-777777777777'
+const PROJECT_PUBLIC = '33333333-3333-4333-8333-333333333333'
+const OTHER_PROJECT_PUBLIC = '44444444-4444-4444-8444-444444444444'
+const LOG_PUBLIC = '99999999-9999-4999-8999-999999999999'
+const ownerIdentity = () => ({ id: OWNER_PUBLIC, internalId: 7n, name: 'Owner', email: 'owner@example.com', avatar: null, role: 'member', status: 'active' })
 
 function loadTs(path, mocks, runtimeProcess = process) {
   const source = readFileSync(new URL(path, import.meta.url), 'utf8')
@@ -41,6 +48,11 @@ function loadTs(path, mocks, runtimeProcess = process) {
       errorMessage: (error, fallback) => typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string' ? error.message : fallback,
     },
     'node:crypto': require('node:crypto'),
+    'node:path': require('node:path'),
+    'node:fs': { readFileSync: () => '[]' },
+    get '@/lib/public-id'() { return sharedIdentity.publicId },
+    get '@/lib/legacy-identity'() { return sharedIdentity.legacy },
+    get '@/lib/opaque-cursor'() { return sharedIdentity.cursor },
     '@prisma/client': {
       Prisma: {
         sql: (strings, ...values) => ({ strings, values }),
@@ -56,6 +68,9 @@ function loadTs(path, mocks, runtimeProcess = process) {
   return mockedModule.exports
 }
 
+sharedIdentity.publicId = loadTs('../../lib/public-id.ts', {})
+sharedIdentity.legacy = loadTs('../../lib/legacy-identity.ts', {})
+sharedIdentity.cursor = loadTs('../../lib/opaque-cursor.ts', {})
 const sharedBangkokDate = loadTs('../../lib/bangkok-datetime.ts', {})
 const sharedDecimalHours = loadTs('../../lib/decimal-hours.ts', {})
 const sharedWorkLogInput = loadTs('../../lib/work-log-input.ts', {
@@ -86,12 +101,17 @@ test('owner resolver requires middleware identity and exactly one User', async (
   proof = 'server-only-proof'
   const unavailable = await getOwner().catch((error) => ownerErrorResponse(error))
   assert.equal(unavailable.status, 503)
-  users = [{ id: 'owner-1' }, { id: 'legacy-2' }]
+  users = [
+    { id: 7n, publicId: OWNER_PUBLIC, name: 'Owner', email: 'owner@example.com', avatar: null, role: 'member', status: 'active' },
+    { id: 8n, publicId: '22222222-2222-4222-8222-222222222222', name: 'Other', email: 'other@example.com', avatar: null, role: 'member', status: 'active' },
+  ]
   const ambiguous = await getOwner().catch((error) => ownerErrorResponse(error))
   assert.equal(ambiguous.status, 503)
   assert.equal(ambiguous.body.error.code, 'DEPENDENCY_UNAVAILABLE')
-  users = [{ id: 'owner-1' }]
-  assert.equal((await getOwner()).id, 'owner-1')
+  users = [{ id: 7n, publicId: OWNER_PUBLIC, name: 'Owner', email: 'owner@example.com', avatar: null, role: 'member', status: 'active' }]
+  const owner = await getOwner()
+  assert.equal(owner.id, OWNER_PUBLIC)
+  assert.equal(owner.internalId, 7n)
 })
 
 test('explicit owner ID selects one audited User while preserving legacy Users', async () => {
@@ -100,13 +120,18 @@ test('explicit owner ID selects one audited User while preserving legacy Users',
     'next/headers': { headers: async () => ({ get: (name) => name === 'x-pms-owner-authenticated' ? '1' : 'server-only-proof' }) },
     'next/server': { NextResponse: { json: () => ({}) } },
     'node:crypto': require('node:crypto'),
-    '@/lib/db': { prisma: { user: { findMany: async ({ where }) => {
-      queriedWhere = where
-      return [{ id: 'owner-1' }]
-    } } } },
-  }, { env: { PMS_INTERNAL_OWNER_PROOF: 'server-only-proof', OWNER_USER_ID: 'owner-1' } })
-  assert.equal((await getOwner()).id, 'owner-1')
-  assert.equal(queriedWhere.id, 'owner-1')
+    '@/lib/db': { prisma: { user: {
+      findUnique: async ({ where }) => {
+        queriedWhere = where
+        return { id: 7n, publicId: OWNER_PUBLIC, name: 'Owner', email: 'owner@example.com', avatar: null, role: 'member', status: 'active' }
+      },
+      findMany: async () => [],
+    } } },
+  }, { env: { PMS_INTERNAL_OWNER_PROOF: 'server-only-proof', OWNER_USER_ID: OWNER_PUBLIC } })
+  const owner = await getOwner()
+  assert.equal(owner.id, OWNER_PUBLIC)
+  assert.equal(owner.internalId, 7n)
+  assert.equal(queriedWhere.publicId, OWNER_PUBLIC)
 })
 
 test('owner access is not granted or denied by legacy User roles', async () => {
@@ -118,12 +143,12 @@ test('owner access is not granted or denied by legacy User roles', async () => {
     'node:crypto': require('node:crypto'),
     '@/lib/db': { prisma: { user: { findMany: async (query) => {
       queries.push(query)
-      return [{ id: 'owner-1', role }]
+      return [{ id: 7n, publicId: OWNER_PUBLIC, name: 'Owner', email: 'owner@example.com', avatar: null, role, status: 'active' }]
     } } } },
   }, { env: { PMS_INTERNAL_OWNER_PROOF: 'server-only-proof' } })
 
   for (role of ['member', 'admin', 'Developer', 'infra', 'SA']) {
-    assert.equal((await getOwner()).id, 'owner-1')
+    assert.equal((await getOwner()).id, OWNER_PUBLIC)
   }
   assert.ok(queries.every((query) => !query.where?.role))
 })
@@ -212,7 +237,12 @@ test('Daily Work dates parse, persist, query, and display with Bangkok wall-cloc
 
 test('Daily Work links only owner WorkItems and serializes calendar dates with Bangkok timestamps', async () => {
   const queries = []
-  let selectedWorkItem = { id: 'owned-item', projectId: 'project-1' }
+  let selectedWorkItem = {
+    id: 9n,
+    publicId: ITEM_PUBLIC,
+    projectId: 3n,
+    project: { publicId: PROJECT_PUBLIC },
+  }
   const { resolveOwnedWorkItem, serializeWorkLog } = loadTs('../../lib/work-logs.ts', {
     '@/lib/db': { prisma: { workItem: { findFirst: async (query) => {
       queries.push(query)
@@ -221,25 +251,39 @@ test('Daily Work links only owner WorkItems and serializes calendar dates with B
     '@/lib/work-items': { serializeWorkItemStatus: (status) => status },
     '@/lib/bangkok-datetime': loadTs('../../lib/bangkok-datetime.ts', {}),
   })
-  assert.deepEqual(JSON.parse(JSON.stringify(await resolveOwnedWorkItem('owned-item', 'owner-1'))), { id: 'owned-item', projectId: 'project-1' })
+  const resolved = await resolveOwnedWorkItem(ITEM_PUBLIC, 7n)
+  assert.equal(resolved.publicId, ITEM_PUBLIC)
+  assert.equal(resolved.project.publicId, PROJECT_PUBLIC)
   selectedWorkItem = null
-  assert.equal(await resolveOwnedWorkItem('foreign-item', 'owner-1'), null)
-  assert.equal(await resolveOwnedWorkItem({}, 'owner-1'), null)
-  assert.deepEqual(JSON.parse(JSON.stringify(queries[0].where)), { id: 'owned-item', assigneeId: 'owner-1' })
-  assert.deepEqual(JSON.parse(JSON.stringify(queries[1].where)), { id: 'foreign-item', assigneeId: 'owner-1' })
+  assert.equal(await resolveOwnedWorkItem(ITEM_PUBLIC, 7n), null)
+  assert.equal(await resolveOwnedWorkItem({}, 7n), null)
+  assert.equal(await resolveOwnedWorkItem('owned-item', 7n), null)
+  assert.equal(queries[0].where.publicId, ITEM_PUBLIC)
+  assert.equal(queries[0].where.assigneeId, 7n)
   const serialized = serializeWorkLog({
+    publicId: '99999999-9999-4999-8999-999999999999',
     date: new Date('2026-09-30T00:00:00.000Z'),
     hours: { toString: () => '1.25' },
     createdAt: new Date('2026-09-30T01:00:00.000Z'),
     updatedAt: new Date('2026-09-30T02:00:00.000Z'),
-    workItem: { id: 'owned-item', title: 'Owned', kind: 'Task', status: 'todo', assigneeId: 'owner-1' },
-  }, 'owner-1')
+    user: { publicId: OWNER_PUBLIC, name: 'Owner', email: 'owner@example.com', avatar: null },
+    project: { publicId: PROJECT_PUBLIC, name: 'Project', colorProject: '#000000' },
+    workItem: { publicId: ITEM_PUBLIC, title: 'Owned', kind: 'Task', status: 'todo', assigneeId: 7n },
+  }, 7n)
   assert.equal(serialized.date, '2026-09-30')
   assert.equal(serialized.hours, '1.25')
   assert.equal(serialized.createdAt, '2026-09-30T01:00:00.000+07:00')
   assert.equal(serialized.updatedAt, '2026-09-30T02:00:00.000+07:00')
+  assert.equal(serialized.workItem.id, ITEM_PUBLIC)
   assert.equal(serialized.workItem.assigneeId, undefined)
-  assert.equal(serializeWorkLog({ date: new Date('2026-09-30T00:00:00.000Z'), hours: { toString: () => '1' }, workItem: { id: 'foreign-item', title: 'Foreign', kind: 'Task', status: 'todo', assigneeId: 'legacy-2' } }, 'owner-1').workItem, null)
+  assert.equal(serializeWorkLog({
+    publicId: '99999999-9999-4999-8999-999999999999',
+    date: new Date('2026-09-30T00:00:00.000Z'),
+    hours: { toString: () => '1' },
+    user: { publicId: OWNER_PUBLIC, name: 'Owner', email: 'owner@example.com', avatar: null },
+    project: null,
+    workItem: { publicId: ITEM_PUBLIC, title: 'Foreign', kind: 'Task', status: 'todo', assigneeId: 8n },
+  }, 7n).workItem, null)
 })
 
 test('Daily Work date filters use exclusive Bangkok day boundaries regardless of machine timezone', async () => {
@@ -253,13 +297,13 @@ test('Daily Work date filters use exclusive Bangkok day boundaries regardless of
       '@/lib/work-items': { WORK_ITEM_KINDS: ['Incident', 'Issue', 'Task'], WORK_ITEM_ROLES: ['Developer', 'infra', 'SA'] },
       '@/lib/work-item-lock': { lockOwnedWorkItemForUpdate: async () => {} },
       '@prisma/client': { Prisma: { TransactionIsolationLevel: { Serializable: 'Serializable' } } },
-      '@/lib/owner': { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: () => null },
+      '@/lib/owner': { getOwner: async () => ownerIdentity(), ownerErrorResponse: () => null },
       '@/lib/work-logs': { serializeWorkLog: (value) => value, workLogInclude: {} },
       '@/lib/bangkok-datetime': loadTs('../../lib/bangkok-datetime.ts', {}),
     })
     const result = await GET(new Request('http://localhost/api/work-logs?date=2026-09-30'))
     assert.equal(result.status, 200)
-    assert.equal(query.where.userId, 'owner-1')
+    assert.equal(query.where.userId, 7n)
     assert.equal(query.where.date.gte.toISOString(), '2026-09-30T00:00:00.000Z')
     assert.equal(query.where.date.lt.toISOString(), '2026-10-01T00:00:00.000Z')
     const invalid = await GET(new Request('http://localhost/api/work-logs?date=2026-02-30'))
@@ -313,9 +357,9 @@ test('Daily Work create rejects a different user and persists the server owner',
         })
       },
     } },
-    '@/lib/owner': { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: () => null },
+    '@/lib/owner': { getOwner: async () => ownerIdentity(), ownerErrorResponse: () => null },
     '@/lib/work-items': { WORK_ITEM_KINDS: ['Incident', 'Issue', 'Task'], WORK_ITEM_ROLES: ['Developer', 'infra', 'SA'] },
-    '@/lib/work-logs': { resolveOwnedWorkItem: async (_workItemId, ownerId, database) => { resolvedOwnerIds.push(ownerId); assert.ok(database); return { id: 'item-1', projectId: 'project-1' } }, serializeWorkLog: (value) => value, workLogInclude: {} },
+    '@/lib/work-logs': { resolveOwnedWorkItem: async (_workItemId, ownerId, database) => { resolvedOwnerIds.push(ownerId); assert.ok(database); return { id: 9n, projectId: 3n, project: { publicId: PROJECT_PUBLIC } } }, serializeWorkLog: (value) => value, workLogInclude: {} },
     '@/lib/work-item-lock': { lockOwnedWorkItemForUpdate: async (_transaction, workItemId, ownerId) => { lockedWorkItems.push({ workItemId, ownerId }) } },
     '@prisma/client': { Prisma: { TransactionIsolationLevel: { Serializable: 'Serializable' } } },
     '@/lib/bangkok-datetime': {
@@ -324,19 +368,19 @@ test('Daily Work create rejects a different user and persists the server owner',
     },
   })
   const request = (body) => ({ json: async () => body })
-  const valid = { hours: '2', projectId: 'project-1', workItemId: 'item-1', date: '2026-09-28' }
+  const valid = { hours: '2', projectId: PROJECT_PUBLIC, workItemId: ITEM_PUBLIC, date: '2026-09-28' }
   assert.equal((await POST(request({ ...valid, userId: 'legacy-2' }))).status, 400)
   assert.equal(created.length, 0)
   assert.equal((await POST(request(valid))).status, 201)
-  assert.equal(created[0].userId, 'owner-1')
-  assert.deepEqual(resolvedOwnerIds, ['owner-1'])
-  assert.deepEqual(lockedWorkItems, [{ workItemId: 'item-1', ownerId: 'owner-1' }])
+  assert.equal(created[0].userId, 7n)
+  assert.deepEqual(resolvedOwnerIds, [7n])
+  assert.deepEqual(lockedWorkItems, [{ workItemId: 9n, ownerId: 7n }])
   assert.equal(transactionOptions[0].isolationLevel, 'Serializable')
   assert.equal(created[0].date.toISOString(), '2026-09-28T00:00:00.000Z')
   assert.equal((await POST(request({ ...valid, date: '2026-09-28T10:30:00.000+07:00' }))).status, 201)
   assert.equal(created[1].date.toISOString(), '2026-09-28T00:00:00.000Z')
-  assert.equal(resolvedOwnerIds[1], 'owner-1')
-  assert.equal(lockedWorkItems[1].workItemId, 'item-1')
+  assert.equal(resolvedOwnerIds[1], 7n)
+  assert.equal(lockedWorkItems[1].workItemId, 9n)
 })
 
 test('Daily Work update rejects a foreign owner ID and invalid date or hours before writing', async () => {
@@ -346,13 +390,13 @@ test('Daily Work update rejects a foreign owner ID and invalid date or hours bef
   const lockedWorkItems = []
   const transactionOptions = []
   const timeEntry = {
-    findFirst: async (query) => { lookups.push(query); return { projectId: 'project-1', workItemId: 'item-1' } },
+    findFirst: async (query) => { lookups.push(query); return { id: 4n, projectId: 3n, workItemId: 9n } },
     update: async (query) => { updates.push(query.data); return { ...query.data, workItem: null } },
   }
   const database = {
     async $transaction(callback, options) {
       transactionOptions.push(options)
-      return callback({ $queryRaw: async () => [], timeEntry, workItem: { findFirst: async () => ({ id: 'item-1', projectId: 'project-1' }) } })
+      return callback({ $queryRaw: async () => [], timeEntry, workItem: { findFirst: async () => ({ id: 9n, publicId: ITEM_PUBLIC, projectId: 3n, project: { publicId: PROJECT_PUBLIC } }) } })
     },
   }
   const response = { json: (body, options) => ({ status: options.status, body }) }
@@ -360,11 +404,11 @@ test('Daily Work update rejects a foreign owner ID and invalid date or hours bef
   const { PATCH } = loadTs('../../app/api/work-logs/[id]/route.ts', {
     'next/server': { NextResponse: response },
     '@/lib/db': { prisma: database },
-    '@/lib/owner': { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: () => null },
+    '@/lib/owner': { getOwner: async () => ownerIdentity(), ownerErrorResponse: () => null },
     '@/lib/work-logs': { resolveOwnedWorkItem: async (_workItemId, ownerId, databaseClient) => {
       resolvedOwnerIds.push(ownerId)
       assert.ok(databaseClient)
-      return { id: 'item-1', projectId: 'project-1' }
+      return { id: 9n, projectId: 3n, project: { publicId: PROJECT_PUBLIC } }
     }, serializeWorkLog: (value) => value, workLogInclude: {} },
     '@/lib/work-item-lock': { lockOwnedWorkItemForUpdate: async (_transaction, workItemId, ownerId) => { lockedWorkItems.push({ workItemId, ownerId }) } },
     '@/lib/bangkok-datetime': {
@@ -373,7 +417,7 @@ test('Daily Work update rejects a foreign owner ID and invalid date or hours bef
     },
   })
   const request = (body) => ({ json: async () => body })
-  const context = { params: Promise.resolve({ id: 'log-1' }) }
+  const context = { params: Promise.resolve({ id: LOG_PUBLIC }) }
 
   const foreignOwner = await PATCH(request({ userId: 'legacy-2' }), context)
   assert.equal(foreignOwner.status, 400)
@@ -392,23 +436,24 @@ test('Daily Work update rejects a foreign owner ID and invalid date or hours bef
   }
   assert.equal(updates.length, 0)
 
-  const inconsistentProject = await PATCH(request({ projectId: 'project-2' }), context)
+  const inconsistentProject = await PATCH(request({ projectId: OTHER_PROJECT_PUBLIC }), context)
   assert.equal(inconsistentProject.status, 400)
   assert.equal(inconsistentProject.body.error.code, 'RELATION_MISMATCH')
   assert.equal(inconsistentProject.body.error.field, 'projectId')
   assert.equal(updates.length, 0)
 
-  const valid = await PATCH(request({ hours: '2.5', date: '2026-09-28', workItemId: 'item-1' }), context)
+  const valid = await PATCH(request({ hours: '2.5', date: '2026-09-28', workItemId: ITEM_PUBLIC }), context)
   assert.equal(valid.status, 200)
   assert.equal(updates[0].hours, '2.5')
   assert.equal(updates[0].date.toISOString(), '2026-09-28T00:00:00.000Z')
-  assert.equal(lookups.at(-1).where.userId, 'owner-1')
+  assert.equal(lookups.at(-1).where.userId, 7n)
+  assert.equal(lookups.at(-1).where.publicId, LOG_PUBLIC)
   assert.equal(Object.hasOwn(updates[0], 'userId'), false)
-  assert.deepEqual(resolvedOwnerIds, ['owner-1', 'owner-1'])
+  assert.deepEqual(resolvedOwnerIds, [7n])
   assert.equal(transactionOptions.at(-1).isolationLevel, 'Serializable')
   assert.deepEqual(lockedWorkItems, [
-    { workItemId: 'item-1', ownerId: 'owner-1' },
-    { workItemId: 'item-1', ownerId: 'owner-1' },
+    { workItemId: 9n, ownerId: 7n },
+    { workItemId: 9n, ownerId: 7n },
   ])
 })
 
@@ -418,21 +463,22 @@ test('WorkItem create passes server owner into validation and persistence', asyn
   const { POST } = loadTs('../../app/api/work-items/route.ts', {
     'next/server': { NextResponse: response },
     '@/lib/db': { prisma: {
-      project: { findUnique: async () => ({ id: 'project-1' }) },
-      workItem: { create: async (query) => { writes.push(query.data); return { ...query.data, id: 'item-1' } } },
+      project: { findUnique: async () => ({ id: 3n }) },
+      workItem: { create: async (query) => { writes.push(query.data); return { ...query.data, publicId: ITEM_PUBLIC } } },
     } },
-    '@/lib/owner': { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: () => null },
+    '@/lib/owner': { getOwner: async () => ownerIdentity(), ownerErrorResponse: () => null },
     '@/lib/work-items': { WORK_ITEM_KINDS: [], WORK_ITEM_STATUSES: [], serializeWorkItemStatus: (status) => status, shouldStampSubmittedAt: () => false },
     '@/lib/work-item-input': { parseWorkItemInput: (body, ownerId) => body.assigneeId === 'legacy-2'
       ? { error: 'assigneeId must match the authenticated owner' }
-      : { data: { ...(body.id ? { id: body.id } : {}), projectId: 'project-1', assigneeId: ownerId, status: 'todo' } } },
+      : { data: { ...(body.id ? { id: body.id } : {}), projectId: PROJECT_PUBLIC, assigneeId: ownerId, status: 'todo' } } },
     '@prisma/client': { Prisma: { sql: () => {} } },
   })
   const request = (body) => ({ json: async () => body })
   assert.equal((await POST(request({ assigneeId: 'legacy-2' }))).status, 400)
   assert.equal(writes.length, 0)
-  assert.equal((await POST(request({ id: 'client-item-id' }))).status, 201)
-  assert.equal(writes[0].assigneeId, 'owner-1')
+  assert.equal((await POST(request({ id: 'client-item-id' }))).status, 400)
+  assert.equal((await POST(request({ title: 'Task' }))).status, 201)
+  assert.equal(writes[0].assigneeId, 7n)
   assert.equal(Object.hasOwn(writes[0], 'id'), false)
 })
 
@@ -451,13 +497,13 @@ test('WorkItem update rejects a foreign assignee ID before reading or writing', 
   const { PATCH } = loadTs('../../app/api/work-items/[id]/route.ts', {
     'next/server': { NextResponse: { json: (body, options) => ({ status: options.status, body }) } },
     '@/lib/db': { prisma: database },
-    '@/lib/owner': { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: () => null },
+    '@/lib/owner': { getOwner: async () => ownerIdentity(), ownerErrorResponse: () => null },
     '@/lib/work-items': {},
   })
 
   const result = await PATCH(
     { json: async () => ({ assigneeId: 'legacy-2' }) },
-    { params: Promise.resolve({ id: 'item-1' }) },
+    { params: Promise.resolve({ id: ITEM_PUBLIC }) },
   )
 
   assert.equal(result.status, 400)
@@ -467,23 +513,22 @@ test('WorkItem update rejects a foreign assignee ID before reading or writing', 
 
   const foreignRecord = await PATCH(
     { json: async () => ({ title: 'Attempted edit' }) },
-    { params: Promise.resolve({ id: 'item-1' }) },
+    { params: Promise.resolve({ id: ITEM_PUBLIC }) },
   )
   assert.equal(foreignRecord.status, 404)
-  assert.equal(reads[0].where.id, 'item-1')
+  assert.equal(reads[0].where.publicId, ITEM_PUBLIC)
   assert.equal(writes.length, 0)
 })
 
 test('WorkItem import accepts supported row shapes and processes rows independently', async () => {
   const imports = []
-  let availableProjects = ['project-1']
   const resolvedOwners = []
   const { POST } = loadTs('../../app/api/work-items/import/route.ts', {
     'next/server': { NextResponse: { json: (body, options) => ({ status: options.status, body }) } },
     '@/lib/db': { prisma: {
-      project: { findUnique: async ({ where }) => availableProjects.includes(where.id) ? { id: where.id } : null },
+      project: { findUnique: async ({ where }) => where.publicId === PROJECT_PUBLIC ? { id: 3n } : null },
       workItem: { findUnique: async () => null,
-        create: async ({ data }) => { imports.push(data); return { id: data.id ?? `item-${imports.length}` } } },
+        create: async ({ data }) => { imports.push(data); return { publicId: data.publicId ?? ITEM_PUBLIC } } },
     } },
     '@/lib/work-items': { shouldStampSubmittedAt: (status) => status === 'completed' },
     '@/lib/work-item-input': { parseWorkItemInput: (value, ownerId) => {
@@ -492,32 +537,33 @@ test('WorkItem import accepts supported row shapes and processes rows independen
       if (value.assigneeId && value.assigneeId !== ownerId) return { error: 'assigneeId must match the authenticated owner' }
       return { data: { id: value.id, title: value.title, projectId: value.projectId, status: value.status, assigneeId: ownerId } }
     } },
-    '@/lib/owner': { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: () => null },
+    '@/lib/owner': { getOwner: async () => ownerIdentity(), ownerErrorResponse: () => null },
   })
   const request = (body) => ({ json: async () => body })
 
   assert.equal((await POST(request({ workItems: {} }))).status, 400)
-  const invalidRow = await POST(request([{ title: 'First', projectId: 'project-1' }, { invalid: true }]))
+  const invalidRow = await POST(request([{ title: 'First', projectId: PROJECT_PUBLIC }, { invalid: true }]))
   assert.equal(invalidRow.status, 200)
   assert.equal(invalidRow.body.imported, 1)
   assert.equal(invalidRow.body.rows[1].outcome, 'failed')
-  const foreignAssignee = await POST(request([{ title: 'Spoofed', projectId: 'project-1', assigneeId: 'legacy-2' }]))
+  const foreignAssignee = await POST(request([{ title: 'Spoofed', projectId: PROJECT_PUBLIC, assigneeId: 'legacy-2' }]))
   assert.equal(foreignAssignee.status, 200)
   assert.equal(foreignAssignee.body.rows[0].outcome, 'failed')
-  assert.equal(resolvedOwners.at(-1), 'owner-1')
-  const missingProject = await POST(request([{ title: 'Missing', projectId: 'project-2' }]))
+  assert.equal(resolvedOwners.at(-1), OWNER_PUBLIC)
+  const missingProject = await POST(request([{ title: 'Missing', projectId: OTHER_PROJECT_PUBLIC }]))
   assert.equal(missingProject.status, 200)
   assert.equal(missingProject.body.rows[0].error.code, 'NOT_FOUND')
 
   const imported = await POST(request({ workItems: [
-    { id: 'item-1', title: 'Completed', projectId: 'project-1', status: 'completed' },
+    { id: ITEM_PUBLIC, title: 'Completed', projectId: PROJECT_PUBLIC, status: 'completed' },
   ] }))
   assert.equal(imported.status, 200)
   assert.equal(imported.body.rows[0].outcome, 'created')
-  assert.equal(imports.at(-1).assigneeId, 'owner-1')
+  assert.equal(imports.at(-1).assigneeId, 7n)
+  assert.equal(imports.at(-1).publicId, ITEM_PUBLIC)
   assert.equal(Number.isNaN(imports.at(-1).submittedAt.getTime()), false)
   const todo = await POST(request([
-    { title: 'Todo', projectId: 'project-1', status: 'todo' },
+    { title: 'Todo', projectId: PROJECT_PUBLIC, status: 'todo' },
   ]))
   assert.equal(todo.status, 200)
   assert.equal(imports.at(-1).submittedAt, null)
@@ -546,7 +592,7 @@ test('WorkItem list keeps owner and period filters after refactor', async () => 
     '@/lib/db': { prisma: {
       workItem: { findMany: async ({ where }) => { queriedWhere = where; return [] }, count: async () => 0 },
     } },
-    '@/lib/owner': { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: () => null },
+    '@/lib/owner': { getOwner: async () => ownerIdentity(), ownerErrorResponse: () => null },
     '@/lib/work-items': {
       WORK_ITEM_KINDS: ['Task'], WORK_ITEM_STATUSES: ['todo'], isWorkItemKind: (value) => value === 'Task',
       isWorkItemPriority: () => false, parseWorkItemStatus: (value) => value === 'todo' ? 'todo' : null,
@@ -560,7 +606,7 @@ test('WorkItem list keeps owner and period filters after refactor', async () => 
   assert.equal(invalid.body.error.code, 'VALIDATION_ERROR')
   const valid = await GET(new Request('http://localhost/api/work-items?year=2026&month=9&kind=Task'))
   assert.equal(valid.status, 200)
-  assert.equal(queriedWhere.assigneeId, 'owner-1')
+  assert.equal(queriedWhere.assigneeId, 7n)
   assert.equal(queriedWhere.kind, 'Task')
   assert.equal(queriedWhere.AND[0].OR.length, 3)
 })
@@ -573,7 +619,7 @@ test('WorkItem year options only include years from the authenticated owner', as
       $queryRaw: async (query) => { yearQuery = query; return [{ year: 2026 }] },
       workItem: { findMany: async () => [], count: async () => 0 },
     } },
-    '@/lib/owner': { getOwner: async () => ({ id: 'owner-1' }), ownerErrorResponse: () => null },
+    '@/lib/owner': { getOwner: async () => ownerIdentity(), ownerErrorResponse: () => null },
     '@/lib/work-items': {
       WORK_ITEM_KINDS: [], WORK_ITEM_STATUSES: [], isWorkItemKind: () => true,
       isWorkItemPriority: () => true, parseWorkItemStatus: (value) => value,
@@ -585,8 +631,8 @@ test('WorkItem year options only include years from the authenticated owner', as
   const result = await GET(new Request('http://localhost/api/work-items?includeYears=true'))
   assert.equal(result.status, 200)
   assert.deepEqual(result.body.years, ['2026'])
-  assert.ok(yearQuery.strings.join('?').includes('wi."assigneeId" = ?'))
-  assert.deepEqual(yearQuery.values, ['owner-1'])
+  assert.ok(yearQuery.strings.join('?').includes('wi."assignee_id" = ?'))
+  assert.deepEqual(yearQuery.values, [7n])
 })
 
 test('owner gate rejects forged internal proof headers without valid Basic credentials', () => {

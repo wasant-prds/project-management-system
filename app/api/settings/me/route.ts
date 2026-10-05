@@ -32,7 +32,7 @@ function handleUnexpectedError(error: unknown, action: string) {
 export async function GET() {
   try {
     const owner = await getOwner()
-    const settings = await getOwnerSettings(owner.id)
+    const settings = await getOwnerSettings(owner.internalId)
     if (!settings) return apiError(404, 'NOT_FOUND', 'ไม่พบข้อมูล owner settings')
     return NextResponse.json(settings, { status: 200, headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
@@ -54,7 +54,7 @@ export async function PATCH(request: Request) {
     if (parsed.error) {
       return apiError(400, 'VALIDATION_ERROR', parsed.error.message, parsed.error.field)
     }
-    const settings = await updateOwnerSettings(owner.id, parsed.data ?? {})
+    const settings = await updateOwnerSettings(owner.internalId, parsed.data ?? {})
     return NextResponse.json(settings, { status: 200, headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     return handleUnexpectedError(error, 'updating')

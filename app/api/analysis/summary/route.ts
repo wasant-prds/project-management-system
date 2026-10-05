@@ -13,7 +13,7 @@ function apiError(status: number, code: string, message: string, field?: string)
 export async function GET(request: Request) {
   try {
     const owner = await getOwner()
-    const summary = await getAnalysisSummary(owner.id, new URL(request.url).searchParams)
+    const summary = await getAnalysisSummary(owner.internalId, new URL(request.url).searchParams)
     return NextResponse.json(summary, { status: 200, headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     const ownerError = ownerErrorResponse(error)

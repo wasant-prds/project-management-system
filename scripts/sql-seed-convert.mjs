@@ -69,7 +69,7 @@ const COPY_SIMPLE = Object.freeze({
   '\\': '\\',
 });
 
-const TABLE_COLUMNS = Object.freeze({
+export const TABLE_COLUMNS = Object.freeze({
   companies: [
     ['id', 'bigint'], ['public_id', 'uuid'], ['code', 'text'], ['display_name', 'text'], ['location', 'text'],
     ['name', 'text'], ['industry', 'text'], ['email', 'text'], ['phone', 'text'], ['address', 'text'],
@@ -96,8 +96,18 @@ const TABLE_COLUMNS = Object.freeze({
     ['type_labels', 'text[]'], ['work_date', 'date'], ['due_date', 'date'], ['submitted_at', 'timestamp'],
     ['created_at', 'timestamp'], ['updated_at', 'timestamp'], ['project_id', 'bigint'], ['assignee_id', 'bigint'],
   ],
-  external_project_mappings: [],
-  external_work_item_references: [],
+  external_project_mappings: [
+    ['id', 'bigint'], ['public_id', 'uuid'], ['provider', 'text'], ['instance_url', 'text'],
+    ['external_project_id', 'text'], ['project_id', 'bigint'], ['approved_label_map', 'jsonb'],
+    ['first_sync_approved_at', 'timestamp'], ['created_at', 'timestamp'], ['updated_at', 'timestamp'],
+  ],
+  external_work_item_references: [
+    ['id', 'bigint'], ['public_id', 'uuid'], ['provider', 'text'], ['instance_url', 'text'],
+    ['external_project_id', 'text'], ['external_issue_id', 'text'], ['external_issue_number', 'text'],
+    ['external_url', 'text'], ['project_id', 'bigint'], ['remote_created_at', 'timestamp'],
+    ['remote_updated_at', 'timestamp'], ['last_synced_at', 'timestamp'], ['work_item_id', 'bigint'],
+    ['created_at', 'timestamp'], ['updated_at', 'timestamp'],
+  ],
   project_milestones: [
     ['id', 'bigint'], ['public_id', 'uuid'], ['name', 'text'], ['description', 'text'], ['due_date', 'timestamp'],
     ['status', 'text'], ['created_at', 'timestamp'], ['updated_at', 'timestamp'], ['project_id', 'bigint'],
@@ -601,7 +611,7 @@ function requireDecimal(value, label) {
   return decimal;
 }
 
-export function transformSourceRows({ tables, legacyMapper, companyPolicy }) {
+export function transformSourceRows({ tables, legacyMapper, companyPolicy, live = false }) {
   if (!companyPolicy) throw new Error('Company policy is required for conversion');
   const { getNumericId, getPublicId } = legacyMapper;
   const histograms = {
@@ -642,6 +652,7 @@ export function transformSourceRows({ tables, legacyMapper, companyPolicy }) {
     created_at: toSqlTimestamp(row.createdAt, 'Company.createdAt'),
     updated_at: toSqlTimestamp(row.updatedAt, 'Company.updatedAt'),
   }));
+  const companyIdByLegacyId = new Map((tables.Company ?? []).map((row) => [row.id, getNumericId('Company', row.id)]));
   let dhasCompanyId = null;
   if (companyPolicy.dhasCompany) {
     const dhas = companyPolicy.dhasCompany;
@@ -669,21 +680,25 @@ export function transformSourceRows({ tables, legacyMapper, companyPolicy }) {
 
   const users = (tables.User ?? []).map((row) => {
     const defaults = companyPolicy.userDefaults ?? { theme: 'light', locale: 'th', status: 'Active', role: 'member' };
-    provenance.syntheticUserTheme += 1;
-    provenance.syntheticUserLocale += 1;
+    if (!live || row.theme == null || row.theme === '') provenance.syntheticUserTheme += 1;
+    if (!live || row.locale == null || row.locale === '') provenance.syntheticUserLocale += 1;
     let status = row.status;
     if (status == null || status === '') {
+      if (live) throw new Error('Live User row is missing status');
       status = defaults.status;
       provenance.syntheticUserStatus += 1;
     }
     let role = row.role;
     if (role == null || role === '') {
+      if (live) throw new Error('Live User row is missing role');
       role = defaults.role;
       provenance.syntheticUserRole += 1;
     }
     if (row.password == null || row.password === '') throw new Error('User row is missing password_hash');
-    enumValue(defaults.theme, USER_THEMES, 'users.theme');
-    enumValue(defaults.locale, USER_LOCALES, 'users.locale');
+    const theme = live ? requireText(row.theme, 'User.theme') : defaults.theme;
+    const locale = live ? requireText(row.locale, 'User.locale') : defaults.locale;
+    enumValue(theme, USER_THEMES, 'users.theme');
+    enumValue(locale, USER_LOCALES, 'users.locale');
     return {
       id: getNumericId('User', row.id),
       public_id: getPublicId('User', row.id),
@@ -693,8 +708,8 @@ export function transformSourceRows({ tables, legacyMapper, companyPolicy }) {
       role: requireText(role, 'User.role'),
       avatar_url: row.avatar ?? null,
       phone: row.phone ?? null,
-      theme: defaults.theme,
-      locale: defaults.locale,
+      theme,
+      locale,
       status: requireText(status, 'User.status'),
       joined_at: toSqlTimestamp(row.joinDate, 'User.joinDate'),
       created_at: toSqlTimestamp(row.createdAt, 'User.createdAt'),
@@ -703,9 +718,17 @@ export function transformSourceRows({ tables, legacyMapper, companyPolicy }) {
   });
 
   const projects = (tables.Project ?? []).map((row) => {
-    const code = companyCodeFor(row.id, companyPolicy);
-    const companyId = code === companyPolicy.dhasCompany?.code ? dhasCompanyId : companyIdByCode.get(code);
-    if (!companyId) throw new Error(`Project ${row.id} mapped to unknown company code: ${code}`);
+    let companyId;
+    if (live) {
+      const sourceCompanyId = row.companyId
+        ?? companyPolicy.projectCompanyMap?.[row.id]
+        ?? companyPolicy.defaultProjectCompany;
+      companyId = requireMapped('Company', sourceCompanyId, companyIdByLegacyId.get(sourceCompanyId), `Project ${row.id} company`);
+    } else {
+      const code = companyCodeFor(row.id, companyPolicy);
+      companyId = code === companyPolicy.dhasCompany?.code ? dhasCompanyId : companyIdByCode.get(code);
+      if (!companyId) throw new Error(`Project ${row.id} mapped to unknown company code: ${code}`);
+    }
     return {
       id: getNumericId('Project', row.id),
       public_id: getPublicId('Project', row.id),
@@ -756,7 +779,7 @@ export function transformSourceRows({ tables, legacyMapper, companyPolicy }) {
       priority: enumValue(row.priority, WORK_PRIORITIES, 'work_items.priority'),
       functional_role: enumValue(row.role, WORK_ROLES, 'work_items.functional_role', true),
       status: enumValue(row.status, WORK_STATUSES, 'work_items.status'),
-      type_labels: parsePgArray(row.labels_types),
+      type_labels: Array.isArray(row.labels_types) ? row.labels_types : parsePgArray(row.labels_types),
       work_date: calendarValue(row.workDate, 'work_items.workDate', histograms.workDate, true),
       due_date: calendarValue(row.dueDate, 'work_items.dueDate', histograms.dueDate, true),
       submitted_at: row.submittedAt ? toSqlTimestamp(row.submittedAt, 'work_items.submittedAt') : null,
@@ -832,14 +855,49 @@ export function transformSourceRows({ tables, legacyMapper, companyPolicy }) {
     };
   });
 
+  const externalProjectMappings = live ? (tables.GitLabProjectMapping ?? []).map((row) => ({
+    id: getNumericId('GitLabProjectMapping', row.id),
+    public_id: getPublicId('GitLabProjectMapping', row.id),
+    provider: 'gitlab',
+    instance_url: requireText(row.canonicalGitLabInstanceUrl, 'GitLabProjectMapping.canonicalGitLabInstanceUrl'),
+    external_project_id: requireText(row.gitLabProjectId, 'GitLabProjectMapping.gitLabProjectId'),
+    project_id: requireMapped('Project', row.projectId, getNumericId('Project', row.projectId), `GitLabProjectMapping ${row.id}`),
+    approved_label_map: row.approvedLabelMap ?? {},
+    first_sync_approved_at: row.firstSyncApprovedAt ? toSqlTimestamp(row.firstSyncApprovedAt, 'GitLabProjectMapping.firstSyncApprovedAt') : null,
+    created_at: toSqlTimestamp(row.createdAt, 'GitLabProjectMapping.createdAt'),
+    updated_at: toSqlTimestamp(row.updatedAt, 'GitLabProjectMapping.updatedAt'),
+  })) : [];
+
+  const externalWorkItemReferences = live ? (tables.ExternalWorkItemReference ?? []).map((row) => {
+    const syncedAt = toSqlTimestamp(row.lastSyncedAt, 'ExternalWorkItemReference.lastSyncedAt');
+    return {
+      id: getNumericId('ExternalWorkItemReference', row.id),
+      public_id: getPublicId('ExternalWorkItemReference', row.id),
+      provider: row.provider ?? 'gitlab',
+      instance_url: requireText(row.canonicalGitLabInstanceUrl, 'ExternalWorkItemReference.canonicalGitLabInstanceUrl'),
+      external_project_id: requireText(row.gitLabProjectId, 'ExternalWorkItemReference.gitLabProjectId'),
+      external_issue_id: requireText(row.gitLabGlobalIssueId, 'ExternalWorkItemReference.gitLabGlobalIssueId'),
+      external_issue_number: requireText(row.gitLabIssueIid, 'ExternalWorkItemReference.gitLabIssueIid'),
+      external_url: requireText(row.externalUrl, 'ExternalWorkItemReference.externalUrl'),
+      project_id: requireMapped('Project', row.projectId, getNumericId('Project', row.projectId), `ExternalWorkItemReference ${row.id}`),
+      remote_created_at: toSqlTimestamp(row.remoteCreatedAt, 'ExternalWorkItemReference.remoteCreatedAt'),
+      remote_updated_at: toSqlTimestamp(row.remoteUpdatedAt, 'ExternalWorkItemReference.remoteUpdatedAt'),
+      last_synced_at: syncedAt,
+      work_item_id: requireMapped('work_items', row.workItemId, getNumericId('work_items', row.workItemId), `ExternalWorkItemReference ${row.id}`),
+      // The legacy model has no local creation/update timestamps for this join row.
+      created_at: toSqlTimestamp(row.remoteCreatedAt, 'ExternalWorkItemReference.remoteCreatedAt'),
+      updated_at: syncedAt,
+    };
+  }) : [];
+
   const transformed = {
     companies,
     users,
     projects,
     project_members: projectMembers,
     work_items: workItems,
-    external_project_mappings: [],
-    external_work_item_references: [],
+    external_project_mappings: externalProjectMappings,
+    external_work_item_references: externalWorkItemReferences,
     project_milestones: milestones,
     project_documents: documents,
     work_logs: workLogs,

@@ -176,7 +176,7 @@ Browser → Next.js standalone container → Prisma → PostgreSQL 16 container/
                                      ↘ /api/health
 ```
 
-Development, UAT and production use Docker Compose files already present. The shared compose defines PostgreSQL and a one-shot migrations service. Application images are built with Next.js standalone output; migration container performs guarded `prisma db push` and optional seed. See [DEPLOYMENT.md](./DEPLOYMENT.md) for ports, configuration and operation commands.
+Development, UAT and production use Docker Compose files already present. The shared compose defines PostgreSQL and a one-shot migrations service. Application images are built with Next.js standalone output. The migration container runs the schema rollout gate and `scripts/sql-runtime.mjs apply`; SQL seed stays off unless separately approved. See [DEPLOYMENT.md](./DEPLOYMENT.md) for ports, configuration and operation commands.
 
 ## 9. Decisions still open
 

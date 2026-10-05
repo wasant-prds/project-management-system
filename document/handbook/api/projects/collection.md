@@ -30,7 +30,7 @@
 | Parameter | Type | Required | Validation / behavior |
 | --- | --- | --- | --- |
 | `status` | enum string | No | `Planning`, `In Progress`, `Review`, `Completed`, `On Hold` |
-| `companyId` | string | No | กรองตาม Company ID |
+| `companyId` | string | No | กรองตาม Company public UUIDv4 |
 | `search` | string | No | contains case-insensitive ในชื่อ Project |
 | `limit` | integer | No | default 50; ช่วง 1–200 |
 | `cursor` | string | No | cursor จาก `page.nextCursor`, ใช้ต่อกับ filter เดิม |
@@ -43,12 +43,12 @@ curl -u "$OWNER_GATE_USERNAME:$OWNER_GATE_PASSWORD" \
 
 ### POST body
 
-JSON object ต้องมี `name`, `companyId`, `startDate`, `dueDate`. วันที่รับ `YYYY-MM-DD`; `startDate` ต้องไม่หลัง `dueDate`. Unknown fields และ body เสียถูกปฏิเสธ.
+JSON object ต้องมี `name`, `companyId`, `startDate`, `dueDate`. `companyId` ต้องเป็น public UUIDv4 ของ Company; วันที่รับ `YYYY-MM-DD`; `startDate` ต้องไม่หลัง `dueDate`. Unknown fields และ body เสียถูกปฏิเสธ.
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | string | Yes | Project name; trim แล้วห้ามว่าง |
-| `companyId` | string | Yes | Company ที่มีอยู่ |
+| `companyId` | string | Yes | public UUIDv4 ของ Company ที่มีอยู่ |
 | `startDate`, `dueDate` | `YYYY-MM-DD` | Yes | วันเริ่มและกำหนดเสร็จ; start ≤ due |
 | `description` | string \| null | No | รายละเอียด |
 | `status` | string | No | หนึ่งใน Project status ข้างต้น |
@@ -73,10 +73,9 @@ GET ปกติตอบ `200` และ POST ตอบ `201`. GET selector `op
 | `projects[].progress` | Derived completion percentage จาก WorkItems; แทน persisted progress ใน response |
 | `projects[].colorProject` | สี Project หรือ null |
 | `projects[].createdAt`, `updatedAt` | ISO timestamp ที่ serializer ต่อท้าย `+07:00` |
-| `projects[].creatorId` | Foreign key ของ User ผู้สร้าง; nullable |
-| `projects[].companyId` | Required foreign key ของ Company |
+| `projects[].companyId` | Public UUIDv4 ของ Company |
 | `projects[].company` | Company relation; schema ปัจจุบันกำหนดว่ามีเสมอ |
-| `projects[].company.id` | Company primary key |
+| `projects[].company.id` | Public UUIDv4 ของ Company |
 | `projects[].company.name` | ชื่อ Company |
 | `projects[].company.displayName` | ชื่อแสดง Company หรือ null |
 | `projects[].summary` | Derived summary ดู fields ด้านล่าง |
@@ -95,7 +94,7 @@ GET ปกติตอบ `200` และ POST ตอบ `201`. GET selector `op
 ```jsonc
 {
   "projects": [{
-    "id": "project-id", // primary key
+    "id": "project-id", // public UUIDv4 ของ Project
     "name": "Website", // Project name
     "description": null, // Project detail
     "status": "Planning", // Project status
@@ -108,10 +107,9 @@ GET ปกติตอบ `200` และ POST ตอบ `201`. GET selector `op
     "colorProject": null, // สีหรือ null
     "createdAt": "2026-09-30T12:00:00.000+07:00", // createdAt ที่ serialize ด้วย +07:00
     "updatedAt": "2026-09-30T12:00:00.000+07:00", // updatedAt ที่ serialize ด้วย +07:00
-    "creatorId": "owner-id", // User ผู้สร้าง
-    "companyId": "company-id", // Company foreign key
+    "companyId": "company-id", // public UUIDv4 ของ Company
     "company": { // Company relation
-      "id": "company-id", // Company primary key
+      "id": "company-id", // public UUIDv4 ของ Company
       "name": "Example", // ชื่อ Company
       "displayName": null // ชื่อแสดง หรือ null
     },
@@ -147,7 +145,7 @@ Error body ใช้ `{ "error": { "code", "message", "field?" } }`: `error` ค
 
 ## Processing Flow
 
-GET: gate → resolve owner → parse filters/cursor → query Project/Company → aggregate WorkItem/TimeEntry → serialize. POST: gate → resolve owner → validate allow-list/date range → verify Company → insert Project with `creatorId` → query summary for response.
+GET: gate → resolve owner → parse filters/cursor → query Project/Company → aggregate WorkItem/TimeEntry → serialize. POST: gate → resolve owner → validate allow-list/date range → resolve Company public UUID to internal row → insert Project with numeric `creatorId`/`companyId` foreign keys → serialize explicit DTO; `creatorId` is not exposed.
 
 ## Verification
 

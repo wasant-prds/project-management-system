@@ -8,6 +8,13 @@ export async function GET() {
     // Check database connection
     const rows = await prisma.$queryRaw<Array<{ timezone: string }>>`SELECT current_setting('TimeZone') AS timezone`
     if (rows[0]?.timezone !== 'Asia/Bangkok') throw new Error('Invalid database timezone')
+    const revisions = await prisma.$queryRaw<Array<{ ready: boolean }>>`
+      SELECT EXISTS (
+        SELECT 1 FROM "schema_migrations"
+        WHERE "version" = '0001' AND "status" = 'applied' AND "schema_revision" LIKE '31.%'
+      ) AS ready
+    `
+    if (revisions[0]?.ready !== true) throw new Error('Schema revision is not compatible')
 
     return NextResponse.json(
       {

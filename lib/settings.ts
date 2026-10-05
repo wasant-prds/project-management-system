@@ -3,7 +3,7 @@ import type { Prisma } from '@prisma/client'
 import { SYSTEM_TIMEZONE, type OwnerSettings, type OwnerSettingsPatch, type SettingsTheme } from '@/lib/settings-input'
 
 const ownerSettingsSelect = {
-  id: true,
+  publicId: true,
   name: true,
   email: true,
   phone: true,
@@ -48,22 +48,22 @@ function toDatabaseTheme(theme: SettingsTheme): 'light' | 'dark' | 'special_dark
   return theme
 }
 
-export async function getOwnerSettings(ownerId: string): Promise<OwnerSettings | null> {
+export async function getOwnerSettings(ownerInternalId: bigint): Promise<OwnerSettings | null> {
   const owner = await prisma.user.findUnique({
-    where: { id: ownerId },
+    where: { id: ownerInternalId },
     select: ownerSettingsSelect,
   })
   return owner ? serializeOwnerSettings(owner) : null
 }
 
-export async function updateOwnerSettings(ownerId: string, patch: OwnerSettingsPatch): Promise<OwnerSettings> {
+export async function updateOwnerSettings(ownerInternalId: bigint, patch: OwnerSettingsPatch): Promise<OwnerSettings> {
   const data: Prisma.UserUpdateInput = {
     ...patch.profile,
     ...(patch.preferences?.theme !== undefined ? { theme: toDatabaseTheme(patch.preferences.theme) } : {}),
     ...(patch.preferences?.locale !== undefined ? { locale: patch.preferences.locale } : {}),
   }
   const owner = await prisma.user.update({
-    where: { id: ownerId },
+    where: { id: ownerInternalId },
     data,
     select: ownerSettingsSelect,
   })

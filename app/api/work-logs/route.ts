@@ -3,10 +3,11 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { WORK_ITEM_KINDS, WORK_ITEM_ROLES } from '@/lib/work-items'
 import { getOwner, ownerErrorResponse } from '@/lib/owner'
-import { bangkokDateRange, currentBangkokWallClockDate } from '@/lib/bangkok-datetime'
+import { bangkokDateRange } from '@/lib/bangkok-datetime'
 import { parseCreateWorkLogInput, parseWorkLogRequestBody } from '@/lib/work-log-input'
 import { lockOwnedWorkItemForUpdate } from '@/lib/work-item-lock'
 import { resolveOwnedWorkItem, serializeWorkLog, workLogInclude } from '@/lib/work-logs'
+import { parsePublicId } from '@/lib/public-id'
 
 function apiError(status: number, code: string, message: string, field?: string) {
   return NextResponse.json({ error: { code, message, ...(field ? { field } : {}) } }, { status })
@@ -41,21 +42,21 @@ export async function GET(request: Request) {
       return validationError('Invalid Work Item kind', 'kind')
     }
 
-    if (companyId !== null && !companyId.trim()) return validationError('Company ID must not be empty', 'companyId')
-    if (projectId !== null && !projectId.trim()) return validationError('Project ID must not be empty', 'projectId')
-    if (companyId) {
-      const company = await prisma.company.findUnique({ where: { id: companyId }, select: { id: true } })
-      if (!company) return apiError(404, 'NOT_FOUND', 'Company not found', 'companyId')
-    }
-    if (projectId) {
-      const project = await prisma.project.findUnique({ where: { id: projectId }, select: { id: true, companyId: true } })
-      if (!project) return apiError(404, 'NOT_FOUND', 'Project not found', 'projectId')
-      if (companyId && project.companyId !== companyId) {
-        return apiError(400, 'RELATION_MISMATCH', 'Project does not belong to the selected Company', 'projectId')
-      }
+    if (companyId !== null && !parsePublicId(companyId)) return validationError('ต้องเป็น public UUID', 'companyId')
+    if (projectId !== null && !parsePublicId(projectId)) return validationError('ต้องเป็น public UUID', 'projectId')
+    const company = companyId
+      ? await prisma.company.findUnique({ where: { publicId: companyId }, select: { id: true } })
+      : null
+    if (companyId && !company) return apiError(404, 'NOT_FOUND', 'Company not found', 'companyId')
+    const project = projectId
+      ? await prisma.project.findUnique({ where: { publicId: projectId }, select: { id: true, companyId: true } })
+      : null
+    if (projectId && !project) return apiError(404, 'NOT_FOUND', 'Project not found', 'projectId')
+    if (company && project && project.companyId !== company.id) {
+      return apiError(400, 'RELATION_MISMATCH', 'Project does not belong to the selected Company', 'projectId')
     }
 
-    const where: Prisma.TimeEntryWhereInput = { userId: owner.id }
+    const where: Prisma.TimeEntryWhereInput = { userId: owner.internalId }
     if (date !== null) {
       const range = bangkokDateRange(date)
       if (!range) return validationError('date must use a valid YYYY-MM-DD value', 'date')
@@ -73,8 +74,8 @@ export async function GET(request: Request) {
 
     const workItemFilter: Prisma.WorkItemWhereInput = {}
     const projectFilter: Prisma.ProjectWhereInput = {}
-    if (projectId) projectFilter.id = projectId
-    if (companyId) projectFilter.companyId = companyId
+    if (project) projectFilter.id = project.id
+    if (company) projectFilter.companyId = company.id
     if (role === 'none') workItemFilter.role = null
     else if (role) workItemFilter.role = role as typeof WORK_ITEM_ROLES[number]
     if (kind) workItemFilter.kind = kind as typeof WORK_ITEM_KINDS[number]
@@ -88,7 +89,7 @@ export async function GET(request: Request) {
     })
 
     return NextResponse.json(
-      { workLogs: workLogs.map((workLog) => serializeWorkLog(workLog, owner.id)) },
+      { workLogs: workLogs.map((workLog) => serializeWorkLog(workLog, owner.internalId)) },
       { status: 200, headers: { 'Cache-Control': 'no-store' } },
     )
   } catch (error) {
@@ -109,20 +110,17 @@ export async function POST(request: Request) {
     if (!input.ok) return validationError(input.error.message, input.error.field)
 
     const outcome = await prisma.$transaction(async (transaction) => {
-      await lockOwnedWorkItemForUpdate(transaction, input.value.workItemId, owner.id)
-      const workItem = await resolveOwnedWorkItem(input.value.workItemId, owner.id, transaction)
+      const workItem = await resolveOwnedWorkItem(input.value.workItemId, owner.internalId, transaction)
       if (!workItem) return { kind: 'work-item-missing' as const }
-      if (input.value.projectId !== undefined && input.value.projectId !== workItem.projectId) {
+      await lockOwnedWorkItemForUpdate(transaction, workItem.id, owner.internalId)
+      if (input.value.projectId !== undefined && input.value.projectId !== workItem.project.publicId) {
         return { kind: 'project-mismatch' as const }
       }
 
-      const timestamp = currentBangkokWallClockDate()
       const data: Prisma.TimeEntryUncheckedCreateInput = {
         hours: input.value.hours,
         date: input.value.date,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-        userId: owner.id,
+        userId: owner.internalId,
         projectId: workItem.projectId,
         workItemId: workItem.id,
         ...(input.value.description !== undefined ? { description: input.value.description } : {}),
@@ -135,7 +133,7 @@ export async function POST(request: Request) {
 
     if (outcome.kind === 'work-item-missing') return apiError(404, 'NOT_FOUND', 'Work Item not found', 'workItemId')
     if (outcome.kind === 'project-mismatch') return apiError(400, 'RELATION_MISMATCH', 'Project must match the Work Item Project', 'projectId')
-    return NextResponse.json({ workLog: serializeWorkLog(outcome.workLog, owner.id) }, { status: 201 })
+    return NextResponse.json({ workLog: serializeWorkLog(outcome.workLog, owner.internalId) }, { status: 201 })
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError

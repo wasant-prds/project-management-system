@@ -23,7 +23,7 @@ test("GitLab import contract distinguishes implemented repository code from envi
   assert.match(schema, /model WorkItem\s*\{/);
   assert.match(schema, /model GitLabProjectMapping\s*\{/);
   assert.match(schema, /model ExternalWorkItemReference\s*\{/);
-  assert.match(schema, /remoteCreatedAt\s+DateTime\s+@db\.Timestamp/);
+  assert.match(schema, /remoteCreatedAt\s+DateTime\s+@map\("remote_created_at"\)\s+@db\.Timestamp\(3\)/);
   assert.match(status, /export async function GET/);
   assert.match(mappingRoutes, /export async function POST/);
   assert.match(syncRoute, /approveFirstSync/);

@@ -4,7 +4,7 @@
 
 สำหรับ #18 ให้ใช้ [Company → Project decision](./COMPANY_PROJECT_DECISION.md) และ [implementation/runbook](./COMPANY_PROJECT_IMPLEMENTATION.md) ซึ่งแทน Customer contract เดิม. ใช้ [Runtime Security](./RUNTIME_SECURITY.md) สำหรับ runtime secrets. #20 เพิ่ม GitLab schema source; ก่อนใช้ใน environment ให้ผ่าน verified backup, isolated restore และ rollout approval ตามขั้นตอนของเอกสารนี้.
 
-Issue #31 เพิ่ม SQL target และ `scripts/sql-migrate.mjs` สำหรับฐานข้อมูลทดลองที่ระบุชัดเจนเท่านั้น. คำสั่งนั้นยังไม่ใช่ขั้นตอน rollout ของเอกสารนี้ และห้ามชี้ไปที่ฐานข้อมูลของ `APP_ENV`. Active migration ยังเป็น guarded `prisma db push` จนถึง Issue #33.
+Issue #33 ให้ migration service เรียก rollout gate แล้ว `node scripts/sql-runtime.mjs apply`. `scripts/sql-migrate.mjs` ยังปฏิเสธฐานข้อมูลของ `APP_ENV` และ container ชื่อ `pms-postgres-*`. งานนี้ยังไม่ได้รับอนุญาตให้ migrate หรือ seed ฐานข้อมูลที่ใช้งานอยู่.
 
 ## Configuration และขอบเขตความปลอดภัย
 
@@ -48,19 +48,25 @@ Manual backup ใช้ PostgreSQL custom archive (`.dump`, pg_dump --no-owner -
 
 ### Issue #19/#21 WorkItem and TimeEntry schema gate
 
-Compose migrations และ `scripts/db-push-safe.sh` จะไม่เรียก `prisma db push` จนกว่า environment จะผ่าน manual gate. ฐานข้อมูลที่มีข้อมูลต้องมี backup ใหม่และ isolated restore rehearsal ด้วย revision/schema ที่จะ deploy; ตรวจ WorkItem/TimeEntry date values ที่จะถูก cast เป็น PostgreSQL `DATE`, TimeEntry timestamps ที่จะเป็น `TIMESTAMP WITHOUT TIME ZONE`, `TimeEntry.workItem` FK/`ON DELETE RESTRICT`, orphan references และความสอดคล้อง `TimeEntry.projectId = WorkItem.projectId`. ก่อนลด `TimeEntry.date` เป็น calendar date ต้องตรวจว่าค่าเดิมสื่อ Bangkok date ใดและมี time-of-day ที่มีความหมายหรือไม่; ห้ามตัดส่วนเวลาโดยไม่ทำ baseline comparison และยืนยันแผนกับเจ้าของข้อมูล. Timestamp ต้องคง Bangkok local wall-clock โดยไม่แปลง UTC. ฐานข้อมูลใหม่ต้องตรวจว่าไม่มี schema/table หรือข้อมูลที่ต้องเก็บ. บันทึก archive/verification receipt หรือผล empty-database check, schema diff, environment, approver และผลตรวจใน rollout record. การ backup อย่างเดียวหรือ daily backup candidate ไม่นับว่า verified.
+Compose migrations เรียก `scripts/sql-runtime.mjs apply` หลังผ่าน manual gate. `scripts/db-push-safe.sh` ไม่ได้อยู่บน startup path. ฐานข้อมูลที่มีข้อมูลต้องมี backup ใหม่และ isolated restore rehearsal ด้วย revision/schema ที่จะ deploy; ตรวจ WorkItem/TimeEntry date values ที่จะถูก cast เป็น PostgreSQL `DATE`, TimeEntry timestamps ที่จะเป็น `TIMESTAMP WITHOUT TIME ZONE`, `TimeEntry.workItem` FK/`ON DELETE RESTRICT`, orphan references และความสอดคล้อง `TimeEntry.projectId = WorkItem.projectId`. ก่อนลด `TimeEntry.date` เป็น calendar date ต้องตรวจว่าค่าเดิมสื่อ Bangkok date ใดและมี time-of-day ที่มีความหมายหรือไม่; ห้ามตัดส่วนเวลาโดยไม่ทำ baseline comparison และยืนยันแผนกับเจ้าของข้อมูล. Timestamp ต้องคง Bangkok local wall-clock โดยไม่แปลง UTC. ฐานข้อมูลใหม่ต้องตรวจว่าไม่มี schema/table หรือข้อมูลที่ต้องเก็บ. บันทึก archive/verification receipt หรือผล empty-database check, schema diff, environment, approver และผลตรวจใน rollout record. การ backup อย่างเดียวหรือ daily backup candidate ไม่นับว่า verified.
 
-หลังตรวจครบ ให้ตั้ง root `.env` ของ environment เป้าหมายดังนี้ แล้ว recreate migrations/app ด้วย Compose command ตาม environment:
+หลังตรวจครบ ให้ตั้ง root `.env` ของ environment เป้าหมายดังนี้ โดย `DB_SCHEMA_BACKUP_RESTORE_RECEIPT_PATH` ชี้ไปยัง `.verified.json` ที่สร้างหลัง isolated restore; Compose mount `BACKUP_DIR` แบบ read-only ที่ `/run/pms-rollout-backups`. ถ้าใช้ baseline แบบ empty ให้ตั้ง backup flag เป็น `false` และไม่ต้องกำหนด receipt. คำนวณ release hashes จากค่าจริงของ target ด้วย `node scripts/db-schema-rollout-gate.mjs fingerprint` ซึ่งพิมพ์เฉพาะ hashes และ revision ไม่พิมพ์ credentials:
 
 ```dotenv
 DB_SCHEMA_BACKUP_RESTORE_VERIFIED=true
+DB_SCHEMA_BACKUP_RESTORE_RECEIPT_PATH=/run/pms-rollout-backups/<archive>.dump.verified.json
 DB_SCHEMA_EMPTY_DATABASE_VERIFIED=false
 DB_SCHEMA_SYNC_APPROVED=true
 DB_SCHEMA_SYNC_APPROVED_ENV=uat
+DB_SCHEMA_SYNC_APPROVED_TARGET_SHA256=<target-sha256-from-fingerprint-command>
 DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256=<sha256-of-reviewed-prisma-schema>
+DB_SCHEMA_SYNC_APPROVED_SQL_SHA256=<sha256-of-database/schema.sql>
+DB_SCHEMA_SYNC_APPROVED_REVISION=31.0.0
+DB_SCHEMA_SYNC_APPROVED_MIGRATIONS_SHA256=<sha256-of-ordered-migration-set>
+DB_SCHEMA_SYNC_APPROVED_RELEASE_SHA256=<release-sha256-from-fingerprint-command>
 ```
 
-คำนวณค่า hash จาก revision ที่จะ deploy ด้วย `sha256sum prisma/schema.prisma` หรือ PowerShell `(Get-FileHash prisma/schema.prisma -Algorithm SHA256).Hash.ToLowerInvariant()`. เปิด baseline flag เพียงแบบเดียว: backup+restore สำหรับฐานข้อมูลที่มีข้อมูล หรือ `DB_SCHEMA_EMPTY_DATABASE_VERIFIED=true` หลังตรวจฐานข้อมูลใหม่ว่าง. Gate ตรวจ baseline, explicit approval, `APP_ENV` (`local`, `dev`, `uat`, `prod`), และ hash เทียบกับ schema ใน migration image; mismatch จะหยุดก่อน `prisma generate` และ database sync. Schema change ใหม่หรือ target environment อื่นต้องทำ verification และ approval ใหม่. `DB_MANAGE_MODE=seed` ไม่แก้ schemaและไม่ผ่าน `db push`, จึงไม่ต้องตั้ง gate; `force-seed` ต้องผ่าน gate.
+เปิด baseline flag เพียงแบบเดียว: backup+restore สำหรับฐานข้อมูลที่มีข้อมูล หรือ `DB_SCHEMA_EMPTY_DATABASE_VERIFIED=true` หลังตรวจฐานข้อมูลใหม่ว่าง. Backup gate ตรวจ archive bytes/checksum, environment และ isolated-restore receipt ที่อายุไม่เกิน 24 ชั่วโมง. Approval ผูกกับ `APP_ENV`, protocol/host/port/database/user ของ `DATABASE_URL`, Prisma schema hash, SQL revision, ordered versions/scripts/checksums ของ migration ทั้งชุด และ release fingerprint. Password ไม่ถูกรวมใน fingerprint หรือพิมพ์ออกมา. Runtime ยังตรวจ target ว่างจริงก่อน bootstrap. ค่าไม่ตรงหรือ receipt หาย/เก่า/แก้ไขจะหยุดก่อนเขียนฐานข้อมูล. `DB_MANAGE_MODE=seed` ยังต้องผ่าน gate และต้องมี seed approval แยก. `force-seed` และ `reset` ถูกปฏิเสธก่อนเขียนข้อมูล.
 
 เก็บ release revision, approved register, backup/receipt/checksum, pre/post validation, approver และ exceptions ใน run record ตาม retention. Pin rollout archive ด้วยไฟล์ชื่อ `<archive>.pin` (เช่น PowerShell `New-Item "$backupFile.pin" -ItemType File`) จนปล่อย retention hold โดยเจ้าของ. `prune` ลบเฉพาะ verified archives หมดอายุของ environment เดียว เก็บ newest verified archive, pinned, corrupt/unverified และไฟล์ environment อื่น. ไม่ prune อัตโนมัติระหว่าง rollout.
 

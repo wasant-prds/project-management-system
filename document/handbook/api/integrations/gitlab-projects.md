@@ -38,7 +38,7 @@ POST ปฏิเสธ mapping ที่มี duplicate `(canonicalGitLabInsta
 | Field | Type | Required | Validation / behavior |
 | --- | --- | --- | --- |
 | `gitLabProjectId` | string | Yes | เลขฐานสิบที่มากกว่า 0; ไม่รับค่าจาก URL หรือจาก GitLab โดยตรง |
-| `projectId` | string | Yes | ต้องไม่ว่างและต้องเป็น PMS Project ที่มีอยู่ |
+| `projectId` | string | Yes | public UUIDv4 ของ PMS Project ที่มีอยู่ |
 | `approvedLabelMap` | object ของ string → string | Yes | ไม่เกิน 100 entries; label ต้องไม่ว่างและยาวไม่เกิน 255 ตัวอักษร; target ต้องเป็น WorkItem type ที่รองรับ: `bug`, `data`, `documentation`, `epic`, `feature`, `maintenance`, `opl`, `ops`, `support`, `task`. `{}` ใช้ได้ |
 
 ตัวอย่าง:
@@ -104,19 +104,19 @@ curl -i -u "$OWNER_GATE_USERNAME:$OWNER_GATE_PASSWORD" \
 | --- | --- |
 | `mappings` | รายการ mapping ตามลำดับ `createdAt`, แล้ว `id`; มีเฉพาะ GET |
 | `mapping` | mapping ที่เพิ่งสร้าง; มีเฉพาะ POST |
-| `id` | Primary key ของ mapping ใน PMS |
+| `id` | Public UUIDv4 ของ mapping ใน PMS |
 | `instanceUrl` | Canonical GitLab base URL ที่มาจาก server config |
 | `gitLabProjectId` | GitLab Project numeric ID ในรูป string เพื่อคง precision |
-| `projectId` | PMS Project ID ปลายทาง |
+| `projectId` | Public UUIDv4 ของ PMS Project ปลายทาง |
 | `approvedLabelMap` | JSON object ที่จับคู่ GitLab label แบบ exact กับ WorkItem type |
 | `firstSyncApprovedAt` | เวลา owner อนุมัติ first sync ในรูป `+07:00`; `null` ก่อนอนุมัติ |
 | `createdAt` | เวลาสร้าง mapping ใน Bangkok offset `+07:00` |
 | `updatedAt` | เวลาแก้ mapping ล่าสุดใน Bangkok offset `+07:00` |
 | `project` | PMS Project context ที่ route เลือกส่งคืน |
-| `project.id` | Project ID |
+| `project.id` | Public UUIDv4 ของ PMS Project |
 | `project.name` | ชื่อ Project |
 | `project.company` | Company ที่เชื่อมกับ Project |
-| `project.company.id` | Company ID |
+| `project.company.id` | Public UUIDv4 ของ Company |
 | `project.company.name` | ชื่อ Company |
 | `project.company.displayName` | ชื่อแสดงผลของ Company; เป็น string หรือ `null` |
 

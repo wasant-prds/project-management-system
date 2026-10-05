@@ -1,8 +1,8 @@
 # DATABASE
 
-> **Identifier decision 2026-10-04:** SQL target ทุก table ใช้ internal BIGINT id สำหรับ PK/FK และ immutable random UUIDv4 public_id สำหรับ API/frontend/URL. Active Prisma/API ยังใช้ legacy CUID จน #33 เปลี่ยน DB + runtime + DTO พร้อมกัน. ดู [public identifier contract](./database/PUBLIC_IDENTIFIERS.md) และ [project rules](../.cursor/rules/05-record-identifiers.mdc).
+> **Identifier decision 2026-10-04:** ทุก table ใช้ internal BIGINT id สำหรับ PK/FK และ immutable random UUIDv4 public_id สำหรับ API/frontend/URL. โค้ดแอปของ Issue #33 ใช้สัญญานี้แล้ว. การตัดระบบฐานข้อมูลที่ใช้งานอยู่ยังต้องมี baseline ที่ตรวจแล้วและการอนุมัติแยก. ดู [public identifier contract](./database/PUBLIC_IDENTIFIERS.md) และ [project rules](../.cursor/rules/05-record-identifiers.mdc).
 
-> **Seed decision 2026-10-04:** Issue #32 แปลง production backup `pms_prod_backup_20260926_183540.sql.gz` เป็น deterministic SQL master seeds ใน `database/seeds/sql-master/` พร้อม `legacy-id-map.json` สำหรับ target schema. นโยบายบริษัทอยู่ที่ `database/seed-policy/issue-32.json`. Dataset ถูก git ignore และถูกกันจาก Docker build context. ยังคง `database/seeds/master/` ไว้สำหรับ active Prisma CUID runtime จนกว่าจะถึง Issue #33 และการ promote ต้องระบุปลายทางเอง. ดู [SQL master seeds handbook](./handbook/database/issue-32-sql-master-seeds.md).
+> **Seed decision 2026-10-04:** Issue #32 แปลง production backup `pms_prod_backup_20260926_183540.sql.gz` เป็น deterministic SQL master seeds ใน `database/seeds/sql-master/` พร้อม `legacy-id-map.json`. นโยบายบริษัทอยู่ที่ `database/seed-policy/issue-32.json`. Dataset ถูก git ignore และถูกกันจาก Docker build context. Startup ใช้ SQL seed นี้เมื่อได้รับอนุมัติแยก และค่าเริ่มต้นคือ `RUN_SEED=false`. JSON seed ถูกปิดนอกการทดสอบที่แยกไว้. ดู [SQL master seeds handbook](./handbook/database/issue-32-sql-master-seeds.md) และ [Issue #33 handbook](./handbook/database/issue-33-sql-runtime.md).
 
 > **Owner decision 2026-09-29:** ยกเลิก Customer model และใช้ `Company → Project.companyId` โดย Project เดิมโยงกับ Dhas ตาม [Company → Project decision](./COMPANY_PROJECT_DECISION.md). Customer target ด้านล่างเป็นประวัติข้อเสนอเดิม.
 
@@ -19,15 +19,16 @@
 ## 1. Database conventions
 
 - Prisma datasource ใช้ PostgreSQL ผ่าน `DATABASE_URL`; local/Docker environment สร้าง URL จาก root `.env` ผ่าน environment injection
-- `id` ส่วนใหญ่เป็น String ใช้ `cuid()`; เวลาใช้ `DateTime` และ default `now()`; `updatedAt` ใช้ `@updatedAt`
+- หลัง Issue #33 ทุก model ใช้ `id` แบบ `BigInt` และ `publicId` แบบ UUIDv4. Timestamp ของตารางที่แก้ได้มาจาก SQL trigger ไม่ใช้ `@updatedAt`
 - Target convention: วันที่และเวลาทุกค่าที่บันทึกลง PostgreSQL ใช้ `Asia/Bangkok`. Date-only fields แทนวันปฏิทิน Bangkok; timestamp fields แทน Bangkok local wall-clock date/time และห้าม normalize เป็น UTC. กำหนด timezone ของ application, PostgreSQL session และ database defaults เป็น `Asia/Bangkok`; application ต้อง parse/format ด้วย timezone นี้อย่างชัดเจน
 - Target mapping: calendar-only fields ใช้ PostgreSQL `DATE` และ Prisma `@db.Date`; timestamps ใช้ `TIMESTAMP(3) WITHOUT TIME ZONE` และ Prisma `@db.Timestamp(3)` โดยค่าที่เขียนเป็น Bangkok local wall-clock. `DateTime` ที่ไม่มี native annotation ใน Prisma ปัจจุบัน default-map เป็น `timestamp(3)`; ให้ระบุ native type ชัดเจนใน target schema เพื่อป้องกันความหมายเปลี่ยน
-- Prisma model จะ map ไป table ชื่อเดียวกันตาม default ยกเว้น `WorkItem` ซึ่ง map ไป table `work_items`
-- Prisma field `WorkItem.types` map ไป PostgreSQL column `labels_types` และเป็น `String[]`
-- Active runtime ยังใช้ guarded `prisma db push` ใน Docker migration service จนถึง Issue #33. Issue #31 เพิ่ม target แยกที่ `database/schema.sql` และ `database/migrations/` แต่ยังไม่สลับ consumer และยังไม่ apply กับฐานข้อมูลใช้งาน. ดู [SQL decisions](./database/SQL_DATABASE_DECISIONS.md), [schema dictionary](./database/SQL_SCHEMA_DICTIONARY.md) และ [operations handbook](./handbook/database/issue-31-sql-schema.md)
+- Prisma model map ไปตาราง plural snake_case ตาม [schema dictionary](./database/SQL_SCHEMA_DICTIONARY.md). `WorkItem.types` map ไป `type_labels`
+- Startup ของ migration service เรียก rollout gate แล้ว `node scripts/sql-runtime.mjs apply`. ค่าเริ่มต้นคือ `RUN_SEED=false`. งานนี้ยังไม่ apply schema หรือ seed กับฐานข้อมูลที่ใช้งานอยู่. ดู [Issue #33 handbook](./handbook/database/issue-33-sql-runtime.md)
 - Prisma `TimeEntry.hours` เป็น `DECIMAL(65,30)`. `Project.budget`/`spent` ไม่มี `@db.Decimal` แต่ Prisma 6 diff สร้างเป็น `DECIMAL(65,30)` เช่นกัน. SQL target ของ #31 คง precision นี้; ไม่ได้ย่อ currency เป็น scale 2
 
 ## 2. As-Is models
+
+หมวดนี้เป็น inventory ก่อนการ map ชื่อตารางของ Issue #33. ชื่อตารางและคอลัมน์ที่ใช้กับ SQL target อยู่ที่ Prisma `@@map`/`@map` และ [schema dictionary](./database/SQL_SCHEMA_DICTIONARY.md).
 
 ### 2.1 `User` → `User` (As-Is schema)
 

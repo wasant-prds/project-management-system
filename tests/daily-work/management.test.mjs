@@ -3,11 +3,24 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import test from 'node:test'
 import vm from 'node:vm'
+import { resolveTestImport } from '../support/identity-modules.mjs'
 
 const require = createRequire(import.meta.url)
 const ts = require('typescript')
-const owner = { id: 'owner-1', name: 'Owner', email: 'owner@example.test', avatar: null }
-const foreignOwner = { id: 'other-owner', name: 'Other', email: 'other@example.test', avatar: null }
+const OWNER_PUBLIC = '11111111-1111-4111-8111-111111111111'
+const FOREIGN_PUBLIC = '22222222-2222-4222-8222-222222222222'
+const ITEM_1 = '77777777-7777-4777-8777-777777777771'
+const ITEM_2 = '77777777-7777-4777-8777-777777777772'
+const FOREIGN_ITEM = '77777777-7777-4777-8777-777777777773'
+const PROJECT_1 = '33333333-3333-4333-8333-333333333333'
+const PROJECT_2 = '44444444-4444-4444-8444-444444444444'
+const COMPANY_1 = '55555555-5555-4555-8555-555555555555'
+const COMPANY_2 = '66666666-6666-4666-8666-666666666666'
+const ENTRY_1 = '99999999-9999-4999-8999-000000000001'
+const FOREIGN_ENTRY = '99999999-9999-4999-8999-000000000002'
+const MISSING_ENTRY = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+const owner = { id: OWNER_PUBLIC, publicId: OWNER_PUBLIC, internalId: 7n, name: 'Owner', email: 'owner@example.test', avatar: null }
+const foreignOwner = { id: FOREIGN_PUBLIC, publicId: FOREIGN_PUBLIC, internalId: 8n, name: 'Other', email: 'other@example.test', avatar: null }
 const response = { json: (body, options = {}) => ({ status: options.status ?? 200, body, headers: options.headers ?? {} }) }
 
 function loadTs(path, mocks = {}, globals = {}) {
@@ -20,12 +33,14 @@ function loadTs(path, mocks = {}, globals = {}) {
     module: loaded,
     exports: loaded.exports,
     require: (name) => {
-      if (!(name in mocks)) throw new Error(`Unexpected import: ${name}`)
-      return mocks[name]
+      const resolved = resolveTestImport(name, mocks)
+      if (resolved === undefined) throw new Error(`Unexpected import: ${name}`)
+      return resolved
     },
     Date,
     URL,
     URLSearchParams,
+    process,
     console: { error() {} },
     ...globals,
   }, { filename: path })
@@ -39,17 +54,17 @@ function decimal(value) {
 function createSystem() {
   const state = {
     workItems: new Map([
-      ['item-1', { id: 'item-1', projectId: 'project-1', assigneeId: owner.id, title: 'One', kind: 'Task', role: 'Developer', status: 'todo' }],
-      ['item-2', { id: 'item-2', projectId: 'project-2', assigneeId: owner.id, title: 'Two', kind: 'Issue', role: 'infra', status: 'in_progress' }],
-      ['foreign-item', { id: 'foreign-item', projectId: 'project-1', assigneeId: foreignOwner.id, title: 'Private', kind: 'Task', role: 'Developer', status: 'todo' }],
+      [ITEM_1, { id: 1n, publicId: ITEM_1, projectId: 1n, assigneeId: owner.internalId, title: 'One', kind: 'Task', role: 'Developer', status: 'todo' }],
+      [ITEM_2, { id: 2n, publicId: ITEM_2, projectId: 2n, assigneeId: owner.internalId, title: 'Two', kind: 'Issue', role: 'infra', status: 'in_progress' }],
+      [FOREIGN_ITEM, { id: 3n, publicId: FOREIGN_ITEM, projectId: 1n, assigneeId: foreignOwner.internalId, title: 'Private', kind: 'Task', role: 'Developer', status: 'todo' }],
     ]),
     projects: new Map([
-      ['project-1', { id: 'project-1', name: 'Project One', colorProject: '#123456', companyId: 'company-1' }],
-      ['project-2', { id: 'project-2', name: 'Project Two', colorProject: '#654321', companyId: 'company-2' }],
+      [PROJECT_1, { id: 1n, publicId: PROJECT_1, name: 'Project One', colorProject: '#123456', companyId: 11n }],
+      [PROJECT_2, { id: 2n, publicId: PROJECT_2, name: 'Project Two', colorProject: '#654321', companyId: 12n }],
     ]),
     companies: new Map([
-      ['company-1', { id: 'company-1' }],
-      ['company-2', { id: 'company-2' }],
+      [COMPANY_1, { id: 11n, publicId: COMPANY_1 }],
+      [COMPANY_2, { id: 12n, publicId: COMPANY_2 }],
     ]),
     entries: [],
     nextId: 1,
@@ -63,19 +78,21 @@ function createSystem() {
     failWrites: false,
   }
 
+  const findRow = (rows, where = {}) => [...rows.values()].find((row) => row.publicId === where.publicId || row.id === where.id) ?? null
   const withRelations = (entry) => ({
     ...entry,
-    user: entry.userId === owner.id ? owner : foreignOwner,
-    project: state.projects.get(entry.projectId) ?? null,
-    workItem: state.workItems.get(entry.workItemId) ?? null,
+    user: entry.userId === owner.internalId ? owner : foreignOwner,
+    project: [...state.projects.values()].find((project) => project.id === entry.projectId) ?? null,
+    workItem: [...state.workItems.values()].find((item) => item.id === entry.workItemId) ?? null,
   })
   const matchesWhere = (entry, where) => {
-    if (entry.userId !== where.userId) return false
-    if (where.id && entry.id !== where.id) return false
+    if (where.userId && entry.userId !== where.userId) return false
+    if (where.publicId && entry.publicId !== where.publicId) return false
+    if (typeof where.id === 'bigint' && entry.id !== where.id) return false
     if (where.date?.gte && entry.date < where.date.gte) return false
     if (where.date?.lt && entry.date >= where.date.lt) return false
     if (where.workItem?.is) {
-      const item = state.workItems.get(entry.workItemId)
+      const item = [...state.workItems.values()].find((candidate) => candidate.id === entry.workItemId)
       const itemFilter = where.workItem.is
       if (!item) return false
       if (itemFilter.kind && item.kind !== itemFilter.kind) return false
@@ -83,7 +100,7 @@ function createSystem() {
       if (itemFilter.project?.is) {
         const projectFilter = itemFilter.project.is
         if (projectFilter.id && item.projectId !== projectFilter.id) return false
-        const project = state.projects.get(item.projectId)
+        const project = [...state.projects.values()].find((candidate) => candidate.id === item.projectId)
         if (projectFilter.companyId && project?.companyId !== projectFilter.companyId) return false
       }
     }
@@ -100,17 +117,24 @@ function createSystem() {
       return []
     },
     project: {
-      async findUnique({ where }) { return state.projects.get(where.id) ?? null },
+      async findUnique({ where }) {
+        const project = findRow(state.projects, where)
+        return project ? { id: project.id, publicId: project.publicId, companyId: project.companyId } : null
+      },
     },
     company: {
-      async findUnique({ where }) { return state.companies.get(where.id) ?? null },
+      async findUnique({ where }) {
+        const company = findRow(state.companies, where)
+        return company ? { id: company.id, publicId: company.publicId } : null
+      },
     },
     workItem: {
       async findFirst({ where }) {
-        const item = state.workItems.get(where.id)
+        const item = findRow(state.workItems, where)
         if (!item || item.assigneeId !== where.assigneeId) return null
         if (where.projectId && item.projectId !== where.projectId) return null
-        return { id: item.id, projectId: item.projectId }
+        const project = [...state.projects.values()].find((candidate) => candidate.id === item.projectId)
+        return { id: item.id, publicId: item.publicId, projectId: item.projectId, project: { publicId: project?.publicId ?? null } }
       },
     },
     timeEntry: {
@@ -131,7 +155,8 @@ function createSystem() {
         state.writes += 1
         const now = new Date('2026-10-01T09:30:00.000Z')
         const entry = {
-          id: `entry-${state.nextId++}`,
+          id: BigInt(state.nextId),
+          publicId: `99999999-9999-4999-8999-${String(state.nextId).padStart(12, '0')}`,
           description: null,
           remarks: null,
           status: null,
@@ -140,12 +165,13 @@ function createSystem() {
           createdAt: now,
           updatedAt: now,
         }
+        state.nextId += 1
         state.entries.push(entry)
         return withRelations(entry)
       },
       async update({ where, data }) {
         state.writes += 1
-        const entry = state.entries.find((candidate) => candidate.id === where.id)
+        const entry = state.entries.find((candidate) => candidate.id === where.id || candidate.publicId === where.publicId)
         if (!entry) throw new Error('missing fixture entry')
         Object.assign(entry, data)
         if (data.hours !== undefined) entry.hours = decimal(data.hours)
@@ -226,8 +252,12 @@ function context(id) {
 }
 
 function seedEntry(system, overrides = {}) {
+  const n = system.state.nextId
+  system.state.nextId += 1
+  const { id: overrideId, ...rest } = overrides
   const entry = {
-    id: `entry-${system.state.nextId++}`,
+    id: typeof overrideId === 'bigint' ? overrideId : BigInt(n),
+    publicId: rest.publicId ?? `99999999-9999-4999-8999-${String(n).padStart(12, '0')}`,
     description: 'Work',
     remarks: null,
     hours: decimal('1.25'),
@@ -235,10 +265,10 @@ function seedEntry(system, overrides = {}) {
     status: null,
     createdAt: new Date('2026-10-01T09:00:00.000Z'),
     updatedAt: new Date('2026-10-01T09:00:00.000Z'),
-    userId: owner.id,
-    projectId: 'project-1',
-    workItemId: 'item-1',
-    ...overrides,
+    userId: owner.internalId,
+    projectId: 1n,
+    workItemId: 1n,
+    ...rest,
   }
   system.state.entries.push(entry)
   return entry
@@ -264,11 +294,11 @@ test('positive hours fit the persisted Decimal(65,30) integer and fractional bou
 test('POST rejects positive hours outside the TimeEntry Decimal range before writing', async () => {
   for (const hours of ['1e-31', '1e35']) {
     const system = createSystem()
-    const result = await system.collection.POST(request({ workItemId: 'item-1', hours, date: '2026-10-01' }))
+    const result = await system.collection.POST(request({ workItemId: ITEM_1, hours, date: '2026-10-01' }))
     assert.equal(result.status, 400)
     assert.equal(result.body.error.field, 'hours')
     seedEntry(system)
-    const update = await system.detail.PATCH(request({ hours }), context('entry-1'))
+    const update = await system.detail.PATCH(request({ hours }), context(ENTRY_1))
     assert.equal(update.status, 400)
     assert.equal(update.body.error.field, 'hours')
     assert.equal(system.state.writes, 0)
@@ -285,35 +315,35 @@ test('decimal hour summation is exact and does not round each entry', () => {
 test('POST creates an owner TimeEntry, derives its Project, and stores exact positive Decimal hours', async () => {
   const system = createSystem()
   const result = await system.collection.POST(request({
-    workItemId: 'item-1', hours: '1.2500', date: '2026-10-01', description: 'Review', userId: owner.id,
+    workItemId: ITEM_1, hours: '1.2500', date: '2026-10-01', description: 'Review', userId: owner.id,
   }))
 
   assert.equal(result.status, 201)
   assert.equal(result.body.workLog.hours, '1.25')
   assert.equal(result.body.workLog.date, '2026-10-01')
-  assert.equal(result.body.workLog.userId, owner.id)
-  assert.equal(result.body.workLog.projectId, 'project-1')
-  assert.equal(result.body.workLog.workItemId, 'item-1')
+  assert.equal(result.body.workLog.user.id, owner.id)
+  assert.equal(result.body.workLog.project.id, PROJECT_1)
+  assert.equal(result.body.workLog.workItem.id, ITEM_1)
   assert.match(result.body.workLog.createdAt, /\+07:00$/)
   assert.match(result.body.workLog.updatedAt, /\+07:00$/)
   assert.equal(system.state.transactionOptions[0].isolationLevel, 'Serializable')
-  assert.deepEqual(system.state.locks[0], { workItemId: 'item-1', ownerId: owner.id })
+  assert.deepEqual(system.state.locks[0], { workItemId: 1n, ownerId: owner.internalId })
 })
 
 test('POST accepts a Bangkok +07:00 timestamp but persists and returns only its calendar date', async () => {
   const system = createSystem()
-  const result = await system.collection.POST(request({ workItemId: 'item-1', hours: 0.125, date: '2026-10-01T23:59:59.999+07:00' }))
+  const result = await system.collection.POST(request({ workItemId: ITEM_1, hours: 0.125, date: '2026-10-01T23:59:59.999+07:00' }))
   assert.equal(result.status, 201)
   assert.equal(system.state.entries[0].date.toISOString(), '2026-10-01T00:00:00.000Z')
   assert.equal(result.body.workLog.date, '2026-10-01')
-  const invalid = await system.collection.POST(request({ workItemId: 'item-1', hours: 1, date: '2026-10-01T23:59:59Z' }))
+  const invalid = await system.collection.POST(request({ workItemId: ITEM_1, hours: 1, date: '2026-10-01T23:59:59Z' }))
   assert.equal(invalid.status, 400)
   assert.equal(system.state.writes, 1)
 })
 
 test('POST rejects zero hours without writing', async () => {
   const system = createSystem()
-  const result = await system.collection.POST(request({ workItemId: 'item-1', hours: '0', date: '2026-10-01' }))
+  const result = await system.collection.POST(request({ workItemId: ITEM_1, hours: '0', date: '2026-10-01' }))
   assert.equal(result.status, 400)
   assert.equal(result.body.error.field, 'hours')
   assert.equal(system.state.writes, 0)
@@ -321,7 +351,7 @@ test('POST rejects zero hours without writing', async () => {
 
 test('POST rejects negative hours without writing', async () => {
   const system = createSystem()
-  const result = await system.collection.POST(request({ workItemId: 'item-1', hours: '-0.25', date: '2026-10-01' }))
+  const result = await system.collection.POST(request({ workItemId: ITEM_1, hours: '-0.25', date: '2026-10-01' }))
   assert.equal(result.status, 400)
   assert.equal(result.body.error.field, 'hours')
   assert.equal(system.state.writes, 0)
@@ -330,7 +360,7 @@ test('POST rejects negative hours without writing', async () => {
 test('POST rejects malformed and non-finite hours without writing', async () => {
   const system = createSystem()
   for (const hours of ['1.5 hours', 'Infinity', Number.NaN, Number.POSITIVE_INFINITY]) {
-    const result = await system.collection.POST(request({ workItemId: 'item-1', hours, date: '2026-10-01' }))
+    const result = await system.collection.POST(request({ workItemId: ITEM_1, hours, date: '2026-10-01' }))
     assert.equal(result.status, 400)
     assert.equal(result.body.error.field, 'hours')
   }
@@ -340,7 +370,7 @@ test('POST rejects malformed and non-finite hours without writing', async () => 
 test('POST rejects missing WorkItem or business date before opening a transaction', async () => {
   const system = createSystem()
   const missingWorkItem = await system.collection.POST(request({ hours: 1, date: '2026-10-01' }))
-  const missingDate = await system.collection.POST(request({ workItemId: 'item-1', hours: 1 }))
+  const missingDate = await system.collection.POST(request({ workItemId: ITEM_1, hours: 1 }))
   assert.equal(missingWorkItem.status, 400)
   assert.equal(missingWorkItem.body.error.field, 'workItemId')
   assert.equal(missingDate.status, 400)
@@ -351,7 +381,7 @@ test('POST rejects missing WorkItem or business date before opening a transactio
 
 test('POST rejects a client-supplied foreign owner', async () => {
   const system = createSystem()
-  const result = await system.collection.POST(request({ userId: foreignOwner.id, workItemId: 'item-1', hours: 1, date: '2026-10-01' }))
+  const result = await system.collection.POST(request({ userId: foreignOwner.id, workItemId: ITEM_1, hours: 1, date: '2026-10-01' }))
   assert.equal(result.status, 400)
   assert.equal(result.body.error.field, 'userId')
   assert.equal(system.state.writes, 0)
@@ -360,7 +390,7 @@ test('POST rejects a client-supplied foreign owner', async () => {
 test('POST rejects unauthenticated access before opening a transaction', async () => {
   const system = createSystem()
   system.state.ownerError = new Error('unauthenticated')
-  const result = await system.collection.POST(request({ workItemId: 'item-1', hours: 1, date: '2026-10-01' }))
+  const result = await system.collection.POST(request({ workItemId: ITEM_1, hours: 1, date: '2026-10-01' }))
   assert.equal(result.status, 401)
   assert.equal(system.state.transactionOptions.length, 0)
   assert.equal(system.state.writes, 0)
@@ -368,7 +398,7 @@ test('POST rejects unauthenticated access before opening a transaction', async (
 
 test('POST rejects a Project that differs from the selected WorkItem', async () => {
   const system = createSystem()
-  const result = await system.collection.POST(request({ projectId: 'project-2', workItemId: 'item-1', hours: 1, date: '2026-10-01' }))
+  const result = await system.collection.POST(request({ projectId: PROJECT_2, workItemId: ITEM_1, hours: 1, date: '2026-10-01' }))
   assert.equal(result.status, 400)
   assert.equal(result.body.error.code, 'RELATION_MISMATCH')
   assert.equal(system.state.writes, 0)
@@ -376,7 +406,7 @@ test('POST rejects a Project that differs from the selected WorkItem', async () 
 
 test('POST rejects WorkItems outside the authenticated owner scope', async () => {
   const system = createSystem()
-  const result = await system.collection.POST(request({ workItemId: 'foreign-item', hours: 1, date: '2026-10-01' }))
+  const result = await system.collection.POST(request({ workItemId: FOREIGN_ITEM, hours: 1, date: '2026-10-01' }))
   assert.equal(result.status, 404)
   assert.equal(system.state.writes, 0)
 })
@@ -384,32 +414,32 @@ test('POST rejects WorkItems outside the authenticated owner scope', async () =>
 test('GET returns only owner records and queries Bangkok date boundaries as an exclusive next day', async () => {
   const system = createSystem()
   seedEntry(system)
-  seedEntry(system, { id: 'foreign-entry', userId: foreignOwner.id })
+  seedEntry(system, { publicId: FOREIGN_ENTRY, userId: foreignOwner.internalId })
   const result = await system.collection.GET(new Request('http://localhost/api/work-logs?date=2026-10-01'))
   assert.equal(result.status, 200)
   assert.equal(result.body.workLogs.length, 1)
   assert.equal(result.body.workLogs[0].date, '2026-10-01')
-  assert.equal(system.state.lastWhere.userId, owner.id)
+  assert.equal(system.state.lastWhere.userId, owner.internalId)
   assert.equal(system.state.lastWhere.date.gte.toISOString(), '2026-10-01T00:00:00.000Z')
   assert.equal(system.state.lastWhere.date.lt.toISOString(), '2026-10-02T00:00:00.000Z')
 })
 
 test('Dashboard Daily Work links preserve inclusive dates and filter through the WorkItem Project', async () => {
   const system = createSystem()
-  seedEntry(system, { id: 'dashboard-match', date: new Date('2026-10-01T00:00:00.000Z'), workItemId: 'item-1' })
-  seedEntry(system, { id: 'dashboard-other-project', date: new Date('2026-10-02T00:00:00.000Z'), workItemId: 'item-2', projectId: 'project-2' })
+  seedEntry(system, { publicId: 'dashboard-match', date: new Date('2026-10-01T00:00:00.000Z'), workItemId: 1n })
+  seedEntry(system, { publicId: 'dashboard-other-project', date: new Date('2026-10-02T00:00:00.000Z'), workItemId: 2n, projectId: 2n })
 
   const result = await system.collection.GET(new Request(
-    'http://localhost/api/work-logs?startDate=2026-10-01&endDate=2026-10-01&companyId=company-1&projectId=project-1&role=Developer&kind=Task',
+    'http://localhost/api/work-logs?startDate=2026-10-01&endDate=2026-10-01&companyId=55555555-5555-4555-8555-555555555555&projectId=33333333-3333-4333-8333-333333333333&role=Developer&kind=Task',
   ))
 
   assert.equal(result.status, 200)
   assert.deepEqual(Array.from(result.body.workLogs, (entry) => entry.id), ['dashboard-match'])
-  assert.equal(system.state.lastWhere.userId, owner.id)
+  assert.equal(system.state.lastWhere.userId, owner.internalId)
   assert.equal(system.state.lastWhere.date.gte.toISOString(), '2026-10-01T00:00:00.000Z')
   assert.equal(system.state.lastWhere.date.lt.toISOString(), '2026-10-02T00:00:00.000Z')
-  assert.equal(system.state.lastWhere.workItem.is.project.is.id, 'project-1')
-  assert.equal(system.state.lastWhere.workItem.is.project.is.companyId, 'company-1')
+  assert.equal(system.state.lastWhere.workItem.is.project.is.id, 1n)
+  assert.equal(system.state.lastWhere.workItem.is.project.is.companyId, 11n)
   assert.equal(system.state.lastWhere.workItem.is.role, 'Developer')
   assert.equal(system.state.lastWhere.workItem.is.kind, 'Task')
 })
@@ -429,32 +459,32 @@ test('PATCH updates hours, details, and date while re-deriving Project from its 
   const system = createSystem()
   seedEntry(system)
   const result = await system.detail.PATCH(request({
-    workItemId: 'item-2', hours: '3.005', date: '2026-10-02', description: 'Updated', remarks: 'Checked',
-  }), context('entry-1'))
+    workItemId: ITEM_2, hours: '3.005', date: '2026-10-02', description: 'Updated', remarks: 'Checked',
+  }), context(ENTRY_1))
   assert.equal(result.status, 200)
   assert.equal(result.body.workLog.hours, '3.005')
   assert.equal(result.body.workLog.date, '2026-10-02')
   assert.equal(result.body.workLog.description, 'Updated')
-  assert.equal(result.body.workLog.projectId, 'project-2')
-  assert.equal(result.body.workLog.workItemId, 'item-2')
-  assert.equal(system.state.entries[0].userId, owner.id)
+  assert.equal(result.body.workLog.project.id, PROJECT_2)
+  assert.equal(result.body.workLog.workItem.id, ITEM_2)
+  assert.equal(system.state.entries[0].userId, owner.internalId)
   assert.equal(system.state.transactionOptions[0].isolationLevel, 'Serializable')
 })
 
 test('PATCH rejects a Project mismatch even when Project is the only relation field sent', async () => {
   const system = createSystem()
   seedEntry(system)
-  const result = await system.detail.PATCH(request({ projectId: 'project-2' }), context('entry-1'))
+  const result = await system.detail.PATCH(request({ projectId: PROJECT_2 }), context(ENTRY_1))
   assert.equal(result.status, 400)
   assert.equal(result.body.error.code, 'RELATION_MISMATCH')
-  assert.equal(system.state.entries[0].projectId, 'project-1')
+  assert.equal(system.state.entries[0].projectId, 1n)
   assert.equal(system.state.writes, 0)
 })
 
 test('PATCH rejects legacy entries without a WorkItem and leaves their data unchanged', async () => {
   const system = createSystem()
   const orphan = seedEntry(system, { workItemId: null, projectId: null })
-  const result = await system.detail.PATCH(request({ description: 'Cannot orphan a saved entry' }), context(orphan.id))
+  const result = await system.detail.PATCH(request({ description: 'Cannot orphan a saved entry' }), context(orphan.publicId))
   assert.equal(result.status, 400)
   assert.equal(result.body.error.field, 'workItemId')
   assert.equal(orphan.description, 'Work')
@@ -466,7 +496,7 @@ test('PATCH rejects non-positive or malformed hours without updating', async (t)
     await t.test(name, async () => {
       const system = createSystem()
       seedEntry(system)
-      const result = await system.detail.PATCH(request({ hours }), context('entry-1'))
+      const result = await system.detail.PATCH(request({ hours }), context(ENTRY_1))
       assert.equal(result.status, 400)
       assert.equal(result.body.error.field, 'hours')
       assert.equal(system.state.writes, 0)
@@ -477,7 +507,7 @@ test('PATCH rejects non-positive or malformed hours without updating', async (t)
 test('PATCH rejects owner spoofing before reading or updating the entry', async () => {
   const system = createSystem()
   seedEntry(system)
-  const result = await system.detail.PATCH(request({ userId: foreignOwner.id, description: 'Spoof' }), context('entry-1'))
+  const result = await system.detail.PATCH(request({ userId: foreignOwner.id, description: 'Spoof' }), context(ENTRY_1))
   assert.equal(result.status, 400)
   assert.equal(result.body.error.field, 'userId')
   assert.equal(system.state.reads, 0)
@@ -486,9 +516,9 @@ test('PATCH rejects owner spoofing before reading or updating the entry', async 
 
 test('PATCH returns not found for a missing or foreign TimeEntry', async () => {
   const system = createSystem()
-  seedEntry(system, { id: 'foreign-entry', userId: foreignOwner.id })
-  const missing = await system.detail.PATCH(request({ description: 'Update' }), context('missing'))
-  const foreign = await system.detail.PATCH(request({ description: 'Update' }), context('foreign-entry'))
+  seedEntry(system, { publicId: FOREIGN_ENTRY, userId: foreignOwner.internalId })
+  const missing = await system.detail.PATCH(request({ description: 'Update' }), context(MISSING_ENTRY))
+  const foreign = await system.detail.PATCH(request({ description: 'Update' }), context(FOREIGN_ENTRY))
   assert.equal(missing.status, 404)
   assert.equal(foreign.status, 404)
   assert.equal(system.state.writes, 0)
@@ -497,19 +527,19 @@ test('PATCH returns not found for a missing or foreign TimeEntry', async () => {
 test('DELETE removes only an owned TimeEntry and returns not found for a foreign one', async () => {
   const system = createSystem()
   seedEntry(system)
-  seedEntry(system, { id: 'foreign-entry', userId: foreignOwner.id })
-  const deleted = await system.detail.DELETE({}, context('entry-1'))
-  const hidden = await system.detail.DELETE({}, context('foreign-entry'))
+  seedEntry(system, { publicId: FOREIGN_ENTRY, userId: foreignOwner.internalId })
+  const deleted = await system.detail.DELETE({}, context(ENTRY_1))
+  const hidden = await system.detail.DELETE({}, context(FOREIGN_ENTRY))
   assert.equal(deleted.status, 200)
   assert.equal(hidden.status, 404)
   assert.equal(system.state.entries.length, 1)
-  assert.equal(system.state.entries[0].userId, foreignOwner.id)
+  assert.equal(system.state.entries[0].userId, foreignOwner.internalId)
 })
 
 test('GET detail does not disclose a foreign TimeEntry', async () => {
   const system = createSystem()
-  seedEntry(system, { id: 'foreign-entry', userId: foreignOwner.id })
-  const result = await system.detail.GET({}, context('foreign-entry'))
+  seedEntry(system, { publicId: FOREIGN_ENTRY, userId: foreignOwner.internalId })
+  const result = await system.detail.GET({}, context(FOREIGN_ENTRY))
   assert.equal(result.status, 404)
   assert.equal(result.body.error.code, 'NOT_FOUND')
 })
@@ -523,14 +553,14 @@ test('summary returns exact Decimal totals for the requested inclusive Bangkok d
   assert.equal(result.status, 200)
   assert.equal(result.body.summary.hours, '0.3')
   assert.equal(result.body.summary.timezone, 'Asia/Bangkok')
-  assert.equal(system.state.lastWhere.userId, owner.id)
+  assert.equal(system.state.lastWhere.userId, owner.internalId)
   assert.equal(system.state.lastWhere.date.lt.toISOString(), '2026-10-03T00:00:00.000Z')
 })
 
 test('hour summaries reflect the latest create, update, and delete values', async () => {
   const system = createSystem()
   const url = 'http://localhost/api/work-logs/summary'
-  const created = await system.collection.POST(request({ workItemId: 'item-1', hours: '1.25', date: '2026-10-01' }))
+  const created = await system.collection.POST(request({ workItemId: ITEM_1, hours: '1.25', date: '2026-10-01' }))
   assert.equal(created.status, 201)
   assert.equal((await system.summary.GET(new Request(url))).body.summary.hours, '1.25')
 
@@ -575,7 +605,7 @@ test('summary rejects unauthenticated access before querying TimeEntries', async
 test('create database failure returns a safe generic error', async () => {
   const system = createSystem()
   system.state.failWrites = true
-  const result = await system.collection.POST(request({ workItemId: 'item-1', hours: 1, date: '2026-10-01' }))
+  const result = await system.collection.POST(request({ workItemId: ITEM_1, hours: 1, date: '2026-10-01' }))
   assert.equal(result.status, 500)
   assert.equal(JSON.stringify(result.body).includes('database secret'), false)
 })
@@ -685,7 +715,7 @@ test('Dashboard and Analysis request live hours and Work Item details display an
   const workItemDialog = readFileSync(new URL('../../components/page/work-items/work-item-view-dialog.tsx', import.meta.url), 'utf8')
   const workLogDialog = readFileSync(new URL('../../components/page/daily-work/work-log-dialog.tsx', import.meta.url), 'utf8')
   const dailyWorkPage = readFileSync(new URL('../../app/daily-work/page.tsx', import.meta.url), 'utf8')
-  assert.match(dashboard, /getDashboardSummary\(owner\.id, params\)/)
+  assert.match(dashboard, /getDashboardSummary\(owner\.internalId, params\)/)
   assert.doesNotMatch(dashboard, /LoggedHoursStat/)
   assert.match(analysis, /fetch\(`\/api\/analysis\/summary\?\$\{requestQuery\}`/)
   assert.match(analysis, /report\.summary\.loggedHours/)
@@ -707,8 +737,8 @@ test('GitLab import implementation does not create TimeEntries automatically', (
 test('TimeEntry schema uses a Bangkok calendar date and explicit wall-clock timestamp types', () => {
   const schema = readFileSync(new URL('../../prisma/schema.prisma', import.meta.url), 'utf8')
   const timeEntry = schema.slice(schema.indexOf('model TimeEntry {'), schema.indexOf('// Activity Log'))
-  assert.match(timeEntry, /date\s+DateTime\s+@default\(now\(\)\)\s+@db\.Date/)
-  assert.match(timeEntry, /createdAt\s+DateTime\s+@default\(now\(\)\)\s+@db\.Timestamp\(3\)/)
-  assert.match(timeEntry, /updatedAt\s+DateTime\s+@updatedAt\s+@db\.Timestamp\(3\)/)
+  assert.match(timeEntry, /date\s+DateTime\s+@default\(dbgenerated\("public\.pms_bangkok_today\(\)"\)\)\s+@map\("work_date"\)\s+@db\.Date/)
+  assert.match(timeEntry, /createdAt\s+DateTime\s+@default\(dbgenerated\("public\.pms_bangkok_now\(\)"\)\)\s+@map\("created_at"\)\s+@db\.Timestamp\(3\)/)
+  assert.doesNotMatch(timeEntry, /@updatedAt/)
   assert.match(timeEntry, /hours\s+Decimal\s+@db\.Decimal\(65,\s*30\)/)
 })

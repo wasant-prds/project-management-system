@@ -1,32 +1,47 @@
 import { NextResponse } from 'next/server'
 import { type WorkItemStatus, type WorkItemRole } from '@prisma/client'
 import { sumDecimalHours } from '@/lib/decimal-hours'
+import { decodeOpaqueCursor, encodeOpaqueCursor } from '@/lib/opaque-cursor'
+import { parsePublicId } from '@/lib/public-id'
 
 export const PROJECT_STATUSES = ['Planning', 'In Progress', 'Review', 'Completed', 'On Hold'] as const
 export const PROJECT_PRIORITIES = ['Low', 'Medium', 'High', 'Critical'] as const
 
-export function parsePage(params: URLSearchParams, filterKey: string) {
+export function parsePage(params: URLSearchParams, filterKey: string, ownerPublicId: string) {
   const rawLimit = params.get('limit')
   const limit = rawLimit === null ? 50 : Number(rawLimit)
   if (!Number.isInteger(limit) || limit < 1 || limit > 200) return { error: 'Limit must be 1–200' }
   const rawCursor = params.get('cursor')
-  if (!rawCursor) return { limit, cursor: undefined }
-  try {
-    const decoded: unknown = JSON.parse(Buffer.from(rawCursor, 'base64url').toString('utf8'))
-    if (!decoded || typeof decoded !== 'object' || !('id' in decoded) || !('key' in decoded)) return { error: 'Invalid cursor' }
-    if (typeof decoded.id !== 'string' || decoded.key !== filterKey) return { error: 'Invalid cursor' }
-    return { limit, cursor: decoded.id }
-  } catch {
-    return { error: 'Invalid cursor' }
-  }
+  if (!rawCursor) return { limit, cursor: undefined as bigint | undefined }
+  const decoded = decodeOpaqueCursor(rawCursor, { ownerPublicId, filterHash: filterKey })
+  if (!decoded) return { error: 'Invalid cursor' }
+  return { limit, cursor: decoded.internalId }
 }
 
-export function nextPage<T extends { id: string }>(rows: T[], limit: number, filterKey: string) {
+export function nextPage<T extends { id: bigint; publicId: string }>(
+  rows: T[],
+  limit: number,
+  filterKey: string,
+  ownerPublicId: string,
+) {
   const items = rows.slice(0, limit)
-  const nextCursor = rows.length > limit
-    ? Buffer.from(JSON.stringify({ id: items.at(-1)!.id, key: filterKey }), 'utf8').toString('base64url')
-    : null
+  const last = items.at(-1)
+  if (rows.length <= limit || !last) return { items, page: { limit, nextCursor: null as string | null } }
+  const nextCursor = encodeOpaqueCursor({
+    ownerPublicId,
+    filterHash: filterKey,
+    internalId: last.id,
+    tieBreaker: last.publicId,
+  })
+  if (!nextCursor) throw new Error('Cursor secret unavailable')
   return { items, page: { limit, nextCursor } }
+}
+
+export function optionalPublicId(value: string | null, field: string): { publicId: string | null } | { error: string; field: string } {
+  if (!value) return { publicId: null }
+  const publicId = parsePublicId(value)
+  if (!publicId) return { error: 'ต้องเป็น public UUID', field }
+  return { publicId }
 }
 
 export function apiError(status: number, code: string, message: string, field?: string) {
@@ -37,7 +52,7 @@ export function companyRelationConflict(error: unknown) {
   if (typeof error !== 'object' || error === null || !('code' in error) || error.code !== 'P2003') return null
   const meta = 'meta' in error && typeof error.meta === 'object' && error.meta !== null ? error.meta : null
   const field = meta && 'field_name' in meta ? String(meta.field_name) : ''
-  if (!field.toLowerCase().includes('companyid')) return null
+  if (!field.toLowerCase().replaceAll('_', '').includes('companyid')) return null
   return apiError(409, 'COMPANY_CONFLICT', 'Company ถูกลบหรือใช้งานไม่ได้ กรุณาเลือก Company ใหม่', 'companyId')
 }
 

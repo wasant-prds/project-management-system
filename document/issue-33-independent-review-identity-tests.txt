@@ -1,0 +1,20 @@
+✔ TC-33-01 rejects numeric, CUID, uppercase, and non-v4 public references (2.1045ms)
+✔ TC-33-02 round-trips the signed BIGINT maximum and rejects zero (1.436ms)
+✔ TC-33-04 keeps seed mappings and numeric owner selectors out of live identity (1.2522ms)
+✔ TC-33-08 hides the internal key inside an opaque cursor and fails closed (4.26ms)
+✔ TC-33-14 refuses runtime apply without the flag, a destructive mode, or a populated untracked database (0.9084ms)
+✔ TC-33-17 classifies a legacy schema and archives tables without a SQL target (1.6914ms)
+✔ TC-33-18 reuses one live mapping and rejects a seed collision or duplicate source row (1.3263ms)
+✔ TC-33-19 lists the write freeze and identity alignment steps (0.7084ms)
+✔ TC-33-20 keeps the original database closed to a failed migration or owner check (0.736ms)
+✔ TC-33-21 plans rollback before writes and reconciliation after cutover writes (2.9526ms)
+✔ TC-33-22 selects psql or pg_restore only for a verified receipt (0.6104ms)
+✔ TC-33-23 keeps db push and JSON seed off the active startup path (10.701ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1128.5165

@@ -20,6 +20,8 @@ Issue #25 เพิ่ม owner-only [Settings API](./api/settings/me.md) แล
 
 ## API
 
+API handbook ทุกหน้าใช้ public UUIDv4 สำหรับ record identities และ relationship references ตาม [API identifier contract — Issue #33](./api/record-identifiers.md); internal BIGINT IDs ใช้เฉพาะในฐานข้อมูล.
+
 Route Handler ปัจจุบันมีดังนี้:
 
 ### System
@@ -86,8 +88,9 @@ Route Handler ปัจจุบันมีดังนี้:
 - [Owner access gate](./operations/owner-access.md) — Basic credential gate, origin checks, middleware proof, owner resolution.
 - [Runtime operations](./operations/runtime.md) — start, health, logs และ troubleshooting; links ไปยัง Docker/DB runbooks.
 - [Database data model](./database/data-model.md) — relations และ tables ที่ current APIs ใช้.
-- [SQL schema, numeric IDs and migrations — Issue #31](./database/issue-31-sql-schema.md) — empty SQL snapshot (11 runtime-used business tables + schema_migrations), BIGINT identity PKs / random public UUIDs, Bangkok wall-clock timestamps, advisory locking, versioned migration runner และ isolated test evidence; ยังไม่ใช่ active runtime.
-- [SQL master seeds and backup conversion — Issue #32](./database/issue-32-sql-master-seeds.md) — การแปลง production backup เป็น deterministic SQL master seeds, การ persist immutable public UUIDv4 ลง legacy-id-map.json, นโยบายความสัมพันธ์บริษัทและเวลา Bangkok, transactional seed runner และ isolated verification evidence; stage ไว้สำหรับ Issue #33 adoption.
+- [SQL schema, numeric IDs and migrations — Issue #31](./database/issue-31-sql-schema.md) — empty SQL snapshot (11 runtime-used business tables + schema_migrations), BIGINT identity PKs / random public UUIDs, Bangkok wall-clock timestamps, advisory locking, versioned migration runner และ isolated test evidence. การเชื่อมแอปอยู่ที่ Issue #33; live cutover ยังไม่เกิด.
+- [SQL master seeds and backup conversion — Issue #32](./database/issue-32-sql-master-seeds.md) — การแปลง production backup เป็น deterministic SQL master seeds, การ persist immutable public UUIDv4 ลง legacy-id-map.json, นโยบายความสัมพันธ์บริษัทและเวลา Bangkok, transactional seed runner และ isolated verification evidence.
+- [SQL runtime, public UUIDs and recovery — Issue #33](./database/issue-33-sql-runtime.md) — โค้ดแอปใช้ BIGINT ภายในและ public UUIDv4 ที่ API; startup ผ่าน rollout gate ก่อนเรียก SQL runtime และมี converter สำหรับ legacy backup พร้อม isolated rehearsal. ยังไม่มีคำสั่ง live cutover/rollback และ live cutover ยังไม่ได้รับอนุญาต.
 - [GitLab integration](./integration/gitlab.md) — configuration, security, data ownership, sync behavior และ rollout readiness.
 
 ## Source references

@@ -98,7 +98,20 @@ export function psqlTarget(target) {
   const url = new URL(target);
   const password = url.password === '' ? undefined : decodeUserinfo(url.password);
   url.password = '';
-  const connection = url.toString().replace(/^(postgres(?:ql)?:\/\/[^@/]*):@/i, '$1@');
+  // Prisma accepts these pool/schema options in DATABASE_URL, while libpq/psql
+  // rejects them as invalid URI parameters. Keep libpq options (for example
+  // options=-c%20timezone%3DAsia%2FBangkok) and strip only Prisma-only keys.
+  for (const key of ['schema', 'connection_limit', 'pool_timeout', 'pgbouncer']) {
+    url.searchParams.delete(key);
+  }
+  const serialized = url.toString();
+  const queryIndex = serialized.indexOf('?');
+  // libpq URI query values do not use form encoding: a literal '+' remains a
+  // plus sign. URLSearchParams serializes spaces as '+', so restore %20.
+  const normalized = queryIndex === -1
+    ? serialized
+    : `${serialized.slice(0, queryIndex + 1)}${serialized.slice(queryIndex + 1).replaceAll('+', '%20')}`;
+  const connection = normalized.replace(/^(postgres(?:ql)?:\/\/[^@/]*):@/i, '$1@');
   const at = connection.indexOf('@');
   const credentials = at === -1 ? connection : connection.slice(connection.indexOf('://') + 3, at);
   if (password !== undefined && (at === -1 || credentials.includes(':'))) {

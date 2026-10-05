@@ -32,7 +32,7 @@
 
 | Field | Type | Required | Validation / behavior |
 | --- | --- | --- | --- |
-| `mappingId` | string | Yes | ไม่ว่าง; ต้องอ้าง GitLab Project mapping ที่มีอยู่ |
+| `mappingId` | string | Yes | public UUIDv4 ของ GitLab Project mapping ที่มีอยู่ |
 | `approveFirstSync` | boolean | Optional | ต้องเป็น `true` หาก `firstSyncApprovedAt` ยัง null; `false` หรือ omitted จะได้ conflict. ไม่มีผลเป็นเงื่อนไขเมื่ออนุมัติแล้ว |
 
 ```bash
@@ -77,7 +77,7 @@ Approval timestamp จะบันทึกก่อนเรียก provider.
 
 | Response field | Description |
 | --- | --- |
-| `mappingId` | ID ของ mapping ที่ sync route เลือก |
+| `mappingId` | Public UUIDv4 ของ mapping ที่ sync route เลือก |
 | `counts` | จำนวนผลลัพธ์ต่อ outcome ที่อยู่ใน `results` |
 | `counts.created` | จำนวน WorkItems ใหม่ |
 | `counts.updated` | จำนวน WorkItems/reference ที่ source changes อัปเดต |
@@ -89,7 +89,7 @@ Approval timestamp จะบันทึกก่อนเรียก provider.
 | `results[].iid` | Issue IID ภายใน Project ในรูป string; fallback เป็น `unknown` เมื่อข้อมูลผิดรูปแบบ |
 | `results[].title` | ชื่อ Issue; ใช้ safe fallback หาก source ไม่มี title ที่ valid |
 | `results[].sourceUrl` | GitLab Issue URL ที่ตรวจแล้ว; อาจเป็น `""` เมื่อข้อมูล source URL invalid |
-| `results[].workItemId` | PMS WorkItem ID เมื่อมี linked/created record; `null` สำหรับ Issue ที่ล้มเหลวก่อนบันทึก |
+| `results[].workItemId` | PMS WorkItem public UUIDv4 เมื่อมี linked/created record; `null` สำหรับ Issue ที่ล้มเหลวก่อนบันทึก |
 | `results[].reason` | เหตุผล machine-readable เช่น `created_from_gitlab`, `source_fields_changed`, `no_changes`, `stale_source`; optional |
 | `results[].warnings` | รายการคำเตือน เช่น GitLab label ที่ไม่มี mapping; optional และไม่ทำให้ Issue ล้มเหลว |
 | `results[].error` | รายละเอียด failure ต่อ Issue; มีเฉพาะ outcome `failed` |

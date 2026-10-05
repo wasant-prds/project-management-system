@@ -28,7 +28,7 @@ function loadTypeScript(path, mocks) {
 
 function makeSettingsUser(overrides = {}) {
   return {
-    id: 'owner-1',
+    id: 7n,
     name: 'Owner',
     email: 'owner@example.test',
     phone: null,
@@ -73,7 +73,7 @@ function makeHarness(options = {}) {
   const owner = {
     getOwner: async () => {
       if (options.ownerFailure) throw options.ownerFailure
-      return { id: options.ownerId ?? 'owner-1' }
+      return { id: '11111111-1111-4111-8111-111111111111', internalId: options.ownerId ?? 7n }
     },
     ownerErrorResponse: (error) => error?.status === 401
       ? response.json({ error: { code: 'OWNER_UNAUTHENTICATED', message: 'กรุณายืนยันตัวตนเจ้าของระบบ' } }, { status: 401 })
@@ -141,7 +141,7 @@ test('GET returns only the authenticated owner profile, persisted preferences, a
     profile: { name: 'Owner', email: 'owner@example.test', phone: null, avatar: null },
     preferences: { theme: 'dark', locale: 'en', timezone: 'Asia/Bangkok' },
   })
-  assert.deepEqual(JSON.parse(JSON.stringify(calls.reads[0].where)), { id: 'owner-1' })
+  assert.equal(calls.reads[0].where.id, 7n)
   assert.equal(JSON.stringify(response.body).includes('never-return-this'), false)
 })
 
@@ -166,7 +166,7 @@ test('PATCH persists profile and preferences for server-resolved owner and GET r
 
   assert.equal(saved.status, 200)
   assert.equal(calls.writes.length, 1)
-  assert.deepEqual(JSON.parse(JSON.stringify(calls.writes[0].where)), { id: 'owner-1' })
+  assert.equal(calls.writes[0].where.id, 7n)
   assert.deepEqual(JSON.parse(JSON.stringify(calls.writes[0].data)), {
     name: 'New Owner',
     email: 'new@example.test',

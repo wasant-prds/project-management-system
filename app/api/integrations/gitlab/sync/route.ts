@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { getOwner, ownerErrorResponse } from '@/lib/owner'
 import { GitLabProviderError, getGitLabConfiguration, syncGitLabProject } from '@/lib/gitlab-issue-import'
 import { currentBangkokWallClockDate } from '@/lib/bangkok-datetime'
+import { parsePublicId } from '@/lib/public-id'
 
 type SafeCode = 'VALIDATION_ERROR' | 'NOT_FOUND' | 'CONFLICT' | 'FIRST_SYNC_APPROVAL_REQUIRED'
 
@@ -30,7 +31,9 @@ export async function POST(request: Request) {
       || Object.keys(body).some((key) => !['mappingId', 'approveFirstSync'].includes(key))) {
       return requestError('VALIDATION_ERROR', 'กรุณาระบุ mapping ที่ต้องการ sync', 400, 'mappingId')
     }
-    const mapping = await prisma.gitLabProjectMapping.findUnique({ where: { id: body.mappingId } })
+    const mappingPublicId = parsePublicId(body.mappingId)
+    if (!mappingPublicId) return requestError('VALIDATION_ERROR', 'ต้องเป็น public UUID', 400, 'mappingId')
+    const mapping = await prisma.gitLabProjectMapping.findFirst({ where: { publicId: mappingPublicId, provider: 'gitlab' } })
     if (!mapping) return requestError('NOT_FOUND', 'ไม่พบ GitLab Project mapping', 404)
     if (mapping.canonicalGitLabInstanceUrl !== config.baseUrl) {
       return requestError('CONFLICT', 'mapping นี้อยู่บน GitLab instance อื่น กรุณาตรวจ server configuration', 409)
@@ -53,11 +56,11 @@ export async function POST(request: Request) {
       }
     }
 
-    const result = await syncGitLabProject({ prisma, mapping: mappingToSync, ownerId: owner.id, config })
+    const result = await syncGitLabProject({ prisma, mapping: mappingToSync, ownerId: owner.internalId, config })
     if (result.results.length === 0 && result.runError) {
       return requestError(result.runError.code, result.runError.message, 503)
     }
-    return NextResponse.json({ mappingId: mapping.id, ...result }, { headers: { 'Cache-Control': 'no-store' } })
+    return NextResponse.json({ mappingId: mapping.publicId, ...result }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
     const ownerResponse = ownerErrorResponse(error)
     if (ownerResponse) return ownerResponse

@@ -1,6 +1,6 @@
 # API
 
-> **Identifier decision 2026-10-04:** SQL target ทุก table ใช้ internal BIGINT id สำหรับ PK/FK และ immutable random UUIDv4 public_id สำหรับ API/frontend/URL. Active Prisma/API ยังใช้ legacy CUID จน #33 เปลี่ยน DB + runtime + DTO พร้อมกัน. ดู [public identifier contract](./database/PUBLIC_IDENTIFIERS.md) และ [project rules](../.cursor/rules/05-record-identifiers.mdc).
+> **Identifier decision 2026-10-04:** API/UI/URL/export ใช้ public UUIDv4. ความสัมพันธ์ในฐานข้อมูลใช้ BIGINT. โค้ดแอปของ Issue #33 ตรวจ UUID ที่ขอบเขต HTTP แล้วค่อยเขียน numeric FK. การตัดระบบฐานข้อมูลที่ใช้งานอยู่ยังไม่เกิดขึ้นในงานนี้. ดู [public identifier contract](./database/PUBLIC_IDENTIFIERS.md).
 
 > **Owner decision 2026-09-29:** Customer API และ `customerId` ที่กล่าวในสัญญาเดิมถูกยกเลิก ใช้ Company หลายรายกับ `Project.companyId`; Projects เดิมผูก Dhas. ดู [Company → Project decision](./COMPANY_PROJECT_DECISION.md). ข้อความ Customer ด้านล่างเป็นประวัติข้อเสนอเดิม ไม่ใช่ contract ที่ใช้พัฒนาใหม่.
 

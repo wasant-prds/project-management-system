@@ -74,7 +74,7 @@ test('migration entrypoint skips absent seed by default and explains explicit se
   try {
     await mkdir(join(folder, 'bin'));
     await mkdir(join(folder, 'node_modules', '.bin'), { recursive: true });
-    await writeFile(join(folder, 'bin', 'node'), '#!/bin/sh\ncase "$1" in\n  /app/scripts/database-url.mjs) printf synthetic-database-url ;;\n  scripts/db-schema-rollout-gate.mjs)\n    [ "${DB_SCHEMA_BACKUP_RESTORE_VERIFIED:-false}" = true ] && [ "${DB_SCHEMA_SYNC_APPROVED:-false}" = true ] && [ "${DB_SCHEMA_SYNC_APPROVED_ENV:-}" = "${APP_ENV:-}" ] && [ -n "${DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256:-}" ] || { echo \'Schema rollout gate fixture rejected approval.\' >&2; exit 1; }\n    ;;\n  *) exit 1 ;;\nesac\n', { mode: 0o755 });
+    await writeFile(join(folder, 'bin', 'node'), '#!/bin/sh\ncase "$1" in\n  /app/scripts/database-url.mjs) printf synthetic-database-url ;;\n  scripts/db-schema-rollout-gate.mjs)\n    [ "${DB_SCHEMA_BACKUP_RESTORE_VERIFIED:-false}" = true ] && [ "${DB_SCHEMA_SYNC_APPROVED:-false}" = true ] && [ "${DB_SCHEMA_SYNC_APPROVED_ENV:-}" = "${APP_ENV:-}" ] && [ -n "${DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256:-}" ] || { echo \'Schema rollout gate fixture rejected approval.\' >&2; exit 1; }\n    ;;\n  scripts/sql-runtime.mjs)\n    if [ "${RUN_SEED:-false}" = true ]; then echo \'Seed approval is missing. Set RUN_SEED=false to start without seed.\' >&2; exit 1; fi\n    echo "RUN_SEED=${RUN_SEED:-false} — skipping seed"\n    echo "Database step completed."\n    ;;\n  *) exit 1 ;;\nesac\n', { mode: 0o755 });
     await writeFile(join(folder, 'node_modules', '.bin', 'prisma'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
     await writeFile(join(folder, 'bin', 'pnpm'), '#!/bin/sh\nif [ "$*" = "prisma db seed" ]; then echo "Seed config not found; synthetic-private-password" >&2; exit 1; fi\nexit 0\n', { mode: 0o755 });
     for (const setting of [undefined, 'false', 'true']) {
@@ -86,7 +86,7 @@ test('migration entrypoint skips absent seed by default and explains explicit se
       const output = `${result.stdout || ''}${result.stderr || ''}`;
       assert.doesNotMatch(output, /synthetic-private-password|synthetic-database-url/);
       assert.equal(result.status, setting === 'true' ? 1 : 0, 'entrypoint exit status');
-      if (setting === 'true') assert.match(output, /Seed config is missing\. Set RUN_SEED=false/);
+      if (setting === 'true') assert.match(output, /Seed approval is missing\. Set RUN_SEED=false/);
       else assert.match(output, /RUN_SEED=false.*skipping seed/);
     }
   } finally { await rm(folder, { recursive: true, force: true }); }

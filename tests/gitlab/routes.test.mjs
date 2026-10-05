@@ -3,11 +3,17 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import test from 'node:test'
 import vm from 'node:vm'
+import { resolveTestImport } from '../support/identity-modules.mjs'
 
 const require = createRequire(import.meta.url)
 const ts = require('typescript')
 const config = { baseUrl: 'https://gitlab.example.test/base', token: 'synthetic-private-token' }
-const owner = { id: 'owner-1', name: 'Owner' }
+const OWNER_PUBLIC = '11111111-1111-4111-8111-111111111111'
+const PROJECT_PUBLIC = '33333333-3333-4333-8333-333333333333'
+const OTHER_PROJECT_PUBLIC = '44444444-4444-4444-8444-444444444444'
+const COMPANY_PUBLIC = '55555555-5555-4555-8555-555555555555'
+const MAPPING_PUBLIC = '88888888-8888-4888-8888-888888888888'
+const owner = { id: OWNER_PUBLIC, internalId: 7n, name: 'Owner' }
 
 function loadTs(path, mocks) {
   const source = readFileSync(new URL(path, import.meta.url), 'utf8')
@@ -19,8 +25,9 @@ function loadTs(path, mocks) {
     module: loaded,
     exports: loaded.exports,
     require: (name) => {
-      if (!(name in mocks)) throw new Error(`Unexpected import: ${name}`)
-      return mocks[name]
+      const resolved = resolveTestImport(name, mocks)
+      if (resolved === undefined) throw new Error(`Unexpected import: ${name}`)
+      return resolved
     },
     Date,
     URL,
@@ -69,9 +76,12 @@ function makeOwnerMocks({ authorized = true, gitLabConfigured = true } = {}) {
   }
 }
 
-const project = { id: 'pms-project-1', name: 'Project One', company: { id: 'company-1', name: 'Company One', displayName: null } }
+const project = {
+  id: 1n, publicId: PROJECT_PUBLIC, name: 'Project One',
+  company: { id: 11n, publicId: COMPANY_PUBLIC, name: 'Company One', displayName: null },
+}
 const mapping = {
-  id: 'mapping-1', canonicalGitLabInstanceUrl: config.baseUrl, gitLabProjectId: '42', projectId: project.id,
+  id: 5n, publicId: MAPPING_PUBLIC, provider: 'gitlab', canonicalGitLabInstanceUrl: config.baseUrl, gitLabProjectId: '42', projectId: project.id,
   approvedLabelMap: { bug: 'bug' }, firstSyncApprovedAt: null,
   createdAt: new Date('2026-09-30T17:00:00.000Z'), updatedAt: new Date('2026-09-30T17:00:00.000Z'), project,
 }
@@ -140,16 +150,16 @@ test('mapping create uses only server-configured instance and rejects client URL
   let createData
   const mocks = makeOwnerMocks()
   mocks['@/lib/db'].prisma = {
-    project: { async findUnique() { return { id: project.id } } },
+    project: { async findUnique() { return { id: 1n } } },
     externalWorkItemReference: { async findFirst() { return null } },
     gitLabProjectMapping: {
       async create({ data }) { createData = data; return { ...mapping, ...data } },
     },
   }
   const { POST } = loadTs('../../app/api/integrations/gitlab/projects/route.ts', mocks)
-  const invalid = await POST({ json: async () => ({ gitLabProjectId: '42', projectId: project.id, approvedLabelMap: {}, instanceUrl: 'https://attacker.invalid', token: 'leak' }) })
+  const invalid = await POST({ json: async () => ({ gitLabProjectId: '42', projectId: PROJECT_PUBLIC, approvedLabelMap: {}, instanceUrl: 'https://attacker.invalid', token: 'leak' }) })
   assert.equal(invalid.status, 400)
-  const created = await POST({ json: async () => ({ gitLabProjectId: '42', projectId: project.id, approvedLabelMap: { bug: 'bug' } }) })
+  const created = await POST({ json: async () => ({ gitLabProjectId: '42', projectId: PROJECT_PUBLIC, approvedLabelMap: { bug: 'bug' } }) })
   assert.equal(created.status, 201)
   assert.equal(createData.canonicalGitLabInstanceUrl, config.baseUrl)
   assert.equal(createData.gitLabProjectId, '42')
@@ -159,12 +169,12 @@ test('mapping create uses only server-configured instance and rejects client URL
 test('mapping creation rejects rebinding an imported source Project to a different PMS Project', async () => {
   const mocks = makeOwnerMocks()
   mocks['@/lib/db'].prisma = {
-    project: { async findUnique() { return { id: 'pms-project-2' } } },
+    project: { async findUnique() { return { id: 2n } } },
     externalWorkItemReference: { async findFirst({ where }) { return { id: 'reference-1', ...where } } },
     gitLabProjectMapping: { async create() { assert.fail('must not create a conflicting mapping') } },
   }
   const { POST } = loadTs('../../app/api/integrations/gitlab/projects/route.ts', mocks)
-  const result = await POST({ json: async () => ({ gitLabProjectId: '42', projectId: 'pms-project-2', approvedLabelMap: {} }) })
+  const result = await POST({ json: async () => ({ gitLabProjectId: '42', projectId: OTHER_PROJECT_PUBLIC, approvedLabelMap: {} }) })
   assert.equal(result.status, 409)
   assert.equal(result.body.error.code, 'CONFLICT')
 })
@@ -176,9 +186,9 @@ test('mapping edit blocks destination moves with references and resets first-syn
   let transactionOptions
   let failTransaction = false
   const db = {
-    project: { async findUnique() { return { id: 'pms-project-2' } } },
+    project: { async findUnique() { return { id: 2n } } },
     gitLabProjectMapping: {
-      async findUnique() { return { ...mapping, approvedLabelMap: { bug: 'bug' } } },
+      async findFirst() { return { ...mapping, approvedLabelMap: { bug: 'bug' } } },
       async update(args) { updateData = args.data; return { ...mapping, ...args.data } },
     },
     externalWorkItemReference: { async count({ where }) { referenceCountWhere = where; return 1 } },
@@ -190,7 +200,7 @@ test('mapping edit blocks destination moves with references and resets first-syn
   }
   mocks['@/lib/db'].prisma = db
   const { PATCH } = loadTs('../../app/api/integrations/gitlab/projects/[mappingId]/route.ts', mocks)
-  const moved = await PATCH({ json: async () => ({ projectId: 'pms-project-2' }) }, { params: Promise.resolve({ mappingId: mapping.id }) })
+  const moved = await PATCH({ json: async () => ({ projectId: OTHER_PROJECT_PUBLIC }) }, { params: Promise.resolve({ mappingId: MAPPING_PUBLIC }) })
   assert.equal(moved.status, 409)
   assert.equal(referenceCountWhere.provider, 'gitlab')
   assert.equal(referenceCountWhere.canonicalGitLabInstanceUrl, config.baseUrl)
@@ -199,12 +209,12 @@ test('mapping edit blocks destination moves with references and resets first-syn
   assert.equal(updateData, undefined)
 
   mocks['@/lib/db'].prisma.externalWorkItemReference.count = async () => 0
-  const edited = await PATCH({ json: async () => ({ approvedLabelMap: { bug: 'feature' } }) }, { params: Promise.resolve({ mappingId: mapping.id }) })
+  const edited = await PATCH({ json: async () => ({ approvedLabelMap: { bug: 'feature' } }) }, { params: Promise.resolve({ mappingId: MAPPING_PUBLIC }) })
   assert.equal(edited.status, 200)
   assert.equal(updateData.firstSyncApprovedAt, null)
 
   failTransaction = true
-  const concurrent = await PATCH({ json: async () => ({ projectId: 'pms-project-2' }) }, { params: Promise.resolve({ mappingId: mapping.id }) })
+  const concurrent = await PATCH({ json: async () => ({ projectId: OTHER_PROJECT_PUBLIC }) }, { params: Promise.resolve({ mappingId: MAPPING_PUBLIC }) })
   assert.equal(concurrent.status, 409)
   assert.equal(concurrent.body.error.code, 'CONFLICT')
 })
@@ -215,13 +225,13 @@ test('unmapping deletes only the mapping and leaves imported identity references
   const mocks = makeOwnerMocks()
   mocks['@/lib/db'].prisma = {
     gitLabProjectMapping: {
-      async findUnique() { return { id: mapping.id } },
+      async findFirst() { return { id: mapping.id } },
       async delete({ where }) { deletedMappingId = where.id; return mapping },
     },
     externalWorkItemReference: { findMany: async () => references },
   }
   const { DELETE } = loadTs('../../app/api/integrations/gitlab/projects/[mappingId]/route.ts', mocks)
-  const result = await DELETE({}, { params: Promise.resolve({ mappingId: mapping.id }) })
+  const result = await DELETE({}, { params: Promise.resolve({ mappingId: MAPPING_PUBLIC }) })
   assert.equal(result.status, 200)
   assert.equal(deletedMappingId, mapping.id)
   assert.deepEqual(references, [{ id: 'reference-1', workItemId: 'work-item-1' }])
@@ -231,17 +241,18 @@ test('sync requires explicit first-sync approval and then calls only the configu
   const mocks = makeOwnerMocks()
   let approveAt
   let serviceCalls = 0
-  mocks['@/lib/gitlab-issue-import'].syncGitLabProject = async ({ ownerId: sentOwnerId }) => {
+  let sentOwnerId
+  mocks['@/lib/gitlab-issue-import'].syncGitLabProject = async ({ ownerId }) => {
     serviceCalls += 1
+    sentOwnerId = ownerId
     return {
       counts: { created: 1, updated: 0, skipped: 0, failed: 0 },
-      results: [{ outcome: 'created', sourceUrl: 'https://gitlab.example.test/base/group/project/-/issues/17', workItemId: 'work-item-1' }],
-      ownerId: sentOwnerId,
+      results: [{ outcome: 'created', sourceUrl: 'https://gitlab.example.test/base/group/project/-/issues/17', workItemId: '77777777-7777-4777-8777-777777777771' }],
     }
   }
   mocks['@/lib/db'].prisma = {
     gitLabProjectMapping: {
-      async findUnique() { return mapping },
+      async findFirst() { return mapping },
       async update({ where, data }) {
         assert.equal(where.updatedAt.getTime(), mapping.updatedAt.getTime())
         approveAt = data.firstSyncApprovedAt
@@ -250,21 +261,21 @@ test('sync requires explicit first-sync approval and then calls only the configu
     },
   }
   const { POST } = loadTs('../../app/api/integrations/gitlab/sync/route.ts', mocks)
-  const required = await POST({ json: async () => ({ mappingId: mapping.id }) })
+  const required = await POST({ json: async () => ({ mappingId: MAPPING_PUBLIC }) })
   assert.equal(required.status, 409)
   assert.equal(required.body.error.code, 'FIRST_SYNC_APPROVAL_REQUIRED')
   assert.equal(serviceCalls, 0)
 
-  const authorized = await POST({ json: async () => ({ mappingId: mapping.id, approveFirstSync: true }) })
+  const authorized = await POST({ json: async () => ({ mappingId: MAPPING_PUBLIC, approveFirstSync: true }) })
   assert.equal(authorized.status, 200)
   assert.equal(approveAt.toISOString(), '2026-09-30T18:00:00.000Z')
-  assert.equal(authorized.body.mappingId, mapping.id)
+  assert.equal(authorized.body.mappingId, MAPPING_PUBLIC)
   assert.equal(authorized.body.counts.created, 1)
   assert.equal(authorized.body.counts.failed, 0)
   assert.equal(authorized.body.results[0].outcome, 'created')
   assert.equal(authorized.body.results[0].sourceUrl, 'https://gitlab.example.test/base/group/project/-/issues/17')
-  assert.equal(authorized.body.results[0].workItemId, 'work-item-1')
-  assert.equal(authorized.body.ownerId, owner.id)
+  assert.equal(authorized.body.results[0].workItemId, '77777777-7777-4777-8777-777777777771')
+  assert.equal(sentOwnerId, owner.internalId)
   assert.equal(serviceCalls, 1)
   assert.equal(JSON.stringify(authorized.body).includes(config.token), false)
 })
@@ -274,7 +285,7 @@ test('first-sync approval stops if the mapping changed after it was read', async
   let serviceCalls = 0
   mocks['@/lib/db'].prisma = {
     gitLabProjectMapping: {
-      async findUnique() { return mapping },
+      async findFirst() { return mapping },
       async update({ where }) {
         assert.equal(where.updatedAt.getTime(), mapping.updatedAt.getTime())
         throw Object.assign(new Error('record changed'), { code: 'P2025' })
@@ -286,7 +297,7 @@ test('first-sync approval stops if the mapping changed after it was read', async
     return { counts: { created: 0, updated: 0, skipped: 0, failed: 0 }, results: [] }
   }
   const { POST } = loadTs('../../app/api/integrations/gitlab/sync/route.ts', mocks)
-  const result = await POST({ json: async () => ({ mappingId: mapping.id, approveFirstSync: true }) })
+  const result = await POST({ json: async () => ({ mappingId: MAPPING_PUBLIC, approveFirstSync: true }) })
 
   assert.equal(result.status, 409)
   assert.equal(result.body.error.code, 'CONFLICT')

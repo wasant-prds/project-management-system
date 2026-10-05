@@ -2,6 +2,7 @@ import type { Prisma, WorkItemKind, WorkItemRole } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { bangkokDateRange, currentBangkokCalendarDate, serializeBangkokCalendarDate, serializeBangkokTimestamp } from '@/lib/bangkok-datetime'
 import { completionRate } from '@/lib/project-management'
+import { parsePublicId } from '@/lib/public-id'
 import {
   WORK_ITEM_KINDS,
   WORK_ITEM_ROLES,
@@ -32,6 +33,11 @@ export type DashboardFilters = {
   kind: string | null
 }
 
+export type ResolvedDashboardFilters = DashboardFilters & {
+  companyInternalId: bigint | null
+  projectInternalId: bigint | null
+}
+
 export class DashboardQueryError extends Error {
   constructor(
     readonly status: 400 | 404,
@@ -58,7 +64,9 @@ function defaultDashboardPeriod(now: Date) {
 }
 
 function queryId(params: URLSearchParams, name: string) {
-  return params.get(name)?.trim() || null
+  const value = params.get(name)?.trim() || null
+  if (value && !parsePublicId(value)) return { error: name }
+  return { publicId: value }
 }
 
 export function parseDashboardFilters(params: URLSearchParams, now = new Date()) {
@@ -75,8 +83,16 @@ export function parseDashboardFilters(params: URLSearchParams, now = new Date())
     return { error: new DashboardQueryError(400, 'VALIDATION_ERROR', 'Date range must use valid ordered YYYY-MM-DD dates', 'startDate') }
   }
 
-  const companyId = queryId(params, 'companyId')
-  const projectId = queryId(params, 'projectId')
+  const companyRef = queryId(params, 'companyId')
+  if ('error' in companyRef) {
+    return { error: new DashboardQueryError(400, 'VALIDATION_ERROR', 'ต้องเป็น public UUID', 'companyId') }
+  }
+  const projectRef = queryId(params, 'projectId')
+  if ('error' in projectRef) {
+    return { error: new DashboardQueryError(400, 'VALIDATION_ERROR', 'ต้องเป็น public UUID', 'projectId') }
+  }
+  const companyId = companyRef.publicId
+  const projectId = projectRef.publicId
 
   const roleParam = params.get('role')
   const role = roleParam?.trim() || null
@@ -112,28 +128,28 @@ function rangeAnchor(start: Date, end: Date): Prisma.WorkItemWhereInput {
   }
 }
 
-export function selectedWorkItemWhere(ownerId: string, filters: DashboardFilters, range: { start: Date; end: Date }): Prisma.WorkItemWhereInput {
+export function selectedWorkItemWhere(ownerId: bigint, filters: ResolvedDashboardFilters, range: { start: Date; end: Date }): Prisma.WorkItemWhereInput {
   const where: Prisma.WorkItemWhereInput = {
     assigneeId: ownerId,
     ...rangeAnchor(range.start, range.end),
   }
-  if (filters.projectId) where.projectId = filters.projectId
-  if (filters.companyId) where.project = { is: { companyId: filters.companyId } }
+  if (filters.projectInternalId) where.projectId = filters.projectInternalId
+  if (filters.companyInternalId) where.project = { is: { companyId: filters.companyInternalId } }
   if (filters.role === 'none') where.role = null
   else if (filters.role) where.role = filters.role as WorkItemRole
   if (filters.kind) where.kind = filters.kind as WorkItemKind
   return where
 }
 
-export function selectedTimeEntryWhere(ownerId: string, filters: DashboardFilters, range: { start: Date; end: Date }): Prisma.TimeEntryWhereInput {
+export function selectedTimeEntryWhere(ownerId: bigint, filters: ResolvedDashboardFilters, range: { start: Date; end: Date }): Prisma.TimeEntryWhereInput {
   const where: Prisma.TimeEntryWhereInput = {
     userId: ownerId,
     date: { gte: range.start, lt: range.end },
   }
   const workItem: Prisma.WorkItemWhereInput = {}
   const project: Prisma.ProjectWhereInput = {}
-  if (filters.projectId) project.id = filters.projectId
-  if (filters.companyId) project.companyId = filters.companyId
+  if (filters.projectInternalId) project.id = filters.projectInternalId
+  if (filters.companyInternalId) project.companyId = filters.companyInternalId
   if (filters.role === 'none') workItem.role = null
   else if (filters.role) workItem.role = filters.role as WorkItemRole
   if (filters.kind) workItem.kind = filters.kind as WorkItemKind
@@ -142,32 +158,37 @@ export function selectedTimeEntryWhere(ownerId: string, filters: DashboardFilter
   return where
 }
 
-function selectedProjectsWhere(filters: DashboardFilters): Prisma.ProjectWhereInput {
+function selectedProjectsWhere(filters: ResolvedDashboardFilters): Prisma.ProjectWhereInput {
   const where: Prisma.ProjectWhereInput = {}
-  if (filters.companyId) where.companyId = filters.companyId
-  if (filters.projectId) where.id = filters.projectId
+  if (filters.companyInternalId) where.companyId = filters.companyInternalId
+  if (filters.projectInternalId) where.id = filters.projectInternalId
   return where
 }
 
 export async function assertFilterRelations(
   filters: DashboardFilters,
   database: Pick<typeof prisma, 'company' | 'project'>,
-) {
+): Promise<ResolvedDashboardFilters> {
+  let companyInternalId: bigint | null = null
   if (filters.companyId) {
-    const company = await database.company.findUnique({ where: { id: filters.companyId }, select: { id: true } })
+    const company = await database.company.findUnique({ where: { publicId: filters.companyId }, select: { id: true } })
     if (!company) throw new DashboardQueryError(404, 'NOT_FOUND', 'Company not found', 'companyId')
+    companyInternalId = company.id
   }
+  let projectInternalId: bigint | null = null
   if (filters.projectId) {
-    const project = await database.project.findUnique({ where: { id: filters.projectId }, select: { id: true, companyId: true } })
+    const project = await database.project.findUnique({ where: { publicId: filters.projectId }, select: { id: true, companyId: true } })
     if (!project) throw new DashboardQueryError(404, 'NOT_FOUND', 'Project not found', 'projectId')
-    if (filters.companyId && project.companyId !== filters.companyId) {
+    if (companyInternalId !== null && project.companyId !== companyInternalId) {
       throw new DashboardQueryError(400, 'RELATION_MISMATCH', 'Project does not belong to the selected Company', 'projectId')
     }
+    projectInternalId = project.id
   }
+  return { ...filters, companyInternalId, projectInternalId }
 }
 
 function serializeWorkItem(item: {
-  id: string
+  publicId: string
   title: string
   kind: string
   priority: string
@@ -177,10 +198,10 @@ function serializeWorkItem(item: {
   dueDate: Date | null
   createdAt: Date
   updatedAt: Date
-  project: { id: string; name: string; company: { id: string; name: string; displayName: string | null } | null }
+  project: { publicId: string; name: string; company: { publicId: string; name: string; displayName: string | null } | null }
 }) {
   return {
-    id: item.id,
+    id: item.publicId,
     title: item.title,
     kind: item.kind,
     priority: item.priority,
@@ -190,34 +211,46 @@ function serializeWorkItem(item: {
     dueDate: item.dueDate ? dateText(item.dueDate) : null,
     createdAt: serializeBangkokTimestamp(item.createdAt),
     updatedAt: serializeBangkokTimestamp(item.updatedAt),
-    project: item.project,
+    project: {
+      id: item.project.publicId,
+      name: item.project.name,
+      company: item.project.company ? {
+        id: item.project.company.publicId,
+        name: item.project.company.name,
+        displayName: item.project.company.displayName,
+      } : null,
+    },
   }
 }
 
 function serializeProject(project: {
-  id: string
+  publicId: string
   name: string
   status: string
   priority: string
   dueDate: Date
   createdAt: Date
-  company: { id: string; name: string; displayName: string | null } | null
+  company: { publicId: string; name: string; displayName: string | null } | null
 }, progress: number) {
   return {
-    id: project.id,
+    id: project.publicId,
     name: project.name,
     status: project.status,
     priority: project.priority,
     dueDate: dateText(project.dueDate),
     createdAt: serializeBangkokTimestamp(project.createdAt),
-    company: project.company,
+    company: project.company ? {
+      id: project.company.publicId,
+      name: project.company.name,
+      displayName: project.company.displayName,
+    } : null,
     progress,
   }
 }
 
 function groupProjectProgress(
-  projects: Array<{ id: string; name: string; status: string; priority: string; dueDate: Date; createdAt: Date; company: { id: string; name: string; displayName: string | null } | null }>,
-  groups: Array<{ projectId: string; status: string; _count: { _all: number } }>,
+  projects: Array<{ id: bigint; publicId: string; name: string; status: string; priority: string; dueDate: Date; createdAt: Date; company: { publicId: string; name: string; displayName: string | null } | null }>,
+  groups: Array<{ projectId: bigint; status: string; _count: { _all: number } }>,
 ) {
   return projects.map((project) => {
     const counts = groups.filter((row) => row.projectId === project.id)
@@ -229,7 +262,7 @@ function groupProjectProgress(
 }
 
 export async function getDashboardSummary(
-  ownerId: string,
+  ownerId: bigint,
   params: URLSearchParams,
   database: typeof prisma = prisma,
   now = new Date(),
@@ -237,17 +270,17 @@ export async function getDashboardSummary(
   const parsed = parseDashboardFilters(params, now)
   if (parsed.error) throw parsed.error
   const { filters, range } = parsed
-  await assertFilterRelations(filters, database)
+  const resolved = await assertFilterRelations(filters, database)
 
-  const workItemWhere = selectedWorkItemWhere(ownerId, filters, range)
-  const timeEntryWhere = selectedTimeEntryWhere(ownerId, filters, range)
+  const workItemWhere = selectedWorkItemWhere(ownerId, resolved, range)
+  const timeEntryWhere = selectedTimeEntryWhere(ownerId, resolved, range)
   const today = bangkokDateRange(currentBangkokCalendarDate(now))
   if (!today) throw new Error('Bangkok business date is invalid')
   const overdueWhere: Prisma.WorkItemWhereInput = {
     AND: [workItemWhere, { dueDate: { lt: today.start } }, { status: { notIn: CLOSED_STATUSES } }],
   }
   const recentWorkItemSelect = {
-    id: true,
+    publicId: true,
     title: true,
     kind: true,
     priority: true,
@@ -259,22 +292,23 @@ export async function getDashboardSummary(
     updatedAt: true,
     project: {
       select: {
-        id: true,
+        publicId: true,
         name: true,
-        company: { select: { id: true, name: true, displayName: true } },
+        company: { select: { publicId: true, name: true, displayName: true } },
       },
     },
   } as const
   const recentProjectsQuery = database.project.findMany({
-    where: selectedProjectsWhere(filters),
+    where: selectedProjectsWhere(resolved),
     select: {
       id: true,
+      publicId: true,
       name: true,
       status: true,
       priority: true,
       dueDate: true,
       createdAt: true,
-      company: { select: { id: true, name: true, displayName: true } },
+      company: { select: { publicId: true, name: true, displayName: true } },
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: PREVIEW_LIMIT,
@@ -290,8 +324,12 @@ export async function getDashboardSummary(
     database.workItem.findMany({ where: overdueWhere, select: recentWorkItemSelect, orderBy: [{ dueDate: 'asc' }, { id: 'asc' }], take: PREVIEW_LIMIT }),
     database.timeEntry.aggregate({ where: timeEntryWhere, _sum: { hours: true } }),
     database.timeEntry.groupBy({ by: ['date'], where: timeEntryWhere, _sum: { hours: true }, orderBy: { date: 'asc' } }),
-    database.company.findMany({ select: { id: true, name: true, displayName: true }, orderBy: [{ name: 'asc' }, { id: 'asc' }] }),
-    database.project.findMany({ where: selectedProjectsWhere(filters), select: { id: true, name: true, companyId: true }, orderBy: [{ name: 'asc' }, { id: 'asc' }] }),
+    database.company.findMany({ select: { publicId: true, name: true, displayName: true }, orderBy: [{ name: 'asc' }, { id: 'asc' }] }),
+    database.project.findMany({
+      where: selectedProjectsWhere(resolved),
+      select: { publicId: true, name: true, company: { select: { publicId: true } } },
+      orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    }),
     recentProjectsQuery,
   ])
 
@@ -338,8 +376,16 @@ export async function getDashboardSummary(
       })),
     },
     filterOptions: {
-      companies,
-      projects,
+      companies: companies.map((company) => ({
+        id: company.publicId,
+        name: company.name,
+        displayName: company.displayName,
+      })),
+      projects: projects.map((project) => ({
+        id: project.publicId,
+        name: project.name,
+        companyId: project.company.publicId,
+      })),
     },
   }
 }

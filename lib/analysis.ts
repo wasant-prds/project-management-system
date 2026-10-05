@@ -129,7 +129,7 @@ function countBreakdown<T extends string>(values: ReadonlyArray<T>, labels: read
 }
 
 function serializeWorkItem(item: {
-  id: string
+  publicId: string
   title: string
   kind: string
   priority: string
@@ -139,10 +139,10 @@ function serializeWorkItem(item: {
   dueDate: Date | null
   createdAt: Date
   updatedAt: Date
-  project: { id: string; name: string; company: { id: string; name: string; displayName: string | null } | null }
+  project: { publicId: string; name: string; company: { publicId: string; name: string; displayName: string | null } | null }
 }) {
   return {
-    id: item.id,
+    id: item.publicId,
     title: item.title,
     kind: item.kind,
     priority: item.priority,
@@ -152,34 +152,54 @@ function serializeWorkItem(item: {
     dueDate: item.dueDate ? dateText(item.dueDate) : null,
     createdAt: serializeBangkokTimestamp(item.createdAt),
     updatedAt: serializeBangkokTimestamp(item.updatedAt),
-    project: item.project,
+    project: {
+      id: item.project.publicId,
+      name: item.project.name,
+      company: item.project.company ? {
+        id: item.project.company.publicId,
+        name: item.project.company.name,
+        displayName: item.project.company.displayName,
+      } : null,
+    },
   }
 }
 
 function serializeTimeEntry(entry: {
-  id: string
+  publicId: string
   date: Date
   hours: { toString(): string }
   description: string | null
   remarks: string | null
   workItem: {
-    id: string
+    publicId: string
     title: string
-    project: { id: string; name: string; company: { id: string; name: string; displayName: string | null } | null }
+    project: { publicId: string; name: string; company: { publicId: string; name: string; displayName: string | null } | null }
   } | null
 }) {
   return {
-    id: entry.id,
+    id: entry.publicId,
     date: dateText(entry.date),
     hours: entry.hours.toString(),
     description: entry.description,
     remarks: entry.remarks,
-    workItem: entry.workItem,
+    workItem: entry.workItem ? {
+      id: entry.workItem.publicId,
+      title: entry.workItem.title,
+      project: {
+        id: entry.workItem.project.publicId,
+        name: entry.workItem.project.name,
+        company: entry.workItem.project.company ? {
+          id: entry.workItem.project.company.publicId,
+          name: entry.workItem.project.company.name,
+          displayName: entry.workItem.project.company.displayName,
+        } : null,
+      },
+    } : null,
   }
 }
 
 export async function getAnalysisSummary(
-  ownerId: string,
+  ownerId: bigint,
   params: URLSearchParams,
   database: typeof prisma = prisma,
   now = new Date(),
@@ -187,15 +207,15 @@ export async function getAnalysisSummary(
   const parsed = parseDashboardFilters(params, now)
   if (parsed.error) throw parsed.error
   const { filters, range } = parsed
-  await assertFilterRelations(filters, database)
+  const resolved = await assertFilterRelations(filters, database)
 
-  const workItemWhere = selectedWorkItemWhere(ownerId, filters, range)
-  const timeEntryWhere = selectedTimeEntryWhere(ownerId, filters, range)
+  const workItemWhere = selectedWorkItemWhere(ownerId, resolved, range)
+  const timeEntryWhere = selectedTimeEntryWhere(ownerId, resolved, range)
   const todayDate = currentBangkokCalendarDate(now)
   const today = bangkokDateRange(todayDate)
   if (!today) throw new Error('Bangkok business date is invalid')
   const workItemSelect = {
-    id: true,
+    publicId: true,
     title: true,
     kind: true,
     priority: true,
@@ -207,27 +227,27 @@ export async function getAnalysisSummary(
     updatedAt: true,
     project: {
       select: {
-        id: true,
+        publicId: true,
         name: true,
-        company: { select: { id: true, name: true, displayName: true } },
+        company: { select: { publicId: true, name: true, displayName: true } },
       },
     },
   } as const
   const timeEntrySelect = {
-    id: true,
+    publicId: true,
     date: true,
     hours: true,
     description: true,
     remarks: true,
     workItem: {
       select: {
-        id: true,
+        publicId: true,
         title: true,
         project: {
           select: {
-            id: true,
+            publicId: true,
             name: true,
-            company: { select: { id: true, name: true, displayName: true } },
+            company: { select: { publicId: true, name: true, displayName: true } },
           },
         },
       },
@@ -245,11 +265,11 @@ export async function getAnalysisSummary(
       orderBy: [{ date: 'desc' }, { id: 'desc' }],
     }),
     database.company.findMany({
-      select: { id: true, name: true, displayName: true },
+      select: { publicId: true, name: true, displayName: true },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
     }),
     database.project.findMany({
-      select: { id: true, name: true, companyId: true },
+      select: { publicId: true, name: true, company: { select: { publicId: true } } },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
     }),
   ])
@@ -297,6 +317,17 @@ export async function getAnalysisSummary(
     loggedHoursByPeriod: groupHours(timeEntries, filters, grouping),
     workItems: items,
     timeEntries: entries,
-    filterOptions: { companies, projects },
+    filterOptions: {
+      companies: companies.map((company) => ({
+        id: company.publicId,
+        name: company.name,
+        displayName: company.displayName,
+      })),
+      projects: projects.map((project) => ({
+        id: project.publicId,
+        name: project.name,
+        companyId: project.company.publicId,
+      })),
+    },
   }
 }

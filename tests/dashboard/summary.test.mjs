@@ -3,6 +3,7 @@ import test from 'node:test'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
+import { resolveTestImport } from '../support/identity-modules.mjs'
 
 const require = createRequire(import.meta.url)
 const ts = require('typescript')
@@ -17,8 +18,9 @@ function loadTs(path, mocks = {}, globals = {}) {
     module: loaded,
     exports: loaded.exports,
     require: (name) => {
-      if (!(name in mocks)) throw new Error(`Unexpected import: ${name}`)
-      return mocks[name]
+      const resolved = resolveTestImport(name, mocks)
+      if (resolved === undefined) throw new Error(`Unexpected import: ${name}`)
+      return resolved
     },
     URL,
     URLSearchParams,
@@ -56,15 +58,22 @@ const dashboard = loadTs('../../lib/dashboard.ts', {
 const links = loadTs('../../lib/dashboard-links.ts', { '@/lib/dashboard': {} })
 
 const fixedNow = new Date('2026-10-02T04:00:00.000Z')
-const ownerId = 'owner-1'
+const OWNER_PUBLIC = '11111111-1111-4111-8111-111111111111'
+const ownerId = 7n
+const COMPANY_A = '55555555-5555-4555-8555-555555555555'
+const COMPANY_B = '66666666-6666-4666-8666-666666666666'
+const PROJECT_A = '33333333-3333-4333-8333-333333333331'
+const PROJECT_A2 = '33333333-3333-4333-8333-333333333332'
+const PROJECT_B = '44444444-4444-4444-8444-444444444444'
+const MISSING_PUBLIC = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const companies = [
-  { id: 'company-a', name: 'Alpha Company', displayName: 'Alpha' },
-  { id: 'company-b', name: 'Beta Company', displayName: null },
+  { id: 11n, publicId: COMPANY_A, name: 'Alpha Company', displayName: 'Alpha' },
+  { id: 12n, publicId: COMPANY_B, name: 'Beta Company', displayName: null },
 ]
 const projects = [
-  { id: 'project-a', name: 'Alpha Project', companyId: 'company-a', status: 'In Progress', priority: 'High', dueDate: new Date('2026-10-31T00:00:00.000Z'), createdAt: new Date('2026-09-20T04:00:00.000Z'), company: companies[0] },
-  { id: 'project-a2', name: 'Alpha Project Two', companyId: 'company-a', status: 'Planning', priority: 'Medium', dueDate: new Date('2026-10-31T00:00:00.000Z'), createdAt: new Date('2026-09-18T04:00:00.000Z'), company: companies[0] },
-  { id: 'project-b', name: 'Beta Project', companyId: 'company-b', status: 'Planning', priority: 'Low', dueDate: new Date('2026-10-31T00:00:00.000Z'), createdAt: new Date('2026-09-17T04:00:00.000Z'), company: companies[1] },
+  { id: 1n, publicId: PROJECT_A, name: 'Alpha Project', companyId: 11n, status: 'In Progress', priority: 'High', dueDate: new Date('2026-10-31T00:00:00.000Z'), createdAt: new Date('2026-09-20T04:00:00.000Z'), company: companies[0] },
+  { id: 2n, publicId: PROJECT_A2, name: 'Alpha Project Two', companyId: 11n, status: 'Planning', priority: 'Medium', dueDate: new Date('2026-10-31T00:00:00.000Z'), createdAt: new Date('2026-09-18T04:00:00.000Z'), company: companies[0] },
+  { id: 3n, publicId: PROJECT_B, name: 'Beta Project', companyId: 12n, status: 'Planning', priority: 'Low', dueDate: new Date('2026-10-31T00:00:00.000Z'), createdAt: new Date('2026-09-17T04:00:00.000Z'), company: companies[1] },
 ]
 
 function day(value) {
@@ -72,9 +81,10 @@ function day(value) {
 }
 
 function workItem(id, overrides = {}) {
-  const project = projects.find((row) => row.id === (overrides.projectId ?? 'project-a'))
+  const project = projects.find((row) => row.id === (overrides.projectId ?? 1n))
   return {
     id,
+    publicId: id,
     title: id,
     kind: 'Task',
     priority: 'medium',
@@ -86,8 +96,9 @@ function workItem(id, overrides = {}) {
     updatedAt: new Date('2026-10-01T03:00:00.000Z'),
     projectId: project.id,
     assigneeId: ownerId,
-    project: { id: project.id, name: project.name, company: project.company },
+    project: { id: project.id, publicId: project.publicId, name: project.name, company: project.company },
     ...overrides,
+    projectId: overrides.projectId ?? project.id,
   }
 }
 
@@ -101,15 +112,15 @@ function makeFixtures() {
     workItem('previous-month', { workDate: day('2026-09-30'), dueDate: day('2026-09-30') }),
     workItem('fallback-due', { workDate: null, dueDate: day('2026-10-02') }),
     workItem('fallback-created', { workDate: null, dueDate: null, createdAt: new Date('2026-10-02T00:00:00.000Z') }),
-    workItem('foreign-owner', { assigneeId: 'owner-2' }),
-    workItem('other-company', { projectId: 'project-b', project: { id: 'project-b', name: 'Beta Project', company: companies[1] } }),
-    workItem('other-project', { projectId: 'project-a2', project: { id: 'project-a2', name: 'Alpha Project Two', company: companies[0] } }),
+    workItem('foreign-owner', { assigneeId: 8n }),
+    workItem('other-company', { projectId: 3n }),
+    workItem('other-project', { projectId: 2n }),
   ]
   const entries = [
     { id: 'time-1', userId: ownerId, date: day('2026-10-01'), hours: '0.1', workItemId: 'open-overdue' },
     { id: 'time-2', userId: ownerId, date: day('2026-10-02'), hours: '0.2', workItemId: 'completed' },
     { id: 'time-3', userId: ownerId, date: day('2026-10-02'), hours: '4.9', workItemId: 'other-project' },
-    { id: 'time-4', userId: 'owner-2', date: day('2026-10-02'), hours: '50', workItemId: 'open-overdue' },
+    { id: 'time-4', userId: 8n, date: day('2026-10-02'), hours: '50', workItemId: 'open-overdue' },
     { id: 'time-5', userId: ownerId, date: day('2026-09-30'), hours: '8', workItemId: 'open-overdue' },
     { id: 'time-legacy', userId: ownerId, date: day('2026-10-02'), hours: '0.000000000000000000000000000001', workItemId: null },
   ]
@@ -126,7 +137,8 @@ function inDateRange(value, condition) {
 function matchesWorkItem(item, where = {}) {
   if (where.assigneeId && item.assigneeId !== where.assigneeId) return false
   if (where.id && typeof where.id === 'string' && item.id !== where.id) return false
-  if (where.projectId && typeof where.projectId === 'string' && item.projectId !== where.projectId) return false
+  if (where.projectId?.in && !where.projectId.in.some((id) => id === item.projectId)) return false
+  if (where.projectId !== undefined && !where.projectId.in && item.projectId !== where.projectId) return false
   if (where.kind && item.kind !== where.kind) return false
   if (Object.hasOwn(where, 'role') && item.role !== where.role) return false
   if (typeof where.status === 'string' && item.status !== where.status) return false
@@ -192,11 +204,11 @@ function fakeDatabase({ items, entries }) {
   const aggregateEntries = (where) => entries.filter((entry) => matchesTimeEntry(entry, where, items))
   return {
     company: {
-      findUnique: async ({ where }) => companies.find((company) => company.id === where.id) ?? null,
+      findUnique: async ({ where }) => companies.find((company) => company.publicId === where.publicId || company.id === where.id) ?? null,
       findMany: async () => companies,
     },
     project: {
-      findUnique: async ({ where }) => projects.find((project) => project.id === where.id) ?? null,
+      findUnique: async ({ where }) => projects.find((project) => project.publicId === where.publicId || project.id === where.id) ?? null,
       findMany: async ({ where = {}, orderBy, take }) => orderRows(projects.filter((project) =>
         (!where.id || project.id === where.id) && (!where.companyId || project.companyId === where.companyId),
       ).slice(), orderBy).slice(0, take),
@@ -276,7 +288,7 @@ test('Dashboard treats empty form selections as no filters', () => {
 })
 
 test('Dashboard applies shared WorkItem date anchors and excludes other owners and Companies', async () => {
-  const result = await summarize('startDate=2026-10-01&endDate=2026-10-02&companyId=company-a')
+  const result = await summarize('startDate=2026-10-01&endDate=2026-10-02&companyId=55555555-5555-4555-8555-555555555555')
   assert.equal(result.summary.total, 8)
   assert.equal(result.summary.completed, 1)
   assert.equal(result.summary.open, 6)
@@ -299,7 +311,7 @@ test('Dashboard excludes completed and cancelled from Open and Completed and use
 })
 
 test('Dashboard period and Company/Project/role/kind filters constrain TimeEntry through its WorkItem', async () => {
-  const result = await summarize('startDate=2026-10-01&endDate=2026-10-02&companyId=company-a&projectId=project-a&role=Developer&kind=Task')
+  const result = await summarize('startDate=2026-10-01&endDate=2026-10-02&companyId=55555555-5555-4555-8555-555555555555&projectId=33333333-3333-4333-8333-333333333331&role=Developer&kind=Task')
   assert.deepEqual(result.summary.recentWorkItems.map((item) => item.id).sort(), ['open-overdue', 'completed', 'due-today', 'fallback-due', 'fallback-created'].sort())
   assert.equal(result.summary.total, 6)
   assert.equal(result.summary.loggedHours, '0.3')
@@ -311,7 +323,7 @@ test('Dashboard period and Company/Project/role/kind filters constrain TimeEntry
   assert.equal(result.meta.metricDefinitions.open, 'total - completed - cancelled')
   assert.equal(result.meta.metricDefinitions.workItemDateAnchor, 'workDate ?? dueDate ?? createdAt')
   assert.deepEqual(JSON.parse(JSON.stringify(result.meta.filters)), {
-    companyId: 'company-a', projectId: 'project-a', role: 'Developer', kind: 'Task',
+    companyId: COMPANY_A, projectId: PROJECT_A, role: 'Developer', kind: 'Task',
   })
 })
 
@@ -323,27 +335,27 @@ test('Dashboard preserves exact Decimal sums for unfiltered Daily Work and seria
 })
 
 test('Dashboard recent Project progress excludes cancelled from the denominator', async () => {
-  const result = await summarize('startDate=2026-10-01&endDate=2026-10-02&companyId=company-a&projectId=project-a')
+  const result = await summarize('startDate=2026-10-01&endDate=2026-10-02&companyId=55555555-5555-4555-8555-555555555555&projectId=33333333-3333-4333-8333-333333333331')
   const project = result.summary.recentProjects[0]
-  assert.equal(project.id, 'project-a')
+  assert.equal(project.id, PROJECT_A)
   assert.equal(project.company.displayName, 'Alpha')
   assert.equal(project.progress, 1 / 7 * 100)
   const onlyCancelled = fakeDatabase({
     items: [workItem('cancel-only', { status: 'cancelled' })],
     entries: [],
   })
-  const cancelledSummary = await dashboard.getDashboardSummary(ownerId, new URLSearchParams('startDate=2026-10-01&endDate=2026-10-02&projectId=project-a'), onlyCancelled, fixedNow)
+  const cancelledSummary = await dashboard.getDashboardSummary(ownerId, new URLSearchParams('startDate=2026-10-01&endDate=2026-10-02&projectId=33333333-3333-4333-8333-333333333331'), onlyCancelled, fixedNow)
   assert.equal(cancelledSummary.summary.recentProjects[0].progress, 0)
 })
 
 test('Dashboard validates missing resources and Company/Project relationship conflicts', async () => {
-  await assert.rejects(summarize('startDate=2026-10-01&endDate=2026-10-02&companyId=missing'), (error) => error.status === 404 && error.field === 'companyId')
-  await assert.rejects(summarize('startDate=2026-10-01&endDate=2026-10-02&projectId=missing'), (error) => error.status === 404 && error.field === 'projectId')
-  await assert.rejects(summarize('startDate=2026-10-01&endDate=2026-10-02&companyId=company-b&projectId=project-a'), (error) => error.code === 'RELATION_MISMATCH' && error.status === 400)
+  await assert.rejects(summarize('startDate=2026-10-01&endDate=2026-10-02&companyId=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'), (error) => error.status === 404 && error.field === 'companyId')
+  await assert.rejects(summarize('startDate=2026-10-01&endDate=2026-10-02&projectId=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab'), (error) => error.status === 404 && error.field === 'projectId')
+  await assert.rejects(summarize('startDate=2026-10-01&endDate=2026-10-02&companyId=66666666-6666-4666-8666-666666666666&projectId=33333333-3333-4333-8333-333333333331'), (error) => error.code === 'RELATION_MISMATCH' && error.status === 400)
 })
 
 test('Dashboard returns real zero totals and explicit empty collections when no matching records exist', async () => {
-  const result = await summarize('startDate=2026-10-01&endDate=2026-10-02&companyId=company-a', { items: [], entries: [] })
+  const result = await summarize('startDate=2026-10-01&endDate=2026-10-02&companyId=55555555-5555-4555-8555-555555555555', { items: [], entries: [] })
   assert.deepEqual(JSON.parse(JSON.stringify(result.summary)), {
     total: 0,
     open: 0,
@@ -355,8 +367,8 @@ test('Dashboard returns real zero totals and explicit empty collections when no 
     urgentWorkItems: [],
     overdueWorkItems: [],
     recentProjects: [
-      { id: 'project-a', name: 'Alpha Project', status: 'In Progress', priority: 'High', dueDate: '2026-10-31', createdAt: '2026-09-20T04:00:00.000+07:00', company: companies[0], progress: 0 },
-      { id: 'project-a2', name: 'Alpha Project Two', status: 'Planning', priority: 'Medium', dueDate: '2026-10-31', createdAt: '2026-09-18T04:00:00.000+07:00', company: companies[0], progress: 0 },
+      { id: PROJECT_A, name: 'Alpha Project', status: 'In Progress', priority: 'High', dueDate: '2026-10-31', createdAt: '2026-09-20T04:00:00.000+07:00', company: { id: COMPANY_A, name: 'Alpha Company', displayName: 'Alpha' }, progress: 0 },
+      { id: PROJECT_A2, name: 'Alpha Project Two', status: 'Planning', priority: 'Medium', dueDate: '2026-10-31', createdAt: '2026-09-18T04:00:00.000+07:00', company: { id: COMPANY_A, name: 'Alpha Company', displayName: 'Alpha' }, progress: 0 },
     ],
     loggedHoursByDate: [],
   })
@@ -400,7 +412,7 @@ test('Work Items calendar period query replaces Dashboard dates and retains the 
 
 test('Clearing Daily Work Dashboard filters removes them from the URL and keeps the selected date', () => {
   const href = links.dailyWorkHrefWithoutDashboardFilters(
-    'startDate=2026-10-01&endDate=2026-10-31&companyId=company-a&projectId=project-a&role=Developer&kind=Task&date=2026-10-01&view=week',
+    'startDate=2026-10-01&endDate=2026-10-31&companyId=55555555-5555-4555-8555-555555555555&projectId=33333333-3333-4333-8333-333333333331&role=Developer&kind=Task&date=2026-10-01&view=week',
     '2026-10-02',
   )
   const url = new URL(href, 'http://local')
@@ -414,7 +426,7 @@ test('Dashboard page and chart render live query props and retain loading, empty
   const loading = readFileSync(new URL('../../components/layout/dashboard-loading.tsx', import.meta.url), 'utf8')
   const workItemsPage = readFileSync(new URL('../../app/work-items/page.tsx', import.meta.url), 'utf8')
   const dailyWorkPage = readFileSync(new URL('../../app/daily-work/page.tsx', import.meta.url), 'utf8')
-  assert.match(page, /getDashboardSummary\(owner\.id, params\)/)
+  assert.match(page, /getDashboardSummary\(owner\.internalId, params\)/)
   assert.match(page, /summary\.recentWorkItems/)
   assert.match(page, /summary\.urgentWorkItems/)
   assert.match(page, /summary\.overdueWorkItems/)
@@ -462,7 +474,7 @@ test('Dashboard API requires owner access and returns safe validation and depend
     '@/lib/owner': {
       getOwner: async () => {
         if (state.ownerError) throw state.ownerError
-        return { id: ownerId }
+        return { id: OWNER_PUBLIC, internalId: ownerId }
       },
       ownerErrorResponse: (error) => error.message === 'unauthenticated'
         ? { status: 401, body: { error: { code: 'OWNER_UNAUTHENTICATED' } } }
@@ -478,10 +490,10 @@ test('Dashboard API requires owner access and returns safe validation and depend
       },
     },
   }, { console: { error: () => {} } })
-  const ok = await route.GET(new Request('http://local/api/dashboard/summary?companyId=company-a'))
+  const ok = await route.GET(new Request('http://local/api/dashboard/summary?companyId=55555555-5555-4555-8555-555555555555'))
   assert.equal(ok.status, 200)
   assert.equal(ok.headers['Cache-Control'], 'no-store')
-  assert.equal(state.params.get('companyId'), 'company-a')
+  assert.equal(state.params.get('companyId'), COMPANY_A)
 
   state.summaryError = new MockDashboardQueryError(400, 'VALIDATION_ERROR', 'Invalid date range', 'startDate')
   const invalid = await route.GET(new Request('http://local/api/dashboard/summary'))

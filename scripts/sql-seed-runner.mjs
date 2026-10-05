@@ -199,8 +199,13 @@ export async function executeSqlSeed({
   query: customQuery = null,
   env = process.env,
   root = resolve(dirname(fileURLToPath(import.meta.url)), '..'),
+  runtimeApply = false,
 }) {
-  assertSeedTargetAllowed(target, env);
+  if (runtimeApply) {
+    if (env.PMS_SQL_RUNTIME_APPLY !== '1') throw new Error('SQL runtime apply is disabled');
+  } else {
+    assertSeedTargetAllowed(target, env);
+  }
   assertLabel(targetLabel);
   const manifest = await loadSeedManifest(seedDir);
   await verifySeedFilesChecksums(seedDir, manifest);

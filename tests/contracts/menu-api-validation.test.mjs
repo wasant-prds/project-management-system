@@ -55,7 +55,7 @@ test("Dashboard summary route and handbook expose shared filters and metric defi
   const route = await read("app/api/dashboard/summary/route.ts");
   const handbook = await read("document/handbook/api/dashboard/summary.md");
   assert.match(route, /getOwner\(\)/);
-  assert.match(route, /getDashboardSummary\(owner\.id/);
+  assert.match(route, /getDashboardSummary\(owner\.internalId/);
   assert.match(route, /Cache-Control.*no-store/);
   assert.match(handbook, /`GET \/api\/dashboard\/summary`/);
   assert.match(handbook, /`companyId`/);
@@ -69,7 +69,7 @@ test("Analysis summary route and handbook expose owner-only shared aggregates an
   const service = await read("lib/analysis.ts");
   const handbook = await read("document/handbook/api/analysis/summary.md");
   assert.match(route, /getOwner\(\)/);
-  assert.match(route, /getAnalysisSummary\(owner\.id/);
+  assert.match(route, /getAnalysisSummary\(owner\.internalId/);
   assert.match(route, /Cache-Control.*no-store/);
   assert.match(service, /parseDashboardFilters/);
   assert.match(service, /selectedWorkItemWhere/);
@@ -220,7 +220,7 @@ test("Owner Settings route persists only supported profile/preferences and has a
   assert.match(route, /getOwner\(\)/);
   assert.match(route, /parseOwnerSettingsPatch/);
   assert.match(route, /Cache-Control.*no-store/);
-  assert.match(service, /where: \{ id: ownerId \}/);
+  assert.match(service, /where: \{ id: ownerInternalId \}/);
   assert.match(service, /timezone: SYSTEM_TIMEZONE/);
   assert.match(schema, /theme\s+UserTheme\s+@default\(light\)/);
   assert.match(schema, /locale\s+UserLocale\s+@default\(th\)/);

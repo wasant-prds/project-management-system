@@ -2,6 +2,11 @@ import { PrismaClient } from '@prisma/client'
 import { resolve } from 'node:path'
 import { seedDatabase, SeedFailure } from '../scripts/seed-database.mjs'
 
+if (process.env.PMS_JSON_SEED_ISOLATED_TEST !== '1') {
+  console.error('JSON seed is disabled. Use the SQL master seed runner for an approved empty database.')
+  process.exit(1)
+}
+
 const prisma = new PrismaClient({ log: [] })
 const seedDir = resolve(process.env.SEEDS_ROOT ?? process.cwd(), process.env.SEED_PATH ?? 'database/seeds/master')
 

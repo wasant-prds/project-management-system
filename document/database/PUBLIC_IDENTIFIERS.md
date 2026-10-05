@@ -1,6 +1,6 @@
 # Internal keys and public identifiers
 
-User decision, 2026-10-04: every application-owned table, including technical tables, has internal `id` and public `public_id`. This policy applies across database, ORM, API, frontend, integrations, imports/exports and migration tooling. The SQL target implements storage constraints now; active Prisma/API uses legacy CUIDs until the coordinated #33 adoption.
+User decision, 2026-10-04: every application-owned table, including technical tables, has internal `id` and public `public_id`. Issue #33 application code follows that boundary. A live database that still stores CUID primary keys is not a compatible target for this build, and this change does not cut one over.
 
 - `id`: positive BIGINT identity primary key, with independent sequences. All relational foreign keys and joins use these internal keys.
 - `public_id`: UUID, NOT NULL, UNIQUE, default `pg_catalog.gen_random_uuid()`. PostgreSQL 16 generates random UUIDv4 with this function ([PostgreSQL documentation](https://www.postgresql.org/docs/16/functions-uuid.html)). Public identifiers never change after creation, including timestamp-preserving imports.

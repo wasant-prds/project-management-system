@@ -3,7 +3,7 @@
 #   development — hot reload (source mounted by docker-compose.yml)
 #   uat         — production-like standalone build (NEXT_PUBLIC_ENV=uat)
 #   production  — optimized standalone build (NEXT_PUBLIC_ENV=production)
-#   migrate     — prisma generate + db:push/seed (no Next build)
+#   migrate     — prisma generate + SQL runtime (no Next build)
 #
 # Shared:
 #   base / deps / builder — internal stages (app builds use builder)
@@ -70,13 +70,17 @@ ENV DATABASE_URL="postgresql://build:build@localhost:5432/build?schema=public"
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json pnpm-lock.yaml* ./
+RUN apk add --no-cache postgresql-client
+
 COPY prisma.config.ts ./
 COPY prisma ./prisma
 COPY scripts ./scripts
+COPY database/schema.sql ./database/schema.sql
+COPY database/migrations ./database/migrations
 COPY database/seeds ./database/seeds
 
-RUN sed -i 's/\r$//' scripts/db-push-safe.sh scripts/docker-entrypoint-migrate.sh && \
-    chmod +x scripts/db-push-safe.sh scripts/docker-entrypoint-migrate.sh && \
+RUN sed -i 's/\r$//' scripts/docker-entrypoint-migrate.sh && \
+    chmod +x scripts/docker-entrypoint-migrate.sh && \
     cp scripts/docker-entrypoint-migrate.sh /usr/local/bin/docker-entrypoint-migrate.sh
 
 RUN ./node_modules/.bin/prisma generate

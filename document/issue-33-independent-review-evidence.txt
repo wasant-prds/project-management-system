@@ -1,0 +1,85 @@
+Issue #33 independent review — 2026-10-05 (Asia/Bangkok)
+Scope: review only. No implementation or test assertions were changed.
+All counterexamples below use synthetic data. No live database was read or written.
+
+REPRO-01 — SQL runtime connection URL
+databaseUrl() followed by psqlTarget() retains schema=public,
+connection_limit=5 and pool_timeout=20 in the psql URI.
+Cached postgres:16-alpine psql, in a disposable --network none container,
+rejected the synthetic URI before making a connection:
+  psql: error: invalid URI query parameter: "schema"
+Affected path: scripts/sql-runtime.mjs:createRuntimeQuery (lines 55–63).
+
+REPRO-02 — Approval reuse on a different database
+verifySchemaRolloutApproval() with reviewed schema hashes and APP_ENV=uat:
+  Original synthetic host/database: null (approval accepted).
+  Changed synthetic host/database:  null (approval still accepted).
+Only APP_ENV is compared; no target identity or fresh backup receipt is checked.
+Affected path: scripts/db-schema-rollout-gate.mjs:schemaRolloutGateError.
+
+REPRO-03 — Approval reuse after adding a SQL migration
+Created temporary copies of the baseline/manifest, kept revision=31.0.0,
+and added valid migration 0002 with a matching checksum and synthetic DDL.
+The old approval was still accepted (null).
+loadSqlContract() uses only migrations[0].checksum. The ordered set of
+later migrations is absent from the release fingerprint.
+Temporary artifact directory was removed after the check; no SQL ran.
+Affected path: scripts/db-schema-rollout-gate.mjs:loadSqlContract (15–19).
+
+REPRO-04 — Equivalence verifier accepts a missing identity
+Source rows: [{oldId: 'a'}, {oldId: 'b'}].
+Target rows: [{oldId: 'a'}, {oldId: 'a'}].
+Kept hours/counts/earliest/latest equal.
+Actual result: {equal: true, failures: []}.
+Affected path: scripts/sql-live-upgrade.mjs:verifyEquivalence (59–70).
+
+REPRO-05 — Project detail lacks nested owner scope
+Invoked the actual TypeScript GET handler using the repository VM/mocking
+convention. Authenticated owner internalId=7; supplied a synthetic Project
+with another assignee's WorkItem and another user's TimeEntry.
+Actual result:
+  status: 200
+  returnedForeignWorkItem: true
+  returnedForeignTimeEntry: true
+  workItemOwnerFilter: null
+  timeEntryOwnerFilter: null
+The route discards getOwner()'s identity and includes both relations without
+where clauses. This is a retained authorization gap in the route changed
+by #33, not evidence of a newly introduced behavior.
+Affected path: app/api/projects/[id]/route.ts:GET (17–29).
+
+IMPLEMENTATION GAP — Existing-data upgrade
+scripts/sql-live-upgrade.mjs exports planning/decision helpers only.
+It has no inventory/restore/conversion/load/verification CLI, no durable
+mapping writer, no numeric newId allocator, and no FK/history remapper.
+planConversion() returns entity rather than the entityName required by
+validateLiveIdentity(), and newly planned records lack newId,
+sourceChecksum, targetRevision and createdAt required by that consumer.
+The checked-in live mapping file is []. No legacy/newer upgrade or
+post-cutover-write rollback rehearsal exists in the identity suite;
+tests assert planner output only. Live authorization is not required to
+implement or test these operations against synthetic isolated fixtures.
+
+Verification performed:
+  node tests/run.mjs identity: 12 PASS / 0 FAIL / 0 SKIP.
+  node tests/run.mjs: 496 total / 485 PASS / 0 FAIL / 11 SKIP.
+  node tests/run.mjs sql-migrations-docker: 18 PASS / 0 FAIL / 0 SKIP.
+    Real PostgreSQL 16, ephemeral containers, no ports/live volumes.
+  pnpm lint: no warnings/errors.
+  pnpm typecheck: passed.
+  pnpm exec prisma validate: passed with process-only synthetic URL.
+  pnpm exec prisma generate: passed, Prisma Client 6.17.1.
+  git diff --check: passed; Git printed CRLF conversion notices.
+
+The initial sandboxed test attempt could not spawn workers (EPERM).
+The subsequent permitted run completed with the totals above.
+The Windows production compile passed, but standalone packaging failed
+on Windows symlink permissions (EPERM); see separate build log.
+Linux production image build passed:
+  docker build --target production --tag pms-issue33-review:local --progress plain .
+  Image exported successfully; see separate Docker build log.
+No SonarQube quality-gate result was available in this review. The scanner
+was absent from PATH and SONAR_HOST_URL/SONAR_TOKEN were unset; no matching
+Sonar configuration keys were found in root .env.
+Required #33 real API/Prisma integration, browser UUID/theme workflows,
+legacy/newer data conversion and rollback acceptance remain unverified.

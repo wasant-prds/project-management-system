@@ -4,42 +4,58 @@ import { serializeBangkokCalendarDate, serializeBangkokTimestamp } from '@/lib/b
 
 export const workItemInclude = {
   assignee: {
-    select: { id: true, name: true, email: true, avatar: true },
+    select: { publicId: true, name: true, email: true, avatar: true },
   },
   project: {
     select: {
-      id: true,
+      publicId: true,
       name: true,
       colorProject: true,
-      company: { select: { id: true, name: true, displayName: true } },
+      company: { select: { publicId: true, name: true, displayName: true } },
     },
   },
   externalReference: {
-    select: { externalUrl: true, gitLabIssueIid: true },
+    select: { externalUrl: true, gitLabIssueIid: true, provider: true },
   },
 } as const
 
-export function workItemDetailInclude(ownerId: string) {
+export function workItemDetailInclude(ownerInternalId: bigint) {
   return {
     ...workItemInclude,
     timeEntries: {
-      where: { userId: ownerId },
-      select: { id: true, date: true, hours: true, description: true, remarks: true },
+      where: { userId: ownerInternalId },
+      select: { publicId: true, date: true, hours: true, description: true, remarks: true },
       orderBy: [{ date: 'desc' as const }, { id: 'desc' as const }],
     },
   }
 }
 
+type PublicParty = { publicId: string; name: string; email?: string; avatar?: string | null; displayName?: string | null }
+
 type WorkItemResponseRecord = {
+  publicId: string
+  title: string
+  description: string | null
+  kind: string
+  priority: string
+  role: string | null
   status: WorkItemStatus
+  types: string[]
   workDate: Date | null
   dueDate: Date | null
   submittedAt: Date | null
   createdAt: Date
   updatedAt: Date
-  externalReference?: { externalUrl: string; gitLabIssueIid: string } | null
+  assignee: { publicId: string; name: string; email: string; avatar: string | null }
+  project: {
+    publicId: string
+    name: string
+    colorProject: string | null
+    company: { publicId: string; name: string; displayName: string | null }
+  }
+  externalReference?: { externalUrl: string; gitLabIssueIid: string; provider: string } | null
   timeEntries?: Array<{
-    id: string
+    publicId: string
     date: Date
     hours: { toString(): string }
     description: string | null
@@ -47,26 +63,57 @@ type WorkItemResponseRecord = {
   }>
 }
 
-export function serializeWorkItem<T extends WorkItemResponseRecord>(item: T) {
-  const timeEntries = item.timeEntries?.map((entry) => ({
-    ...entry,
-    date: serializeBangkokCalendarDate(entry.date),
-    hours: entry.hours.toString(),
-  }))
-
+function publicParty(party: PublicParty) {
   return {
-    ...item,
+    id: party.publicId,
+    name: party.name,
+    ...(party.email !== undefined ? { email: party.email } : {}),
+    ...(party.avatar !== undefined ? { avatar: party.avatar } : {}),
+    ...(party.displayName !== undefined ? { displayName: party.displayName } : {}),
+  }
+}
+
+export function serializeWorkItem(item: WorkItemResponseRecord) {
+  const gitlab = item.externalReference?.provider === 'gitlab' ? item.externalReference : null
+  return {
+    id: item.publicId,
+    title: item.title,
+    description: item.description,
+    kind: item.kind,
+    priority: item.priority,
+    role: item.role,
     status: serializeWorkItemStatus(item.status),
+    types: item.types,
     workDate: item.workDate ? serializeBangkokCalendarDate(item.workDate) : null,
     dueDate: item.dueDate ? serializeBangkokCalendarDate(item.dueDate) : null,
     submittedAt: item.submittedAt ? serializeBangkokTimestamp(item.submittedAt) : null,
     createdAt: serializeBangkokTimestamp(item.createdAt),
     updatedAt: serializeBangkokTimestamp(item.updatedAt),
-    source: item.externalReference ? {
+    projectId: item.project.publicId,
+    assignee: publicParty(item.assignee),
+    project: {
+      id: item.project.publicId,
+      name: item.project.name,
+      colorProject: item.project.colorProject,
+      company: {
+        id: item.project.company.publicId,
+        name: item.project.company.name,
+        displayName: item.project.company.displayName,
+      },
+    },
+    source: gitlab ? {
       provider: 'gitlab',
-      url: item.externalReference.externalUrl,
-      issueIid: item.externalReference.gitLabIssueIid,
+      url: gitlab.externalUrl,
+      issueIid: gitlab.gitLabIssueIid,
     } : null,
-    ...(timeEntries ? { timeEntries } : {}),
+    ...(item.timeEntries ? {
+      timeEntries: item.timeEntries.map((entry) => ({
+        id: entry.publicId,
+        date: serializeBangkokCalendarDate(entry.date),
+        hours: entry.hours.toString(),
+        description: entry.description,
+        remarks: entry.remarks,
+      })),
+    } : {}),
   }
 }

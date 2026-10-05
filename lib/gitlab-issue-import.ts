@@ -346,7 +346,7 @@ function issueOutcome(issue: GitLabIssue, outcome: string, workItemId: string | 
 async function writeIssue(
   prisma: PrismaClient,
   mapping: GitLabProjectMapping,
-  ownerId: string,
+  ownerId: bigint,
   issue: GitLabIssue,
   types: string[],
   now: () => Date,
@@ -365,7 +365,7 @@ async function writeIssue(
 async function writeIssueTransaction(
   prisma: PrismaClient,
   mapping: GitLabProjectMapping,
-  ownerId: string,
+  ownerId: bigint,
   issue: GitLabIssue,
   types: string[],
   now: () => Date,
@@ -402,7 +402,7 @@ async function assertMappingUnchanged(tx: Prisma.TransactionClient, mapping: Git
 async function createImportedIssue(
   tx: Prisma.TransactionClient,
   mapping: GitLabProjectMapping,
-  ownerId: string,
+  ownerId: bigint,
   issue: GitLabIssue,
   types: string[],
   nextStatus: ReturnType<typeof toPublicState>,
@@ -423,7 +423,7 @@ async function createImportedIssue(
       projectId: mapping.projectId,
       assigneeId: ownerId,
     },
-    select: { id: true },
+    select: { id: true, publicId: true },
   })
   await tx.externalWorkItemReference.create({
     data: {
@@ -440,7 +440,7 @@ async function createImportedIssue(
       workItemId: workItem.id,
     },
   })
-  return { outcome: 'created', reason: 'created_from_gitlab', workItemId: workItem.id }
+  return { outcome: 'created', reason: 'created_from_gitlab', workItemId: workItem.publicId }
 }
 
 async function updateImportedIssue(
@@ -456,9 +456,23 @@ async function updateImportedIssue(
     throw new GitLabIssueError('SOURCE_IDENTITY_CONFLICT', 'This GitLab Issue is linked to another PMS Project')
   }
   if (issue.remoteUpdatedAt.getTime() < reference.remoteUpdatedAt.getTime()) {
-    return { outcome: 'skipped', reason: 'stale_source', workItemId: reference.workItemId }
+    const linked = await tx.workItem.findUnique({ where: { id: reference.workItemId }, select: { publicId: true } })
+    return { outcome: 'skipped', reason: 'stale_source', workItemId: linked?.publicId ?? null }
   }
-  const workItem = await tx.workItem.findUnique({ where: { id: reference.workItemId } })
+  const workItem = await tx.workItem.findUnique({
+    where: { id: reference.workItemId },
+    select: {
+      id: true,
+      publicId: true,
+      projectId: true,
+      title: true,
+      description: true,
+      status: true,
+      types: true,
+      dueDate: true,
+      submittedAt: true,
+    },
+  })
   if (!workItem) throw new GitLabIssueError('SOURCE_IDENTITY_CONFLICT', 'The linked Work Item is unavailable')
   if (workItem.projectId !== mapping.projectId) {
     throw new GitLabIssueError('SOURCE_IDENTITY_CONFLICT', 'The linked Work Item is outside its mapped PMS Project')
@@ -470,7 +484,7 @@ async function updateImportedIssue(
       where: { id: reference.id },
       data: { lastSyncedAt: currentBangkokWallClockDate(now()) },
     })
-    return { outcome: 'skipped', reason: 'no_changes', workItemId: workItem.id }
+    return { outcome: 'skipped', reason: 'no_changes', workItemId: workItem.publicId }
   }
   if (Object.keys(workItemChanges).length > 0) {
     await tx.workItem.update({ where: { id: workItem.id }, data: workItemChanges })
@@ -485,7 +499,7 @@ async function updateImportedIssue(
       lastSyncedAt: currentBangkokWallClockDate(now()),
     },
   })
-  return { outcome: 'updated', reason: 'source_fields_changed', workItemId: workItem.id }
+  return { outcome: 'updated', reason: 'source_fields_changed', workItemId: workItem.publicId }
 }
 
 function issueWorkItemChanges(
@@ -534,7 +548,7 @@ function persistenceCode(error: unknown) {
 export async function syncGitLabProject(options: {
   prisma: PrismaClient
   mapping: GitLabProjectMapping
-  ownerId: string
+  ownerId: bigint
   config: GitLabConfiguration
   fetchImpl?: typeof fetch
   wait?: (ms: number) => Promise<void>
@@ -544,6 +558,9 @@ export async function syncGitLabProject(options: {
   const fetchImpl = options.fetchImpl ?? fetch
   const wait = options.wait ?? ((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)))
   const now = options.now ?? (() => new Date())
+  if ((mapping.provider ?? 'gitlab') !== 'gitlab') {
+    throw new GitLabProviderError('PROVIDER_UNAVAILABLE', 'Only GitLab mappings can be synced', false)
+  }
   if (mapping.canonicalGitLabInstanceUrl !== config.baseUrl) {
     throw new GitLabProviderError('PROVIDER_UNAVAILABLE', 'This mapping belongs to another configured GitLab instance', false)
   }

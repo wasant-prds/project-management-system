@@ -1,0 +1,56 @@
+
+> project-management-system@0.1.0 build D:\Docker\All working\github\project-management-system
+> next build
+
+   ▲ Next.js 15.2.4
+   - Environments: .env
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/16) ...
+   Generating static pages (4/16) 
+   Generating static pages (8/16) 
+   Generating static pages (12/16) 
+ ✓ Generating static pages (16/16)
+   Finalizing page optimization ...
+   Collecting build traces ...
+ ⚠ Failed to copy traced files for D:\Docker\All working\github\project-management-system\.next\server\pages\_app.js [Error: EPERM: operation not permitted, symlink 'D:\Docker\All working\github\project-management-system\node_modules\.pnpm\react@19.2.0\node_modules\react' -> 'D:\Docker\All working\github\project-management-system\.next\standalone\node_modules\react'] {
+  errno: -4048,
+  code: 'EPERM',
+  syscall: 'symlink',
+  path: 'D:\\Docker\\All working\\github\\project-management-system\\node_modules\\.pnpm\\react@19.2.0\\node_modules\\react',
+  dest: 'D:\\Docker\\All working\\github\\project-management-system\\.next\\standalone\\node_modules\\react'
+}
+ ⚠ Failed to copy traced files for D:\Docker\All working\github\project-management-system\.next\server\pages\_error.js [Error: EPERM: operation not permitted, symlink 'D:\Docker\All working\github\project-management-system\node_modules\.pnpm\react-dom@19.2.0_react@19.2.0\node_modules\react-dom' -> 'D:\Docker\All working\github\project-management-system\.next\standalone\node_modules\.pnpm\next@15.2.4_react-dom@19.2.0_react@19.2.0__react@19.2.0\node_modules\react-dom'] {
+  errno: -4048,
+  code: 'EPERM',
+  syscall: 'symlink',
+  path: 'D:\\Docker\\All working\\github\\project-management-system\\node_modules\\.pnpm\\react-dom@19.2.0_react@19.2.0\\node_modules\\react-dom',
+  dest: 'D:\\Docker\\All working\\github\\project-management-system\\.next\\standalone\\node_modules\\.pnpm\\next@15.2.4_react-dom@19.2.0_react@19.2.0__react@19.2.0\\node_modules\\react-dom'
+}
+ ⚠ Failed to copy traced files for D:\Docker\All working\github\project-management-system\.next\server\pages\_document.js [Error: EPERM: operation not permitted, symlink 'D:\Docker\All working\github\project-management-system\node_modules\.pnpm\react@19.2.0\node_modules\react' -> 'D:\Docker\All working\github\project-management-system\.next\standalone\node_modules\.pnpm\styled-jsx@5.1.6_react@19.2.0\node_modules\react'] {
+  errno: -4048,
+  code: 'EPERM',
+  syscall: 'symlink',
+  path: 'D:\\Docker\\All working\\github\\project-management-system\\node_modules\\.pnpm\\react@19.2.0\\node_modules\\react',
+  dest: 'D:\\Docker\\All working\\github\\project-management-system\\.next\\standalone\\node_modules\\.pnpm\\styled-jsx@5.1.6_react@19.2.0\\node_modules\\react'
+}
+ ⚠ Failed to copy traced files for D:\Docker\All working\github\project-management-system\.next\server\app\api\analysis\summary\route.js [Error: EPERM: operation not permitted, symlink 'D:\Docker\All working\github\project-management-system\node_modules\.pnpm\@prisma+client@6.17.1_prism_0f3e51022084b755e6e5bbd56889ea0f\node_modules\@prisma\client' -> 'D:\Docker\All working\github\project-management-system\.next\standalone\node_modules\@prisma\client'] {
+  errno: -4048,
+  code: 'EPERM',
+  syscall: 'symlink',
+  path: 'D:\\Docker\\All working\\github\\project-management-system\\node_modules\\.pnpm\\@prisma+client@6.17.1_prism_0f3e51022084b755e6e5bbd56889ea0f\\node_modules\\@prisma\\client',
+  dest: 'D:\\Docker\\All working\\github\\project-management-system\\.next\\standalone\\node_modules\\@prisma\\client'
+}
+
+> Build error occurred
+[Error: EPERM: operation not permitted, symlink 'D:\Docker\All working\github\project-management-system\node_modules\.pnpm\@next+env@15.2.4\node_modules\@next\env' -> 'D:\Docker\All working\github\project-management-system\.next\standalone\node_modules\.pnpm\next@15.2.4_react-dom@19.2.0_react@19.2.0__react@19.2.0\node_modules\@next\env'] {
+  errno: -4048,
+  code: 'EPERM',
+  syscall: 'symlink',
+  path: 'D:\\Docker\\All working\\github\\project-management-system\\node_modules\\.pnpm\\@next+env@15.2.4\\node_modules\\@next\\env',
+  dest: 'D:\\Docker\\All working\\github\\project-management-system\\.next\\standalone\\node_modules\\.pnpm\\next@15.2.4_react-dom@19.2.0_react@19.2.0__react@19.2.0\\node_modules\\@next\\env'
+}
+ ELIFECYCLE  Command failed with exit code 1.

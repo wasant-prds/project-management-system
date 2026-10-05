@@ -39,7 +39,7 @@
 
 | Name | Type | Required | Description |
 | --- | --- | --- | --- |
-| `id` | string | Yes | primary key ของ TimeEntry |
+| `id` | string | Yes | public UUIDv4 ของ TimeEntry; numeric internal ID ไม่รองรับ |
 
 `GET` และ `DELETE` ไม่มี query parameter หรือ request body.
 
@@ -53,10 +53,10 @@
 | `remarks` | string \| null | No | แทนค่ารายละเอียดเพิ่มเติมเมื่อส่ง |
 | `hours` | number หรือ string | No | API ตรวจ positive finite decimal และขอบเขต `DECIMAL(65,30)` (จำนวนเต็มไม่เกิน 35 หลัก, ทศนิยมไม่เกิน 30 หลัก); ไม่พบข้อมูลที่ยืนยันได้จาก implementation ปัจจุบันเกี่ยวกับ per-day cap; ใช้ string เพื่อรักษาความแม่นยำ |
 | `date` | string | No | `YYYY-MM-DD` หรือ Bangkok timestamp ที่ลงท้าย `+07:00`; บันทึกเฉพาะ Bangkok calendar date |
-| `workItemId` | string | No | next-state ต้องเป็น WorkItem ของ owner; Project จะ derive จาก WorkItem |
-| `projectId` | string | No | compatibility field; หากส่งต้องตรงกับ Project ของ WorkItem ใน next-state |
+| `workItemId` | string | No | public UUIDv4; next-state ต้องเป็น WorkItem ของ owner; Project จะ derive จาก WorkItem |
+| `projectId` | string | No | compatibility field แบบ public UUIDv4; หากส่งต้องตรงกับ Project ของ WorkItem ใน next-state |
 | `status` | string \| null | No | แทนค่า legacy status ตรง ๆ; ไม่ตรวจ enum |
-| `userId` | string | No | compatibility field; หากส่งต้องตรง owner |
+| `userId` | string | No | compatibility field แบบ public UUIDv4; หากส่งต้องตรง owner |
 
 ข้อความที่ส่งใน `description`, `remarks`, `status` ต้องเป็น string หรือ `null`. `workItemId` และ `projectId` หากส่งต้องเป็น string ที่ไม่ว่าง. Body ที่ไม่มี mutable field ตอบ validation error. แม้แก้เฉพาะ description/hours/date ก็ตรวจ WorkItem ใน next-state; หากรายการเดิมไม่มี WorkItem ต้องส่ง `workItemId` ใหม่.
 
@@ -75,7 +75,7 @@ GET/PATCH ตอบ `200` พร้อม `{workLog}`. Fields ของ `workLog
 | Field | Description |
 | --- | --- |
 | `workLog` | TimeEntry ที่อ่านหรือแก้สำเร็จ |
-| `workLog.id` | primary key ของ TimeEntry |
+| `workLog.id` | Public UUIDv4 ของ TimeEntry |
 | `workLog.description` | คำอธิบาย หรือ `null` |
 | `workLog.remarks` | รายละเอียดเพิ่มเติม หรือ `null` |
 | `workLog.hours` | ชั่วโมงจาก `TimeEntry.hours` ในรูป Decimal string |
@@ -83,20 +83,17 @@ GET/PATCH ตอบ `200` พร้อม `{workLog}`. Fields ของ `workLog
 | `workLog.status` | legacy status string หรือ `null` |
 | `workLog.createdAt` | เวลาสร้างใน Bangkok wall-clock ISO format พร้อม `+07:00` |
 | `workLog.updatedAt` | เวลาแก้ไขล่าสุดใน Bangkok wall-clock ISO format พร้อม `+07:00` |
-| `workLog.userId` | foreign key ของ owner |
-| `workLog.projectId` | foreign key ของ Project; derive จาก WorkItem สำหรับ record ที่แก้ผ่าน route นี้ |
-| `workLog.workItemId` | foreign key ของ WorkItem; อาจเป็น `null` ใน legacy record ที่ยังไม่ได้แก้ |
 | `workLog.user` | User relation ของ owner |
-| `workLog.user.id` | primary key ของ User |
+| `workLog.user.id` | Public UUIDv4 ของ User |
 | `workLog.user.name` | ชื่อ owner |
 | `workLog.user.email` | email ของ owner |
 | `workLog.user.avatar` | avatar URL หรือ `null` |
 | `workLog.project` | Project relation หรือ `null` ใน legacy record |
-| `workLog.project.id` | primary key ของ Project |
+| `workLog.project.id` | Public UUIDv4 ของ Project |
 | `workLog.project.name` | ชื่อ Project |
 | `workLog.project.colorProject` | สี Project หรือ `null` |
 | `workLog.workItem` | WorkItem relation ของ owner หรือ `null` สำหรับ legacy/foreign-owner relation |
-| `workLog.workItem.id` | primary key ของ WorkItem |
+| `workLog.workItem.id` | Public UUIDv4 ของ WorkItem |
 | `workLog.workItem.title` | ชื่อ WorkItem |
 | `workLog.workItem.kind` | ประเภท WorkItem |
 | `workLog.workItem.status` | สถานะ WorkItem ใน public format เช่น `in-progress` |
@@ -105,7 +102,7 @@ GET/PATCH ตอบ `200` พร้อม `{workLog}`. Fields ของ `workLog
 ```jsonc
 {
   "workLog": { // TimeEntry ที่อ่านหรือแก้สำเร็จ
-    "id": "time-entry-id", // primary key ของ TimeEntry
+    "id": "time-entry-id", // public UUIDv4 ของ TimeEntry
     "description": "Review", // คำอธิบาย หรือ null
     "remarks": null, // รายละเอียดเพิ่มเติม หรือ null
     "hours": "1.25", // ชั่วโมงในรูป Decimal string
@@ -113,22 +110,19 @@ GET/PATCH ตอบ `200` พร้อม `{workLog}`. Fields ของ `workLog
     "status": null, // legacy status หรือ null
     "createdAt": "2026-09-30T12:00:00.000+07:00", // เวลาสร้าง Bangkok
     "updatedAt": "2026-09-30T13:30:00.000+07:00", // เวลาแก้ไขล่าสุด Bangkok
-    "userId": "owner-id", // foreign key ของ owner
-    "projectId": "project-id", // Project ที่ derive จาก WorkItem
-    "workItemId": "work-item-id", // foreign key ของ WorkItem หรือ null ใน legacy record
     "user": { // User relation ของ owner
-      "id": "owner-id", // primary key ของ User
+      "id": "owner-id", // public UUIDv4 ของ owner
       "name": "Owner", // ชื่อ owner
       "email": "owner@example.invalid", // email ของ owner
       "avatar": null // avatar URL หรือ null
     },
     "project": { // Project relation หรือ null ใน legacy record
-      "id": "project-id", // primary key ของ Project
+      "id": "project-id", // public UUIDv4 ของ Project
       "name": "Website", // ชื่อ Project
       "colorProject": null // สี Project หรือ null
     },
     "workItem": { // WorkItem relation ของ owner หรือ null ใน legacy record
-      "id": "work-item-id", // primary key ของ WorkItem
+      "id": "work-item-id", // public UUIDv4 ของ WorkItem
       "title": "Review", // ชื่อ WorkItem
       "kind": "Task", // ประเภท WorkItem
       "status": "in-progress" // สถานะ public ของ WorkItem
@@ -136,6 +130,8 @@ GET/PATCH ตอบ `200` พร้อม `{workLog}`. Fields ของ `workLog
   }
 }
 ```
+
+Response serializer ส่ง public IDs ใน `id` และ nested relation objects; scalar `userId`, `projectId`, `workItemId` เป็นชื่อใน storage/input compatibility เท่านั้นและไม่มีใน response DTO.
 
 DELETE ตอบ `200`:
 

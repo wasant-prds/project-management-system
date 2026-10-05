@@ -6,7 +6,7 @@
 
 Issue นี้แปลง backup ที่ระบุเป็น SQL `INSERT` สำหรับ schema ของ [Issue #31](./issue-31-sql-schema.md). ไม่มี HTTP API และไม่มี background Job, queue หรือ scheduler สำหรับงานนี้. จุดเริ่มคือคำสั่งใน `scripts/sql-seeds.mjs`.
 
-แอปที่ใช้งานยังอ่าน Prisma `cuid()` และ JSON seed ที่ `database/seeds/master`. SQL dataset ถูก stage ที่ `database/seeds/sql-master` และยังไม่ถูก apply เข้าฐานข้อมูลของแอป. การสลับ runtime เป็นงานของ Issue #33.
+SQL dataset ถูก stage ที่ `database/seeds/sql-master`. Startup ของ Issue #33 ใช้ dataset นี้เมื่อได้รับการอนุมัติ seed แยก และค่าเริ่มต้นคือ `RUN_SEED=false`. ดู [Issue #33](./issue-33-sql-runtime.md).
 
 ไฟล์นโยบายที่ track ได้คือ `database/seed-policy/issue-32.json`. ไฟล์นี้อ้าง `document/COMPANY_PROJECT_DECISION.md` และ `lib/dhas-company.json`.
 

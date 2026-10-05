@@ -18,7 +18,7 @@ export async function GET(request: Request) {
       return apiError(400, 'VALIDATION_ERROR', 'startDate and endDate must be provided together', 'startDate')
     }
 
-    const where: Prisma.TimeEntryWhereInput = { userId: owner.id }
+    const where: Prisma.TimeEntryWhereInput = { userId: owner.internalId }
     if (startDate !== null && endDate !== null) {
       const start = bangkokDateRange(startDate)
       const end = bangkokDateRange(endDate)

@@ -1,0 +1,26 @@
+✔ TC-31-01 empty bootstrap creates the business and technical tables (5663.093ms)
+✔ TC-31-02 catalog types, identity, enums, decimals and foreign-key actions match the contract (5837.9719ms)
+✔ all live catalog tables and columns have nonempty comments and snake_case names (1222.7072ms)
+✔ TC-31-03 generated IDs start at 1 and sequences are independent (1793.8185ms)
+✔ TC-31-04 explicit import IDs align the sequence and an empty table still starts at 1 (1834.0387ms)
+✔ every table has public UUID metadata and generated UUIDs are unique and immutable (4843.9333ms)
+✔ TC-31-05 concurrent inserts stay unique and a rolled-back insert leaves a gap (1073.2203ms)
+✔ TC-31-06 ordinary writes own timestamps and ignore client no-op values (5248.8116ms)
+✔ TC-31-07 Bangkok defaults do not follow a UTC session and DATE values do not shift (3056.5335ms)
+✔ TC-31-08 controlled import keeps source timestamps and does not copy remote time into local history (6187.5717ms)
+✔ TC-31-09 decimal, JSON, arrays, Thai text and enum literals round-trip (4450.0273ms)
+✔ GitLab and GitHub mappings and references coexist without source identity collisions (4655.9568ms)
+✔ TC-31-10 foreign-key delete actions and unique keys follow the current schema (10676.8737ms)
+✔ TC-31-11 rerun skips the baseline and a changed checksum does not write (3999.9575ms)
+✔ TC-31-12 a second runner fails on the migration lock without writing history (9471.9221ms)
+✔ TC-31-13 failed SQL rolls back and a terminated backend leaves no history (11441.514ms)
+✔ TC-31-15 snapshot bootstrap and migration replay have the same catalog until an intentional drift (11963.9142ms)
+✔ TC-31-15 replaying a later migration matches a snapshot that includes it (12792.9892ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 107953.1117

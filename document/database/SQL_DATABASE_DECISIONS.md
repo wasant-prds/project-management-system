@@ -1,7 +1,7 @@
 # SQL database decisions — Issue #31
 
 Updated 2026-10-04 to follow the current project queries and naming review.
-The SQL snapshot is a draft empty target. Active runtime remains `prisma/schema.prisma` with CUIDs and guarded `prisma db push`.
+The SQL snapshot remains the DDL authority. Issue #33 application code maps Prisma onto it. Live cutover of a used database is still a separate authorized step.
 
 ## Current implementation
 
@@ -19,8 +19,8 @@ The SQL snapshot is a draft empty target. Active runtime remains `prisma/schema.
 
 ## Remaining rollout work
 
-- The active Prisma schema still contains 13 CUID business models. Future SQL runtime cutover must map every renamed model, field and enum and expose public UUIDs through explicit DTOs. No current API has switched to the public UUID contract; internal bigint never becomes a client-visible ID.
-- GitHub synchronization is not implemented by this naming change. At #33 cutover, add provider to the Prisma mapping model, update compound identities and explicitly scope GitLab mapping/reference reads and mutations to provider=gitlab. The generic table name alone does not isolate GitLab consumers from future GitHub records.
+- Issue #33 maps the retained models to BIGINT keys and public UUIDs. `Comment` and `Notification` are not recreated. Internal bigint stays off public responses.
+- GitHub synchronization is not implemented. GitLab mapping and reference access is scoped to `provider = 'gitlab'`.
 - Any source-to-numeric data migration must implement and verify its required ID provenance storage when that migration exists. `scripts/sql-legacy-id.mjs` currently only validates and sorts in-memory mapping records; its helper tests do not justify creating an unused persistence table now.
 - Public UUID/internal numeric separation is approved by the user. Activity history immutability remains a draft foundation choice; production cutover is separate.
 - The timestamp-preservation setting is not restricted by database role and is not a security boundary.
@@ -32,4 +32,4 @@ The SQL snapshot is a draft empty target. Active runtime remains `prisma/schema.
 
 Run `node tests/run.mjs sql-schema` for artifact, naming, comment coverage, ID and runner contracts. Run `node tests/run.mjs sql-migrations-docker` for isolated PostgreSQL 16 catalog, timestamp, FK, uniqueness, rollback, lock and replay checks. The integration fixtures use `--network none` and no published ports.
 
-This work edits SQL artifacts, their supporting runner/catalog checks and documentation. It does not apply the target to an APP_ENV database, change the active Prisma model, run seeds, reset data, deploy or cut over runtime.
+The #31 verification edited SQL artifacts and runner checks. It did not apply the target to an APP_ENV database. Issue #33 later changed the Prisma mapping in source; it still does not authorize a live seed, reset, deploy or cutover.

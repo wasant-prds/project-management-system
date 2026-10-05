@@ -47,7 +47,7 @@ HTTP `200`. `users` เป็น array ที่ implementation เติม own
 {
   "users": [ // owner ที่ API resolve ได้
     {
-      "id": "user-id", // primary key
+      "id": "user-id", // public UUIDv4 ของ owner
       "name": "Owner", // display name
       "email": "owner@example.invalid", // account email
       "avatar": null, // avatar URL หรือ null

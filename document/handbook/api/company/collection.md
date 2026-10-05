@@ -71,7 +71,7 @@ GET ตอบ `200`, POST ตอบ `201`.
 | Field | Type | คำอธิบาย |
 | --- | --- | --- |
 | `companies` | array | Company ในหน้าปัจจุบัน เรียงตาม `name`, แล้ว `id` |
-| `companies[].id` | string | Company primary key |
+| `companies[].id` | string | Public UUIDv4 ของ Company |
 | `companies[].code` | string \| null | รหัสเฉพาะของ Company; Dhas ใช้ `dhas` |
 | `companies[].displayName` | string \| null | ชื่อแสดง |
 | `companies[].location` | string \| null | ที่ตั้ง |
@@ -102,7 +102,7 @@ GET ตอบ `200`, POST ตอบ `201`.
 {
   "companies": [ // records ในหน้าปัจจุบัน
     {
-      "id": "company-id", // primary key
+      "id": "company-id", // public UUIDv4 ของ Company
       "code": null, // reserved code หรือ null
       "displayName": null, // ชื่อแสดงหรือ null
       "location": null, // ที่ตั้งหรือ null

@@ -19,6 +19,8 @@ const suites = {
     join(testRoot, "sql", "migrate-runner.test.mjs"),
   ] },
   "sql-migrations-docker": { files: [join(testRoot, "sql", "migrations-docker.test.mjs")] },
+  "sql-live-upgrade-docker": { files: [join(testRoot, "identity", "live-upgrade-docker.test.mjs")] },
+  identity: { directory: join(testRoot, "identity") },
   "sql-seeds": { files: [
     join(testRoot, "sql", "seeds-convert.test.mjs"),
     join(testRoot, "sql", "seed-runner.test.mjs"),
@@ -54,6 +56,7 @@ if (requestedSuite === "runtime-container") process.env.PMS_RUN_CONTAINER_TESTS 
 if (requestedSuite === "runtime-docker") process.env.PMS_RUN_DOCKER_TESTS = "1";
 if (requestedSuite === "seed-docker") process.env.PMS_RUN_SEED_DOCKER_TESTS = "1";
 if (requestedSuite === "sql-migrations-docker") process.env.PMS_RUN_SQL_MIGRATION_DOCKER_TESTS = "1";
+if (requestedSuite === "sql-live-upgrade-docker") process.env.PMS_RUN_SQL_LIVE_UPGRADE_DOCKER_TESTS = "1";
 if (requestedSuite === "sql-seeds-docker") process.env.PMS_RUN_SQL_SEED_DOCKER_TESTS = "1";
 if (requestedSuite === "work-item-schema-docker") {
   process.env.PMS_RUN_SEED_DOCKER_TESTS = "1";

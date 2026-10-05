@@ -15,7 +15,7 @@
 
 ต้องผ่าน Node owner gate ด้วย HTTP Basic และ middleware internal proof. Unsafe request ต้องส่ง `Origin` ที่ตรงกับ `APP_ORIGIN`; หากส่ง `Origin` ใน request ใดก็ต้องตรงกัน. Route เรียก `getOwner()` ซึ่ง resolve User หนึ่งรายการ (เลือกด้วย `OWNER_USER_ID` เมื่อกำหนด หรือใช้เมื่อมี User เพียงหนึ่งรายการ); implementation นี้ไม่ได้ใช้ `User.role` เป็น permission.
 
-`userId` ที่ส่งเป็น compatibility field ต้องตรงกับ owner; owner ที่บันทึกจริงมาจาก server. `workItemId` ต้องเป็น WorkItem ของ owner. `projectId` เป็น optional compatibility field ที่หากส่งต้องตรงกับ Project ของ WorkItem และ Project ที่บันทึกจะ derive จาก WorkItem เสมอ.
+`userId` ที่ส่งเป็น compatibility field ต้องเป็น public UUIDv4 ของ owner; owner ที่บันทึกจริงมาจาก server. `workItemId` ต้องเป็น public UUIDv4 ของ WorkItem ในขอบเขต owner. `projectId` เป็น optional compatibility field ที่หากส่งต้องเป็น public UUIDv4 ของ Project ที่ WorkItem อ้างถึง และ Project ที่บันทึกจะ derive จาก WorkItem เสมอ.
 
 ## ดึงข้อมูลจากตารางไหน
 
@@ -43,7 +43,7 @@
 | `date` | `YYYY-MM-DD` | No | เลือก Bangkok calendar day; ใช้พร้อม `startDate`/`endDate` ไม่ได้ |
 | `startDate` | `YYYY-MM-DD` | Conditional | ต้องส่งคู่กับ `endDate`; inclusive date range |
 | `endDate` | `YYYY-MM-DD` | Conditional | ต้องส่งคู่กับ `startDate`; ต้องไม่ก่อน `startDate` |
-| `userId` | string | No | compatibility filter; เมื่อไม่ว่างและไม่ตรง owner ตอบ `400 VALIDATION_ERROR`; ค่าว่างถูกละไว้ |
+| `userId` | string | No | compatibility filter แบบ public UUIDv4; เมื่อไม่ว่างและไม่ตรง owner ตอบ `400 VALIDATION_ERROR`; ค่าว่างถูกละไว้ |
 
 เมื่อไม่ส่งตัวกรองวันที่ จะอ่านรายการของ owner ทุกวัน. Range query ใช้วันเริ่มต้นแบบ `>=` และวันหลัง `endDate` แบบ `<` ตาม Bangkok wall-clock semantics.
 
@@ -65,13 +65,13 @@ GET response มี top-level `workLogs` array; เมื่อไม่มี�
 | Field | Type | Required | Validation / behavior |
 | --- | --- | --- | --- |
 | `hours` | number หรือ string | Yes | API ตรวจ positive finite decimal และขอบเขต `DECIMAL(65,30)` (จำนวนเต็มไม่เกิน 35 หลัก, ทศนิยมไม่เกิน 30 หลัก); ไม่พบข้อมูลที่ยืนยันได้จาก implementation ปัจจุบันเกี่ยวกับ per-day cap; ส่ง string เมื่อต้องรักษาความแม่นยำของเลขทศนิยม |
-| `workItemId` | string | Yes | ต้องเป็น WorkItem ของ owner; Project จะ derive จากรายการนี้ |
+| `workItemId` | string | Yes | public UUIDv4 ของ WorkItem ในขอบเขต owner; Project จะ derive จากรายการนี้ |
 | `date` | string | Yes | `YYYY-MM-DD` หรือ Bangkok timestamp ที่ลงท้าย `+07:00`; บันทึกเฉพาะ Bangkok calendar date |
-| `projectId` | string | No | compatibility field; หากส่งต้องไม่ว่างและตรงกับ Project ของ WorkItem |
+| `projectId` | string | No | compatibility field แบบ public UUIDv4; หากส่งต้องไม่ว่างและตรงกับ Project ของ WorkItem |
 | `description` | string \| null | No | คำอธิบาย Daily Work |
 | `remarks` | string \| null | No | รายละเอียดเพิ่มเติม |
 | `status` | string \| null | No | legacy status; route รับข้อความโดยไม่ตรวจ enum |
-| `userId` | string | No | compatibility field; หากส่งต้องตรง owner |
+| `userId` | string | No | compatibility field แบบ public UUIDv4; หากส่งต้องตรง owner |
 
 Body ต้องเป็น JSON object; `description`, `remarks`, `status` ต้องเป็น string หรือ `null`.
 
@@ -92,7 +92,7 @@ Body ต้องเป็น JSON object; `description`, `remarks`, `status` �
 | --- | --- |
 | `workLogs` | array ของ TimeEntry ที่ตรงกับ owner และ filters; มีเฉพาะใน GET |
 | `workLog` | TimeEntry ที่เพิ่งสร้าง; มีเฉพาะใน POST |
-| `id` | primary key ของ TimeEntry |
+| `id` | Public UUIDv4 ของ TimeEntry |
 | `description` | คำอธิบาย หรือ `null` |
 | `remarks` | รายละเอียดเพิ่มเติม หรือ `null` |
 | `hours` | ชั่วโมงในรูป Decimal string จาก `TimeEntry.hours` |
@@ -100,20 +100,17 @@ Body ต้องเป็น JSON object; `description`, `remarks`, `status` �
 | `status` | legacy status string หรือ `null`; ไม่ได้แปลง enum |
 | `createdAt` | เวลาสร้างที่ serialize เป็น Bangkok wall-clock ISO timestamp พร้อม `+07:00` |
 | `updatedAt` | เวลาแก้ไขล่าสุดที่ serialize เป็น Bangkok wall-clock ISO timestamp พร้อม `+07:00` |
-| `userId` | foreign key ของ owner ที่ resolver กำหนด |
-| `projectId` | foreign key ของ Project ที่ derive จาก WorkItem; อาจเป็น `null` ใน legacy record ที่อ่านได้ |
-| `workItemId` | foreign key ของ WorkItem; อาจเป็น `null` ใน legacy record ที่อ่านได้ |
 | `user` | User relation ของ owner ที่เลือกมาใน response |
-| `user.id` | primary key ของ User |
+| `user.id` | Public UUIDv4 ของ User |
 | `user.name` | ชื่อ owner |
 | `user.email` | email ของ owner |
 | `user.avatar` | avatar URL หรือ `null` |
 | `project` | Project relation หรือ `null` สำหรับ legacy record |
-| `project.id` | primary key ของ Project |
+| `project.id` | Public UUIDv4 ของ Project |
 | `project.name` | ชื่อ Project |
 | `project.colorProject` | สี Project หรือ `null` |
 | `workItem` | WorkItem ของ owner หรือ `null` สำหรับ legacy record/WorkItem ที่ไม่ใช่ของ owner |
-| `workItem.id` | primary key ของ WorkItem |
+| `workItem.id` | Public UUIDv4 ของ WorkItem |
 | `workItem.title` | ชื่อ WorkItem |
 | `workItem.kind` | ประเภท WorkItem |
 | `workItem.status` | สถานะ WorkItem ใน public format เช่น `in-progress` |
@@ -121,7 +118,7 @@ Body ต้องเป็น JSON object; `description`, `remarks`, `status` �
 ```jsonc
 {
   "workLog": { // TimeEntry ที่สร้างสำเร็จ
-    "id": "time-entry-id", // primary key ของ TimeEntry
+    "id": "time-entry-id", // public UUIDv4 ของ TimeEntry
     "description": "Review", // คำอธิบาย หรือ null
     "remarks": null, // รายละเอียดเพิ่มเติม หรือ null
     "hours": "2.5", // ชั่วโมงในรูป Decimal string
@@ -129,22 +126,19 @@ Body ต้องเป็น JSON object; `description`, `remarks`, `status` �
     "status": null, // legacy status หรือ null
     "createdAt": "2026-09-30T12:00:00.000+07:00", // เวลาสร้าง Bangkok
     "updatedAt": "2026-09-30T12:00:00.000+07:00", // เวลาแก้ไขล่าสุด Bangkok
-    "userId": "owner-id", // foreign key ของ owner ที่ server resolve
-    "projectId": "project-id", // foreign key ของ Project ที่ derive จาก WorkItem
-    "workItemId": "work-item-id", // foreign key ของ WorkItem
     "user": { // User relation ของ owner
-      "id": "owner-id", // primary key ของ User
+      "id": "owner-id", // public UUIDv4 ของ owner
       "name": "Owner", // ชื่อ owner
       "email": "owner@example.invalid", // email ของ owner
       "avatar": null // avatar URL หรือ null
     },
     "project": { // Project relation หรือ null ใน legacy record
-      "id": "project-id", // primary key ของ Project
+      "id": "project-id", // public UUIDv4 ของ Project
       "name": "Website", // ชื่อ Project
       "colorProject": null // สี Project หรือ null
     },
     "workItem": { // WorkItem relation ของ owner หรือ null ใน legacy record
-      "id": "work-item-id", // primary key ของ WorkItem
+      "id": "work-item-id", // public UUIDv4 ของ WorkItem
       "title": "Review", // ชื่อ WorkItem
       "kind": "Task", // ประเภท WorkItem
       "status": "in-progress" // สถานะ public ของ WorkItem
@@ -152,6 +146,8 @@ Body ต้องเป็น JSON object; `description`, `remarks`, `status` �
   }
 }
 ```
+
+`serializeWorkLog` ไม่ส่ง scalar `userId`, `projectId` หรือ `workItemId` ใน response; ใช้ nested relation objects ที่มี public UUID แทน.
 
 ## Error Responses
 

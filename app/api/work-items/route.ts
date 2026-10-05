@@ -18,11 +18,16 @@ import { getOwner, ownerErrorResponse } from '@/lib/owner'
 import { bangkokDateRange, currentBangkokCalendarDate, currentBangkokWallClockDate } from '@/lib/bangkok-datetime'
 import { serializeWorkItem, workItemInclude } from '@/lib/work-item-response'
 import { createHash } from 'node:crypto'
+import { encodeOpaqueCursor, decodeOpaqueCursor } from '@/lib/opaque-cursor'
+import { parsePublicId } from '@/lib/public-id'
 
 type WorkItemYearRow = { year: number }
-type WorkItemCursor = { id: string; createdAt: Date }
+type WorkItemCursor = { id: bigint; createdAt: Date }
 type WorkItemListQuery = {
-  ownerId: string
+  ownerId: bigint
+  ownerPublicId: string
+  projectPublicId: string | null
+  companyPublicId: string | null
   yearParam: string
   monthParam: string
   startDate: string | null
@@ -47,12 +52,12 @@ function hasErrorCode(error: unknown, code: string) {
     && error.code === code
 }
 
-async function getAvailableYears(ownerId: string) {
+async function getAvailableYears(ownerId: bigint) {
   const rows = await prisma.$queryRaw<WorkItemYearRow[]>(Prisma.sql`
-    SELECT DISTINCT EXTRACT(YEAR FROM COALESCE(wi."workDate", wi."dueDate", wi."createdAt"))::int AS year
+    SELECT DISTINCT EXTRACT(YEAR FROM COALESCE(wi."work_date", wi."due_date", wi."created_at"))::int AS year
     FROM "work_items" AS wi
-    INNER JOIN "Project" AS p ON p."id" = wi."projectId"
-    WHERE wi."assigneeId" = ${ownerId}
+    INNER JOIN "projects" AS p ON p."id" = wi."project_id"
+    WHERE wi."assignee_id" = ${ownerId}
     ORDER BY year DESC
   `)
 
@@ -131,7 +136,19 @@ function searchClause(query: string): Prisma.WorkItemWhereInput {
   return { OR: clauses }
 }
 
-type WorkItemFilterResult = { where: Prisma.WorkItemWhereInput; overdueAsOf: string | null } | { error: string }
+type WorkItemFilterResult = {
+  where: Prisma.WorkItemWhereInput
+  overdueAsOf: string | null
+  projectPublicId: string | null
+  companyPublicId: string | null
+} | { error: string }
+
+function readFilterPublicId(value: string | null, field: string): { publicId: string | null } | { error: string } {
+  if (!value) return { publicId: null }
+  const publicId = parsePublicId(value)
+  if (!publicId) return { error: `Invalid ${field}` }
+  return { publicId }
+}
 
 function validateAssigneeFilter(assigneeId: string | null, ownerId: string) {
   return assigneeId && assigneeId !== ownerId ? 'assigneeId ต้องเป็นเจ้าของระบบ' : null
@@ -170,8 +187,8 @@ function applyRoleFilter(where: Prisma.WorkItemWhereInput, role: string | null) 
   return null
 }
 
-function baseWorkItemFilter(searchParams: URLSearchParams, ownerId: string): WorkItemFilterResult {
-  const where: Prisma.WorkItemWhereInput = { project: { is: {} }, assigneeId: ownerId }
+function baseWorkItemFilter(searchParams: URLSearchParams, ownerInternalId: bigint, ownerPublicId: string): WorkItemFilterResult {
+  const where: Prisma.WorkItemWhereInput = { project: { is: {} }, assigneeId: ownerInternalId }
   const projectId = searchParams.get('projectId')
   const assigneeId = searchParams.get('assigneeId')
   const kind = searchParams.get('kind')
@@ -185,15 +202,16 @@ function baseWorkItemFilter(searchParams: URLSearchParams, ownerId: string): Wor
   if (openOnly !== null && openOnly !== 'true' && openOnly !== 'false') return { error: 'Invalid openOnly filter' }
   if (overdueOnly !== null && overdueOnly !== 'true' && overdueOnly !== 'false') return { error: 'Invalid overdue filter' }
 
-  const validationError = validateAssigneeFilter(assigneeId, ownerId)
+  const projectRef = readFilterPublicId(projectId, 'projectId')
+  if ('error' in projectRef) return projectRef
+  const companyRef = readFilterPublicId(companyId, 'companyId')
+  if ('error' in companyRef) return companyRef
+  const validationError = validateAssigneeFilter(assigneeId, ownerPublicId)
     ?? applyKindFilter(where, kind)
     ?? applyStatusFilter(where, statusParam)
     ?? applyPriorityFilter(where, priority)
     ?? applyRoleFilter(where, role)
   if (validationError) return { error: validationError }
-
-  if (projectId) where.projectId = projectId
-  if (companyId) where.project = { is: { companyId } }
   const clauses: Prisma.WorkItemWhereInput[] = []
   let overdueAsOf: string | null = null
   if (openOnly === 'true') clauses.push({ status: { notIn: ['completed', 'cancelled'] } })
@@ -204,7 +222,7 @@ function baseWorkItemFilter(searchParams: URLSearchParams, ownerId: string): Wor
     clauses.push({ dueDate: { lt: today.start } }, { status: { notIn: ['completed', 'cancelled'] } })
   }
   if (clauses.length > 0) where.AND = clauses
-  return { where, overdueAsOf }
+  return { where, overdueAsOf, projectPublicId: projectRef.publicId, companyPublicId: companyRef.publicId }
 }
 
 function selectedDateRange(startDate: string, endDate: string): Prisma.WorkItemWhereInput | null {
@@ -220,7 +238,7 @@ function selectedDateRange(startDate: string, endDate: string): Prisma.WorkItemW
   }
 }
 
-async function periodFilter(yearParam: string, monthParam: string, ownerId: string) {
+async function periodFilter(yearParam: string, monthParam: string, ownerId: bigint) {
   if (yearParam === 'all' && monthParam === 'all') return { clause: null, availableYears: undefined }
 
   const month = monthParam === 'all' ? null : Number(monthParam)
@@ -233,7 +251,7 @@ async function periodFilter(yearParam: string, monthParam: string, ownerId: stri
   const dateRanges = years.flatMap((year) => dateRangeFor(year, month))
   const clause: Prisma.WorkItemWhereInput = dateRanges.length > 0
     ? { OR: dateRanges }
-    : { id: '__no_work_items_in_selected_period__' }
+    : { id: { in: [] } }
   return { clause, availableYears }
 }
 
@@ -266,30 +284,21 @@ function workItemFilterHash(searchParams: URLSearchParams, year: string, month: 
   return createHash('sha256').update(JSON.stringify(filters)).digest('hex')
 }
 
-function encodeCursor(item: { id: string; createdAt: Date }, filterHash: string) {
-  return Buffer.from(JSON.stringify({
-    version: 1,
-    id: item.id,
-    createdAt: item.createdAt.toISOString(),
+function encodeCursor(item: { id: bigint; createdAt: Date }, ownerPublicId: string, filterHash: string) {
+  return encodeOpaqueCursor({
+    ownerPublicId,
     filterHash,
-  })).toString('base64url')
+    internalId: item.id,
+    tieBreaker: item.createdAt.toISOString(),
+  })
 }
 
-function decodeCursor(value: string, expectedFilterHash: string): WorkItemCursor | null {
-  try {
-    const payload: unknown = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'))
-    if (typeof payload !== 'object' || payload === null) return null
-    if (!('version' in payload) || payload.version !== 1) return null
-    if (!('id' in payload) || typeof payload.id !== 'string' || payload.id.length === 0) return null
-    if (!('createdAt' in payload) || typeof payload.createdAt !== 'string') return null
-    if (!('filterHash' in payload) || payload.filterHash !== expectedFilterHash) return null
-
-    const createdAt = new Date(payload.createdAt)
-    if (Number.isNaN(createdAt.getTime())) return null
-    return { id: payload.id, createdAt }
-  } catch {
-    return null
-  }
+function decodeCursor(value: string, ownerPublicId: string, expectedFilterHash: string): WorkItemCursor | null {
+  const decoded = decodeOpaqueCursor(value, { ownerPublicId, filterHash: expectedFilterHash })
+  if (!decoded) return null
+  const createdAt = new Date(decoded.tieBreaker)
+  if (Number.isNaN(createdAt.getTime())) return null
+  return { id: decoded.internalId, createdAt }
 }
 
 function cursorClause(cursor: WorkItemCursor): Prisma.WorkItemWhereInput {
@@ -307,7 +316,7 @@ function validationResponse(message: string, field?: string) {
   }, { status: 400 })
 }
 
-function parseWorkItemListQuery(searchParams: URLSearchParams, ownerId: string): WorkItemListQueryResult {
+function parseWorkItemListQuery(searchParams: URLSearchParams, ownerPublicId: string, ownerInternalId: bigint): WorkItemListQueryResult {
   const startDate = searchParams.get('startDate')
   const endDate = searchParams.get('endDate')
   if ((startDate === null) !== (endDate === null)) {
@@ -335,14 +344,14 @@ function parseWorkItemListQuery(searchParams: URLSearchParams, ownerId: string):
   }
 
   // Ignore legacy seed rows whose required Project record is missing.
-  const filters = baseWorkItemFilter(searchParams, ownerId)
+  const filters = baseWorkItemFilter(searchParams, ownerInternalId, ownerPublicId)
   if ('error' in filters) {
     return { success: false, response: validationResponse(filters.error) }
   }
 
   const filterHash = workItemFilterHash(searchParams, yearParam, monthParam, search, filters.overdueAsOf)
   const cursorParam = searchParams.get('cursor')
-  const cursor = cursorParam === null ? null : decodeCursor(cursorParam, filterHash)
+  const cursor = cursorParam === null ? null : decodeCursor(cursorParam, ownerPublicId, filterHash)
   if (cursorParam !== null && !cursor) {
     return { success: false, response: validationResponse('Invalid cursor for the selected filters', 'cursor') }
   }
@@ -350,7 +359,10 @@ function parseWorkItemListQuery(searchParams: URLSearchParams, ownerId: string):
   return {
     success: true,
     query: {
-      ownerId,
+      ownerId: ownerInternalId,
+      ownerPublicId,
+      projectPublicId: filters.projectPublicId,
+      companyPublicId: filters.companyPublicId,
       yearParam,
       monthParam,
       startDate,
@@ -368,6 +380,9 @@ function parseWorkItemListQuery(searchParams: URLSearchParams, ownerId: string):
 
 async function queryWorkItemList({
   ownerId,
+  ownerPublicId,
+  projectPublicId,
+  companyPublicId,
   yearParam,
   monthParam,
   startDate,
@@ -380,6 +395,16 @@ async function queryWorkItemList({
   overdueAsOf,
   where,
 }: WorkItemListQuery) {
+  if (projectPublicId) {
+    const project = await prisma.project.findUnique({ where: { publicId: projectPublicId }, select: { id: true } })
+    if (!project) return { missing: 'projectId' as const }
+    where.projectId = project.id
+  }
+  if (companyPublicId) {
+    const company = await prisma.company.findUnique({ where: { publicId: companyPublicId }, select: { id: true } })
+    if (!company) return { missing: 'companyId' as const }
+    where.project = { is: { companyId: company.id } }
+  }
   const shouldIncludeYears = includeYears || (yearParam === 'all' && monthParam !== 'all')
   const period = startDate && endDate
     ? { clause: selectedDateRange(startDate, endDate), availableYears: undefined }
@@ -417,7 +442,8 @@ async function queryWorkItemList({
   ])
   const hasNextPage = rows.length > limit
   const workItems = rows.slice(0, limit)
-  const nextCursor = hasNextPage ? encodeCursor(workItems[workItems.length - 1], filterHash) : null
+  const nextCursor = hasNextPage ? encodeCursor(workItems[workItems.length - 1], ownerPublicId, filterHash) : null
+  if (hasNextPage && !nextCursor) throw new Error('Cursor secret unavailable')
 
   return {
     workItems: workItems.map(serializeWorkItem),
@@ -431,9 +457,15 @@ async function queryWorkItemList({
 export async function GET(request: Request) {
   try {
     const owner = await getOwner()
-    const parsed = parseWorkItemListQuery(new URL(request.url).searchParams, owner.id)
+    const parsed = parseWorkItemListQuery(new URL(request.url).searchParams, owner.id, owner.internalId)
     if (!parsed.success) return parsed.response
-    return NextResponse.json(await queryWorkItemList(parsed.query), { status: 200 })
+    const listed = await queryWorkItemList(parsed.query)
+    if ('missing' in listed) {
+      return NextResponse.json({
+        error: { code: 'NOT_FOUND', message: 'ไม่พบข้อมูลที่อ้างอิง', field: listed.missing },
+      }, { status: 404 })
+    }
+    return NextResponse.json(listed, { status: 200 })
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError
@@ -460,10 +492,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: result.error } }, { status: 400 })
     }
 
-    const input = { ...result.data }
-    delete input.id
-
-    const project = await prisma.project.findUnique({ where: { id: input.projectId }, select: { id: true } })
+    if (result.data.id) {
+      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: 'id is generated by the database', field: 'id' } }, { status: 400 })
+    }
+    const projectPublicId = parsePublicId(result.data.projectId)
+    if (!projectPublicId) {
+      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: 'ต้องเป็น public UUID', field: 'projectId' } }, { status: 400 })
+    }
+    const project = await prisma.project.findUnique({ where: { publicId: projectPublicId }, select: { id: true } })
 
     if (!project) {
       return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'Project not found', field: 'projectId' } }, { status: 404 })
@@ -472,8 +508,18 @@ export async function POST(request: Request) {
     const now = currentBangkokWallClockDate()
     const workItem = await prisma.workItem.create({
       data: {
-        ...input,
-        submittedAt: shouldStampSubmittedAt(input.status) ? now : null,
+        title: result.data.title,
+        description: result.data.description,
+        kind: result.data.kind,
+        priority: result.data.priority,
+        role: result.data.role,
+        status: result.data.status,
+        types: result.data.types,
+        workDate: result.data.workDate,
+        dueDate: result.data.dueDate,
+        projectId: project.id,
+        assigneeId: owner.internalId,
+        submittedAt: shouldStampSubmittedAt(result.data.status) ? now : null,
       },
       include: workItemInclude,
     })

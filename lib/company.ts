@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import dhasCompany from '@/lib/dhas-company.json'
+import { bangkokTimestamp } from '@/lib/project-management'
 
 export const DHAS_COMPANY = dhasCompany
 export class CompanyConflictError extends Error {}
@@ -26,6 +27,40 @@ export function parseCompanyInput(body: unknown, partial = false) {
     }
   }
   return { data }
+}
+
+export function serializeCompany(company: {
+  publicId: string
+  code: string | null
+  displayName: string | null
+  location: string | null
+  name: string
+  industry: string | null
+  email: string | null
+  phone: string | null
+  address: string | null
+  website: string | null
+  logo: string | null
+  description: string | null
+  createdAt: Date
+  updatedAt: Date
+}) {
+  return {
+    id: company.publicId,
+    code: company.code,
+    displayName: company.displayName,
+    location: company.location,
+    name: company.name,
+    industry: company.industry,
+    email: company.email,
+    phone: company.phone,
+    address: company.address,
+    website: company.website,
+    logo: company.logo,
+    description: company.description,
+    createdAt: bangkokTimestamp(company.createdAt),
+    updatedAt: bangkokTimestamp(company.updatedAt),
+  }
 }
 
 export async function getOrCreateDhasCompany() {

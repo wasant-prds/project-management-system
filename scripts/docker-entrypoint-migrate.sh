@@ -9,8 +9,9 @@ export PGOPTIONS="-c timezone=Asia/Bangkok"
 DATABASE_URL="$(node /app/scripts/database-url.mjs)"
 export DATABASE_URL
 
-export SEED_PATH="${SEED_PATH:-database/seeds/master}"
+export SEED_PATH="${SEED_PATH:-database/seeds/sql-master}"
 export SEEDS_ROOT="${SEEDS_ROOT:-/app}"
+export PMS_SQL_RUNTIME_APPLY=1
 MIGRATION_MAX_ATTEMPTS="${MIGRATION_MAX_ATTEMPTS:-3}"
 
 case "$MIGRATION_MAX_ATTEMPTS" in
@@ -69,29 +70,19 @@ run_db_step() {
 }
 
 case "${DB_MANAGE_MODE:-}" in
-  seed)
-    echo "🌱 Running database seed only (${SEEDS_ROOT}/${SEED_PATH})"
-    pnpm prisma generate
-    run_db_step "seed" pnpm prisma db seed
-    exit 0
+  force-seed|reset)
+    echo "Destructive database mode is refused." >&2
+    exit 1
     ;;
-  force-seed)
-    echo "🌱 Pushing schema and reseeding database (${SEEDS_ROOT}/${SEED_PATH})"
+  seed)
+    echo "Running SQL seed only (${SEEDS_ROOT}/${SEED_PATH})"
     node scripts/db-schema-rollout-gate.mjs
     pnpm prisma generate
-    run_db_step "schema sync" sh scripts/db-push-safe.sh
-    run_db_step "seed" pnpm prisma db seed
+    run_db_step "seed" node scripts/sql-runtime.mjs seed
     exit 0
     ;;
 esac
 
 node scripts/db-schema-rollout-gate.mjs
 pnpm prisma generate
-run_db_step "schema sync" sh scripts/db-push-safe.sh
-
-if [ "${RUN_SEED:-false}" = "true" ]; then
-  echo "🌱 RUN_SEED=true — loading seeds from ${SEEDS_ROOT}/${SEED_PATH}"
-  run_db_step "seed" pnpm prisma db seed
-else
-  echo "⏭️  RUN_SEED=${RUN_SEED:-false} — skipping seed"
-fi
+run_db_step "schema sync" node scripts/sql-runtime.mjs apply

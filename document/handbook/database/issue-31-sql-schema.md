@@ -4,7 +4,7 @@
 
 ## ขอบเขต
 
-Issue นี้เพิ่ม SQL target สำหรับฐานข้อมูลว่างและ runner ที่รันกับเป้าหมายที่ระบุชัดเจน. แอปที่ใช้งานยังอ่าน `prisma/schema.prisma` ซึ่งใช้ `cuid()`. Compose migration ยังเรียก rollout gate แล้ว `prisma db push`.
+Issue นี้เพิ่ม SQL target สำหรับฐานข้อมูลว่างและ runner ที่รันกับเป้าหมายที่ระบุชัดเจน. การ map Prisma และ startup ไปที่ target นี้อยู่ใน [Issue #33](./issue-33-sql-runtime.md). ฐานข้อมูลที่ยังเก็บ CUID ไม่ใช่ปลายทางของ client ชุดนี้.
 
 ไฟล์ที่ควบคุม DDL ของ target นี้มีไฟล์เดียวคือ `database/schema.sql`. `database/migrations/manifest.json` revision `31.0.0` อ้างไฟล์นั้นเป็น migration `0001` ชื่อ `initial_schema` ชนิด `baseline_snapshot`. ไม่มีสำเนา DDL อีกชุด.
 

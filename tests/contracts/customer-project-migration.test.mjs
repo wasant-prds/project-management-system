@@ -15,7 +15,7 @@ test("migration contract separates repository facts from target and live data", 
   assert.match(migration, /Superseded for #18 on 2026-09-29/);
   assert.match(migration, /ห้ามใช้ seed\/sample data/);
   assert.doesNotMatch(schema, /model Customer\s*\{/);
-  assert.match(schema, /companyId\s+String\s/);
+  assert.match(schema, /companyId\s+BigInt/);
 });
 
 test("Customer minimum fields, status, and used-record deletion rules are explicit", () => {

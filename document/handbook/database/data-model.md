@@ -4,11 +4,11 @@ Target identity standard (user decision 2026-10-04): every table has internal BI
 
 ## ภาพรวม
 
-Prisma ใช้ PostgreSQL. API ปัจจุบันอ่าน/เขียน model หลักด้านล่าง โดย `WorkItem` map ไปยังตารางจริง `work_items`; model อื่นใช้ชื่อ table ตาม Prisma model. Active Compose migration ยังใช้ guarded `prisma db push` และ primary ID แบบ `cuid()`. Issue #31 เพิ่ม SQL target แยกที่ยังไม่ถูกสลับมาใช้: ดู [SQL schema foundation](./issue-31-sql-schema.md).
+Prisma ใช้ PostgreSQL. API อ่านและเขียนผ่าน public UUIDv4 แล้วแปลงเป็น BIGINT ฝั่ง server. ชื่อตารางจริงเป็น plural snake_case ตาม `@@map`. Startup ใช้ [SQL runtime ของ Issue #33](./issue-33-sql-runtime.md).
 
 Issue #18 ใช้ `Company → Project`: schema ปัจจุบันไม่มี `Customer` model และ `Project.companyId` เป็น required. ข้อความนี้ยืนยันเฉพาะ Prisma schema/API ใน repository; สถานะ physical tables หรือ rows ใน database ของแต่ละ environment — รวมถึงจำนวน Projects ที่ผูกกับ Dhas — **ไม่พบข้อมูลที่ยืนยันได้จาก implementation ปัจจุบัน**.
 
-**ชื่อ table สำหรับ Company summary ยังต้องยืนยัน:** Company collection raw query อ้าง `"WorkItem"`, ขณะที่ Prisma model ระบุ `@@map("work_items")`. การทดสอบ API ใช้ mocked query; physical table ที่มีอยู่ใน environment จริง **ไม่พบข้อมูลที่ยืนยันได้จาก implementation ปัจจุบัน**. นี่เป็นความต่างที่พบใน source; ผลต่อ database จริงยังไม่ได้ตรวจ.
+Company collection นับจาก `"work_items"` และ `"work_logs"` ด้วยคอลัมน์ `company_id` และ `project_id`. การทดสอบ API ใช้ mocked query. สถานะแถวในฐานข้อมูลของแต่ละ environment ยังไม่ได้ตรวจในงานนี้.
 
 ## ตารางและความสัมพันธ์
 
