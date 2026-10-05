@@ -69,6 +69,7 @@ import {
 } from '@/components/page/work-items/work-item-dialog'
 import { SummaryStatCard } from '@/components/layout/summary-stat-card'
 import { PageState } from '@/components/layout/page-state'
+import { loadFailureVisual } from '@/components/ui/product-identity'
 import {
   ACTION_LABEL_CLASS,
   FILTER_ROW,
@@ -920,7 +921,7 @@ export default function WorkItemsPage() {
   if (isListLoading) {
     listContent = <PageState kind="loading" title="กำลังโหลด Work Items…" loadingLayout="rows" />
   } else if (loadError && !resultsAreCurrent) {
-    listContent = <PageState kind="error" title="โหลด Work Items ไม่สำเร็จ" description={loadError} action={<Button type="button" variant="outline" onClick={load}>ลองอีกครั้ง</Button>} />
+    listContent = <PageState kind="error" visual={loadFailureVisual(loadError)} title="โหลด Work Items ไม่สำเร็จ" description={loadError} action={<Button type="button" variant="outline" onClick={load}>ลองอีกครั้ง</Button>} />
   }
 
   return (

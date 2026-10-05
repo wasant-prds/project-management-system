@@ -16,7 +16,6 @@ import { Calendar, ExternalLink, FileText, Flag } from 'lucide-react'
 import {
   WORK_ITEM_PRIORITY_LABELS,
   WORK_ITEM_ROLE_LABELS,
-  WORK_ITEM_STATUS_LABELS,
 } from '@/lib/work-items'
 import { WorkItemDescription } from './work-item-description'
 import { ProjectIdentity } from './project-identity'
@@ -28,8 +27,8 @@ import {
   formatDisplayDate,
   kindClass,
   priorityClass,
-  statusClass,
 } from './work-item-presentation'
+import { WorkItemStatusBadge } from './work-item-status-badge'
 
 type WorkItemViewDialogProps = {
   open: boolean
@@ -122,9 +121,7 @@ export function WorkItemViewDialog({
           </DialogHeader>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className={statusClass(item.status)}>
-              {WORK_ITEM_STATUS_LABELS[item.status]}
-            </Badge>
+            <WorkItemStatusBadge status={item.status} />
             <Badge variant="outline" className={priorityClass(item.priority)}>
               <Flag className="mr-1 h-3 w-3" />
               {WORK_ITEM_PRIORITY_LABELS[item.priority]}
@@ -167,7 +164,7 @@ export function WorkItemViewDialog({
               )}
               <section className="space-y-2 px-4 py-3" aria-label="Daily Work">
                 <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-sm font-semibold">Daily Work</h2>
+                  <h2 className="type-card-title">Daily Work</h2>
                   {!isLoading && <span className="text-xs text-muted-foreground">{item.timeEntries?.length ?? 0} entries</span>}
                 </div>
                 <DailyWorkEntries isLoading={isLoading} entries={item.timeEntries} />

@@ -5,7 +5,8 @@ import { CompanyCard } from '@/components/page/company/company-card'
 import { PageState } from '@/components/layout/page-state'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
-import { PAGE_HEADING, PAGE_INNER, PAGE_LEAD, PAGE_MAIN, PAGE_TOOLBAR } from '@/components/layout/page-layout'
+import { PAGE_HEADING, PAGE_INNER, PAGE_LEAD, PAGE_MAIN, PAGE_TOOLBAR, collectionCountLabel } from '@/components/layout/page-layout'
+import { loadFailureVisual } from '@/components/ui/product-identity'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -91,8 +92,8 @@ export default function CompanyPage() {
       <div className="sm:col-span-2"><Label htmlFor="company-description">รายละเอียด</Label><Textarea id="company-description" value={form.description ?? ''} onChange={(event) => setForm({ ...form, description: event.target.value })} rows={4} /></div>
       <div className="flex gap-2"><Button magnetic disabled={saving}>บันทึก</Button>{editing && <Button type="button" variant="outline" onClick={() => { setEditing(null); setForm(emptyForm) }}>ยกเลิก</Button>}</div>
     </form></div></details>
-    <div className="flex items-center justify-between gap-2"><h2 className="text-base font-semibold">บริษัทและผลงาน</h2><span className="text-xs text-muted-foreground">{loading ? 'กำลังโหลด…' : loadError ? 'โหลดไม่สำเร็จ' : `${companies.length} บริษัท`}</span></div>
-    {loading ? <PageState kind="loading" loadingLayout="cards" title="กำลังโหลด Company…" /> : loadError ? <PageState kind="error" title="โหลด Company ไม่สำเร็จ" description={loadError} action={<Button type="button" variant="outline" onClick={() => void reload()}>ลองอีกครั้ง</Button>} /> : companies.length === 0 ? <PageState title="ยังไม่มี Company" description="เพิ่มข้อมูลบริษัทเพื่อเริ่มจัดการ Projects" /> : <div className="cinematic-beat-data motion-stagger grid min-w-0 gap-5 lg:grid-cols-2">{companies.map((company) => <CompanyCard key={company.id} company={company} onEdit={edit} onDelete={setDeleteCompany} />)}</div>}
+    <div className="flex items-center justify-between gap-2"><h2 className="type-section">บริษัทและผลงาน</h2><span className="type-data text-muted-foreground">{collectionCountLabel(loading, Boolean(loadError), companies.length, 'บริษัท')}</span></div>
+    {loading ? <PageState kind="loading" loadingLayout="cards" title="กำลังโหลด Company…" /> : loadError ? <PageState kind="error" visual={loadFailureVisual(loadError)} title="โหลด Company ไม่สำเร็จ" description={loadError} action={<Button type="button" variant="outline" onClick={() => void reload()}>ลองอีกครั้ง</Button>} /> : companies.length === 0 ? <PageState visual="records" title="ยังไม่มี Company" description="เพิ่มข้อมูลบริษัทเพื่อเริ่มจัดการ Projects" /> : <div className="cinematic-beat-data motion-stagger grid min-w-0 gap-5 lg:grid-cols-2">{companies.map((company) => <CompanyCard key={company.id} company={company} onEdit={edit} onDelete={setDeleteCompany} />)}</div>}
     <AlertDialog open={deleteCompany !== null} onOpenChange={(open) => { if (!open && !deleting) setDeleteCompany(null) }}>
       <AlertDialogContent>
         <AlertDialogHeader>

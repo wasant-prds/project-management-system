@@ -258,7 +258,7 @@ export function WorkLogList({
         </CardHeader>
       </Card>
       {workLogs.length === 0 ? (
-        <PageState title={searchQuery.trim() ? 'ไม่พบ Daily Work ที่ตรงกับคำค้นหา' : 'ยังไม่มี Daily Work ในวันที่เลือก'}
+        <PageState visual={searchQuery.trim() ? 'search' : 'activity'} title={searchQuery.trim() ? 'ไม่พบ Daily Work ที่ตรงกับคำค้นหา' : 'ยังไม่มี Daily Work ในวันที่เลือก'}
           description={searchQuery.trim() ? 'ลองเปลี่ยนคำค้นหาเพื่อดูบันทึกอื่น' : 'เพิ่มบันทึกเวลาทำงานของ Work Item ในวันที่เลือก'}
           action={<Button type="button" className="gap-2" onClick={onAddClick}>
               <Plus className="h-4 w-4" />

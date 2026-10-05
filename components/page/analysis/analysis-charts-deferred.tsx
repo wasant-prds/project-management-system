@@ -2,7 +2,7 @@
 
 import { DeferredSection } from '@/components/ui/deferred-section'
 import { RetryableLazy } from '@/components/ui/retryable-lazy'
-import { ChartLoadError } from '@/components/ui/chart-load-error'
+import { ChartLoadError } from '@/components/layout/chart-load-error'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { HoursPeriodTable } from './report-tables'

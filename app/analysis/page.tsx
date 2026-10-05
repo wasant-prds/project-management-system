@@ -24,6 +24,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { WorkItemsTable, DailyWorkTable, displayRole, displayStatus } from '@/components/page/analysis/report-tables'
 import { PageState } from '@/components/layout/page-state'
+import { loadFailureVisual } from '@/components/ui/product-identity'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -387,7 +388,7 @@ export default function AnalysisPage() {
               </div>
             )}
             {!isLoading && loadError && (
-              <PageState kind="error" title="โหลด Analysis ไม่สำเร็จ" description={loadError} action={
+              <PageState kind="error" visual={loadFailureVisual(loadError)} title="โหลด Analysis ไม่สำเร็จ" description={loadError} action={
                 <Button type="button" variant="outline" onClick={() => setReloadKey((current) => current + 1)}>
                   <RefreshCw className="h-4 w-4" /> ลองอีกครั้ง
                 </Button>

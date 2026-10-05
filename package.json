@@ -30,6 +30,7 @@
     "test:frontend-redesign": "node tests/run.mjs frontend-redesign",
     "test:frontend-motion": "node tests/run.mjs frontend-motion",
     "test:frontend-cinematic": "node tests/run.mjs frontend-cinematic",
+    "test:frontend-identity": "node tests/run.mjs frontend-identity",
     "test:frontend-polish": "node tests/run.mjs frontend-polish",
     "test:frontend-performance": "node tests/run.mjs frontend-performance",
     "performance:budget": "node scripts/frontend-performance-budget.mjs",

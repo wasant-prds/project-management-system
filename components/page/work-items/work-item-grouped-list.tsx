@@ -281,7 +281,7 @@ export function WorkItemGroupedList({
 
   if (groups.length === 0) {
     return (
-      <PageState title="ไม่พบ Work Item ที่ตรงกับตัวกรอง" description="ลองปรับตัวกรองหรือคำค้นหาเพื่อดูรายการอื่น" />
+      <PageState visual="search" title="ไม่พบ Work Item ที่ตรงกับตัวกรอง" description="ลองปรับตัวกรองหรือคำค้นหาเพื่อดูรายการอื่น" />
     )
   }
 

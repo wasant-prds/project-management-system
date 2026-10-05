@@ -8,9 +8,15 @@ export const PAGE_INNER = 'min-w-0 mx-auto w-full max-w-[1600px] space-y-5 p-4 s
 export const PAGE_TOOLBAR =
   'page-toolbar flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between'
 
-export const PAGE_HEADING = 'page-heading content-wrap min-w-0 text-2xl font-semibold tracking-tight text-balance sm:text-3xl'
+export const PAGE_HEADING = 'page-heading type-display content-wrap min-w-0 text-balance'
 
-export const PAGE_LEAD = 'text-muted-foreground mt-2 max-w-2xl text-sm leading-relaxed'
+export const PAGE_LEAD = 'type-body text-muted-foreground mt-2 max-w-2xl'
+
+export function collectionCountLabel(loading: boolean, failed: boolean, count: number, noun: string) {
+  if (loading) return 'กำลังโหลด…'
+  if (failed) return 'โหลดไม่สำเร็จ'
+  return `${count} ${noun}`
+}
 
 export const STAT_GRID = 'grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4'
 

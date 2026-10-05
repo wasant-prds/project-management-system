@@ -183,7 +183,7 @@ function BoardStatusColumn({
       </CardHeader>
       <CardContent className="min-h-0 flex-1 space-y-3 p-3">
         {items.length === 0
-          ? <p className="rounded-md border border-dashed border-border-strong px-3 py-5 text-center text-sm text-muted-foreground">ยังไม่มี Work Item ในสถานะนี้</p>
+          ? <p data-visual="records" className="identity-empty type-caption rounded-md border border-dashed border-border-strong px-3 py-5 text-center">ยังไม่มี Work Item ในสถานะนี้</p>
           : items.map((item) => (
             <BoardWorkItemCard
               key={item.id}

@@ -3,6 +3,7 @@
 import { AppSidebar } from "@/components/layout/app-sidebar"
 import { AppHeader } from "@/components/layout/app-header"
 import { PageState } from "@/components/layout/page-state"
+import { loadFailureVisual } from "@/components/ui/product-identity"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   PAGE_HEADING,
@@ -395,7 +396,7 @@ export default function DailyWorkPage() {
               {/* Work Logs */}
               <div className="space-y-4 lg:col-span-2">
                 {listLoading ? <PageState kind="loading" title="กำลังโหลด Daily Work…" /> : listError ? (
-                  <PageState kind="error" title="โหลด Daily Work ไม่สำเร็จ" description={listError} action={<Button type="button" variant="outline" onClick={() => void fetchWorkLogs()}>ลองอีกครั้ง</Button>} />
+                  <PageState kind="error" visual={loadFailureVisual(listError)} title="โหลด Daily Work ไม่สำเร็จ" description={listError} action={<Button type="button" variant="outline" onClick={() => void fetchWorkLogs()}>ลองอีกครั้ง</Button>} />
                 ) : <WorkLogList
                   workLogs={filteredWorkLogs}
                   searchQuery={searchQuery}

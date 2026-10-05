@@ -1,0 +1,28 @@
+Issue #35 product visual identity
+Scope: Unit Test
+Real PostgreSQL: No
+Real Redis: No
+External Services: No
+Mocks: component loader compiles production TSX; next/link is a local anchor. No database or network.
+
+tests/frontend-ui
+└── product-identity.test.mjs
+    ├── TC-35-01 typography roles keep one hierarchy and do not scale every role the same way ... PASS
+    ├── TC-35-02 font strategy stays on two variable families with a fallback stack ............. PASS
+    ├── TC-35-03 iconography uses one stroke, category sizes, and motion only when it gives feedback ... PASS
+    ├── TC-35-04 charts use semantic series, a non-color pattern, and restart only when the dataset changes ... PASS
+    ├── TC-35-05 status and visual states communicate with glyph, words and a next action ....... PASS
+    ├── TC-35-06 page states keep alert, busy, danger and wrapping contracts while using the identity mark ... PASS
+    ├── TC-35-07 status badges, headings, partial chart failure and navigation keep the shared language ... PASS
+    ├── TC-35-08 product identity has a reusable unit runner and no Makefile target ............. PASS
+    └── TC-35-09 review regressions keep utility overrides, icon size, toast layout and search states ... PASS
+
+Tests: 9
+PASS:  9
+FAIL:  0
+SKIP:  0
+
+Command: pnpm test:frontend-identity
+Also: node tests/run.mjs frontend-identity
+Tree: bash scripts/test-unit.sh frontend-identity
+Makefile: none

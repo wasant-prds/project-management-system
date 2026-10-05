@@ -125,7 +125,7 @@ function DialogTitle({
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn('content-wrap text-lg leading-snug font-semibold text-foreground', className)}
+      className={cn('type-page-title content-wrap text-foreground', className)}
       {...props}
     />
   )

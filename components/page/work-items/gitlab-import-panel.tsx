@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { AlertTriangle, ExternalLink, Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { ProductIcon } from '@/components/ui/product-icon'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -239,11 +240,11 @@ export function GitLabImportPanel({ projects, onSynced }: Readonly<{
     <section className="space-y-4 rounded-xl border bg-card p-4 shadow-sm sm:p-5" aria-labelledby="gitlab-import-title">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 id="gitlab-import-title" className="content-wrap text-base font-semibold leading-snug">นำเข้า GitLab Issue</h2>
+          <h2 id="gitlab-import-title" className="type-section content-wrap">นำเข้า GitLab Issue</h2>
           <p className="mt-1 text-sm text-muted-foreground">นำเข้าด้วยตนเองทางเดียว ข้อมูล Work Item ที่จัดการใน PMS และ Daily Work จะคงเดิม</p>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={reload} disabled={loading}>
-          <RefreshCw className="mr-2 h-4 w-4" /> รีเฟรช
+          <ProductIcon icon={RefreshCw} category="action" intent={loading ? 'refresh' : 'idle'} className="mr-2" /> รีเฟรช
         </Button>
       </div>
 

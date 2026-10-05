@@ -7,6 +7,18 @@ import vm from 'node:vm'
 const require = createRequire(import.meta.url)
 const ts = require('typescript')
 
+function loadProductIdentity() {
+  const source = readFileSync(new URL('../../components/ui/product-identity.ts', import.meta.url), 'utf8')
+  const js = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText
+  const identity = { exports: {} }
+  vm.runInNewContext(js, { module: identity, exports: identity.exports }, { filename: 'product-identity.ts' })
+  return identity.exports
+}
+
+const productIdentity = loadProductIdentity()
+
 function component(name) {
   const value = (props) => ({ type: value, props })
   value.displayName = name
@@ -64,7 +76,13 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
     '@/components/layout/app-header': { AppHeader: ui.AppHeader },
     '@/components/layout/page-layout': {
       PAGE_HEADING: 'PAGE_HEADING', PAGE_INNER: 'PAGE_INNER', PAGE_LEAD: 'PAGE_LEAD', PAGE_MAIN: 'PAGE_MAIN', PAGE_TOOLBAR: 'PAGE_TOOLBAR',
+      collectionCountLabel(loading, failed, count, noun) {
+        if (loading) return 'กำลังโหลด…'
+        if (failed) return 'โหลดไม่สำเร็จ'
+        return `${count} ${noun}`
+      },
     },
+    '@/components/ui/product-identity': productIdentity,
     '@/components/ui/sidebar': { SidebarProvider: ui.SidebarProvider, SidebarInset: ui.SidebarInset },
     '@/components/ui/card': { Card: ui.Card, CardContent: ui.CardContent, CardHeader: ui.CardHeader, CardTitle: ui.CardTitle },
     '@/components/ui/button': { Button: ui.Button },

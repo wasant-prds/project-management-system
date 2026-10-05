@@ -16,7 +16,6 @@ import { Calendar, Flag, MoreVertical } from 'lucide-react'
 import {
   WORK_ITEM_PRIORITY_LABELS,
   WORK_ITEM_ROLE_LABELS,
-  WORK_ITEM_STATUS_LABELS,
 } from '@/lib/work-items'
 import { cn } from '@/lib/utils'
 import type { WorkItem } from './types'
@@ -27,8 +26,8 @@ import {
   kindClass,
   priorityClass,
   projectAccentStyle,
-  statusClass,
 } from './work-item-presentation'
+import { WorkItemStatusBadge } from './work-item-status-badge'
 
 type WorkItemCardProps = {
   item: WorkItem
@@ -100,9 +99,7 @@ export function WorkItemCard({
             )}
 
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <Badge variant="outline" className={statusClass(item.status)}>
-                {WORK_ITEM_STATUS_LABELS[item.status]}
-              </Badge>
+              <WorkItemStatusBadge status={item.status} />
               <Badge variant="outline" className={priorityClass(item.priority)}>
                 <Flag className="mr-1 h-3 w-3" />
                 {WORK_ITEM_PRIORITY_LABELS[item.priority]}

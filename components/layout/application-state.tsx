@@ -9,6 +9,7 @@ export function ApplicationState({ kind, onRetry }: Readonly<{ kind: 'not-found'
       <div className="mx-auto my-auto w-full max-w-lg">
         <PageState
           kind={kind === 'error' ? 'error' : 'empty'}
+          visual={kind === 'error' ? 'error' : 'not-found'}
           title={kind === 'error' ? 'ไม่สามารถแสดงหน้านี้ได้' : 'ไม่พบหน้าที่ต้องการ'}
           description={kind === 'error' ? 'กรุณาลองอีกครั้ง หรือกลับไปยัง Dashboard' : 'หน้านี้อาจถูกย้ายหรือไม่มีอยู่แล้ว กลับไปยัง Dashboard เพื่อเลือกเมนู'}
           action={<div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">

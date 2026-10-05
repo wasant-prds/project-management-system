@@ -49,11 +49,11 @@ export function SummaryStatCard({
       className={cn('card-shadow relative h-full gap-3 py-4 sm:py-5', interactive && 'cinematic-pointer motion-card')}
     >
       <CardHeader className="grid-rows-1 flex min-h-10 flex-row items-center justify-between gap-2 space-y-0 px-3 pb-0 sm:px-4">
-        <CardTitle className="content-wrap min-w-0 text-xs font-medium leading-5 text-muted-foreground sm:text-sm">{label}</CardTitle>
+        <CardTitle className="type-kpi-support content-wrap min-w-0 leading-5 text-muted-foreground">{label}</CardTitle>
         {icon && <span className="surface-inset flex size-8 shrink-0 items-center justify-center rounded-lg">{icon}</span>}
       </CardHeader>
       <CardContent className="px-3 sm:px-4">
-        <div className={cn('min-w-0 break-all text-2xl font-semibold tracking-tight tabular-nums sm:text-3xl', valueClassName)}>
+        <div className={cn('type-kpi-hero min-w-0 break-all tabular-nums', valueClassName)}>
           {metric}
         </div>
         {hint && <div className="mt-2 text-xs leading-relaxed text-muted-foreground">{hint}</div>}

@@ -72,7 +72,12 @@ test('TC-29-04 Input and Textarea retain invalid, disabled, label and change con
   }
 })
 
-const primitive = (tag) => ({ children, asChild, ...props }) => asChild ? React.cloneElement(React.Children.only(children), props) : React.createElement(tag, props, children)
+function primitive(tag) {
+  function Primitive({ children, asChild, ...props }) {
+    return asChild ? React.cloneElement(React.Children.only(children), props) : React.createElement(tag, props, children)
+  }
+  return Primitive
+}
 const dialogLoad = createComponentLoader({ '@radix-ui/react-dialog': { Portal: ({ children }) => children, Overlay: primitive('div'), Content: primitive('div'), Close: primitive('button'), Title: primitive('h2') } })
 const { DialogContent, DialogHeader, DialogTitle } = dialogLoad('components/ui/dialog.tsx')
 
@@ -80,7 +85,8 @@ test('TC-29-05 modal long title reserves close-button space and comfortable mult
   const header = DialogHeader({ children: React.createElement(DialogTitle, null, longText) })
   assert.match(header.props.className, /pr-10/)
   const html = renderToStaticMarkup(header)
-  assert.match(html, /content-wrap text-lg leading-snug/)
+  assert.match(html, /type-page-title content-wrap/)
+  assert.doesNotMatch(html, /text-lg/)
   assert.ok(html.includes(longText))
 })
 

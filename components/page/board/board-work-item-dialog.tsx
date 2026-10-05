@@ -14,11 +14,11 @@ import { Badge } from '@/components/ui/badge'
 import {
   WORK_ITEM_PRIORITY_LABELS,
   WORK_ITEM_ROLE_LABELS,
-  WORK_ITEM_STATUS_LABELS,
 } from '@/lib/work-items'
 import type { WorkItem } from '@/components/page/work-items/types'
 import { WorkItemDescription } from '@/components/page/work-items/work-item-description'
-import { kindClass, priorityClass, statusClass } from '@/components/page/work-items/work-item-presentation'
+import { kindClass, priorityClass } from '@/components/page/work-items/work-item-presentation'
+import { WorkItemStatusBadge } from '@/components/page/work-items/work-item-status-badge'
 import { formatBoardCalendarDate } from '@/components/page/board/board-workflow'
 
 type BoardWorkItemDialogProps = {
@@ -40,9 +40,7 @@ export function BoardWorkItemDialog({ item, onOpenChange }: Readonly<BoardWorkIt
               {item.project.name}{item.project.company?.name ? ` · ${item.project.company.name}` : ''}
             </DialogDescription>
             <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className={statusClass(item.status)}>
-                {WORK_ITEM_STATUS_LABELS[item.status]}
-              </Badge>
+              <WorkItemStatusBadge status={item.status} />
               <Badge variant="outline" className={priorityClass(item.priority)}>
                 {WORK_ITEM_PRIORITY_LABELS[item.priority]}
               </Badge>
@@ -50,7 +48,7 @@ export function BoardWorkItemDialog({ item, onOpenChange }: Readonly<BoardWorkIt
             </div>
           </DialogHeader>
           <section className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-            <h2 className="mb-2 text-sm font-semibold">รายละเอียด</h2>
+            <h2 className="type-card-title mb-2">รายละเอียด</h2>
             {item.description
               ? <WorkItemDescription text={item.description} className="break-words" />
               : <p className="text-sm italic text-muted-foreground">ไม่มีรายละเอียด</p>}

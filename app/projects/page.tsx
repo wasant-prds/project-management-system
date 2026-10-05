@@ -5,7 +5,8 @@ import { PortfolioCard } from '@/components/page/projects/portfolio-card'
 import { PageState } from '@/components/layout/page-state'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
-import { PAGE_HEADING, PAGE_INNER, PAGE_LEAD, PAGE_MAIN, PAGE_TOOLBAR } from '@/components/layout/page-layout'
+import { PAGE_HEADING, PAGE_INNER, PAGE_LEAD, PAGE_MAIN, PAGE_TOOLBAR, collectionCountLabel } from '@/components/layout/page-layout'
+import { loadFailureVisual } from '@/components/ui/product-identity'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -76,6 +77,8 @@ export default function ProjectsPage() {
       document.getElementById('project-form')?.scrollIntoView({ block: 'start' })
     } catch (error) { setMessage(error instanceof Error ? error.message : 'โหลด Project ไม่สำเร็จ') }
   }
+  const projectFiltersNarrow = search !== '' || statusFilter !== 'all' || companyFilter !== 'all'
+  const projectVisual = projects.length > 0 && projectFiltersNarrow ? 'search' : 'records'
   const filtered = projects.filter((project) =>
     (statusFilter === 'all' || project.status === statusFilter) &&
     (companyFilter === 'all' || project.company?.id === companyFilter) &&
@@ -85,9 +88,9 @@ export default function ProjectsPage() {
   if (loading) {
     projectList = <PageState kind="loading" loadingLayout="cards" title="กำลังโหลด Projects…" />
   } else if (loadError) {
-    projectList = <PageState kind="error" title="โหลดข้อมูลไม่สำเร็จ" description={loadError} action={<Button type="button" variant="outline" onClick={() => void reload()}>ลองอีกครั้ง</Button>} />
+    projectList = <PageState kind="error" visual={loadFailureVisual(loadError)} title="โหลดข้อมูลไม่สำเร็จ" description={loadError} action={<Button type="button" variant="outline" onClick={() => void reload()}>ลองอีกครั้ง</Button>} />
   } else if (filtered.length === 0) {
-    projectList = <PageState title="ไม่พบ Project" description="ลองปรับตัวกรอง หรือสร้าง Project โดยเลือก Company ที่ต้องการ" />
+    projectList = <PageState visual={projectVisual} title="ไม่พบ Project" description="ลองปรับตัวกรอง หรือสร้าง Project โดยเลือก Company ที่ต้องการ" />
   } else {
     projectList = <div className="cinematic-beat-data motion-stagger grid min-w-0 gap-5 md:grid-cols-2 xl:grid-cols-3">{filtered.map((project) => <PortfolioCard key={project.id} project={project} onEdit={editProject} />)}</div>
   }
@@ -104,7 +107,7 @@ export default function ProjectsPage() {
       <div className="flex items-end gap-2"><Button magnetic disabled={saving || !form.companyId}>{editing ? 'บันทึก' : 'สร้าง Project'}</Button>{editing && <Button type="button" variant="outline" onClick={() => { setEditing(null); setForm(initialForm) }}>ยกเลิก</Button>}</div>
     </form></div></details>
     <section aria-label="ตัวกรอง Projects" className="filter-panel grid gap-3 sm:grid-cols-3"><Input aria-label="ค้นหา Project" placeholder="ค้นหา Project" value={search} onChange={(event) => setSearch(event.target.value)} /><Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger aria-label="กรองสถานะ"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">ทุกสถานะ</SelectItem>{['Planning', 'In Progress', 'Review', 'Completed', 'On Hold'].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select><Select value={companyFilter} onValueChange={setCompanyFilter}><SelectTrigger aria-label="กรอง Company"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">ทุก Company</SelectItem>{companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.displayName ?? company.name}</SelectItem>)}</SelectContent></Select></section>
-    <div className="flex items-center justify-between gap-2"><h2 className="text-base font-semibold">Projects ของคุณ</h2><span className="text-xs text-muted-foreground">{loading ? 'กำลังโหลด…' : loadError ? 'โหลดไม่สำเร็จ' : `${filtered.length} รายการ`}</span></div>
+    <div className="flex items-center justify-between gap-2"><h2 className="type-section">Projects ของคุณ</h2><span className="type-data text-muted-foreground">{collectionCountLabel(loading, Boolean(loadError), filtered.length, 'รายการ')}</span></div>
     {projectList}
   </div></main></SidebarInset></SidebarProvider>
 }

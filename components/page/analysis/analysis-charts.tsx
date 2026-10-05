@@ -4,6 +4,9 @@ import Link from 'next/link'
 import { useMemo } from 'react'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart'
+import { CHART_AXIS_PROPS, CHART_GRID_PROPS, VISUAL_STATES, chartColorVariable, chartDatasetKey, chartStrokeDasharray } from '@/components/ui/product-identity'
+import { useChartDatasetKey } from '@/components/ui/use-chart-dataset-key'
+import { PageState } from '@/components/layout/page-state'
 import { displayStatus } from './report-tables'
 import { analysisDailyWorkHref, analysisWorkItemsHref } from '@/lib/analysis-links'
 import type { AnalysisReport } from '@/lib/analysis-export'
@@ -21,7 +24,7 @@ type StatusBarShapeProps = {
   payload?: StatusChartPoint
 }
 
-function StatusChartLinkBar({ x = 0, y = 0, width = 0, height = 0, fill = 'var(--chart-1)', payload }: StatusBarShapeProps) {
+function StatusChartLinkBar({ x = 0, y = 0, width = 0, height = 0, fill = 'var(--chart-primary)', payload }: StatusBarShapeProps) {
   if (!payload) return <g />
   return (
     <Link href={payload.href} aria-label={payload.accessibleName}>
@@ -46,16 +49,23 @@ export function AnalysisStatusChart({ report }: Readonly<{ report: AnalysisRepor
     href: analysisWorkItemsHref(sourceFilters, period, { status: row.value }),
     accessibleName: `เปิด Work Items สถานะ ${displayStatus(row.value)} จำนวน ${row.count} รายการ`,
   })), [report, sourceFilters, period])
+  const seriesColor = chartColorVariable('primary')
+  const datasetKey = chartDatasetKey('analysis-status', statusChartData.length, statusChartData[0]?.name ?? '', statusChartData.at(-1)?.name ?? '')
+  const motionKey = useChartDatasetKey(datasetKey)
+  if (statusChartData.length === 0) {
+    return <PageState visual="chart" title={VISUAL_STATES.chart.title} description={VISUAL_STATES.chart.description} />
+  }
   return (
-    <ChartContainer config={{ value: { label: 'Work Items', color: 'var(--chart-1)' } }} className="h-[320px] min-w-0 w-full">
+    <ChartContainer config={{ value: { label: 'Work Items', color: seriesColor } }} className="h-[320px] min-w-0 w-full">
       <BarChart data={statusChartData} layout="vertical" margin={{ top: 4, right: 12, bottom: 4, left: 4 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.35} />
-        <XAxis type="number" allowDecimals={false} stroke="var(--muted-foreground)" fontSize={11} />
-        <YAxis dataKey="name" type="category" width={104} stroke="var(--muted-foreground)" fontSize={10} />
+        <CartesianGrid {...CHART_GRID_PROPS} />
+        <XAxis {...CHART_AXIS_PROPS} type="number" allowDecimals={false} />
+        <YAxis {...CHART_AXIS_PROPS} dataKey="name" type="category" width={104} />
         <Tooltip content={<ChartTooltipContent />} />
         <Bar
+          key={motionKey}
           dataKey="value"
-          fill="var(--chart-1)"
+          fill={seriesColor}
           radius={[0, 4, 4, 0]}
           maxBarSize={24}
           animationDuration={MOTION_DURATION_MS.chart}
@@ -77,20 +87,29 @@ export function AnalysisHoursChart({ report }: Readonly<{ report: AnalysisReport
     href: analysisDailyWorkHref(sourceFilters, { startDate: row.startDate, endDate: row.endDate }),
     accessibleName: `เปิด Daily Work ช่วง ${row.startDate} ถึง ${row.endDate} รวม ${row.hours} ชั่วโมง`,
   })), [report, sourceFilters])
+  const seriesColor = chartColorVariable('secondary')
+  const datasetKey = chartDatasetKey('analysis-hours', hoursChartData.length, hoursChartData[0]?.label ?? '', hoursChartData.at(-1)?.label ?? '')
+  const motionKey = useChartDatasetKey(datasetKey)
+  const strokeDasharray = chartStrokeDasharray('secondary')
+  if (hoursChartData.length === 0) {
+    return <PageState visual="chart" title={VISUAL_STATES.chart.title} description={VISUAL_STATES.chart.description} />
+  }
   return (
-    <ChartContainer config={{ plottedHours: { label: 'ชั่วโมง', color: 'var(--chart-2)' } }} className="h-[320px] min-w-0 w-full">
+    <ChartContainer config={{ plottedHours: { label: 'ชั่วโมง', color: seriesColor } }} className="h-[320px] min-w-0 w-full">
       <LineChart data={hoursChartData} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.35} />
-        <XAxis dataKey="label" stroke="var(--muted-foreground)" fontSize={10} minTickGap={16} />
-        <YAxis stroke="var(--muted-foreground)" fontSize={11} width={42} />
+        <CartesianGrid {...CHART_GRID_PROPS} />
+        <XAxis {...CHART_AXIS_PROPS} dataKey="label" minTickGap={16} />
+        <YAxis {...CHART_AXIS_PROPS} width={42} />
         <Tooltip content={<ChartTooltipContent labelFormatter={(_label, payload) => {
           const point = payload?.[0]?.payload as { startDate?: string; endDate?: string } | undefined
           return point ? `${point.startDate} – ${point.endDate}` : ''
         }} />} />
         <Line
+          key={motionKey}
           type="monotone"
           dataKey="plottedHours"
-          stroke="var(--chart-2)"
+          stroke={seriesColor}
+          {...(strokeDasharray ? { strokeDasharray } : {})}
           strokeWidth={2}
           animationDuration={MOTION_DURATION_MS.chart}
           isAnimationActive={!prefersReducedMotion && hoursChartData.length <= 100}

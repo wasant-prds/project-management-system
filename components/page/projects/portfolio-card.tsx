@@ -31,13 +31,13 @@ export function PortfolioCard({ project, onEdit }: Readonly<{ project: Portfolio
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2 text-xs"><span className="text-muted-foreground">ความคืบหน้า</span><span className="font-semibold tabular-nums">{project.summary.progress.toFixed(1)}%</span></div>
+          <div className="flex items-center justify-between gap-2 text-xs"><span className="type-caption">ความคืบหน้า</span><span className="type-data tabular-nums">{project.summary.progress.toFixed(1)}%</span></div>
           <Progress value={project.summary.progress} aria-label="ความคืบหน้า Project" className="h-2" />
         </div>
         <dl className="grid grid-cols-3 gap-3 border-y border-border/60 py-3">
-          <div><dt className="text-xs text-muted-foreground">เสร็จ / ทั้งหมด</dt><dd className="mt-1 font-semibold tabular-nums">{project.summary.completed}/{project.summary.total}</dd></div>
-          <div><dt className="text-xs text-muted-foreground">งานที่เปิด</dt><dd className="mt-1 font-semibold tabular-nums">{project.summary.open}</dd></div>
-          <div className="min-w-0"><dt className="text-xs text-muted-foreground">ชั่วโมงจริง</dt><dd className="mt-1 break-all font-semibold tabular-nums">{project.summary.hours}</dd></div>
+          <div><dt className="type-caption">เสร็จ / ทั้งหมด</dt><dd className="type-data mt-1 tabular-nums">{project.summary.completed}/{project.summary.total}</dd></div>
+          <div><dt className="type-caption">งานที่เปิด</dt><dd className="type-data mt-1 tabular-nums">{project.summary.open}</dd></div>
+          <div className="min-w-0"><dt className="type-caption">ชั่วโมงจริง</dt><dd className="type-data mt-1 break-all tabular-nums">{project.summary.hours}</dd></div>
         </dl>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><CalendarDays aria-hidden="true" className="size-3.5" />กำหนด {project.dueDate}</span>

@@ -181,7 +181,7 @@ test('TC-30-13 missing IntersectionObserver uses immediate accessible section re
 
 test('TC-30-14 a failed heavy section shows recovery while keeping the error scoped to that section', () => {
   const { SectionErrorBoundary: Boundary } = load('components/ui/retryable-lazy.tsx')
-  const { ChartLoadError } = load('components/ui/chart-load-error.tsx')
+  const { ChartLoadError } = load('components/layout/chart-load-error.tsx')
   const boundary = new Boundary({ children: 'loaded', fallback: React.createElement(ChartLoadError, { heightClass: 'h-[320px]', onRetry() {} }) })
   boundary.state = Boundary.getDerivedStateFromError(new Error('Chunk failed'))
   const html = renderToStaticMarkup(boundary.render())
