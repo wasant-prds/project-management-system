@@ -502,7 +502,7 @@ test('Analysis page renders live data, filters, traceable tables, export, and sa
   assert.match(page, /!report && <ContentLoadingSkeleton layout="report"/)
   assert.match(page, /<output className="block text-sm text-muted-foreground" aria-live="polite">\{exportMessage\.text\}<\/output>/)
   assert.match(page, /aria-busy="true"/)
-  assert.match(page, /<PageState kind="error" title="โหลด Analysis ไม่สำเร็จ"/)
+  assert.match(page, /<PageState kind="error" visual=\{loadFailureVisual\(loadError\)\} title="โหลด Analysis ไม่สำเร็จ"/)
   assert.match(page, /min-w-0/)
   assert.match(page, /ChartContainer/)
   assert.match(page, /\[requestQuery, reloadKey\]/)

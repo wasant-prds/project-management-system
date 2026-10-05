@@ -101,9 +101,29 @@ function loadPage(controller, themeChanges = [], deferStateUpdates = false) {
   const mocks = {
     react: runtime,
     'react/jsx-runtime': {
-      jsx: (type, props) => ({ type, props }),
-      jsxs: (type, props) => ({ type, props }),
+      jsx: (type, props) => (type?.renderInTest ? type(props) : { type, props }),
+      jsxs: (type, props) => (type?.renderInTest ? type(props) : { type, props }),
       Fragment: component('Fragment'),
+    },
+    '@/components/layout/page-state': {
+      PageState: Object.assign(function PageState(props) {
+        return {
+          type: 'div',
+          props: {
+            role: props.kind === 'error' ? 'alert' : 'status',
+            'data-slot': 'page-state',
+            'data-visual': props.visual,
+            children: [props.title, props.description, props.action],
+          },
+        }
+      }, { renderInTest: true }),
+    },
+    '@/components/ui/product-identity': {
+      loadFailureVisual(message) {
+        const normalized = String(message).trim().toLowerCase()
+        if (normalized === 'failed to fetch' || normalized === 'load failed' || normalized.startsWith('networkerror') || normalized.includes('network request failed')) return 'network'
+        return 'error'
+      },
     },
     '@/components/layout/owner-settings-provider': { useOwnerSettings: () => controller },
     '@/components/layout/app-sidebar': { AppSidebar: ui.AppSidebar },
@@ -214,7 +234,13 @@ test('Settings shows loading and retryable load-error states', () => {
 
   const errorPage = loadPage(makeController({ settings: null, loadError: 'API unavailable' }))
   let errorTree = errorPage.runtime.render(errorPage.Page)
+  const errorState = find(errorTree, (node) => node.props?.['data-slot'] === 'page-state')
+  assert.equal(errorState.props['data-visual'], 'error')
   assert.match(textContent(errorTree), /API unavailable/)
+  const networkPage = loadPage(makeController({ settings: null, loadError: 'Failed to fetch' }))
+  const networkState = find(networkPage.runtime.render(networkPage.Page), (node) => node.props?.['data-slot'] === 'page-state')
+  assert.equal(networkState.props['data-visual'], 'network')
+  assert.match(textContent(networkState), /Failed to fetch/)
   byComponent(errorTree, errorPage.ui, 'Button', (node) => textContent(node) === 'ลองโหลดอีกครั้ง').props.onClick()
   assert.equal(errorPage.controller.reloadCalls, 1)
   errorTree = errorPage.runtime.render(errorPage.Page)

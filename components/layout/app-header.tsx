@@ -22,8 +22,8 @@ export const AppHeader = memo(function AppHeader() {
         <SidebarTrigger aria-label="เปิดหรือปิดเมนูหลัก" />
         <nav aria-label="Breadcrumb" className="type-nav flex min-w-0 items-center gap-2">
           <Link href="/" className="motion-control hidden text-muted-foreground hover:text-foreground sm:inline">พื้นที่ทำงาน</Link>
-          <ChevronRight aria-hidden="true" className="hidden size-3 text-muted-foreground sm:block" />
-          {route && pathname !== route.url ? <><Link href={route.url} className="motion-control text-muted-foreground hover:text-foreground">{route.title}</Link><ChevronRight aria-hidden="true" className="size-3 text-muted-foreground" /><span aria-current="page" className="truncate font-semibold">รายละเอียด</span></> : <span aria-current="page" className="truncate font-semibold">{route?.title ?? 'พื้นที่ทำงาน'}</span>}
+          <ChevronRight aria-hidden="true" strokeWidth={1.75} className="hidden size-3 text-muted-foreground sm:block" />
+          {route && pathname !== route.url ? <><Link href={route.url} className="motion-control text-muted-foreground hover:text-foreground">{route.title}</Link><ChevronRight aria-hidden="true" strokeWidth={1.75} className="size-3 text-muted-foreground" /><span aria-current="page" className="truncate font-semibold">รายละเอียด</span></> : <span aria-current="page" className="truncate font-semibold">{route?.title ?? 'พื้นที่ทำงาน'}</span>}
         </nav>
       </div>
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -33,7 +33,7 @@ export const AppHeader = memo(function AppHeader() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-11 max-w-48 gap-2 rounded-xl px-2" aria-label="เมนูโปรไฟล์เจ้าของระบบ">
               <span data-slot="icon-well" className="icon-well surface-inset flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-link"><UserRound aria-hidden="true" strokeWidth={1.75} className="size-4" /></span>
-              <span className="hidden min-w-0 text-left sm:block"><span className="block truncate text-xs font-semibold">{isLoading ? 'กำลังโหลด…' : profileName}</span><span className="block text-[11px] text-muted-foreground">เจ้าของระบบ</span></span>
+              <span className="hidden min-w-0 text-left sm:block"><span className="block truncate text-xs font-semibold">{isLoading ? 'กำลังโหลด…' : profileName}</span><span className="type-caption block">เจ้าของระบบ</span></span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">

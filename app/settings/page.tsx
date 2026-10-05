@@ -4,6 +4,8 @@ import { useState, type FormEvent } from 'react'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
 import { ContentLoadingSkeleton } from '@/components/layout/content-loading-skeleton'
+import { PageState } from '@/components/layout/page-state'
+import { loadFailureVisual } from '@/components/ui/product-identity'
 import { useOwnerSettings } from '@/components/layout/owner-settings-provider'
 import {
   PAGE_HEADING,
@@ -124,14 +126,7 @@ export default function SettingsPage() {
 
             {isLoading && <div role="status" aria-busy="true" className="space-y-4"><p className="text-sm text-muted-foreground">กำลังโหลดการตั้งค่า...</p><ContentLoadingSkeleton layout="profile" /></div>}
             {loadError && (
-              <Card>
-                <CardContent className="space-y-3 p-5">
-                  <p role="alert" className="text-sm text-danger">{loadError}</p>
-                  <Button type="button" variant="outline" onClick={reload}>
-                    ลองโหลดอีกครั้ง
-                  </Button>
-                </CardContent>
-              </Card>
+              <PageState kind="error" visual={loadFailureVisual(loadError)} title="โหลดการตั้งค่าไม่สำเร็จ" description={loadError} action={<Button type="button" variant="outline" onClick={reload}>ลองโหลดอีกครั้ง</Button>} />
             )}
 
             {!isLoading && !loadError && profile && preferences && (

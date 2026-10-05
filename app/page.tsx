@@ -5,6 +5,7 @@ import { AppHeader } from '@/components/layout/app-header'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { DashboardChartsDeferred as DashboardCharts } from '@/components/layout/dashboard-charts-deferred'
 import { DashboardLoading } from '@/components/layout/dashboard-loading'
+import { InlineState, PageState } from '@/components/layout/page-state'
 import { PAGE_HEADING, PAGE_INNER, PAGE_LEAD, PAGE_MAIN, PAGE_TOOLBAR, STAT_GRID } from '@/components/layout/page-layout'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -15,9 +16,12 @@ import { SummaryStatCard } from '@/components/layout/summary-stat-card'
 import { getOwner, ownerErrorMessage } from '@/lib/owner'
 import { DashboardQueryError, getDashboardSummary } from '@/lib/dashboard'
 import { dashboardDailyWorkHref, dashboardWorkItemsHref } from '@/lib/dashboard-links'
+import { Input } from '@/components/ui/input'
+import { WorkItemStatusBadge } from '@/components/page/work-items/work-item-status-badge'
+import { ICON_STROKE, loadFailureVisual } from '@/components/ui/product-identity'
 import { progressShiftPercent } from '@/components/ui/cinematic-motion'
 import { formatBangkokDateLabel } from '@/lib/bangkok-datetime'
-import { WORK_ITEM_ROLE_LABELS, WORK_ITEM_STATUS_LABELS } from '@/lib/work-items'
+import { WORK_ITEM_ROLE_LABELS } from '@/lib/work-items'
 import type { DashboardFilters } from '@/lib/dashboard'
 
 type SearchParameters = Record<string, string | string[] | undefined>
@@ -43,31 +47,31 @@ function DashboardFiltersForm({ data }: Readonly<{ data: DashboardResult }>) {
       </CardHeader>
       <CardContent>
         <form action="/" method="get" className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          <label className="grid min-w-0 gap-1 text-sm font-medium" htmlFor="dashboard-start-date">
-            วันเริ่มต้น
-            <input id="dashboard-start-date" name="startDate" type="date" required defaultValue={data.meta.period.startDate} className="h-9 min-w-0 rounded-md border border-border-strong bg-input px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+          <label className="grid min-w-0 gap-1" htmlFor="dashboard-start-date">
+            <span className="type-label">วันเริ่มต้น</span>
+            <Input id="dashboard-start-date" name="startDate" type="date" required defaultValue={data.meta.period.startDate} className="h-9" />
           </label>
-          <label className="grid min-w-0 gap-1 text-sm font-medium" htmlFor="dashboard-end-date">
-            วันสิ้นสุด
-            <input id="dashboard-end-date" name="endDate" type="date" required defaultValue={data.meta.period.endDate} className="h-9 min-w-0 rounded-md border border-border-strong bg-input px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+          <label className="grid min-w-0 gap-1" htmlFor="dashboard-end-date">
+            <span className="type-label">วันสิ้นสุด</span>
+            <Input id="dashboard-end-date" name="endDate" type="date" required defaultValue={data.meta.period.endDate} className="h-9" />
           </label>
-          <label className="grid min-w-0 gap-1 text-sm font-medium" htmlFor="dashboard-company">
-            Company
+          <label className="grid min-w-0 gap-1" htmlFor="dashboard-company">
+            <span className="type-label">Company</span>
             <FilterSelect key={filters.companyId ?? ''} id="dashboard-company" name="companyId" defaultValue={filters.companyId ?? ''}
               options={[{ value: '', label: 'ทุก Company' }, ...data.filterOptions.companies.map((company) => ({ value: company.id, label: company.displayName ?? company.name }))]} />
           </label>
-          <label className="grid min-w-0 gap-1 text-sm font-medium" htmlFor="dashboard-project">
-            Project
+          <label className="grid min-w-0 gap-1" htmlFor="dashboard-project">
+            <span className="type-label">Project</span>
             <FilterSelect key={filters.projectId ?? ''} id="dashboard-project" name="projectId" defaultValue={filters.projectId ?? ''}
               options={[{ value: '', label: 'ทุก Project' }, ...data.filterOptions.projects.map((project) => ({ value: project.id, label: project.name }))]} />
           </label>
-          <label className="grid min-w-0 gap-1 text-sm font-medium" htmlFor="dashboard-role">
-            Functional role
+          <label className="grid min-w-0 gap-1" htmlFor="dashboard-role">
+            <span className="type-label">Functional role</span>
             <FilterSelect key={filters.role ?? ''} id="dashboard-role" name="role" defaultValue={filters.role ?? ''}
               options={[{ value: '', label: 'ทุก role' }, { value: 'none', label: 'ไม่ระบุ role' }, { value: 'Developer', label: 'Developer' }, { value: 'infra', label: 'Infrastructure' }, { value: 'SA', label: 'System Analyst' }]} />
           </label>
-          <label className="grid min-w-0 gap-1 text-sm font-medium" htmlFor="dashboard-kind">
-            Work Item kind
+          <label className="grid min-w-0 gap-1" htmlFor="dashboard-kind">
+            <span className="type-label">Work Item kind</span>
             <FilterSelect key={filters.kind ?? ''} id="dashboard-kind" name="kind" defaultValue={filters.kind ?? ''}
               options={[{ value: '', label: 'ทุกชนิด' }, { value: 'Incident', label: 'Incident' }, { value: 'Issue', label: 'Issue' }, { value: 'Task', label: 'Task' }]} />
           </label>
@@ -103,7 +107,7 @@ function WorkItemList({
       </CardHeader>
       <CardContent>
         {items.length === 0 ? (
-          <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">ไม่มี Work Item ในตัวกรองนี้</p>
+          <InlineState visual="search" title="ไม่มี Work Item ในตัวกรองนี้" description="ลองปรับช่วงวันหรือตัวกรองเพื่อดูรายการจริง" />
         ) : (
           <ul className="space-y-3">
             {items.map((item) => (
@@ -117,7 +121,7 @@ function WorkItemList({
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <Badge variant="outline">{item.role ? WORK_ITEM_ROLE_LABELS[item.role as keyof typeof WORK_ITEM_ROLE_LABELS] : 'ไม่ระบุ role'}</Badge>
-                  <Badge variant="outline">{WORK_ITEM_STATUS_LABELS[item.status as keyof typeof WORK_ITEM_STATUS_LABELS]}</Badge>
+                  <WorkItemStatusBadge status={item.status} />
                   <span>กำหนด: {item.dueDate ? formatBangkokDateLabel(item.dueDate) : 'ไม่กำหนด'}</span>
                 </div>
               </li>
@@ -139,7 +143,7 @@ function RecentProjects({ data, filters }: Readonly<{ data: DashboardResult; fil
       </CardHeader>
       <CardContent>
         {projects.length === 0 ? (
-          <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">ไม่มี Project ในตัวกรองนี้</p>
+          <InlineState visual="records" title="ไม่มี Project ในตัวกรองนี้" description="Projects ที่ตรงกับช่วงและตัวกรองจะแสดงที่นี่" />
         ) : (
           <ul className="space-y-3">
             {projects.map((project) => (
@@ -166,13 +170,17 @@ function RecentProjects({ data, filters }: Readonly<{ data: DashboardResult; fil
 
 function DashboardError({ message }: Readonly<{ message: string }>) {
   return (
-    <div className="mx-auto max-w-5xl p-4 sm:p-6">
-      <div role="alert" className="rounded-lg border border-destructive/40 bg-card p-5 text-card-foreground">
-        <h1 className="font-semibold">โหลด Dashboard ไม่สำเร็จ</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{message}</p>
-        <Button asChild className="mt-4"><Link href="/">ลองอีกครั้ง</Link></Button>
-      </div>
-    </div>
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <AppHeader />
+        <main className={PAGE_MAIN}>
+          <div className={`${PAGE_INNER} min-w-0`}>
+            <PageState kind="error" visual={loadFailureVisual(message)} title="โหลด Dashboard ไม่สำเร็จ" description={message} action={<Button asChild><Link href="/">ลองอีกครั้ง</Link></Button>} />
+          </div>
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }
 
@@ -220,25 +228,25 @@ async function DashboardContent({ searchParams }: DashboardPageProps) {
               </div>
               <div className={`${STAT_GRID} motion-stagger lg:grid-cols-5`}>
                 <Link href={dashboardWorkItemsHref(filters)} className="min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <SummaryStatCard interactive emphasis="primary" label="Work Items ทั้งหมด" value={summary.total} icon={<ListTodo className="h-4 w-4 text-info" />} hint={<span className="text-sm text-muted-foreground">ตามช่วงและตัวกรองที่เลือก</span>} />
+                  <SummaryStatCard interactive emphasis="primary" label="Work Items ทั้งหมด" value={summary.total} icon={<ListTodo strokeWidth={ICON_STROKE} className="h-4 w-4 text-info" />} hint={<span className="text-sm text-muted-foreground">ตามช่วงและตัวกรองที่เลือก</span>} />
                 </Link>
                 <Link href={dashboardWorkItemsHref(filters, { openOnly: true })} className="min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <SummaryStatCard interactive label="Open Work Items" value={summary.open} icon={<AlertCircle className="h-4 w-4 text-warning" />} hint={<span className="text-sm text-muted-foreground">ไม่นับ completed และ cancelled</span>} />
+                  <SummaryStatCard interactive label="Open Work Items" value={summary.open} icon={<AlertCircle strokeWidth={ICON_STROKE} className="h-4 w-4 text-warning" />} hint={<span className="text-sm text-muted-foreground">ไม่นับ completed และ cancelled</span>} />
                 </Link>
                 <Link href={dashboardWorkItemsHref(filters, { status: 'completed' })} className="min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <SummaryStatCard interactive label="Completed" value={summary.completed} icon={<CheckSquare className="h-4 w-4 text-success" />} hint={<span className="text-sm text-muted-foreground">status = completed เท่านั้น</span>} />
+                  <SummaryStatCard interactive label="Completed" value={summary.completed} icon={<CheckSquare strokeWidth={ICON_STROKE} className="h-4 w-4 text-success" />} hint={<span className="text-sm text-muted-foreground">status = completed เท่านั้น</span>} />
                 </Link>
                 <Link href={dashboardWorkItemsHref(filters, { overdue: true })} className="min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <SummaryStatCard interactive label="Overdue" value={summary.overdue} valueClassName="text-danger" icon={<ArrowDownRight className="h-4 w-4 text-danger" />} hint={<span className="text-sm text-muted-foreground">ก่อนวันปัจจุบัน Bangkok</span>} />
+                  <SummaryStatCard interactive label="Overdue" value={summary.overdue} valueClassName="text-danger" icon={<ArrowDownRight strokeWidth={ICON_STROKE} className="h-4 w-4 text-danger" />} hint={<span className="text-sm text-muted-foreground">ก่อนวันปัจจุบัน Bangkok</span>} />
                 </Link>
                 <Link href={dashboardDailyWorkHref(filters)} className="min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <SummaryStatCard interactive label="Logged hours" value={<output aria-label={`Logged hours: ${summary.loggedHours}`}>{summary.loggedHours}</output>} icon={<Clock3 className="h-4 w-4 text-info" />} hint={<span className="text-sm text-muted-foreground">ผลรวม TimeEntry แบบ Decimal</span>} />
+                  <SummaryStatCard interactive label="Logged hours" value={<output aria-label={`Logged hours: ${summary.loggedHours}`}>{summary.loggedHours}</output>} icon={<Clock3 strokeWidth={ICON_STROKE} className="h-4 w-4 text-info" />} hint={<span className="text-sm text-muted-foreground">ผลรวม TimeEntry แบบ Decimal</span>} />
                 </Link>
               </div>
             </section>
 
             {allRowsEmpty && (
-              <p className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">ไม่พบ Work Items, Daily Work หรือ Projects ในช่วงและตัวกรองนี้</p>
+              <InlineState visual="search" title="ไม่พบ Work Items, Daily Work หรือ Projects ในช่วงและตัวกรองนี้" description="ปรับช่วงวันหรือตัวกรองเพื่อดูข้อมูลจริง ไม่ใช่ตัวเลขตัวอย่าง" />
             )}
 
             <DashboardFiltersForm data={data} />

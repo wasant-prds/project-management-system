@@ -6,6 +6,7 @@ import { PageState } from '@/components/layout/page-state'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
 import { PAGE_HEADING, PAGE_INNER, PAGE_LEAD, PAGE_MAIN, PAGE_TOOLBAR, collectionCountLabel } from '@/components/layout/page-layout'
+import { DisclosureGlyph } from '@/components/ui/product-icon'
 import { loadFailureVisual } from '@/components/ui/product-identity'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
@@ -87,7 +88,7 @@ export default function CompanyPage() {
   return <SidebarProvider><AppSidebar /><SidebarInset><AppHeader /><main className={PAGE_MAIN}><div className={PAGE_INNER}>
     <div className={PAGE_TOOLBAR}><div><p className="page-eyebrow mb-2">Company registry</p><h1 className={PAGE_HEADING}>Company</h1><p className={PAGE_LEAD}>จัดการบริษัทและ Projects ที่ผูกอยู่</p></div></div>
     {message && <output aria-live="polite" className="surface-inset block rounded-xl border p-4 text-sm">{message}</output>}
-    <details id="company-form" open={editing !== null || undefined} className="cinematic-beat-support surface-raised scroll-mt-4 rounded-[var(--radius-panel)] border border-border/60 bg-card py-4"><summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-4 text-sm font-semibold focus-visible:outline-2 sm:px-5"><span>{editing ? 'แก้ไข Company' : 'เพิ่ม Company'}</span><span aria-hidden="true" className="surface-inset flex size-8 items-center justify-center rounded-lg text-link">+</span></summary><div className="mt-5 px-4 sm:px-5"><form onSubmit={save} className="grid min-w-0 gap-4 sm:grid-cols-2 [&>div]:min-w-0 [&>div]:space-y-2">
+    <details id="company-form" open={editing !== null || undefined} className="cinematic-beat-support surface-raised scroll-mt-4 rounded-[var(--radius-panel)] border border-border/60 bg-card py-4"><summary className="type-card-title flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-5"><span>{editing ? 'แก้ไข Company' : 'เพิ่ม Company'}</span><DisclosureGlyph /></summary><div className="mt-5 px-4 sm:px-5"><form onSubmit={save} className="grid min-w-0 gap-4 sm:grid-cols-2 [&>div]:min-w-0 [&>div]:space-y-2">
       {(['name', 'displayName', 'location', 'address', 'phone'] as const).map((field) => <div key={field}><Label htmlFor={`company-${field}`}>{field === 'name' ? 'ชื่อบริษัท *' : field}</Label><Input id={`company-${field}`} value={form[field] ?? ''} onChange={(event) => setForm({ ...form, [field]: event.target.value })} required={field === 'name'} disabled={editing !== null && companies.find((item) => item.id === editing)?.code === 'dhas' && field === 'name'} /></div>)}
       <div className="sm:col-span-2"><Label htmlFor="company-description">รายละเอียด</Label><Textarea id="company-description" value={form.description ?? ''} onChange={(event) => setForm({ ...form, description: event.target.value })} rows={4} /></div>
       <div className="flex gap-2"><Button magnetic disabled={saving}>บันทึก</Button>{editing && <Button type="button" variant="outline" onClick={() => { setEditing(null); setForm(emptyForm) }}>ยกเลิก</Button>}</div>

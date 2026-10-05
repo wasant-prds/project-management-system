@@ -5,6 +5,8 @@ import Link from 'next/link'
 import type { AnalysisReport } from '@/lib/analysis-export'
 import { analysisDailyWorkHref, analysisWorkItemsHref } from '@/lib/analysis-links'
 import { WORK_ITEM_PRIORITY_LABELS, WORK_ITEM_ROLE_LABELS, WORK_ITEM_STATUS_LABELS } from '@/lib/work-items'
+import { InlineState } from '@/components/layout/page-state'
+import { WorkItemStatusBadge } from '@/components/page/work-items/work-item-status-badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 
 export function displayRole(role: string | null) {
@@ -19,7 +21,7 @@ export function displayStatus(status: string) {
 export function WorkItemsTable({ report }: Readonly<{ report: AnalysisReport }>) {
   const pagination = useReportPage(report.workItems)
   if (report.workItems.length === 0) {
-    return <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">ไม่พบ Work Item ในช่วงและตัวกรองนี้</p>
+    return <InlineState visual="search" title="ไม่พบ Work Item ในช่วงและตัวกรองนี้" description="ลองปรับช่วงวันหรือตัวกรองเพื่อดูรายการจริง" />
   }
 
   return (
@@ -49,7 +51,7 @@ export function WorkItemsTable({ report }: Readonly<{ report: AnalysisReport }>)
               </span>
               <span className="mt-1 block text-xs text-muted-foreground">วันที่อ้างอิง {item.workDate ?? item.dueDate ?? item.createdAt.slice(0, 10)}</span>
             </TableCell>
-            <TableCell className="content-wrap px-3 py-3">{displayStatus(item.status)}</TableCell>
+            <TableCell className="content-wrap px-3 py-3"><WorkItemStatusBadge status={item.status} /></TableCell>
             <TableCell className="content-wrap hidden px-3 py-3 sm:table-cell">{WORK_ITEM_PRIORITY_LABELS[item.priority as keyof typeof WORK_ITEM_PRIORITY_LABELS] ?? item.priority}</TableCell>
             <TableCell className="content-wrap hidden px-3 py-3 md:table-cell">{displayRole(item.role)}</TableCell>
           </TableRow>
@@ -64,7 +66,7 @@ export function WorkItemsTable({ report }: Readonly<{ report: AnalysisReport }>)
 export function DailyWorkTable({ report }: Readonly<{ report: AnalysisReport }>) {
   const pagination = useReportPage(report.timeEntries)
   if (report.timeEntries.length === 0) {
-    return <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">ไม่พบ Daily Work ในช่วงและตัวกรองนี้</p>
+    return <InlineState visual="activity" title="ไม่พบ Daily Work ในช่วงและตัวกรองนี้" description="ลองปรับช่วงวันหรือตัวกรองเพื่อดูชั่วโมงจริง" />
   }
 
   return (

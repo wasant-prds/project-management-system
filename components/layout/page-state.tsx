@@ -37,6 +37,43 @@ function stateTone(kind: PageStateKind, visual: VisualStateKind): StateTone {
   return 'neutral'
 }
 
+type InlineStateProps = {
+  title: string
+  description?: string
+  kind?: 'empty' | 'error'
+  visual?: VisualStateKind
+  action?: ReactNode
+  className?: string
+  /** Announce one empty region. Leave off when several empties can appear together. */
+  live?: boolean
+}
+
+function inlineRole(kind: 'empty' | 'error', live: boolean) {
+  if (kind === 'error') return 'alert'
+  if (live) return 'status'
+  return undefined
+}
+
+/** Compact empty or error for cards, columns and chart frames. No entrance motion. */
+export function InlineState({ title, description, kind = 'empty', visual, action, className, live = false }: Readonly<InlineStateProps>) {
+  const resolvedVisual = stateVisual(kind, visual)
+  const tone = stateTone(kind, resolvedVisual)
+  const Icon = stateIcon(kind)
+  const role = inlineRole(kind, live)
+  return (
+    <div data-slot="inline-state" data-visual={resolvedVisual} role={role} className={cn('identity-empty flex min-w-0 flex-wrap items-center gap-3 border border-border/60 px-3 py-3 text-left', className)}>
+      <span data-slot="identity-mark" data-tone={tone} className={cn('icon-well identity-mark surface-soft flex size-8 shrink-0 items-center justify-center rounded-lg bg-card', tone === 'danger' && 'text-danger', tone === 'success' && 'text-success', tone === 'warning' && 'text-warning', tone === 'neutral' && 'text-link')}>
+        <Icon aria-hidden="true" strokeWidth={1.75} className="size-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="type-card-title content-wrap">{title}</p>
+        {description && <p className="type-caption content-wrap mt-0.5">{description}</p>}
+      </div>
+      {action}
+    </div>
+  )
+}
+
 export function PageState({ title, description, kind = 'empty', visual, action, className, loadingLayout = 'rows' }: Readonly<PageStateProps>) {
   const resolvedVisual = stateVisual(kind, visual)
   const tone = stateTone(kind, resolvedVisual)

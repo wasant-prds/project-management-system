@@ -43,6 +43,7 @@ const suites = {
   "frontend-motion": { files: [join(testRoot, "frontend-ui", "motion-system.test.mjs")] },
   "frontend-cinematic": { files: [join(testRoot, "frontend-ui", "cinematic-experience.test.mjs")] },
   "frontend-identity": { files: [join(testRoot, "frontend-ui", "product-identity.test.mjs")] },
+  "frontend-competition": { files: [join(testRoot, "frontend-ui", "competition-audit.test.mjs")] },
   "frontend-polish": { files: [join(testRoot, "frontend-ui", "polish.test.mjs")] },
   "frontend-performance": { files: [join(testRoot, "frontend-ui", "performance.test.mjs")] },
   "frontend-ui": { directory: join(testRoot, "frontend-ui") },

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 
@@ -99,7 +99,18 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
     },
     './content-loading-skeleton': { ContentLoadingSkeleton: component('ContentLoadingSkeleton') },
     '@/lib/utils': { cn: (...values) => values.filter(Boolean).join(' ') },
-    'lucide-react': Object.fromEntries(['ArrowUpRight', 'CalendarDays', 'FolderKanban', 'Building2', 'MapPin', 'Phone', 'CircleAlert', 'Inbox', 'LoaderCircle'].map((name) => [name, component(name)])),
+    'lucide-react': Object.fromEntries(['ArrowUpRight', 'CalendarDays', 'FolderKanban', 'Building2', 'MapPin', 'Phone', 'CircleAlert', 'Inbox', 'LoaderCircle', 'Plus'].map((name) => [name, component(name)])),
+    '@/components/ui/product-icon': {
+      DisclosureGlyph: Object.assign(() => ({ type: 'span', props: { 'data-slot': 'disclosure-glyph', 'aria-hidden': 'true' } }), { renderInTest: true }),
+      ProductIcon: component('ProductIcon'),
+    },
+    '@/components/page/work-items/work-item-status-badge': {
+      WorkItemStatusBadge: Object.assign(({ status }) => ({ type: 'span', props: { 'data-slot': 'status-badge', children: status } }), { renderInTest: true }),
+    },
+    // Inlined because this harness rejects unexpected imports, and lib/work-items is the Prisma enum boundary.
+    '@/lib/work-items': {
+      WORK_ITEM_ROLE_LABELS: { Developer: 'Developer', infra: 'Infrastructure', SA: 'System Analyst' },
+    },
     '@/components/ui/input': { Input: ui.Input },
     '@/components/ui/label': { Label: ui.Label },
     '@/components/ui/textarea': { Textarea: ui.Textarea },
@@ -126,8 +137,10 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
   vm.runInNewContext(js, {
     module: pageModule, exports: pageModule.exports,
     require: (name) => {
-      if (!(name in mocks) && ['@/components/page/projects/portfolio-card', '@/components/page/company/company-card', '@/components/layout/page-state', '@/components/layout/summary-stat-card'].includes(name)) {
-        const childSource = readFileSync(new URL(`../../${name.slice(2)}.tsx`, import.meta.url), 'utf8')
+      if (!(name in mocks) && ['@/components/page/projects/portfolio-card', '@/components/page/company/company-card', '@/components/layout/page-state', '@/components/layout/summary-stat-card', '@/components/page/work-items/work-item-role-label'].includes(name)) {
+        const childPath = ['tsx', 'ts'].map((extension) => new URL(`../../${name.slice(2)}.${extension}`, import.meta.url)).find((url) => existsSync(url))
+        if (!childPath) throw new Error(`Missing presentation file: ${name}`)
+        const childSource = readFileSync(childPath, 'utf8')
         const childJs = ts.transpileModule(childSource, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText
         const child = { exports: {} }
         vm.runInNewContext(childJs, { module: child, exports: child.exports, require: (dependency) => {
@@ -203,6 +216,28 @@ test('Project detail confirms deletion, navigates on success, and shows history 
   tree = page.runtime.render(page.Page, { params: Promise.resolve({ id: project.id }) })
   assert.match(textContent(find(tree, (node) => node.props?.role === 'alert')), /HISTORY_CONFLICT/)
   assert.deepEqual(page.routerCalls, ['/projects'])
+})
+
+test('Project detail shows shared labels for known, missing and unknown functional roles', () => {
+  const detailed = {
+    ...project,
+    summary: {
+      statusCounts: { 'in-progress': 1, 'legacy-status': 1 },
+      roles: { infra: 1, Developer: 1, 'custom-role': 1 },
+      total: 3, completed: 0, progress: 0, hours: '1.5',
+    },
+    workItems: [
+      { id: 'known', title: 'Known role', kind: 'Task', role: 'infra', status: 'in-progress', dueDate: null },
+      { id: 'missing', title: 'Missing role', kind: 'Task', role: null, status: 'todo', dueDate: null },
+      { id: 'unknown', title: 'Unknown role', kind: 'Issue', role: 'custom-role', status: 'legacy-status', dueDate: null },
+    ],
+  }
+  const page = loadPage('../../app/projects/[id]/page.tsx', { initialState: { 0: detailed, 2: false } })
+  const text = textContent(page.runtime.render(page.Page, { params: Promise.resolve({ id: detailed.id }) }))
+  assert.match(text, /Infrastructure/)
+  assert.match(text, /ไม่ระบุ role/)
+  assert.match(text, /custom-role/)
+  assert.equal((text.match(/\binfra\b/g) ?? []).length, 0)
 })
 
 test('Company deletion requires the alert-dialog confirmation', async () => {

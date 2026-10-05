@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronRight } from 'lucide-react'
+import { ICON_STROKE } from '@/components/ui/product-identity'
 import { PageState } from '@/components/layout/page-state'
 import { Collapsible, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
@@ -18,8 +19,7 @@ const URGENCY_SUBGROUP_BAR_CLASS: Record<UrgencySubgroup, string> = {
   complete: 'border-l-4 border-success bg-success-subtle text-success',
 }
 
-const STUCK_SURFACE =
-  'bg-background shadow-md ring-1 ring-border/70 backdrop-blur-sm'
+const STUCK_SURFACE = 'bg-card shadow-md'
 
 type WorkItemGroupedListProps = {
   groups: WorkItemProjectGroup[]
@@ -142,11 +142,12 @@ function SubgroupBranch({
             <button
               type="button"
               className={cn(
-                'flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em]',
+                'type-label flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 text-left',
                 URGENCY_SUBGROUP_BAR_CLASS[subgroup.key],
               )}
             >
               <ChevronRight
+                strokeWidth={ICON_STROKE}
                 className={cn('h-3.5 w-3.5 shrink-0 transition-transform', open && 'rotate-90')}
               />
               <span className="min-w-0 truncate">{subgroup.label}</span>
@@ -219,6 +220,7 @@ function ProjectBranch({
             <button type="button" className="flex w-full min-w-0 items-stretch text-left">
               <span className="flex w-9 shrink-0 items-center justify-center text-muted-foreground">
                 <ChevronRight
+                  strokeWidth={ICON_STROKE}
                   className={cn('h-4 w-4 transition-transform', open && 'rotate-90')}
                 />
               </span>

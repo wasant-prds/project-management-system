@@ -5,6 +5,7 @@ import { ArrowRightLeft, CalendarDays, ChevronDown, Flag } from 'lucide-react'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
 import { ContentLoadingSkeleton } from '@/components/layout/content-loading-skeleton'
+import { InlineState, PageState } from '@/components/layout/page-state'
 import {
   PAGE_HEADING,
   PAGE_INNER,
@@ -46,7 +47,9 @@ import {
   WORK_ITEM_STATUS_LABELS,
   type WorkItemStatusValue,
 } from '@/lib/work-items'
-import { kindClass, priorityClass, statusClass } from '@/components/page/work-items/work-item-presentation'
+import { kindClass, priorityClass } from '@/components/page/work-items/work-item-presentation'
+import { WorkItemStatusBadge } from '@/components/page/work-items/work-item-status-badge'
+import { ICON_STROKE, loadFailureVisual } from '@/components/ui/product-identity'
 
 type CompanyOption = { id: string; name: string; displayName: string | null }
 type ProjectOption = { id: string; name: string; companyId: string | null }
@@ -73,8 +76,8 @@ function BoardFilter({
   options: readonly FilterSelectOption[]
 }>) {
   return (
-    <label htmlFor={id} className="flex min-w-0 flex-col gap-1.5 text-xs font-medium text-muted-foreground">
-      {label}
+    <label htmlFor={id} className="flex min-w-0 flex-col gap-1.5">
+      <span className="type-label">{label}</span>
       <FilterSelect id={id} value={value} disabled={disabled} onValueChange={onChange} options={options} />
     </label>
   )
@@ -114,9 +117,9 @@ function BoardWorkItemCard({
                 disabled={saving}
                 aria-label={`เปลี่ยนสถานะ ${item.title}`}
               >
-                <ArrowRightLeft className="h-3.5 w-3.5" />
+                <ArrowRightLeft strokeWidth={ICON_STROKE} className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">ย้ายสถานะ</span>
-                <ChevronDown className="h-3 w-3" />
+                <ChevronDown strokeWidth={ICON_STROKE} className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="max-h-72 overflow-y-auto">
@@ -139,9 +142,9 @@ function BoardWorkItemCard({
         {item.description && <p className="line-clamp-2 break-words text-xs text-muted-foreground">{item.description}</p>}
         <div className="flex flex-wrap gap-1.5">
           <Badge variant="outline" className={kindClass(item.kind)}>{item.kind}</Badge>
-          <Badge variant="outline" className={statusClass(item.status)}>{WORK_ITEM_STATUS_LABELS[item.status]}</Badge>
+          <WorkItemStatusBadge status={item.status} />
           <Badge variant="outline" className={priorityClass(item.priority)}>
-            <Flag className="mr-1 h-3 w-3" />{WORK_ITEM_PRIORITY_LABELS[item.priority]}
+            <Flag strokeWidth={ICON_STROKE} className="mr-1 h-3 w-3" />{WORK_ITEM_PRIORITY_LABELS[item.priority]}
           </Badge>
           {item.role && <Badge variant="secondary">{WORK_ITEM_ROLE_LABELS[item.role]}</Badge>}
         </div>
@@ -149,7 +152,7 @@ function BoardWorkItemCard({
           <p className="truncate font-medium text-foreground">{item.project.name}</p>
           {company && <p className="truncate">{company}</p>}
           <div className="flex min-w-0 items-center gap-1.5">
-            <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+            <CalendarDays strokeWidth={ICON_STROKE} className="h-3.5 w-3.5 shrink-0" />
             {item.dueDate
               ? <time dateTime={item.dueDate}>กำหนดส่ง {formatBoardCalendarDate(item.dueDate)}</time>
               : <span>ไม่กำหนดวันส่ง</span>}
@@ -177,13 +180,13 @@ function BoardStatusColumn({
     <Card className="flex surface-inset min-h-60 w-[18rem] shrink-0 flex-col gap-0 border-border-strong bg-muted/30 py-0 sm:w-80">
       <CardHeader className="shrink-0 border-b border-border/60 px-3 py-3 sm:px-4">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-sm font-semibold">{WORK_ITEM_STATUS_LABELS[status]}</CardTitle>
+          <CardTitle><WorkItemStatusBadge status={status} /></CardTitle>
           <Badge variant="secondary" aria-label={`${items.length} Work Items`} className="tabular-nums">{items.length}</Badge>
         </div>
       </CardHeader>
       <CardContent className="min-h-0 flex-1 space-y-3 p-3">
         {items.length === 0
-          ? <p data-visual="records" className="identity-empty type-caption rounded-md border border-dashed border-border-strong px-3 py-5 text-center">ยังไม่มี Work Item ในสถานะนี้</p>
+          ? <InlineState visual="records" title="ยังไม่มี Work Item ในสถานะนี้" description="รายการจะปรากฏเมื่อมี Work Item ในสถานะนี้" />
           : items.map((item) => (
             <BoardWorkItemCard
               key={item.id}
@@ -385,12 +388,7 @@ export default function BoardPage() {
             </section>
 
             {filtersError && (
-              <div role="alert" className="flex shrink-0 flex-wrap items-center gap-3 py-3 text-sm text-danger">
-                <span>โหลดตัวกรองไม่สำเร็จ: {filtersError}</span>
-                <Button type="button" variant="outline" size="sm" onClick={() => setFiltersRetry((value) => value + 1)}>
-                  ลองโหลดตัวกรองอีกครั้ง
-                </Button>
-              </div>
+              <InlineState className="shrink-0" kind="error" visual={loadFailureVisual(filtersError)} title="โหลดตัวกรองไม่สำเร็จ" description={filtersError} action={<Button type="button" variant="outline" size="sm" onClick={() => setFiltersRetry((value) => value + 1)}>ลองโหลดตัวกรองอีกครั้ง</Button>} />
             )}
             {statusError && <p role="alert" className="shrink-0 py-2 text-sm text-danger">{statusError}</p>}
             {statusMessage && <output className="shrink-0 py-2 text-sm text-muted-foreground" aria-live="polite">{statusMessage}</output>}
@@ -398,10 +396,7 @@ export default function BoardPage() {
             <section aria-label="Work Items by status" aria-busy={boardLoading} className="cinematic-beat-data flex min-h-0 min-w-0 flex-1 flex-col pt-3">
               {boardLoading && <div role="status" aria-busy="true" className="min-h-0 space-y-3 overflow-hidden"><p className="text-sm text-muted-foreground">กำลังโหลด Work Items…</p><ContentLoadingSkeleton layout="board" /></div>}
               {!boardLoading && boardError && (
-                <div role="alert" className="m-auto flex max-w-lg flex-col items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-5 text-center">
-                  <p className="text-sm text-danger">โหลด Board ไม่สำเร็จ: {boardError}</p>
-                  <Button type="button" variant="outline" onClick={() => setBoardRetry((value) => value + 1)}>ลองอีกครั้ง</Button>
-                </div>
+                <PageState kind="error" visual={loadFailureVisual(boardError)} title="โหลด Board ไม่สำเร็จ" description={boardError} action={<Button type="button" variant="outline" onClick={() => setBoardRetry((value) => value + 1)}>ลองอีกครั้ง</Button>} />
               )}
               {!boardLoading && !boardError && (
                 <div className="motion-data-enter min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain">

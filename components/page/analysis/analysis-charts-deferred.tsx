@@ -3,6 +3,7 @@
 import { DeferredSection } from '@/components/ui/deferred-section'
 import { RetryableLazy } from '@/components/ui/retryable-lazy'
 import { ChartLoadError } from '@/components/layout/chart-load-error'
+import { InlineState } from '@/components/layout/page-state'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { HoursPeriodTable } from './report-tables'
@@ -20,7 +21,7 @@ export function AnalysisChartsDeferred({ report }: Readonly<{ report: AnalysisRe
         {report.summary.total ? <DeferredSection fallback={plotLoading}>
           <RetryableLazy loader={loadStatusChart} componentProps={{ report }} loading={plotLoading}
             error={(retry) => <ChartLoadError heightClass="h-[320px]" onRetry={retry} />} />
-        </DeferredSection> : <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">ไม่มี Work Item ให้แสดงในกราฟนี้</p>}
+        </DeferredSection> : <InlineState visual="chart" title="ไม่มี Work Item ให้แสดงในกราฟนี้" description="กราฟจะแสดงเมื่อมี Work Item ในช่วงและตัวกรองนี้" />}
       </CardContent>
     </Card>
     <Card className="motion-content-enter min-w-0 overflow-hidden card-shadow">
@@ -29,7 +30,7 @@ export function AnalysisChartsDeferred({ report }: Readonly<{ report: AnalysisRe
         {report.loggedHoursByPeriod.length ? <DeferredSection fallback={plotLoading}>
           <RetryableLazy loader={loadHoursChart} componentProps={{ report }} loading={plotLoading}
             error={(retry) => <ChartLoadError heightClass="h-[320px]" onRetry={retry} />} />
-        </DeferredSection> : <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">ไม่มี Daily Work ให้แสดงในกราฟนี้</p>}
+        </DeferredSection> : <InlineState visual="chart" title="ไม่มี Daily Work ให้แสดงในกราฟนี้" description="กราฟจะแสดงเมื่อมี TimeEntry ในช่วงที่เลือก" />}
         <HoursPeriodTable report={report} />
       </CardContent>
     </Card>

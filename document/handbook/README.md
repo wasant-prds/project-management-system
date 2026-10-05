@@ -79,6 +79,7 @@ Route Handler ปัจจุบันมีดังนี้:
 
 ## Other Components
 
+- [Final competition audit — Issue #36](./frontend/issue-36-competition-audit.md) — `InlineState`, status glyph, role label, disclosure icon และ sticky surface ที่ไม่มี blur. ไม่มี API, Job หรือ schema ใหม่.
 - [Product visual identity — Issue #35](./frontend/issue-35-visual-identity.md) — typography ใน `@layer components`, iconography, chart language, empty/error/status และ signature patterns. ไม่มี API, Job หรือ schema ใหม่.
 - [Cinematic motion — Issue #34](./frontend/issue-34-cinematic.md) — spatial profile, choreography, pointer/magnetic, shared Project continuity, view transition และ reduced-motion/touch fallback. ไม่มี API หรือ schema ใหม่.
 - [Frontend performance and production UX — Issue #30](./frontend/issue-30-performance.md) — การแบ่งโหลด chart/calendar/dialog, ความเสถียรของ loading/error states, collection refresh, pagination, bundle budgets และคำสั่งตรวจสอบซ้ำ.

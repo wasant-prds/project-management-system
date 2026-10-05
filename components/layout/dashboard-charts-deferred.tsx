@@ -5,6 +5,7 @@ import { dashboardDailyWorkHref } from '@/lib/dashboard-links'
 import { DeferredSection } from '@/components/ui/deferred-section'
 import { RetryableLazy } from '@/components/ui/retryable-lazy'
 import { ChartLoadError } from '@/components/layout/chart-load-error'
+import { InlineState } from '@/components/layout/page-state'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { DashboardCharts as Charts } from './dashboard-charts'
@@ -22,7 +23,7 @@ export function DashboardChartsDeferred(props: React.ComponentProps<typeof Chart
       {props.data.length ? <DeferredSection fallback={plotLoading}>
         <RetryableLazy loader={loadChart} componentProps={props} loading={plotLoading}
           error={(retry) => <ChartLoadError heightClass="h-[260px]" onRetry={retry} />} />
-      </DeferredSection> : <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">ไม่มี Daily Work ในช่วงนี้</p>}
+      </DeferredSection> : <InlineState visual="chart" title="ไม่มี Daily Work ในช่วงนี้" description="กราฟจะแสดงเมื่อมี TimeEntry ในช่วงที่เลือก" />}
     </CardContent>
   </Card>
 }

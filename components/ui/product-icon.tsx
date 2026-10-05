@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react'
+import { Plus, type LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   iconMetrics,
@@ -14,6 +14,14 @@ type ProductIconProps = {
   intent?: IconIntent
   size?: number
   className?: string
+}
+
+export function DisclosureGlyph() {
+  return (
+    <span data-slot="disclosure-glyph" aria-hidden="true" className="surface-inset flex size-8 items-center justify-center rounded-lg text-link">
+      <ProductIcon icon={Plus} category="action" />
+    </span>
+  )
 }
 
 export function ProductIcon({ icon: Icon, category, intent = 'idle', size, className }: Readonly<ProductIconProps>) {
