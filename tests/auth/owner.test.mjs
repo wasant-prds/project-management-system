@@ -114,6 +114,22 @@ test('owner resolver requires middleware identity and exactly one User', async (
   assert.equal(owner.internalId, 7n)
 })
 
+test('owner errors expose safe messages without leaking dependency diagnostics', () => {
+  const { OwnerUnavailableError, ownerErrorMessage, ownerErrorResponse } = loadTs('../../lib/owner.ts', {
+    'next/headers': { headers: async () => ({ get: () => null }) },
+    'next/server': { NextResponse: { json: (body, options) => ({ status: options.status, body }) } },
+    '@/lib/db': { prisma: {} },
+  })
+  for (const status of [401, 503]) {
+    const error = new OwnerUnavailableError('private database diagnostics', status)
+    const message = ownerErrorMessage(error)
+    assert.equal(message, status === 401 ? 'กรุณายืนยันตัวตนเจ้าของระบบ' : 'ไม่พบเจ้าของระบบที่กำหนดไว้อย่างถูกต้อง')
+    assert.equal(ownerErrorResponse(error).body.error.message, message)
+    assert.doesNotMatch(message, /private database diagnostics/)
+  }
+  assert.equal(ownerErrorMessage(new Error('private database diagnostics')), null)
+})
+
 test('explicit owner ID selects one audited User while preserving legacy Users', async () => {
   let queriedWhere
   const { getOwner } = loadTs('../../lib/owner.ts', {

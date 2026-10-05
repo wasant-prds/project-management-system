@@ -12,7 +12,7 @@ import { FilterSelect } from '@/components/ui/filter-select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { SummaryStatCard } from '@/components/layout/summary-stat-card'
-import { getOwner } from '@/lib/owner'
+import { getOwner, ownerErrorMessage } from '@/lib/owner'
 import { DashboardQueryError, getDashboardSummary } from '@/lib/dashboard'
 import { dashboardDailyWorkHref, dashboardWorkItemsHref } from '@/lib/dashboard-links'
 import { formatBangkokDateLabel } from '@/lib/bangkok-datetime'
@@ -184,7 +184,7 @@ async function DashboardContent({ searchParams }: DashboardPageProps) {
   } catch (error) {
     const message = error instanceof DashboardQueryError
       ? error.message
-      : 'ไม่สามารถเชื่อมต่อเพื่ออ่านข้อมูลจริงได้ กรุณาลองใหม่อีกครั้ง'
+      : ownerErrorMessage(error) ?? 'ไม่สามารถเชื่อมต่อเพื่ออ่านข้อมูลจริงได้ กรุณาลองใหม่อีกครั้ง'
     return <DashboardError message={message} />
   }
 

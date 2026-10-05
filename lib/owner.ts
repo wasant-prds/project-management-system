@@ -31,13 +31,18 @@ const ownerSelect = {
   status: true,
 } as const
 
+export function ownerErrorMessage(error: unknown) {
+  if (!(error instanceof OwnerUnavailableError)) return null
+  return error.status === 401 ? 'กรุณายืนยันตัวตนเจ้าของระบบ' : 'ไม่พบเจ้าของระบบที่กำหนดไว้อย่างถูกต้อง'
+}
+
 export function ownerErrorResponse(error: unknown) {
   if (!(error instanceof OwnerUnavailableError)) return null
   const unauthenticated = error.status === 401
   return NextResponse.json({
     error: {
       code: unauthenticated ? 'OWNER_UNAUTHENTICATED' : 'DEPENDENCY_UNAVAILABLE',
-      message: unauthenticated ? 'กรุณายืนยันตัวตนเจ้าของระบบ' : 'ไม่พบเจ้าของระบบที่กำหนดไว้อย่างถูกต้อง',
+      message: ownerErrorMessage(error),
     },
   }, { status: error.status, headers: { 'Cache-Control': 'no-store' } })
 }
