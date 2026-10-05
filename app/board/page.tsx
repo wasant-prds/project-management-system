@@ -357,7 +357,7 @@ export default function BoardPage() {
               </Button>
             </div>
 
-            <section aria-label="ตัวกรอง Board" className="filter-panel grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-3">
+            <section aria-label="ตัวกรอง Board" className="cinematic-beat-support filter-panel grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-3">
               <BoardFilter
                 id="board-company-filter"
                 label="Company"
@@ -395,7 +395,7 @@ export default function BoardPage() {
             {statusError && <p role="alert" className="shrink-0 py-2 text-sm text-danger">{statusError}</p>}
             {statusMessage && <output className="shrink-0 py-2 text-sm text-muted-foreground" aria-live="polite">{statusMessage}</output>}
 
-            <section aria-label="Work Items by status" aria-busy={boardLoading} className="flex min-h-0 min-w-0 flex-1 flex-col pt-3">
+            <section aria-label="Work Items by status" aria-busy={boardLoading} className="cinematic-beat-data flex min-h-0 min-w-0 flex-1 flex-col pt-3">
               {boardLoading && <div role="status" aria-busy="true" className="min-h-0 space-y-3 overflow-hidden"><p className="text-sm text-muted-foreground">กำลังโหลด Work Items…</p><ContentLoadingSkeleton layout="board" /></div>}
               {!boardLoading && boardError && (
                 <div role="alert" className="m-auto flex max-w-lg flex-col items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-5 text-center">

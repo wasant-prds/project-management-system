@@ -360,7 +360,7 @@ export default function DailyWorkPage() {
                 <ToggleGroupItem value="month" aria-label="Month view">Month</ToggleGroupItem>
                 <ToggleGroupItem value="year" aria-label="Year view">Year</ToggleGroupItem>
               </ToggleGroup>
-              <Button className="w-full sm:w-auto" onClick={() => handleOpenDialog()}>
+              <Button magnetic className="w-full sm:w-auto" onClick={() => handleOpenDialog()}>
                 <Plus className="h-4 w-4" />
                 <span className="truncate">
                   <span className="sm:hidden">Add</span>
@@ -369,7 +369,7 @@ export default function DailyWorkPage() {
               </Button>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-3">
+            <div className="cinematic-beat-data grid gap-6 lg:grid-cols-3">
               {/* Calendar and Stats */}
               <div className="space-y-4">
                 <Card className="card-shadow">

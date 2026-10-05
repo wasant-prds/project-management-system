@@ -79,6 +79,7 @@ Route Handler ปัจจุบันมีดังนี้:
 
 ## Other Components
 
+- [Cinematic motion — Issue #34](./frontend/issue-34-cinematic.md) — spatial profile, choreography, pointer/magnetic, shared Project continuity, view transition และ reduced-motion/touch fallback. ไม่มี API หรือ schema ใหม่.
 - [Frontend performance and production UX — Issue #30](./frontend/issue-30-performance.md) — การแบ่งโหลด chart/calendar/dialog, ความเสถียรของ loading/error states, collection refresh, pagination, bundle budgets และคำสั่งตรวจสอบซ้ำ.
 - [Final visual audit and polish — Issue #29](./frontend/issue-29-polish.md) — KPI/state consistency, long-content wrapping, Analysis tables, modal focus และ reusable test/browser commands พร้อมข้อจำกัด quality gate.
 - [Frontend motion and interaction — Issue #28](./frontend/issue-28-motion.md) — motion tokens, route/content transitions, tactile card/control states, overlay exits, toast swipe, reduced-motion support และการตรวจสอบล่าสุด.

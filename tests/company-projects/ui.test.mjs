@@ -28,7 +28,7 @@ function createRuntime(initialState = {}) {
     useEffect(effect) { effects.push(effect) },
     useRef(initial) { const slot = refIndex++; refs[slot] ??= { current: initial }; return refs[slot] },
     useCallback(callback) { return callback },
-    use(value) { return { id: 'project-1' } },
+    use() { return { id: 'project-1' } },
     render(Page, props = {}) {
       index = 0
       refIndex = 0
@@ -76,6 +76,9 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
     '@/components/ui/animated-stat-value': {
       AnimatedStatValue: Object.assign(({ value }) => ({ type: 'span', props: { children: value } }), { renderInTest: true }),
     },
+    '@/components/ui/cinematic-motion': {
+      kpiMarker: (emphasis) => emphasis === 'primary' ? 'kpi-primary' : 'kpi',
+    },
     './content-loading-skeleton': { ContentLoadingSkeleton: component('ContentLoadingSkeleton') },
     '@/lib/utils': { cn: (...values) => values.filter(Boolean).join(' ') },
     'lucide-react': Object.fromEntries(['ArrowUpRight', 'CalendarDays', 'FolderKanban', 'Building2', 'MapPin', 'Phone', 'CircleAlert', 'Inbox', 'LoaderCircle'].map((name) => [name, component(name)])),
@@ -101,9 +104,9 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
   const js = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText
-  const module = { exports: {} }
+  const pageModule = { exports: {} }
   vm.runInNewContext(js, {
-    module, exports: module.exports,
+    module: pageModule, exports: pageModule.exports,
     require: (name) => {
       if (!(name in mocks) && ['@/components/page/projects/portfolio-card', '@/components/page/company/company-card', '@/components/layout/page-state', '@/components/layout/summary-stat-card'].includes(name)) {
         const childSource = readFileSync(new URL(`../../${name.slice(2)}.tsx`, import.meta.url), 'utf8')
@@ -122,7 +125,7 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
     fetch: fetcher, URLSearchParams, encodeURIComponent, window: { scrollTo() {}, location: { search: '' } }, document: { getElementById: () => ({ scrollIntoView() {} }) },
     console, Date, Error, URL, setTimeout, clearTimeout,
   }, { filename: relativePath })
-  return { Page: module.exports.default, runtime, ui, routerCalls }
+  return { Page: pageModule.exports.default, runtime, ui, routerCalls }
 }
 
 async function runEffects(page) {

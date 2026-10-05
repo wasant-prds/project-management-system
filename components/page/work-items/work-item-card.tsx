@@ -53,7 +53,8 @@ export function WorkItemCard({
 
   return (
     <Card
-      className="card-shadow motion-card relative min-w-0 cursor-pointer gap-0 overflow-hidden py-0 hover:border-primary/30"
+      data-spatial="pointer"
+      className="cinematic-pointer card-shadow motion-card relative min-w-0 cursor-pointer gap-0 overflow-hidden py-0 hover:border-primary/30"
       onClick={() => onView(item)}
     >
       <span

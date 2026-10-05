@@ -135,7 +135,7 @@ export default function SettingsPage() {
             )}
 
             {!isLoading && !loadError && profile && preferences && (
-              <Tabs defaultValue="profile" className="min-w-0 gap-5 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start">
+              <Tabs defaultValue="profile" className="cinematic-beat-support min-w-0 gap-5 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start">
                 <div className={TAB_SCROLL_CLASS}>
                   <TabsList aria-label="หมวดการตั้งค่า" className="lg:h-auto lg:w-full lg:flex-col lg:items-stretch lg:gap-2 lg:p-2">
                     <TabsTrigger className={`${TAB_TRIGGER_CLASS} lg:min-h-11 lg:justify-start`} value="profile">โปรไฟล์</TabsTrigger>
@@ -214,7 +214,7 @@ export default function SettingsPage() {
                           <Button type="button" variant="outline" disabled={isSavingProfile} onClick={cancelProfileChanges}>
                             ยกเลิก
                           </Button>
-                          <Button type="submit" disabled={isSavingProfile || Object.keys(profileChanges).length === 0}>
+                          <Button type="submit" magnetic disabled={isSavingProfile || Object.keys(profileChanges).length === 0}>
                             {isSavingProfile ? 'กำลังบันทึก...' : 'บันทึกโปรไฟล์'}
                           </Button>
                         </div>
@@ -279,7 +279,7 @@ export default function SettingsPage() {
                           <Button type="button" variant="outline" disabled={isSavingPreferences} onClick={cancelPreferenceChanges}>
                             ยกเลิก
                           </Button>
-                          <Button type="submit" disabled={isSavingPreferences || Object.keys(preferencesChanges).length === 0}>
+                          <Button type="submit" magnetic disabled={isSavingPreferences || Object.keys(preferencesChanges).length === 0}>
                             {isSavingPreferences ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}
                           </Button>
                         </div>

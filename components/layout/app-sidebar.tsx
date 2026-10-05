@@ -18,7 +18,7 @@ export const AppSidebar = memo(function AppSidebar() {
   return (
     <Sidebar variant="floating" className="lg:p-3">
       <SidebarHeader className="px-5 pb-6 pt-6">
-        <Link href="/" onClick={closeMobile} aria-label="ProjectHub — Dashboard" className="flex items-center gap-3 rounded-lg">
+        <Link href="/" onClick={closeMobile} aria-label="ProjectHub — Dashboard" data-spatial="magnetic" data-shared-element="workspace" className="cinematic-brand flex items-center gap-3 rounded-lg">
           <span className="surface-soft flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground"><FolderKanban aria-hidden="true" className="size-5" /></span>
           <span className="min-w-0"><span className="block text-lg font-semibold tracking-tight">ProjectHub</span><span className="block text-xs text-muted-foreground">พื้นที่ทำงานของคุณ</span></span>
         </Link>

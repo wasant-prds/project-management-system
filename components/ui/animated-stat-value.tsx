@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion'
 import { MOTION_CLASS } from './motion'
+import { metricDirection } from './cinematic-motion'
 import { tweenMetric } from './metric-motion'
 
 export function AnimatedStatValue({ value }: Readonly<{ value: number }>) {
@@ -18,6 +19,9 @@ export function AnimatedStatValue({ value }: Readonly<{ value: number }>) {
       displayed.current = next
       node.textContent = String(next)
     }
+    const direction = metricDirection(displayed.current, value)
+    if (node.dataset) node.dataset.metricDirection = direction
+    if (node.parentElement?.dataset) node.parentElement.dataset.metricDirection = direction
     if (reducedMotion) {
       write(value)
       return

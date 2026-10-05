@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Slot } from '@radix-ui/react-slot'
 import { cva, type VariantProps } from 'class-variance-authority'
 
+import { magneticControlKind } from '@/components/ui/cinematic-motion'
 import { cn } from '@/lib/utils'
 
 const buttonVariants = cva(
@@ -44,16 +45,19 @@ function Button({
   variant,
   size,
   asChild = false,
+  magnetic = false,
   ...props
 }: React.ComponentProps<'button'> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean
+    magnetic?: boolean
   }) {
   const Comp = asChild ? Slot : 'button'
 
   return (
     <Comp
       data-slot="button"
+      data-spatial={magneticControlKind(magnetic)}
       className={cn(buttonVariants({ variant, size }), className)}
       {...props}
     />

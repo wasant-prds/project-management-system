@@ -984,7 +984,7 @@ export default function WorkItemsPage() {
                   <Download className="h-4 w-4" />
                   <span className={ACTION_LABEL_CLASS}>Export JSON</span>
                 </Button>
-                <Button onClick={openCreate}>
+                <Button magnetic onClick={openCreate}>
                   <Plus className="h-4 w-4" />
                   <span className="sm:hidden">New</span>
                   <span className="hidden sm:inline">New Work Item</span>
@@ -1025,7 +1025,7 @@ export default function WorkItemsPage() {
 
             <GitLabImportPanel projects={projects} onSynced={refreshAfterMutation} />
 
-            <div className={STAT_GRID}>
+            <div className={`cinematic-beat-data ${STAT_GRID}`}>
               <SummaryStatCard label="Total" value={stats.total} isLoading={isListLoading} unavailable={Boolean(loadError)} />
               <SummaryStatCard
                 label="In Progress"
@@ -1047,7 +1047,7 @@ export default function WorkItemsPage() {
               />
             </div>
 
-            <div className={`${FILTER_ROW} filter-panel`}>
+            <div className={`cinematic-beat-support ${FILTER_ROW} filter-panel`}>
               <div className="relative w-full max-w-none flex-1 sm:max-w-md">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input

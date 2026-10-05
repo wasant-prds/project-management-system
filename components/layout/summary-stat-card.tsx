@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { MOTION_CLASS } from '@/components/ui/motion'
 import { AnimatedStatValue } from '@/components/ui/animated-stat-value'
+import { kpiMarker } from '@/components/ui/cinematic-motion'
 import { canTweenMetric } from '@/components/ui/metric-motion'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -14,6 +15,8 @@ type SummaryStatCardProps = {
   hint?: ReactNode
   isLoading?: boolean
   unavailable?: boolean
+  emphasis?: 'primary' | 'support'
+  interactive?: boolean
 }
 
 export function SummaryStatCard({
@@ -24,6 +27,8 @@ export function SummaryStatCard({
   hint,
   isLoading = false,
   unavailable = false,
+  emphasis = 'support',
+  interactive = false,
 }: Readonly<SummaryStatCardProps>) {
   const valueKey = typeof value === 'string' || typeof value === 'number' ? `${label}:${value}` : undefined
   let metric: ReactNode
@@ -38,7 +43,11 @@ export function SummaryStatCard({
   }
 
   return (
-    <Card className="card-shadow relative h-full gap-3 py-4 sm:py-5">
+    <Card
+      data-cinematic={kpiMarker(emphasis)}
+      data-spatial={interactive ? 'pointer' : undefined}
+      className={cn('card-shadow relative h-full gap-3 py-4 sm:py-5', interactive && 'cinematic-pointer motion-card')}
+    >
       <CardHeader className="grid-rows-1 flex min-h-10 flex-row items-center justify-between gap-2 space-y-0 px-3 pb-0 sm:px-4">
         <CardTitle className="content-wrap min-w-0 text-xs font-medium leading-5 text-muted-foreground sm:text-sm">{label}</CardTitle>
         {icon && <span className="surface-inset flex size-8 shrink-0 items-center justify-center rounded-lg">{icon}</span>}

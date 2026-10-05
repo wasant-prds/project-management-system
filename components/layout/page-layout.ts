@@ -3,7 +3,7 @@
 export const PAGE_MAIN =
   'min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain'
 
-export const PAGE_INNER = 'min-w-0 mx-auto w-full max-w-[1600px] space-y-5 p-4 sm:space-y-6 sm:p-6 lg:space-y-7 lg:p-8'
+export const PAGE_INNER = 'min-w-0 mx-auto w-full max-w-[1600px] space-y-5 p-4 sm:space-y-6 sm:p-6 lg:space-y-7 lg:p-8 cinematic-settle'
 
 export const PAGE_TOOLBAR =
   'page-toolbar flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between'

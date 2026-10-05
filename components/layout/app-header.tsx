@@ -17,7 +17,7 @@ export const AppHeader = memo(function AppHeader() {
   const { settings, isLoading, loadError } = useOwnerSettings()
   const profileName = settings?.profile.name || 'เจ้าของระบบ'
   return (
-    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border/60 bg-background px-4 sm:px-6 lg:px-8">
+    <header className="cinematic-topbar sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-border/60 bg-background px-4 sm:px-6 lg:px-8">
       <div className="flex min-w-0 items-center gap-3">
         <SidebarTrigger aria-label="เปิดหรือปิดเมนูหลัก" />
         <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2 text-sm">

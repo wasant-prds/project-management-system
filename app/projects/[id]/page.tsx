@@ -63,12 +63,12 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     }
   }
   return <SidebarProvider><AppSidebar /><SidebarInset><AppHeader /><main className={PAGE_MAIN}><div className={PAGE_INNER}>
-    <div className={PAGE_TOOLBAR}><div className="min-w-0"><p className="page-eyebrow mb-2">Project workspace</p><Link href="/projects" className="text-sm text-link underline">← Projects</Link><h1 className={PAGE_HEADING}>{project?.name ?? 'Project detail'}</h1></div>{project && <Button variant="destructive" onClick={() => setDeleteOpen(true)}>ลบ Project</Button>}</div>
+    <div className={PAGE_TOOLBAR}><div className="min-w-0"><p className="page-eyebrow mb-2">Project workspace</p><Link href="/projects" className="text-sm text-link underline">← Projects</Link><h1 id="project-detail-heading" data-shared-id={id} className={PAGE_HEADING}>{project?.name ?? 'Project detail'}</h1></div>{project && <Button variant="destructive" onClick={() => setDeleteOpen(true)}>ลบ Project</Button>}</div>
     {loading && <PageState kind="loading" title="กำลังโหลด Project…" />}
     {message && <PageState kind="error" title="คำขอ Project ไม่สำเร็จ" description={message} />}
     {project && <div className="space-y-5">
-      <section aria-label="สรุป Project" className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-        <SummaryStatCard label="ความคืบหน้า" value={`${project.summary.progress.toFixed(1)}%`} hint={`${project.summary.completed}/${project.summary.total} Work Items`} />
+      <section aria-label="สรุป Project" className="cinematic-beat-data grid grid-cols-2 gap-4 lg:grid-cols-3">
+        <SummaryStatCard emphasis="primary" label="ความคืบหน้า" value={`${project.summary.progress.toFixed(1)}%`} hint={`${project.summary.completed}/${project.summary.total} Work Items`} />
         <SummaryStatCard label="Work Items ทั้งหมด" value={project.summary.total} />
         <SummaryStatCard label="ชั่วโมงจริง" value={project.summary.hours} />
       </section>

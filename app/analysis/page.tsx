@@ -229,7 +229,7 @@ export default function AnalysisPage() {
                 <h1 className={PAGE_HEADING}>วิเคราะห์รายงาน</h1>
                 <p className={PAGE_LEAD}>สรุป Work Item และชั่วโมงจากข้อมูลจริงตามช่วงเวลาและตัวกรอง</p>
               </div>
-              <Button type="button" onClick={exportReport} disabled={!report || isLoading || filtersDirty} className="w-full text-primary-foreground sm:w-auto">
+              <Button type="button" magnetic onClick={exportReport} disabled={!report || isLoading || filtersDirty} className="w-full text-primary-foreground sm:w-auto">
                 <Download className="h-4 w-4" />
                 <span className={ACTION_LABEL_CLASS}>ส่งออก CSV</span>
                 <span className="sm:hidden">ส่งออก CSV</span>
@@ -241,7 +241,7 @@ export default function AnalysisPage() {
                 : <output className="block text-sm text-muted-foreground" aria-live="polite">{exportMessage.text}</output>
             )}
 
-            <Card className="surface-inset bg-muted/30">
+            <Card className="cinematic-beat-support surface-inset bg-muted/30">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">ตัวกรองรายงาน</CardTitle>
                 <CardDescription>ช่วงวันที่รวมวันเริ่มต้นและวันสิ้นสุด โดยใช้ปฏิทิน Asia/Bangkok</CardDescription>
@@ -302,7 +302,7 @@ export default function AnalysisPage() {
                   {dateError && <p className="text-sm text-danger" role="alert">{dateError}</p>}
                   <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                     <Button type="button" variant="outline" onClick={resetFilters}>คืนค่าเริ่มต้น</Button>
-                    <Button type="submit" disabled={isLoading} className="text-primary-foreground">ใช้ตัวกรอง</Button>
+                    <Button type="submit" magnetic disabled={isLoading} className="text-primary-foreground">ใช้ตัวกรอง</Button>
                   </div>
                 </form>
               </CardContent>
@@ -310,8 +310,8 @@ export default function AnalysisPage() {
 
             {report && (
               <>
-                <div className="motion-stagger grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
-                  <SummaryStatCard label="Work Items ทั้งหมด" value={report.summary.total} />
+                <div className="cinematic-beat-data motion-stagger grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
+                  <SummaryStatCard emphasis="primary" label="Work Items ทั้งหมด" value={report.summary.total} />
                   <SummaryStatCard label="Open" value={report.summary.open} />
                   <SummaryStatCard label="Completed" value={report.summary.completed} hint={<span className="text-xs text-muted-foreground">ไม่นับ Cancelled</span>} />
                   <SummaryStatCard label="Overdue" value={report.summary.overdue} />

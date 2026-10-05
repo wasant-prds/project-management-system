@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/layout/theme-provider"
 import { OwnerSettingsProvider } from "@/components/layout/owner-settings-provider"
 import { ApplicationLoadingShell } from "@/components/layout/application-loading-shell"
 import { Toaster } from "@/components/ui/toaster"
+import { CinematicRuntime } from "@/components/layout/cinematic-runtime"
 import { PerformanceMetrics } from "@/components/layout/performance-metrics"
 import "./globals.css"
 
@@ -38,6 +39,7 @@ export default function RootLayout({
           storageKey="project-management-theme"
         >
           <OwnerSettingsProvider>
+            <CinematicRuntime />
             <Suspense fallback={<ApplicationLoadingShell />}>
               {children}
               {isVercelAnalyticsEnabled && <Analytics />}

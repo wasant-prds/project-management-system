@@ -39,8 +39,9 @@ async function compileStyles() {
 }
 
 function renderWorkLogCard() {
-  const primitive = (tag) => function Primitive({ className, children, variant, size, asChild, ...props }) {
-    return React.createElement(tag, { ...props, className }, children)
+  const primitive = (tag) => function Primitive({ className, children, ...props }) {
+    const domProps = Object.fromEntries(Object.entries(props).filter(([key]) => !['variant', 'size', 'asChild'].includes(key)))
+    return React.createElement(tag, { ...domProps, className }, children)
   }
   const ui = {
     Card: primitive('div'),
@@ -59,10 +60,10 @@ function renderWorkLogCard() {
   const js = typescript.transpileModule(sourceText, {
     compilerOptions: { module: typescript.ModuleKind.CommonJS, target: typescript.ScriptTarget.ES2022, jsx: typescript.JsxEmit.ReactJSX },
   }).outputText
-  const module = { exports: {} }
+  const pageModule = { exports: {} }
   vm.runInNewContext(js, {
-    module,
-    exports: module.exports,
+    module: pageModule,
+    exports: pageModule.exports,
     require: (name) => {
       if (name === 'react') return React
       if (name === 'react/jsx-runtime') return require('react/jsx-runtime')
@@ -80,7 +81,7 @@ function renderWorkLogCard() {
     },
   }, { filename: 'components/page/daily-work/work-log-card.tsx' })
 
-  return renderToStaticMarkup(React.createElement(module.exports.WorkLogCard, {
+  return renderToStaticMarkup(React.createElement(pageModule.exports.WorkLogCard, {
     workLog: {
       date: '2026-10-03', hours: '1.5', description: 'Review work', remarks: 'Follow up', status: 'Open',
       workItem: { title: 'Accessible work', kind: 'Task' },
@@ -105,10 +106,10 @@ function inspectMotionPreference(matches) {
   const js = typescript.transpileModule(sourceText, {
     compilerOptions: { module: typescript.ModuleKind.CommonJS, target: typescript.ScriptTarget.ES2022 },
   }).outputText
-  const module = { exports: {} }
+  const pageModule = { exports: {} }
   vm.runInNewContext(js, {
-    module,
-    exports: module.exports,
+    module: pageModule,
+    exports: pageModule.exports,
     require: (name) => name === 'react'
       ? { useSyncExternalStore: (subscribe, getSnapshot) => {
         cleanup = subscribe(() => { notifications += 1 })
@@ -120,7 +121,7 @@ function inspectMotionPreference(matches) {
       return mediaQuery
     } },
   })
-  const snapshot = module.exports.usePrefersReducedMotion()
+  const snapshot = pageModule.exports.usePrefersReducedMotion()
   listener()
   cleanup()
   return { snapshot, notifications, added, removed }
@@ -192,10 +193,10 @@ test('root layout loads Vercel Analytics only when explicitly enabled', () => {
 
   const renderWithSetting = (setting) => {
     const passthrough = ({ children }) => React.createElement(React.Fragment, null, children)
-    const module = { exports: {} }
+    const pageModule = { exports: {} }
     vm.runInNewContext(js, {
-      module,
-      exports: module.exports,
+      module: pageModule,
+      exports: pageModule.exports,
       process: { env: { VERCEL_ANALYTICS_ENABLED: setting } },
       require: (name) => {
         if (name === 'react') return React
@@ -209,15 +210,18 @@ test('root layout loads Vercel Analytics only when explicitly enabled', () => {
         if (name === '@/components/layout/owner-settings-provider') return { OwnerSettingsProvider: passthrough }
         if (name === '@/components/layout/application-loading-shell') return { ApplicationLoadingShell: () => null }
         if (name === '@/components/ui/toaster') return { Toaster: () => null }
+        if (name === '@/components/layout/cinematic-runtime') return { CinematicRuntime: () => null }
         if (name === '@/components/layout/performance-metrics') return { PerformanceMetrics: () => null }
         if (name === './globals.css') return {}
         throw new Error(`Unexpected root layout import: ${name}`)
       },
     }, { filename: 'app/layout.tsx' })
 
-    return renderToStaticMarkup(React.createElement(module.exports.default, {
-      children: React.createElement('main', null, 'PMS'),
-    }))
+    return renderToStaticMarkup(React.createElement(
+      pageModule.exports.default,
+      null,
+      React.createElement('main', null, 'PMS'),
+    ))
   }
 
   assert.doesNotMatch(renderWithSetting(undefined), /_vercel\/insights\/script\.js/)

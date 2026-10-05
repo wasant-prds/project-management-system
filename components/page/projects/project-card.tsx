@@ -123,11 +123,11 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
   return (
     <>
-      <Card className="card-shadow motion-card hover:border-primary/30">
+      <Card data-spatial="pointer" className="cinematic-pointer card-shadow motion-card hover:border-primary/30">
         <CardHeader>
           <div className="flex items-start justify-between">
             <div className="space-y-1 flex-1">
-              <Link href={`/projects/${project.id}`}>
+              <Link href={`/projects/${project.id}`} data-shared-element="project" data-shared-id={project.id}>
                 <CardTitle className="hover:text-link transition-colors cursor-pointer">
                   {project.name}
                 </CardTitle>
