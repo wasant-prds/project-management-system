@@ -49,6 +49,15 @@ apply_defaults
 expected="$(printf '%s' "\$(touch ${pwned})")"
 [[ "$CF_API_TOKEN" == "$expected" ]] || fail token-literal
 
+(
+  unset DOMAIN
+  if message="$(apply_defaults 2>&1)"; then
+    exit 1
+  fi
+  printf '%s' "$message" | grep -q 'DOMAIN' || exit 1
+  printf '%s' "$message" | grep -q 'ไม่แก้ .env' || exit 1
+) || fail missing-domain
+
 APP_ORIGIN="http://127.0.0.1:3002"
 if origin_message="$(origin_ok 2>&1)"; then
   fail origin-accepted

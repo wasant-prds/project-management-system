@@ -100,6 +100,11 @@ apply_defaults() {
   NGINX_IMAGE="${NGINX_IMAGE:-$DEFAULT_NGINX_IMAGE}"
   CERTBOT_STAGING="${CERTBOT_STAGING:-0}"
   APP_PORT="${APP_PORT:-3000}"
+  if [[ -z "${DOMAIN:-}" ]]; then
+    echo "ต้องตั้ง DOMAIN ใน root .env เป็นชื่อโดเมนตัวพิมพ์เล็ก เช่น pms.example.com" >&2
+    echo "สคริปต์นี้ไม่แก้ .env — ตั้ง DOMAIN, EMAIL, CF_ZONE_ID, CF_API_TOKEN และ APP_ORIGIN=https://<DOMAIN> ก่อนรันใหม่" >&2
+    exit 1
+  fi
   CERT_NAME="$DOMAIN"
   if [[ "$CERTBOT_STAGING" == "1" ]]; then
     CERT_NAME="${DOMAIN}-staging"
