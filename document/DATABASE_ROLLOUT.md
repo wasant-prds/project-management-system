@@ -50,23 +50,13 @@ Manual backup ใช้ PostgreSQL custom archive (`.dump`, pg_dump --no-owner -
 
 Compose migrations เรียก `scripts/sql-runtime.mjs apply` หลังผ่าน manual gate. `scripts/db-push-safe.sh` ไม่ได้อยู่บน startup path. ฐานข้อมูลที่มีข้อมูลต้องมี backup ใหม่และ isolated restore rehearsal ด้วย revision/schema ที่จะ deploy; ตรวจ WorkItem/TimeEntry date values ที่จะถูก cast เป็น PostgreSQL `DATE`, TimeEntry timestamps ที่จะเป็น `TIMESTAMP WITHOUT TIME ZONE`, `TimeEntry.workItem` FK/`ON DELETE RESTRICT`, orphan references และความสอดคล้อง `TimeEntry.projectId = WorkItem.projectId`. ก่อนลด `TimeEntry.date` เป็น calendar date ต้องตรวจว่าค่าเดิมสื่อ Bangkok date ใดและมี time-of-day ที่มีความหมายหรือไม่; ห้ามตัดส่วนเวลาโดยไม่ทำ baseline comparison และยืนยันแผนกับเจ้าของข้อมูล. Timestamp ต้องคง Bangkok local wall-clock โดยไม่แปลง UTC. ฐานข้อมูลใหม่ต้องตรวจว่าไม่มี schema/table หรือข้อมูลที่ต้องเก็บ. บันทึก archive/verification receipt หรือผล empty-database check, schema diff, environment, approver และผลตรวจใน rollout record. การ backup อย่างเดียวหรือ daily backup candidate ไม่นับว่า verified.
 
-หลังตรวจครบ ให้ตั้ง root `.env` ของ environment เป้าหมายดังนี้ โดย `DB_SCHEMA_BACKUP_RESTORE_RECEIPT_PATH` ชี้ไปยัง `.verified.json` ที่สร้างหลัง isolated restore; Compose mount `BACKUP_DIR` แบบ read-only ที่ `/run/pms-rollout-backups`. ถ้าใช้ baseline แบบ empty ให้ตั้ง backup flag เป็น `false` และไม่ต้องกำหนด receipt. คำนวณ release hashes จากค่าจริงของ target ด้วย `node scripts/db-schema-rollout-gate.mjs fingerprint` ซึ่งพิมพ์เฉพาะ hashes และ revision ไม่พิมพ์ credentials:
+หลังตรวจครบ ให้ตั้ง `DB_SCHEMA_SYNC_APPROVED=true` ใน root `.env` ของ environment เป้าหมาย. Compose mount `BACKUP_DIR` แบบ read-only ที่ `/run/pms-rollout-backups`. คำสั่งนี้คำนวณ fingerprint จากไฟล์ปัจจุบันกับ `DATABASE_URL` แล้วเขียน `database/rollout/schema-approval.json` โดยไม่รัน migration และไม่พิมพ์ credentials:
 
-```dotenv
-DB_SCHEMA_BACKUP_RESTORE_VERIFIED=true
-DB_SCHEMA_BACKUP_RESTORE_RECEIPT_PATH=/run/pms-rollout-backups/<archive>.dump.verified.json
-DB_SCHEMA_EMPTY_DATABASE_VERIFIED=false
-DB_SCHEMA_SYNC_APPROVED=true
-DB_SCHEMA_SYNC_APPROVED_ENV=uat
-DB_SCHEMA_SYNC_APPROVED_TARGET_SHA256=<target-sha256-from-fingerprint-command>
-DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256=<sha256-of-reviewed-prisma-schema>
-DB_SCHEMA_SYNC_APPROVED_SQL_SHA256=<sha256-of-database/schema.sql>
-DB_SCHEMA_SYNC_APPROVED_REVISION=31.0.0
-DB_SCHEMA_SYNC_APPROVED_MIGRATIONS_SHA256=<sha256-of-ordered-migration-set>
-DB_SCHEMA_SYNC_APPROVED_RELEASE_SHA256=<release-sha256-from-fingerprint-command>
+```text
+node scripts/db-schema-rollout-gate.mjs approve
 ```
 
-เปิด baseline flag เพียงแบบเดียว: backup+restore สำหรับฐานข้อมูลที่มีข้อมูล หรือ `DB_SCHEMA_EMPTY_DATABASE_VERIFIED=true` หลังตรวจฐานข้อมูลใหม่ว่าง. Backup gate ตรวจ archive bytes/checksum, environment และ isolated-restore receipt ที่อายุไม่เกิน 24 ชั่วโมง. Approval ผูกกับ `APP_ENV`, protocol/host/port/database/user ของ `DATABASE_URL`, Prisma schema hash, SQL revision, ordered versions/scripts/checksums ของ migration ทั้งชุด และ release fingerprint. Password ไม่ถูกรวมใน fingerprint หรือพิมพ์ออกมา. Runtime ยังตรวจ target ว่างจริงก่อน bootstrap. ค่าไม่ตรงหรือ receipt หาย/เก่า/แก้ไขจะหยุดก่อนเขียนฐานข้อมูล. `DB_MANAGE_MODE=seed` ยังต้องผ่าน gate และต้องมี seed approval แยก. `force-seed` และ `reset` ถูกปฏิเสธก่อนเขียนข้อมูล.
+`.env` ไม่ต้องมี SHA-256, revision, seed fingerprint หรือ baseline flag. Service ใช้ `APP_ENV` เป็น environment ที่อนุมัติ. ฐานว่างที่ไม่มี SQL history bootstrap ได้. ฐานที่มี history จะ apply migration ที่ค้างเมื่อ `BACKUP_DIR` มี `.verified.json` ของ isolated restore ที่ site ตรง `APP_ENV`, อายุไม่เกิน 24 ชั่วโมง และ SHA-256 ตรงกับ manifest และ bytes ของ archive. ไฟล์อนุมัติบันทึก `schemaSyncApproved` และ baseline เป็น `backup-restore`, `empty-database` หรือ `unverified`. Password ไม่ถูกรวมใน fingerprint หรือพิมพ์ออกมา. การเขียนไฟล์อนุมัติล้มเหลวไม่หยุด startup. Runtime ยังตรวจ target ว่างจริงก่อน bootstrap และปฏิเสธฐานข้อมูลที่มี table แต่ไม่มี SQL migration history. `DB_MANAGE_MODE=seed` ยังต้องผ่าน schema gate. `RUN_SEED=true` คือการอนุมัติ seed. `force-seed` และ `reset` ถูกปฏิเสธก่อนเขียนข้อมูล.
 
 เก็บ release revision, approved register, backup/receipt/checksum, pre/post validation, approver และ exceptions ใน run record ตาม retention. Pin rollout archive ด้วยไฟล์ชื่อ `<archive>.pin` (เช่น PowerShell `New-Item "$backupFile.pin" -ItemType File`) จนปล่อย retention hold โดยเจ้าของ. `prune` ลบเฉพาะ verified archives หมดอายุของ environment เดียว เก็บ newest verified archive, pinned, corrupt/unverified และไฟล์ environment อื่น. ไม่ prune อัตโนมัติระหว่าง rollout.
 

@@ -148,7 +148,7 @@ Project/Company labels are context from relations, not copied text fields on Wor
 
 ## GitLab Issue mapping ที่ implement ใน #20
 
-`GitLabProjectMapping` ชี้ `Project` ด้วย FK `Restrict`, เก็บ canonical server instance URL, numeric GitLab Project ID, exact approved label map และ nullable `firstSyncApprovedAt`. `ExternalWorkItemReference` เก็บ global identity, Project ID, IID, source URL, remote created/updated timestamps, `lastSyncedAt` และ unique `workItemId`; ไม่มี FK ไป mapping เพื่อให้ unmap รักษาประวัติ. All timestamp columns use `TIMESTAMP(3) WITHOUT TIME ZONE` / Prisma `@db.Timestamp(3)` and Bangkok local wall-clock values; `WorkItem.dueDate` remains PostgreSQL `DATE`. Schema source ยังไม่ได้ apply กับ Dev/UAT/Production; ต้องผ่าน verified backup, isolated restore, reviewed schema SHA-256 และ rollout gates ก่อน deploy.
+`GitLabProjectMapping` ชี้ `Project` ด้วย FK `Restrict`, เก็บ canonical server instance URL, numeric GitLab Project ID, exact approved label map และ nullable `firstSyncApprovedAt`. `ExternalWorkItemReference` เก็บ global identity, Project ID, IID, source URL, remote created/updated timestamps, `lastSyncedAt` และ unique `workItemId`; ไม่มี FK ไป mapping เพื่อให้ unmap รักษาประวัติ. All timestamp columns use `TIMESTAMP(3) WITHOUT TIME ZONE` / Prisma `@db.Timestamp(3)` and Bangkok local wall-clock values; `WorkItem.dueDate` remains PostgreSQL `DATE`. Schema source ยังไม่ได้ apply กับ Dev/UAT/Production; ต้องผ่าน verified backup, isolated restore และ `DB_SCHEMA_SYNC_APPROVED=true` ก่อน deploy. Gate คำนวณ fingerprint เองและบันทึกที่ `database/rollout/schema-approval.json`.
 
 
 ## Runtime security ที่ implement ใน #15

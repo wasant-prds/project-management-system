@@ -3,8 +3,6 @@ import { readFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { PrismaClient } from '@prisma/client';
 import { seedDatabase } from '../../scripts/seed-database.mjs';
-import { schemaSha256 } from '../../scripts/db-schema-rollout-gate.mjs';
-
 const FIXED_CONTAINER_PATH = '/usr/local/bin:/usr/bin:/bin';
 
 // Invoked only against the disposable database created by docker.test.mjs.
@@ -15,10 +13,7 @@ try {
   const config = JSON.parse(await readFile(`${dir}/config.json`, 'utf8'));
   const approvedEnvironment = {
     APP_ENV: 'local',
-    DB_SCHEMA_BACKUP_RESTORE_VERIFIED: 'true',
     DB_SCHEMA_SYNC_APPROVED: 'true',
-    DB_SCHEMA_SYNC_APPROVED_ENV: 'local',
-    DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256: schemaSha256('/app/prisma/schema.prisma'),
   };
   const migrationOutput = execFileSync('/bin/sh', ['/usr/local/bin/docker-entrypoint-migrate.sh'], {
     encoding: 'utf8', stdio: 'pipe', timeout: 60000,

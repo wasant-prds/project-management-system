@@ -2,11 +2,25 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import test from 'node:test';
-import { resolve } from 'node:path';
-import { databaseTargetFingerprint, loadSqlContract, releaseFingerprint, schemaSha256, schemaRolloutGateError, verifySchemaRolloutApproval } from '../../scripts/db-schema-rollout-gate.mjs';
+import {
+  buildSchemaApproval,
+  databaseTargetFingerprint,
+  loadSqlContract,
+  releaseFingerprint,
+  pendingUpgradeReceiptError,
+  recordSchemaApproval,
+  resolveAutoBaseline,
+  schemaSha256,
+  schemaRolloutGateError,
+  seedRolloutGateError,
+  verifySchemaRolloutApproval,
+  writeSchemaApproval,
+} from '../../scripts/db-schema-rollout-gate.mjs';
 import { sha256 } from '../../scripts/sql-artifacts.mjs';
+import { APPLIED_SQL, EMPTY_TABLE_SQL, HISTORY_EXISTS_SQL } from '../../scripts/sql-migrate.mjs';
+import { applyApprovedSchema } from '../../scripts/sql-runtime.mjs';
 
 const schemaPath = resolve('prisma/schema.prisma');
 const schemaHash = schemaSha256(schemaPath);
@@ -16,57 +30,35 @@ const targetHash = databaseTargetFingerprint(databaseUrl, 'uat');
 const approvedEnv = {
   APP_ENV: 'uat',
   DATABASE_URL: databaseUrl,
-  DB_SCHEMA_BACKUP_RESTORE_VERIFIED: 'false',
-  DB_SCHEMA_EMPTY_DATABASE_VERIFIED: 'true',
   DB_SCHEMA_SYNC_APPROVED: 'true',
-  DB_SCHEMA_SYNC_APPROVED_ENV: 'uat',
-  DB_SCHEMA_SYNC_APPROVED_TARGET_SHA256: targetHash,
-  DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256: schemaHash,
-  DB_SCHEMA_SYNC_APPROVED_SQL_SHA256: contract.sqlChecksum,
-  DB_SCHEMA_SYNC_APPROVED_REVISION: contract.revision,
-  DB_SCHEMA_SYNC_APPROVED_MIGRATIONS_SHA256: contract.migrationSetSha256,
-  DB_SCHEMA_SYNC_APPROVED_RELEASE_SHA256: releaseFingerprint(contract.revision, contract.sqlChecksum, schemaHash, contract, targetHash),
+  BACKUP_DIR: resolve('database/rollout/missing-backup-dir'),
 };
 
-test('schema rollout gate requires backup/restore verification and explicit approval', () => {
-  assert.match(schemaRolloutGateError({ ...approvedEnv, DB_SCHEMA_EMPTY_DATABASE_VERIFIED: 'false' }, schemaHash, contract), /exactly one target baseline/);
-  assert.match(schemaRolloutGateError({
-    ...approvedEnv,
-    DB_SCHEMA_BACKUP_RESTORE_VERIFIED: 'true',
-    DB_SCHEMA_EMPTY_DATABASE_VERIFIED: 'false',
-  }, schemaHash, contract), /isolated-restore receipt/);
+test('schema rollout gate requires explicit approval and a valid target', () => {
   assert.match(schemaRolloutGateError({ ...approvedEnv, DB_SCHEMA_SYNC_APPROVED: 'false' }, schemaHash, contract), /explicitly approved/);
+  assert.match(schemaRolloutGateError({ ...approvedEnv, APP_ENV: 'staging' }, schemaHash, contract), /APP_ENV local, dev, uat, or prod/);
+  assert.equal(schemaRolloutGateError({ ...approvedEnv, DATABASE_URL: undefined }, schemaHash, contract)?.includes('valid DATABASE_URL'), true);
+  assert.equal(schemaRolloutGateError(approvedEnv, schemaHash, contract), null);
 });
 
-test('schema rollout gate binds approval to the selected environment and exact Prisma schema', () => {
-  assert.match(schemaRolloutGateError({ ...approvedEnv, APP_ENV: 'prod' }, schemaHash, contract), /does not match the selected APP_ENV/);
-  assert.match(schemaRolloutGateError({ ...approvedEnv, DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256: 'a'.repeat(64) }, schemaHash, contract), /does not match the current Prisma schema/);
-  assert.match(schemaRolloutGateError({ ...approvedEnv, DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256: 'invalid' }, schemaHash, contract), /does not match the current Prisma schema/);
-  assert.match(schemaRolloutGateError({
-    ...approvedEnv,
-    DATABASE_URL: 'postgresql://reviewer:other@different.internal:5432/uat_db?schema=public',
-  }, schemaHash, contract), /does not match the selected database target/);
-  assert.match(schemaRolloutGateError({
-    ...approvedEnv,
-    DATABASE_URL: 'postgresql://another-user:synthetic@db.internal:5432/uat_db',
-  }, schemaHash, contract), /does not match the selected database target/);
-  assert.equal(schemaRolloutGateError(approvedEnv, schemaHash, contract), null);
-  const localTargetHash = databaseTargetFingerprint(databaseUrl, 'local');
+test('schema rollout gate computes the current release instead of reading SHA-256 settings', () => {
   assert.equal(schemaRolloutGateError({
     ...approvedEnv,
-    APP_ENV: 'local',
-    DB_SCHEMA_SYNC_APPROVED_ENV: 'local',
-    DB_SCHEMA_SYNC_APPROVED_TARGET_SHA256: localTargetHash,
-    DB_SCHEMA_SYNC_APPROVED_RELEASE_SHA256: releaseFingerprint(contract.revision, contract.sqlChecksum, schemaHash, contract, localTargetHash),
+    DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256: 'a'.repeat(64),
+    DB_SCHEMA_SYNC_APPROVED_TARGET_SHA256: 'b'.repeat(64),
+    DB_SCHEMA_SYNC_APPROVED_RELEASE_SHA256: 'c'.repeat(64),
   }, schemaHash, contract), null);
-  assert.equal(schemaRolloutGateError({
-    ...approvedEnv,
-    DATABASE_URL: undefined,
-  }, schemaHash, contract)?.includes('valid DATABASE_URL'), true);
+  assert.equal(schemaRolloutGateError({ ...approvedEnv, APP_ENV: 'prod', DATABASE_URL: databaseUrl }, schemaHash, contract), null);
+  const localTargetHash = databaseTargetFingerprint(databaseUrl, 'local');
+  const localRecord = buildSchemaApproval({ ...approvedEnv, APP_ENV: 'local' }, schemaHash, contract, { baseline: 'empty-database', receiptPath: null }, '2026-10-06T09:00:00+07:00');
+  assert.equal(localRecord.targetSha256, localTargetHash);
+  assert.equal(localRecord.releaseSha256, releaseFingerprint(contract.revision, contract.sqlChecksum, schemaHash, contract, localTargetHash));
+  assert.equal(localRecord.recordedAt, '2026-10-06T09:00:00+07:00');
+  assert.equal(JSON.stringify(localRecord).includes('synthetic'), false);
   assert.equal(verifySchemaRolloutApproval(schemaPath, approvedEnv), null);
 });
 
-test('schema rollout approval is bound to every ordered migration artifact', () => {
+test('schema rollout approval rejects an inconsistent migration set', () => {
   const laterMigration = {
     ...contract,
     migrations: [...contract.migrations, { version: '0002', script: 'database/migrations/0002_review.sql', checksum: 'a'.repeat(64) }],
@@ -75,7 +67,7 @@ test('schema rollout approval is bound to every ordered migration artifact', () 
   assert.match(schemaRolloutGateError(approvedEnv, schemaHash, laterMigration), /ordered SQL migration set/);
 });
 
-test('SQL contract fingerprint changes when a later migration is added at the same revision', async () => {
+test('current SQL artifacts are accepted after a migration is added', async () => {
   const root = await mkdtemp(join(tmpdir(), 'pms-sql-contract-'));
   try {
     await mkdir(join(root, 'database', 'migrations'), { recursive: true });
@@ -94,49 +86,71 @@ test('SQL contract fingerprint changes when a later migration is added at the sa
     const extended = loadSqlContract(root);
     assert.equal(extended.revision, initial.revision);
     assert.notEqual(extended.migrationSetSha256, initial.migrationSetSha256);
-    assert.match(schemaRolloutGateError({
-      ...approvedEnv,
-      DB_SCHEMA_SYNC_APPROVED_MIGRATIONS_SHA256: initial.migrationSetSha256,
-    }, schemaHash, extended), /ordered SQL migration set/);
+    assert.equal(schemaRolloutGateError(approvedEnv, schemaHash, extended), null);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
-test('backup baseline requires a fresh, matching isolated-restore receipt', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'pms-backup-receipt-'));
-  const archivePath = join(root, 'backup.dump');
+async function writeVerifiedArchive(directory, bytes, { site = 'uat', digest = createHash('sha256').update(bytes).digest('hex') } = {}) {
+  const archivePath = join(directory, 'backup.dump');
+  await writeFile(archivePath, bytes);
+  await writeFile(`${archivePath}.json`, JSON.stringify({ version: 1, site, sha256: digest, bytes: bytes.length }));
   const receiptPath = `${archivePath}.verified.json`;
+  await writeFile(receiptPath, JSON.stringify({
+    version: 1, site, sha256: digest, result: 'isolated-restore-passed', verifiedAt: new Date().toISOString(),
+  }));
+  return receiptPath;
+}
+
+test('baseline requires a receipt whose archive bytes and checksum match', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'pms-backup-receipt-'));
+  const env = { ...approvedEnv, BACKUP_DIR: root };
   const bytes = Buffer.from('synthetic isolated archive');
-  const digest = createHash('sha256').update(bytes).digest('hex');
-  const current = {
-    ...approvedEnv,
-    DB_SCHEMA_BACKUP_RESTORE_VERIFIED: 'true',
-    DB_SCHEMA_EMPTY_DATABASE_VERIFIED: 'false',
-    DB_SCHEMA_BACKUP_RESTORE_RECEIPT_PATH: receiptPath,
-  };
   try {
-    await writeFile(archivePath, bytes);
-    await writeFile(`${archivePath}.json`, JSON.stringify({ version: 1, site: 'uat', sha256: digest, bytes: bytes.length }));
-    await writeFile(receiptPath, JSON.stringify({ version: 1, site: 'uat', sha256: digest, result: 'isolated-restore-passed', verifiedAt: new Date().toISOString() }));
-    assert.equal(schemaRolloutGateError(current, schemaHash, contract), null);
-    await writeFile(receiptPath, JSON.stringify({ version: 1, site: 'dev', sha256: digest, result: 'isolated-restore-passed', verifiedAt: new Date().toISOString() }));
-    assert.match(schemaRolloutGateError(current, schemaHash, contract), /stale or does not match/);
+    assert.equal(resolveAutoBaseline(env).baseline, 'unverified');
+    assert.match(pendingUpgradeReceiptError(env), /fresh isolated-restore receipt/);
+    const receiptPath = await writeVerifiedArchive(root, bytes);
+    const selected = resolveAutoBaseline(env);
+    assert.equal(selected.baseline, 'backup-restore');
+    assert.equal(selected.receiptPath, receiptPath);
+    assert.equal(pendingUpgradeReceiptError(env), null);
+    await writeFile(join(root, 'backup.dump'), Buffer.from('tampered archive bytes'));
+    assert.equal(resolveAutoBaseline(env).receiptStatus, 'mismatch');
+    assert.match(pendingUpgradeReceiptError(env), /stale or does not match/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
-test('schema rollout gate entrypoint rejects default configuration and accepts a verified approval', () => {
+test('approval record is written outside .env and omits the database password', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'pms-schema-approval-'));
+  const filePath = join(root, 'schema-approval.json');
+  try {
+    const record = buildSchemaApproval(approvedEnv, schemaHash, contract, { baseline: 'empty-database', receiptPath: null }, '2026-10-06T09:05:00+07:00');
+    writeSchemaApproval(record, filePath);
+    const stored = JSON.parse(await readFile(filePath, 'utf8'));
+    assert.equal(stored.targetSha256, targetHash);
+    assert.equal(stored.schemaSha256, schemaHash);
+    assert.equal(stored.appEnv, 'uat');
+    assert.equal(stored.baseline, 'empty-database');
+    assert.equal(stored.schemaSyncApproved, true);
+    assert.equal(JSON.stringify(stored).includes('synthetic'), false);
+    const blocked = recordSchemaApproval(stored, join(filePath, 'nested.json'));
+    assert.equal(blocked, false);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('schema rollout gate entrypoint rejects an unapproved environment', () => {
   const blocked = verifySchemaRolloutApproval(schemaPath, {
     APP_ENV: 'uat',
-    DB_SCHEMA_BACKUP_RESTORE_VERIFIED: 'false',
-    DB_SCHEMA_EMPTY_DATABASE_VERIFIED: 'false',
+    DATABASE_URL: databaseUrl,
     DB_SCHEMA_SYNC_APPROVED: 'false',
-    DB_SCHEMA_SYNC_APPROVED_ENV: '',
-    DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256: '',
+    BACKUP_DIR: approvedEnv.BACKUP_DIR,
   }, resolve('.'));
-  assert.match(blocked, /exactly one target baseline is verified/);
+  assert.match(blocked, /explicitly approved/);
   assert.equal(verifySchemaRolloutApproval(schemaPath, approvedEnv), null);
 });
 
@@ -150,5 +164,60 @@ test('schema rollout approval defaults to the process environment and repository
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
     }
+  }
+});
+
+test('seed runs when RUN_SEED is true and does not require a fingerprint setting', () => {
+  assert.match(seedRolloutGateError({ RUN_SEED: 'false' }), /RUN_SEED=true/);
+  assert.equal(seedRolloutGateError({ RUN_SEED: 'true' }), null);
+});
+
+function runtimeQuery({ history, tables = '0', applied = '' }) {
+  const calls = [];
+  const query = (sql) => {
+    calls.push(sql);
+    if (sql === HISTORY_EXISTS_SQL) return history;
+    if (sql === EMPTY_TABLE_SQL) return tables;
+    if (sql === APPLIED_SQL) return applied;
+    return '';
+  };
+  return { query, calls };
+}
+
+test('pending upgrades require a verified receipt and an empty database can bootstrap', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'pms-upgrade-receipt-'));
+  const approvalPath = join(root, 'schema-approval.json');
+  const env = { ...approvedEnv, BACKUP_DIR: root, PMS_SQL_RUNTIME_APPLY: '1' };
+  const applied = contract.migrations.map((migration) => `${migration.version} ${migration.checksum}`).join('\n');
+  try {
+    const empty = runtimeQuery({ history: 'f' });
+    const bootstrapped = applyApprovedSchema({ env, query: empty.query, targetLabel: 'uat', approvalPath });
+    assert.equal(bootstrapped.action, 'empty-bootstrap');
+    assert.equal(JSON.parse(await readFile(approvalPath, 'utf8')).baseline, 'empty-database');
+
+    const current = runtimeQuery({ history: 't', applied });
+    const unchanged = applyApprovedSchema({ env, query: current.query, targetLabel: 'uat', approvalPath });
+    assert.deepEqual(unchanged.applied, []);
+    assert.equal(JSON.parse(await readFile(approvalPath, 'utf8')).baseline, 'unverified');
+
+    const pending = runtimeQuery({ history: 't', applied: '' });
+    assert.throws(() => applyApprovedSchema({ env, query: pending.query, targetLabel: 'uat', approvalPath }), /fresh isolated-restore receipt/);
+    assert.equal(pending.calls.includes(APPLIED_SQL), true);
+    assert.equal(pending.calls.some((sql) => sql.startsWith('BEGIN')), false);
+
+    await writeVerifiedArchive(root, Buffer.from('verified archive'));
+    await writeFile(join(root, 'backup.dump'), Buffer.from('tampered archive bytes'));
+    const tampered = runtimeQuery({ history: 't', applied: '' });
+    assert.throws(() => applyApprovedSchema({ env, query: tampered.query, targetLabel: 'uat', approvalPath }), /stale or does not match/);
+    assert.equal(tampered.calls.some((sql) => sql.startsWith('BEGIN')), false);
+
+    await writeVerifiedArchive(root, Buffer.from('verified archive'));
+    const ready = runtimeQuery({ history: 't', applied: '' });
+    const upgraded = applyApprovedSchema({ env, query: ready.query, targetLabel: 'uat', approvalPath });
+    assert.equal(upgraded.action, 'upgrade');
+    assert.equal(upgraded.applied.length > 0, true);
+    assert.equal(JSON.parse(await readFile(approvalPath, 'utf8')).baseline, 'backup-restore');
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });

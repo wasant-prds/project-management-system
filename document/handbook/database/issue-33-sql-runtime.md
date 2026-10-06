@@ -1,6 +1,6 @@
 # SQL runtime, public UUIDs, existing-data conversion and recovery — Issue #33
 
-ตรวจ implementation ล่าสุด: 2026-10-05. วันและ timestamp ของระบบใช้ `Asia/Bangkok`; timestamp ที่บันทึกเป็น Bangkok local wall-clock และไม่แปลงเป็น UTC.
+ตรวจ implementation ล่าสุด: 2026-10-06. วันและ timestamp ของระบบใช้ `Asia/Bangkok`; timestamp ที่บันทึกเป็น Bangkok local wall-clock และไม่แปลงเป็น UTC.
 
 ## ขอบเขตและสถานะ
 
@@ -34,26 +34,24 @@ Migration ใช้ transaction/advisory lock และ `Asia/Bangkok`; target �
 
 ## Schema rollout gate
 
-ต้องยืนยัน baseline **เพียงแบบเดียว**: `DB_SCHEMA_EMPTY_DATABASE_VERIFIED=true` สำหรับฐานใหม่ที่ตรวจแล้วว่าง หรือ `DB_SCHEMA_BACKUP_RESTORE_VERIFIED=true` พร้อม receipt ของ isolated restore สำหรับฐานที่มีข้อมูล. Backup mode ต้องใช้ `.verified.json` ที่คู่กับ archive และ manifest; gate ตรวจ environment, archive bytes/SHA-256, result `isolated-restore-passed` และเวลาไม่เกิน 24 ชั่วโมง.
+เปิด schema sync ด้วย `DB_SCHEMA_SYNC_APPROVED=true` เท่านั้น. `APP_ENV` ต้องเป็น `local`, `dev`, `uat` หรือ `prod` และเป็น environment ที่อนุมัติ. Gate คำนวณ fingerprint จาก `prisma/schema.prisma`, SQL contract และ `DATABASE_URL` แล้วผ่านเมื่อคำนวณได้. ค่าเหล่านี้ไม่ถูกอ่านจาก `.env`.
 
-Approval ต้องตรงกับ environment และ release ปัจจุบัน:
-
-| Variable | ตรวจอะไร |
+| ค่าที่คำนวณ | ความหมาย |
 | --- | --- |
-| `DB_SCHEMA_SYNC_APPROVED` | เปิด approval อย่างชัดเจน |
-| `DB_SCHEMA_SYNC_APPROVED_ENV` | ต้องเท่ากับ `APP_ENV` (`local`, `dev`, `uat` หรือ `prod`) |
-| `DB_SCHEMA_SYNC_APPROVED_TARGET_SHA256` | fingerprint ของ protocol/host/port/database/user/APP_ENV ของ `DATABASE_URL`; ไม่รวม password |
-| `DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256` | SHA-256 ของ `prisma/schema.prisma` ที่ runtime ใช้ |
-| `DB_SCHEMA_SYNC_APPROVED_SQL_SHA256` | checksum ของ SQL baseline |
-| `DB_SCHEMA_SYNC_APPROVED_REVISION` | revision ใน migration contract |
-| `DB_SCHEMA_SYNC_APPROVED_MIGRATIONS_SHA256` | ordered version/script/checksum ของ migration ทั้งชุด |
-| `DB_SCHEMA_SYNC_APPROVED_RELEASE_SHA256` | fingerprint รวม revision, SQL checksum, Prisma schema hash, migration list และ target hash |
+| target | fingerprint ของ protocol/host/port/database/user/`APP_ENV`; ไม่รวม password |
+| schema | SHA-256 ของ `prisma/schema.prisma` |
+| SQL checksum | checksum ของ SQL baseline |
+| revision | revision ใน migration contract |
+| migrations | ordered version/script/checksum ของ migration ทั้งชุด |
+| release | fingerprint รวม revision, SQL checksum, Prisma schema hash, migration list และ target hash |
 
-คำนวณ fingerprint โดยให้ `APP_ENV` และ `DATABASE_URL` ของ target อยู่ใน process environment ที่ได้รับอนุญาต แล้วรัน `node scripts/db-schema-rollout-gate.mjs fingerprint`. คำสั่งพิมพ์เฉพาะ hashes/revision ไม่แสดง credentials และไม่เชื่อมต่อ database. เปลี่ยน database, schema, SQL หรือ migration ชุดใด approval เดิมใช้ไม่ได้. Backup receipt ที่ตรวจผ่านไม่ได้แปลว่าอนุมัติ seed.
+ฐานข้อมูลว่างที่ไม่มี SQL history bootstrap ได้เมื่อ `DB_SCHEMA_SYNC_APPROVED=true`. ฐานข้อมูลที่มี history และมี migration ค้างจะ apply ได้เมื่อ `BACKUP_DIR` มี receipt ที่ตรวจครบ. ใน container path นี้คือ `/run/pms-rollout-backups`. Receipt ต้องเป็น `.verified.json` ที่ `result` เป็น `isolated-restore-passed`, site ตรง `APP_ENV`, `verifiedAt` ภายใน 24 ชั่วโมง และ SHA-256 ตรงกับ manifest และ bytes ของ archive. ไฟล์บันทึกใช้ `backup-restore` เมื่อ receipt ผ่าน, `empty-database` หลัง bootstrap ฐานว่าง และ `unverified` เมื่อยังไม่ยืนยัน receipt. ถ้าเขียนไฟล์บันทึกไม่ได้ startup ยังทำงานต่อ.
+
+คำสั่ง `node scripts/db-schema-rollout-gate.mjs approve` หรือ `fingerprint` เขียน `database/rollout/schema-approval.json` และพิมพ์ record เดียวกัน. คำสั่งไม่เชื่อมต่อ database และไม่แสดง credentials. ไฟล์นี้ถูก gitignore. `RUN_SEED=true` คนละเรื่องกับ schema approval.
 
 ## Seed gate
 
-`RUN_SEED` default คือ `false`; startup ปกติจึงไม่ replay SQL snapshot. เมื่อเปิด seed ต้องมี `DB_SEED_APPROVED=true`, `DB_SEED_APPROVED_ENV` ตรง `APP_ENV` และ `DB_SEED_APPROVED_FINGERPRINT` ตรง dataset ปัจจุบัน. Seed gate แยกจาก schema gate. `DB_MANAGE_MODE=seed` เป็น seed-only path ที่ยังตรวจ schema approval ก่อน; `reset` และ `force-seed` ถูกปฏิเสธก่อนเขียน.
+`RUN_SEED` default คือ `false`; startup ปกติจึงไม่ replay SQL snapshot. เมื่อเป็น `true` seed ทำงานโดยไม่ต้องวาง fingerprint ใน `.env`. `DB_MANAGE_MODE=seed` ยังตรวจ schema approval ก่อน; `reset` และ `force-seed` ถูกปฏิเสธก่อนเขียน.
 
 ## Existing-data conversion และ rehearsal
 
@@ -61,7 +59,7 @@ Approval ต้องตรงกับ environment และ release ปัจ�
 
 รองรับ schema family legacy และ newer legacy ที่มี Company fields/theme/locale/GitLab mappings. Replacement target ต้องมี schema/migrations ครบตาม revision ที่ตรวจแล้วและ business tables ว่าง. Target ต้องต่างจาก active `DATABASE_URL` และ application container. Converter ไม่ cast CUID เป็นตัวเลข.
 
-ก่อนใช้ converter ต้องผ่าน guards ของ `APP_ENV`, explicit `PMS_LIVE_UPGRADE_APPROVED=true`, target SHA-256 และ source archive SHA-256 ที่อนุมัติ, source write freeze, final delta reconciliation และ owner mapping review. `OWNER_USER_ID` resolve User ด้วย UUID หรือ legacy source mapping; numeric key ไม่รับ. Company assignment ที่ source ไม่มีต้องกำหนดด้วย reviewed policy; ห้ามเดา Company จาก seed snapshot.
+ก่อนใช้ converter ต้องผ่าน guards ของ `APP_ENV`, explicit `PMS_LIVE_UPGRADE_APPROVED=true`, source write freeze, final delta reconciliation และ owner mapping review. Target fingerprint และ source archive checksum ถูกคำนวณจาก `--target` กับ archive ที่ตรวจแล้ว โดยไม่รับค่า SHA-256 จาก environment. ก่อนโหลด source ระบบพิมพ์ fingerprint ทั้งสองค่า และไม่พิมพ์ credential. `OWNER_USER_ID` resolve User ด้วย UUID หรือ legacy source mapping; numeric key ไม่รับ. Company assignment ที่ source ไม่มีต้องกำหนดด้วย reviewed policy; ห้ามเดา Company จาก seed snapshot.
 
 ตัวอย่าง policy ใช้เฉพาะ source IDs ที่ผ่านการตรวจ; map Project legacy ID ไปยัง Company legacy ID:
 

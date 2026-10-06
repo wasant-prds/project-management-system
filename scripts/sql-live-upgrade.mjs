@@ -425,8 +425,7 @@ function assertLiveUpgradeApproval(env, target, sourceChecksum) {
   } catch {
     throw new Error('Live upgrade target is invalid');
   }
-  if (env.PMS_LIVE_UPGRADE_APPROVED_TARGET_SHA256 !== targetHash) throw new Error('Live upgrade approval does not match the replacement target');
-  if (env.PMS_LIVE_UPGRADE_APPROVED_SOURCE_SHA256 !== sourceChecksum) throw new Error('Live upgrade approval does not match the verified source archive');
+  if (!/^[a-f0-9]{64}$/.test(sourceChecksum ?? '')) throw new Error('Live upgrade source archive checksum is invalid');
   return targetHash;
 }
 
@@ -689,6 +688,10 @@ export async function runLiveUpgrade({ sourceArchivePath, target, mappingPath, p
   const backup = await assertFreshSourceBackup(sourceArchivePath, env.APP_ENV);
   assertLiveUpgradeApproval(env, target, backup.checksum);
   assertTargetAllowed(target, env);
+  console.log(JSON.stringify({
+    targetSha256: databaseTargetFingerprint(target, env.APP_ENV),
+    sourceSha256: backup.checksum,
+  }));
   const snapshot = await restoreSourceArchive(sourceArchivePath, { site: env.APP_ENV, spawn });
   const targetQuery = query ?? createQuery(target, spawn, env);
   return applyLiveSnapshot({

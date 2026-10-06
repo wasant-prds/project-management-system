@@ -6,7 +6,6 @@ import { join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import test from 'node:test'
 import { backup, docker, sql } from '../../scripts/db-rollout.mjs'
-import { databaseTargetFingerprint } from '../../scripts/db-schema-rollout-gate.mjs'
 import { exportPostCutoverWrites, readLiveMappings, rollbackPlan, runLiveUpgrade } from '../../scripts/sql-live-upgrade.mjs'
 import { createRuntimeQuery } from '../../scripts/sql-runtime.mjs'
 
@@ -81,8 +80,6 @@ test('TC-33-LIVE-PG: verified legacy snapshot converts to isolated PostgreSQL 16
       DATABASE_URL: 'postgresql://reviewer:synthetic@source.invalid:5432/legacy',
       OWNER_USER_ID: 'owner-cuid',
       PMS_LIVE_UPGRADE_APPROVED: 'true',
-      PMS_LIVE_UPGRADE_APPROVED_SOURCE_SHA256: archiveManifest.sha256,
-      PMS_LIVE_UPGRADE_APPROVED_TARGET_SHA256: databaseTargetFingerprint(targetUrl, 'uat'),
       PMS_LIVE_UPGRADE_SOURCE_FROZEN: 'true',
       PMS_LIVE_UPGRADE_DELTA_RECONCILED: 'true',
       PMS_LIVE_UPGRADE_OWNER_MAPPING_VERIFIED: 'true',

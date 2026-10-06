@@ -2,7 +2,17 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { seedRolloutGateError, verifySchemaRolloutApproval } from './db-schema-rollout-gate.mjs';
+import {
+  buildSchemaApproval,
+  loadSqlContract,
+  recordSchemaApproval,
+  resolveAutoBaseline,
+  upgradeReceiptError,
+  schemaApprovalPath,
+  schemaSha256,
+  seedRolloutGateError,
+  verifySchemaRolloutApproval,
+} from './db-schema-rollout-gate.mjs';
 import { loadArtifacts } from './sql-artifacts.mjs';
 import {
   EMPTY_TABLE_SQL,
@@ -63,7 +73,18 @@ export function createRuntimeQuery(databaseUrl, env, spawn = spawnSync) {
   return (sqlText) => runPsql(spawn, connection, sqlText, childEnv, password);
 }
 
-export function applyApprovedSchema({ env, query, root = resolve('.'), targetLabel }) {
+function rememberBaseline(env, root, baseline, approvalPath) {
+  try {
+    const schemaHash = schemaSha256(resolve(root, 'prisma/schema.prisma'));
+    const contract = loadSqlContract(root);
+    const record = buildSchemaApproval(env, schemaHash, contract, baseline);
+    recordSchemaApproval(record, approvalPath ?? schemaApprovalPath(root));
+  } catch {
+    console.error('Schema approval record was not written; schema sync will continue.');
+  }
+}
+
+export function applyApprovedSchema({ env, query, root = resolve('.'), targetLabel, approvalPath }) {
   assertRuntimeApplyEnabled(env);
   const gateError = verifySchemaRolloutApproval(resolve(root, 'prisma/schema.prisma'), env, root);
   if (gateError) throw new Error(gateError);
@@ -77,9 +98,16 @@ export function applyApprovedSchema({ env, query, root = resolve('.'), targetLab
     const count = query(EMPTY_TABLE_SQL);
     if (count !== '0') throw new Error('Bootstrap target is not empty');
     query(buildBootstrapScript(loaded, targetLabel));
+    rememberBaseline(env, root, { baseline: 'empty-database', receiptPath: null }, approvalPath);
     return { action, applied: [loaded.migrations[0].version], skipped: [] };
   }
   const state = readMigrationState(loaded, query);
+  const verified = state.pending.length > 0 ? resolveAutoBaseline(env) : { baseline: 'unverified', receiptPath: null };
+  if (state.pending.length > 0) {
+    const receiptError = upgradeReceiptError(verified);
+    if (receiptError) throw new Error(receiptError);
+  }
+  rememberBaseline(env, root, verified, approvalPath);
   for (const migration of state.pending) query(buildUpgradeScript(loaded, migration, targetLabel));
   return { action, applied: state.pending.map((item) => item.version), skipped: [...state.applied.keys()] };
 }
@@ -93,8 +121,8 @@ export function readSeedFingerprint(seedDir) {
 export async function applyApprovedSeed({ env, query, seedDir, targetLabel, root, databaseUrl }) {
   assertRuntimeApplyEnabled(env);
   if (env.RUN_SEED !== 'true') return { seeded: false };
-  const fingerprint = readSeedFingerprint(seedDir);
-  const seedError = seedRolloutGateError(env, fingerprint);
+  readSeedFingerprint(seedDir);
+  const seedError = seedRolloutGateError(env);
   if (seedError) throw new Error(seedError);
   const result = await executeSqlSeed({
     seedDir,

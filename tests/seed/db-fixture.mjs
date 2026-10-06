@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PrismaClient } from '@prisma/client';
 import { seedDatabase } from '../../scripts/seed-database.mjs';
-import { schemaSha256 } from '../../scripts/db-schema-rollout-gate.mjs';
 const FIXED_CONTAINER_PATH = '/usr/local/bin:/usr/bin:/bin';
 const prisma = new PrismaClient({ log: [] });
 const folder = await mkdtemp(join(tmpdir(), 'seed-db-fixture-'));
@@ -17,11 +16,7 @@ try {
     PATH: FIXED_CONTAINER_PATH,
     DATABASE_URL: databaseUrl,
     APP_ENV: 'local',
-    DB_SCHEMA_BACKUP_RESTORE_VERIFIED: 'true',
-    DB_SCHEMA_EMPTY_DATABASE_VERIFIED: 'false',
     DB_SCHEMA_SYNC_APPROVED: 'true',
-    DB_SCHEMA_SYNC_APPROVED_ENV: 'local',
-    DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256: schemaSha256(),
     TZ: 'Asia/Bangkok',
     PGTZ: 'Asia/Bangkok',
   };

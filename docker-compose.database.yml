@@ -1,5 +1,5 @@
 # Shared postgres + migrations. Included by the env compose files.
-# SEED_PATH is relative to /app. Default is the SQL master pack, applied only when RUN_SEED=true and the seed fingerprint is approved.
+# SEED_PATH is relative to /app. Default is the SQL master pack, applied only when RUN_SEED=true.
 #
 # Sized for a Basic VPS (1 vCPU / 2 GB RAM / 50 GB disk) running two
 # projects at once. This stack budgets ~0.5 CPU and ~768 MB so the
@@ -87,20 +87,8 @@ services:
       SEED_PATH: ${SEED_PATH:-database/seeds/sql-master}
       SEEDS_ROOT: /app
       RUN_SEED: ${RUN_SEED:-false}
-      DB_SCHEMA_BACKUP_RESTORE_VERIFIED: ${DB_SCHEMA_BACKUP_RESTORE_VERIFIED:-false}
-      DB_SCHEMA_BACKUP_RESTORE_RECEIPT_PATH: ${DB_SCHEMA_BACKUP_RESTORE_RECEIPT_PATH:-}
-      DB_SCHEMA_EMPTY_DATABASE_VERIFIED: ${DB_SCHEMA_EMPTY_DATABASE_VERIFIED:-false}
       DB_SCHEMA_SYNC_APPROVED: ${DB_SCHEMA_SYNC_APPROVED:-false}
-      DB_SCHEMA_SYNC_APPROVED_ENV: ${DB_SCHEMA_SYNC_APPROVED_ENV:-}
-      DB_SCHEMA_SYNC_APPROVED_TARGET_SHA256: ${DB_SCHEMA_SYNC_APPROVED_TARGET_SHA256:-}
-      DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256: ${DB_SCHEMA_SYNC_APPROVED_SCHEMA_SHA256:-}
-      DB_SCHEMA_SYNC_APPROVED_SQL_SHA256: ${DB_SCHEMA_SYNC_APPROVED_SQL_SHA256:-}
-      DB_SCHEMA_SYNC_APPROVED_REVISION: ${DB_SCHEMA_SYNC_APPROVED_REVISION:-}
-      DB_SCHEMA_SYNC_APPROVED_MIGRATIONS_SHA256: ${DB_SCHEMA_SYNC_APPROVED_MIGRATIONS_SHA256:-}
-      DB_SCHEMA_SYNC_APPROVED_RELEASE_SHA256: ${DB_SCHEMA_SYNC_APPROVED_RELEASE_SHA256:-}
-      DB_SEED_APPROVED: ${DB_SEED_APPROVED:-false}
-      DB_SEED_APPROVED_ENV: ${DB_SEED_APPROVED_ENV:-}
-      DB_SEED_APPROVED_FINGERPRINT: ${DB_SEED_APPROVED_FINGERPRINT:-}
+      BACKUP_DIR: /run/pms-rollout-backups
       MIGRATION_MAX_ATTEMPTS: ${MIGRATION_MAX_ATTEMPTS:-3}
       NODE_OPTIONS: --max-old-space-size=192
     volumes:
@@ -109,6 +97,7 @@ services:
       - ./database/migrations:/app/database/migrations:ro
       - ./database/seeds:/app/database/seeds:ro
       - ./scripts:/app/scripts:ro
+      - ./database/rollout:/app/database/rollout
       - ${BACKUP_DIR:-./database/backups/postgres_data}:/run/pms-rollout-backups:ro
 
   app:

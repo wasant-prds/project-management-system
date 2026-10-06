@@ -112,7 +112,7 @@ pnpm test:schema-rollout-gate
 node tests/run.mjs schema-rollout-gate
 ```
 
-This focused suite executes the actual TypeScript Route Handler/parser code in an in-memory Prisma fixture. It does not connect to or migrate a database. Schema validation uses `pnpm exec prisma validate`; applying the WorkItem `DATE`/`TIMESTAMP` and relation constraints to an environment still requires that environment's verified backup and rollout checks.
+This focused suite checks the schema rollout gate without connecting to PostgreSQL. Schema validation uses `pnpm exec prisma validate`. Applying schema changes still requires `DB_SCHEMA_SYNC_APPROVED=true`. The gate computes fingerprints and can record them in `database/rollout/schema-approval.json`.
 
 Run the local quality gates used before review:
 
