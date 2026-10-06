@@ -154,6 +154,10 @@ Issue #20 implements owner-triggered GitLab → PMS only, explicit GitLab Projec
 
 สถานะเพิ่มเติม ณ 2026-09-28: มี private owner access gate หน้า Next.js, server-only environment injection จาก root `.env` ของ Dev/UAT/Production, loopback host ports และ `Asia/Bangkok` สำหรับ app/PostgreSQL session แล้ว. Issue #17 ผูก gate กับ Next.js middleware ด้วย proof แบบสุ่มต่อ process และ resolve owner ฝั่ง server; หากมี legacy User rows หลายแถวให้ `OWNER_USER_ID` ชี้ owner ที่ผ่าน audit มิฉะนั้นต้องมี User หนึ่งแถว. WorkItem/TimeEntry writes ไม่เชื่อ owner ID จาก browser. Gate บันทึก structured access outcome, method และ Bangkok timestamp โดยไม่บันทึก credential หรือ URL. HTTP Basic ของ gate เป็น browser-managed access session; ไม่มี session table หรือ password ใน DB. รายละเอียด runtime อยู่ใน [Runtime Security](./RUNTIME_SECURITY.md). ยังไม่ยืนยันว่า installation จริง deploy แล้ว.
 
+## Production HTTPS ที่ implement ใน #38
+
+Production ใช้ nginx ใน Compose profile `https` เป็น TLS termination หน้า owner gate. App และ PostgreSQL ยัง bind loopback. `sudo bash infra/certbot/setup-https.sh` ออก Let's Encrypt certificate แบบ HTTP-01 ผ่าน Cloudflare proxied DNS, คืน zone SSL mode เดิม, แล้วตั้ง strict เฉพาะ hostname นี้. Cron ต่ออายุใบนี้เมื่อ timezone ของเครื่องเป็น `Asia/Bangkok`. สคริปต์ไม่แก้ root `.env` และไม่แตะฐานข้อมูล. `APP_ORIGIN` ต้องเป็น `https://<DOMAIN>` ตรงตัว. ขั้นตอนอยู่ที่ [HTTPS certificate](./handbook/operations/https.md).
+
 ## Database operations ที่ implement ใน #16
 
 เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). #16 เตรียมเครื่องมือ; #18 rollout Company/Project ใน Production แล้ว. #20 เพิ่ม GitLab schema source/API ใน repository; ยังไม่ apply schema กับ environment ใดและต้องผ่าน runbook ของ environment เป้าหมายก่อน sync จริง.

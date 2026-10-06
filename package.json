@@ -47,6 +47,8 @@
     "start": "node scripts/runtime-launch.mjs --start",
     "postinstall": "prisma generate",
     "test:runtime-security": "node tests/run.mjs runtime-security",
+    "test:https": "node tests/run.mjs https",
+    "test:https-docker": "node tests/run.mjs https-docker",
     "test:sql-live-upgrade-docker": "node tests/run.mjs sql-live-upgrade-docker",
     "runtime:check": "node scripts/runtime-launch.mjs --check",
     "test:runtime-docker": "node tests/run.mjs runtime-docker",

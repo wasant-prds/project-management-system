@@ -53,6 +53,6 @@ GET request → owner gate health exception → Prisma query current session tim
 
 ## Verification
 
-1. เรียก `/api/health` ใน environment ที่เริ่มแล้ว; คาดหวัง 200 และ `database: connected`.
+1. เรียก `/api/health` ใน environment ที่เริ่มแล้ว; คาดหวัง 200 และ `database: connected`. Production ที่เปิดผ่าน nginx ใช้ `https://<DOMAIN>/api/health` ตาม [HTTPS certificate](../../operations/https.md). พอร์ตของแอปยังเป็น loopback.
 2. ตรวจ PostgreSQL readiness และ timezone ใน environment ทดสอบเพื่อวิเคราะห์ 503.
 3. Automated coverage: `pnpm test:runtime-security`, `pnpm test:runtime-docker`, `pnpm test:database-rollout-docker` (Docker tests อาจเป็น opt-in).

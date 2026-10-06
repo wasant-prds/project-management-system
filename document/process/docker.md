@@ -12,6 +12,8 @@ Compose is tuned so **this stack uses about half the machine**, leaving room for
 | RAM | ~768 MB (`postgres` 384 MB + `app` 384 MB) | ~1.2 GB |
 | Disk | WAL capped at 256 MB; container logs 10 MB × 3; backups per approved BACKUP_KEEP_DAYS | rest of 50 GB |
 
+Production profile `https` เพิ่ม nginx อีก 0.05 CPU และ 64 MB. `docker-prod.sh start` เปิด profile นี้เมื่อมีไฟล์ certificate แล้ว และไม่ขอใบใหม่.
+
 PostgreSQL uses `max_connections=20`, `shared_buffers=64MB`, and a Prisma `connection_limit=5`. Node heap is capped with `NODE_OPTIONS=--max-old-space-size=256`. Do not run two heavy `pnpm dev` stacks on this host; use UAT/production images.
 
 ```bash
@@ -78,6 +80,7 @@ App: http://localhost:3002 · PostgreSQL: localhost:5434
 | `bash scripts/docker-prod.sh health` | Check application health |
 | `bash scripts/docker-prod.sh backup-now` | Create manual backup |
 | `bash scripts/docker-prod.sh rebuild` | Rebuild containers |
+| `bash scripts/docker-prod.sh https` | ออกหรือต่ออายุ certificate แล้วเชื่อม nginx |
 
 ## Owner gate และ secrets (#15)
 

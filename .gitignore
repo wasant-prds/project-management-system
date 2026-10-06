@@ -24,6 +24,16 @@ yarn-error.log*
 # secrets
 /secrets/**/*.txt
 
+# production TLS material — keep directory placeholders only
+/infra/nginx/certs/*
+!/infra/nginx/certs/.gitkeep
+/infra/certbot/conf/*
+!/infra/certbot/conf/.gitkeep
+/infra/certbot/www/*
+!/infra/certbot/www/.gitkeep
+/infra/certbot/logs/*
+!/infra/certbot/logs/.gitkeep
+
 # database
 /database/seeds/*
 /database/postgres/data/*

@@ -10,7 +10,7 @@
 | UAT | `docker-compose.uat.yml` | `http://localhost:3001` |
 | Production | `docker-compose.prod.yml` | `http://localhost:3002` |
 
-พอร์ตจริงอาจถูก override ใน root `.env`; ตรวจ effective Compose configuration ก่อนปฏิบัติการ
+พอร์ตจริงอาจถูก override ใน root `.env`; ตรวจ effective Compose configuration ก่อนปฏิบัติการ. Production ที่เปิดจากอินเทอร์เน็ตใช้ [HTTPS certificate](./https.md) ผ่าน nginx; พอร์ตของแอปยังเป็น loopback.
 
 ## เริ่มระบบและตรวจสุขภาพ
 
@@ -58,4 +58,4 @@ Compose รอ PostgreSQL healthy แล้วรัน one-shot `migrations` se
 
 ## Background processing
 
-ไม่พบ application queue หรือ worker. Production มี optional Compose `backup` profile สำหรับ daily database dump candidate; ดู [Database backup job](../jobs/database/daily-backup.md). GitLab config validation ไม่ได้หมายความว่า scheduled sync มีอยู่; ดู [GitLab integration status](../integration/gitlab.md).
+ไม่พบ application queue หรือ worker. Production มี optional Compose `backup` profile สำหรับ daily database dump candidate; ดู [Database backup job](../jobs/database/daily-backup.md). หลังออก certificate แล้ว cron ของเครื่องต่ออายุใบของ hostname นี้; ดู [HTTPS renew](../jobs/operations/https-renew.md). `docker-prod.sh start` เปิด nginx เมื่อไฟล์ใบมีข้อมูลแล้ว. GitLab config validation ไม่ได้หมายความว่า scheduled sync มีอยู่; ดู [GitLab integration status](../integration/gitlab.md).

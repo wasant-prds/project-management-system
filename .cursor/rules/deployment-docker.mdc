@@ -14,6 +14,6 @@ alwaysApply: false
 - Health: container `GET /api/health` every 30s after 40s start. Success 200 `database: connected`; failure 503.
 - `NEXT_PUBLIC_ENV` is baked at build; rebuild to change. `RUN_SEED` / `SEED_PATH` control migration seed.
 - Persist volume `pms-postgres-data-${APP_ENV}` via `POSTGRES_DATA_DIR` (default `./database/postgres/data`). Do not commit data files.
-- Prod start/stop/restart/rebuild/init require confirmation. Optional profile `backup`.
-- Host budget on a shared 1 vCPU / 2 GB box: ~0.5 CPU and ~768 MB for this stack. Prisma `connection_limit=5`, Node heap 256 MB. Do not run two heavy `pnpm dev` stacks.
-- After deploy: app + Postgres up, migrations exit 0, health 200, and a real Work Items / Daily Work record. Compose does not terminate TLS — add reverse proxy/HTTPS at infra.
+- Prod start/stop/restart/rebuild/init require confirmation. Optional profiles: `backup`, and prod-only `https` for nginx. `docker-prod.sh start` enables `https` when certificate files already exist. It does not issue a certificate. `docker-prod.sh stop` includes the profile so nginx is removed with the stack.
+- Host budget on a shared 1 vCPU / 2 GB box: ~0.5 CPU and ~768 MB for this stack. The prod `https` profile adds nginx at 0.05 CPU and 64 MB and stays off until certificate files exist. Prisma `connection_limit=5`, Node heap 256 MB. Do not run two heavy `pnpm dev` stacks.
+- After deploy: app + Postgres up, migrations exit 0, health 200, and a real Work Items / Daily Work record. Production HTTPS is nginx in the `https` profile: public 80/443, app and PostgreSQL stay on loopback. Issue and renew with `sudo bash infra/certbot/setup-https.sh`.

@@ -27,6 +27,8 @@ const suites = {
   ] },
   "sql-seeds-docker": { files: [join(testRoot, "sql", "seeds-docker.test.mjs")] },
   "runtime-security": { files: [join(testRoot, "runtime", "security.test.mjs"), join(testRoot, "runtime", "launcher.test.mjs"), join(testRoot, "runtime", "owner-origin.test.mjs")] },
+  https: { files: [join(testRoot, "runtime", "https-certificate.test.mjs")] },
+  "https-docker": { files: [join(testRoot, "runtime", "https-certificate-docker.test.mjs")] },
   "runtime-container": { files: [join(testRoot, "runtime", "container.test.mjs")] },
   gitlab: { directory: join(testRoot, "gitlab") },
   contracts: { directory: join(testRoot, "contracts") },
@@ -57,6 +59,7 @@ const requestedSuite = process.argv[2];
 if (requestedSuite === "database-rollout-docker") process.env.PMS_RUN_ROLLOUT_DOCKER_TESTS = "1";
 if (requestedSuite === "runtime-container") process.env.PMS_RUN_CONTAINER_TESTS = "1";
 if (requestedSuite === "runtime-docker") process.env.PMS_RUN_DOCKER_TESTS = "1";
+if (requestedSuite === "https-docker") process.env.PMS_RUN_HTTPS_DOCKER_TESTS = "1";
 if (requestedSuite === "seed-docker") process.env.PMS_RUN_SEED_DOCKER_TESTS = "1";
 if (requestedSuite === "sql-migrations-docker") process.env.PMS_RUN_SQL_MIGRATION_DOCKER_TESTS = "1";
 if (requestedSuite === "sql-live-upgrade-docker") process.env.PMS_RUN_SQL_LIVE_UPGRADE_DOCKER_TESTS = "1";

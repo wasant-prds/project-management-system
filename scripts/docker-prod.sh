@@ -25,6 +25,15 @@ compose() {
     db_compose --env-file "$ROOT/.env" -f "$COMPOSE_FILE" "$@"
 }
 
+compose_up() {
+    if [ -s "$ROOT/infra/nginx/certs/fullchain.pem" ] && [ -s "$ROOT/infra/nginx/certs/privkey.pem" ]; then
+        echo -e "${GREEN}Certificate files found. Starting nginx with the https profile.${NC}"
+        compose --profile https "$@"
+    else
+        compose "$@"
+    fi
+}
+
 echo "🏭 Production Environment Manager..."
 echo ""
 
@@ -47,7 +56,7 @@ case "$1" in
   start)
     warning_prompt
     echo -e "${GREEN}Starting production environment...${NC}"
-    compose up -d
+    compose_up up -d
     echo ""
     echo -e "${GREEN}✅ Production environment is running!${NC}"
     echo ""
@@ -58,7 +67,7 @@ case "$1" in
   start-backup)
     warning_prompt
     echo -e "${GREEN}Starting production with backup service...${NC}"
-    compose --profile backup up -d
+    compose_up --profile backup up -d
     echo -e "${GREEN}✅ Production with backup service is running!${NC}"
     ;;
     
@@ -72,7 +81,7 @@ case "$1" in
   stop)
     warning_prompt
     echo -e "${YELLOW}Stopping production services...${NC}"
-    compose down
+    compose --profile https down
     echo -e "${GREEN}✅ Production environment stopped${NC}"
     ;;
     
@@ -107,12 +116,17 @@ case "$1" in
     echo -e "${GREEN}✅ Production containers rebuilt${NC}"
     echo -e "${YELLOW}Run 'bash scripts/docker-prod.sh start' to start the environment${NC}"
     ;;
+
+  https)
+    shift
+    bash "$ROOT/infra/certbot/setup-https.sh" "$@"
+    ;;
     
   *)
     echo "Usage: bash scripts/docker-prod.sh $1"
     echo ""
     echo "Available commands:"
-    echo "  start         - Start production environment"
+    echo "  start         - Start production (includes nginx when certificate files exist)"
     echo "  start-backup  - Start with backup service"
     echo "  init          - Initialize database"
     echo "  stop          - Stop all services"
@@ -122,6 +136,7 @@ case "$1" in
     echo "  health        - Check application health"
     echo "  backup-now    - Create manual backup"
     echo "  rebuild       - Rebuild containers"
+    echo "  https         - Issue or renew the production HTTPS certificate"
     exit 1
     ;;
 esac

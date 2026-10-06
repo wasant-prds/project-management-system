@@ -43,6 +43,37 @@ services:
     ports:
       - "127.0.0.1:${APP_PORT:-3000}:3000"
 
+  # Production HTTPS only. docker-prod.sh start does not enable this profile.
+  # bash infra/certbot/setup-https.sh starts nginx after the app health check.
+  nginx:
+    profiles: ["https"]
+    image: ${NGINX_IMAGE:-nginx:1.28-alpine}
+    container_name: pms-nginx-prod
+    restart: always
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["envsubst '$$DOMAIN' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"]
+    environment:
+      TZ: Asia/Bangkok
+      DOMAIN: ${DOMAIN:-}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+      - ./infra/nginx/cloudflare-real-ip.conf:/etc/nginx/cloudflare-real-ip.conf:ro
+      - ./infra/nginx/certs:/etc/nginx/certs:ro
+      - ./infra/certbot/www:/var/www/certbot:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+    deploy:
+      resources:
+        limits: { cpus: "0.05", memory: 64M }
+        reservations: { cpus: "0.01", memory: 16M }
+    networks: [pms-network]
+
   backup:
     profiles: [backup]
     image: postgres:16-alpine

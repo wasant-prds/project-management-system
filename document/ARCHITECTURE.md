@@ -172,11 +172,13 @@ Issue #26 implements this shared presentation contract with theme-aware raised/i
 ## 8. Runtime and deployment
 
 ```text
-Browser → Next.js standalone container → Prisma → PostgreSQL 16 container/host
+Development/UAT: Browser → Next.js standalone container → Prisma → PostgreSQL 16
+Production HTTPS: Browser → Cloudflare → nginx :443 → owner gate → Next.js → Prisma → PostgreSQL 16
+App และ PostgreSQL ยัง publish ที่ 127.0.0.1
                                      ↘ /api/health
 ```
 
-Development, UAT and production use Docker Compose files already present. The shared compose defines PostgreSQL and a one-shot migrations service. Application images are built with Next.js standalone output. The migration container runs the schema rollout gate and `scripts/sql-runtime.mjs apply`; SQL seed stays off unless separately approved. See [DEPLOYMENT.md](./DEPLOYMENT.md) for ports, configuration and operation commands.
+Development, UAT and production use Docker Compose files already present. The shared compose defines PostgreSQL and a one-shot migrations service. Application images are built with Next.js standalone output. The migration container runs the schema rollout gate and `scripts/sql-runtime.mjs apply`; SQL seed stays off unless separately approved. Production TLS termination is the `https` profile nginx service. `sudo bash infra/certbot/setup-https.sh` issues the certificate. `docker-prod.sh start` brings nginx back when certificate files already exist. See [DEPLOYMENT.md](./DEPLOYMENT.md) for ports, configuration and operation commands.
 
 ## 9. Decisions still open
 

@@ -16,6 +16,8 @@ Issue #24 เพิ่ม Analysis จาก WorkItem/TimeEntry จริงพ�
 
 Issue #25 เพิ่ม owner-only [Settings API](./api/settings/me.md) และ persistent owner profile/theme/locale. `OwnerSettingsProvider` แชร์ canonical settings state ระหว่าง Settings กับ header theme control; `User.theme`/`User.locale` มี schema defaults และ rollout ต้องผ่าน database gates.
 
+Issue #38 เพิ่ม nginx ของ production ใน Compose profile `https` และสคริปต์เดียวสำหรับออก Let's Encrypt certificate. ดู [HTTPS certificate](./operations/https.md) และ [HTTPS renew](./jobs/operations/https-renew.md).
+
 สำหรับ Issue #18 ระบบรองรับหลาย Company แต่ Project แต่ละรายการต้องอ้าง Company หนึ่งรายการผ่าน companyId. Prisma schema ปัจจุบันไม่มี Customer model; รายละเอียด Dhas, Company APIs และ Project APIs อยู่ในหน้า Company/Projects และ [Database model](./database/data-model.md). Handbook ยืนยันพฤติกรรมจาก repository; สถานะข้อมูลในฐานข้อมูล environment จริงต้องตรวจจาก environment นั้นแยกต่างหาก.
 
 ## API
@@ -76,6 +78,7 @@ Route Handler ปัจจุบันมีดังนี้:
 ## Jobs
 
 - [Production database backup candidate](./jobs/database/daily-backup.md) — optional production Compose backup profile; เป็น background job/service ที่พบใน repository. Application queue/worker jobs ยังไม่ถูก implement.
+- [HTTPS certificate renew](./jobs/operations/https-renew.md) — cron วันละสองครั้งต่ออายุใบของ hostname เดียว แล้ว reload nginx เฉพาะเมื่อไฟล์ใบเปลี่ยน.
 
 ## Other Components
 
@@ -90,6 +93,7 @@ Route Handler ปัจจุบันมีดังนี้:
 - [Board workflow — Issue #22](./board/workflow.md) — data flow, filters, status writes, date behavior และการตรวจสอบ
 - [Owner access gate](./operations/owner-access.md) — Basic credential gate, origin checks, middleware proof, owner resolution.
 - [Runtime operations](./operations/runtime.md) — start, health, logs และ troubleshooting; links ไปยัง Docker/DB runbooks.
+- [Production HTTPS certificate](./operations/https.md) — nginx, Let's Encrypt และ Cloudflare ด้วย script เดียว.
 - [Database data model](./database/data-model.md) — relations และ tables ที่ current APIs ใช้.
 - [SQL schema, numeric IDs and migrations — Issue #31](./database/issue-31-sql-schema.md) — empty SQL snapshot (11 runtime-used business tables + schema_migrations), BIGINT identity PKs / random public UUIDs, Bangkok wall-clock timestamps, advisory locking, versioned migration runner และ isolated test evidence. การเชื่อมแอปอยู่ที่ Issue #33; live cutover ยังไม่เกิด.
 - [SQL master seeds and backup conversion — Issue #32](./database/issue-32-sql-master-seeds.md) — การแปลง production backup เป็น deterministic SQL master seeds, การ persist immutable public UUIDv4 ลง legacy-id-map.json, นโยบายความสัมพันธ์บริษัทและเวลา Bangkok, transactional seed runner และ isolated verification evidence.

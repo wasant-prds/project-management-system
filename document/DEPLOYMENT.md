@@ -110,7 +110,7 @@ Compose ปิด schema sync โดย default. ก่อนเปิด `DB_SC
 ## 8. Deployment security baseline
 
 - Production ต้องใช้ secret ที่ไม่ใช่ค่า development, จำกัดสิทธิ์ filesystem ของ secret และไม่ publish PostgreSQL port สู่ public network โดยไม่จำเป็น
-- ตั้ง HTTPS/reverse proxy, domain, firewall, backup destination และ retention ตาม infrastructure จริง (Compose files ไม่ได้กำหนด TLS/reverse proxy)
+- Production HTTPS ใช้ nginx ใน Compose profile `https` เท่านั้น เปิดพอร์ต 80 และ 443 แอปกับ PostgreSQL ยัง publish ที่ loopback ดู [HTTPS certificate](./handbook/operations/https.md) และรัน `sudo bash infra/certbot/setup-https.sh` บน server หลังตั้ง `APP_ORIGIN=https://<DOMAIN>`
 - จำกัดการเข้าถึง Docker socket/host, ใช้ non-root user สำหรับ production app image และเก็บ logs โดยไม่เผยข้อมูลส่วนบุคคลหรือ credentials
 - API ผ่าน private owner access gate ใน runtime launcher แล้ว; owner User/session ยังเป็น #17. Host ports เป็น loopback; remote access ต้องใช้ HTTPS proxy/private tunnel ตาม Runtime Security.
 - มี rollback image/config และ DB recovery plan; schema downgrade อัตโนมัติไม่ควรถูกสมมติ
@@ -125,6 +125,7 @@ Compose ปิด schema sync โดย default. ก่อนเปิด `DB_SC
 | `/api/health` เป็น 503 | PostgreSQL health, secrets, DB host `postgres`, database name, migrations status |
 | Prisma schema/client error | schema version, generated client, build logs, migrations service output |
 | เปิด URL ไม่ได้ | effective `APP_PORT` และ port mapping; dev ปัจจุบันคือ 3777 |
+| HTTPS/certificate ล้ม | รันด้วย sudo, `APP_ORIGIN` ตรง `https://<DOMAIN>`, Cloudflare เป็นเมฆสีส้ม, token มี Config Rules Edit, พอร์ต 80/443 ว่าง, แล้วดู log ของ `sudo bash infra/certbot/setup-https.sh` |
 | Seed ไม่เข้า | `RUN_SEED`, `SEED_PATH`, seed guard และข้อมูลเดิม; อย่า force-seed production เพื่อทดลอง |
 | Disk โต | PostgreSQL data, `backups`, Docker logs และ backup retention; ตรวจ backup ก่อน cleanup |
 
