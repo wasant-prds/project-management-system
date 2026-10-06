@@ -66,6 +66,11 @@ load_env() {
     if [[ "$quoted" -eq 0 ]]; then
       value="${value%%[[:space:]]#*}"
       value="${value%"${value##*[![:space:]]}"}"
+      if [[ ${#value} -ge 2 ]]; then
+        if [[ ${value:0:1} == '"' && ${value: -1} == '"' ]] || [[ ${value:0:1} == "'" && ${value: -1} == "'" ]]; then
+          value="${value:1:${#value}-2}"
+        fi
+      fi
     fi
 
     case "$key" in
@@ -178,6 +183,15 @@ validate_issue_inputs() {
     echo "CF_API_TOKEN ว่างหรือมีช่องว่าง" >&2
     return 1
   fi
+  if [[ "$CF_API_TOKEN" == *\"* || "$CF_API_TOKEN" == *\'* ]]; then
+    echo "CF_API_TOKEN มีเครื่องหมายคำพูดปนอยู่ ใส่ค่าล้วนทั้งบรรทัด หรือใส่ quote ครอบทั้งค่าโดยไม่มีคอมเมนต์ท้ายบรรทัด" >&2
+    return 1
+  fi
+  if [[ "$CF_API_TOKEN" == cfk_* || "$CF_API_TOKEN" =~ ^[a-f0-9]{37,45}$ ]]; then
+    echo "CF_API_TOKEN เป็น Global API Key สคริปต์นี้ใช้ API Token แบบ Bearer เท่านั้น" >&2
+    echo "สร้าง API Token ที่มีสิทธิ์ Zone DNS Read, Zone Settings Edit และ Config Rules Edit บน zone นี้ แล้วแทนค่าเดิม" >&2
+    return 1
+  fi
   if [[ ! "${CF_ZONE_ID:-}" =~ ^[a-f0-9]{32}$ ]]; then
     echo "CF_ZONE_ID ต้องเป็นตัวเลขฐานสิบหก 32 ตัว" >&2
     return 1
@@ -188,32 +202,55 @@ cf_request() {
   local method="$1"
   local url="$2"
   local data="${3:-}"
-  local response_file
+  local response_file header_file http_code
+  local -a curl_args
   response_file="$(mktemp)"
-  if ! (
-    local cfg
-    cfg="$(mktemp)"
-    chmod 600 "$cfg"
-    trap 'rm -f "$cfg"' EXIT
-    printf 'header = "Authorization: Bearer %s"\n' "$CF_API_TOKEN" >"$cfg"
-    printf 'header = "Content-Type: application/json"\n' >>"$cfg"
-    printf 'silent\nshow-error\n' >>"$cfg"
-    if [[ -n "$data" ]]; then
-      curl --config "$cfg" --max-time 30 -X "$method" --data "$data" "$url"
-    else
-      curl --config "$cfg" --max-time 30 -X "$method" "$url"
-    fi
-  ) >"$response_file"; then
-    rm -f "$response_file"
+  header_file="$(mktemp)"
+  chmod 600 "$header_file" "$response_file"
+  printf 'Authorization: Bearer %s\n' "$CF_API_TOKEN" >"$header_file"
+  printf 'Content-Type: application/json\n' >>"$header_file"
+  # -q ignores ~/.curlrc. -H @file sends the raw header so the token stays out of argv.
+  curl_args=(-q -sS --max-time 30 -H "@${header_file}" -X "$method" -o "$response_file" -w '%{http_code}')
+  if [[ -n "$data" ]]; then
+    curl_args+=(--data "$data")
+  fi
+  if ! http_code="$(curl "${curl_args[@]}" "$url")"; then
+    rm -f "$response_file" "$header_file"
     echo "เรียก Cloudflare API ไม่สำเร็จ" >&2
     return 1
   fi
+  rm -f "$header_file"
+  mkdir -p "$CERTBOT_DIR/logs"
+  printf '%s\n' "$http_code" >"$CERTBOT_DIR/logs/.cf-last-http"
+  chmod 600 "$CERTBOT_DIR/logs/.cf-last-http"
   cat "$response_file"
   rm -f "$response_file"
 }
 
 cf_ok() {
   grep -Eq '"success"[[:space:]]*:[[:space:]]*true' <<<"${1-}"
+}
+
+cf_explain() {
+  local body="$1"
+  local code="" msg="" status=""
+  code="$(printf '%s\n' "$body" | grep -Eo '"code"[[:space:]]*:[[:space:]]*[0-9]+' | head -n 1 | grep -Eo '[0-9]+' | head -n 1 || true)"
+  msg="$(printf '%s\n' "$body" | grep -Eo '"message"[[:space:]]*:[[:space:]]*"[^"]*"' | head -n 1 | sed -n 's/.*"\([^"]*\)"$/\1/p' || true)"
+  if [[ -f "$CERTBOT_DIR/logs/.cf-last-http" ]]; then
+    status="$(tr -cd '0-9' <"$CERTBOT_DIR/logs/.cf-last-http")"
+  fi
+  if [[ -n "${CF_API_TOKEN:-}" && -n "$msg" && "$msg" == *"$CF_API_TOKEN"* ]]; then
+    msg="${msg//"$CF_API_TOKEN"/[redacted]}"
+  fi
+  if [[ ${#msg} -gt 180 ]]; then
+    msg="${msg:0:180}"
+  fi
+  if [[ -n "$code" || -n "$msg" || -n "$status" ]]; then
+    echo "Cloudflare ตอบ HTTP ${status:-ไม่ทราบ} รหัส ${code:-ไม่ทราบ}: ${msg:-ไม่มีข้อความ}" >&2
+  fi
+  if [[ "$code" == "9106" ]]; then
+    echo "Cloudflare ไม่ได้รับหัว Authorization" >&2
+  fi
 }
 
 cf_set_ssl_mode() {
@@ -229,6 +266,7 @@ cf_set_ssl_mode() {
   resp="$(cf_request PATCH "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/settings/ssl" "{\"value\":\"${mode}\"}")" || return 1
   if ! cf_ok "$resp"; then
     echo "ตั้ง Cloudflare SSL mode เป็น ${mode} ไม่สำเร็จ" >&2
+    cf_explain "$resp"
     return 1
   fi
   log "Cloudflare SSL mode = ${mode}"
@@ -322,6 +360,7 @@ apply_hostname_rule() {
   resp="$(cf_request PUT "$url" "$body")" || return 1
   if ! cf_ok "$resp"; then
     echo "ตั้ง SSL ของ ${DOMAIN} ผ่าน Cloudflare ruleset ไม่สำเร็จ ตรวจสิทธิ์ Config Rules Edit ของ token" >&2
+    cf_explain "$resp"
     return 1
   fi
 }
@@ -337,10 +376,20 @@ remove_hostname_strict_rule() {
 }
 
 assert_proxied_dns() {
-  local resp
+  local resp verify
   resp="$(cf_request GET "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}/dns_records?name=${DOMAIN}")" || return 1
   if ! cf_ok "$resp"; then
     echo "อ่าน DNS record จาก Cloudflare ไม่สำเร็จ" >&2
+    cf_explain "$resp"
+    if ! printf '%s' "$resp" | grep -Eq '"code"[[:space:]]*:[[:space:]]*9106'; then
+      verify="$(cf_request GET "https://api.cloudflare.com/client/v4/user/tokens/verify")" || verify=""
+      if [[ -n "$verify" ]] && ! cf_ok "$verify"; then
+        echo "CF_API_TOKEN ใช้กับ Cloudflare ไม่ได้" >&2
+        cf_explain "$verify"
+        echo "ใช้ API Token แบบ Bearer ที่ยังไม่ถูกเพิกถอน ไม่ใช่ Global API Key" >&2
+      fi
+    fi
+    echo "ตรวจว่า CF_ZONE_ID เป็น Zone ID ของ ${DOMAIN} จากหน้า Overview ไม่ใช่ Account ID และ token มีสิทธิ์ Zone DNS Read บน zone นี้" >&2
     return 1
   fi
   if ! grep -Eq '"proxied"[[:space:]]*:[[:space:]]*true' <<<"$resp"; then

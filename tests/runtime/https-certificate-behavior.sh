@@ -15,6 +15,7 @@ fail() {
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
+rm -f "$CERTBOT_DIR/logs/.cf-last-http"
 pwned="$tmp/pwned"
 {
   printf '%s\n' 'APP_ENV=prod'
@@ -57,6 +58,31 @@ expected="$(printf '%s' "\$(touch ${pwned})")"
   printf '%s' "$message" | grep -q 'DOMAIN' || exit 1
   printf '%s' "$message" | grep -q 'ไม่แก้ .env' || exit 1
 ) || fail missing-domain
+
+(
+  cat >"$tmp/quoted.env" <<'EOF'
+CF_API_TOKEN="quoted-token-value" # comment must not stay in the token
+EOF
+  PMS_ENV_FILE="$tmp/quoted.env"
+  load_env
+  [[ "$CF_API_TOKEN" == "quoted-token-value" ]] || exit 1
+) || fail quoted-token-comment
+
+(
+  CF_API_TOKEN="cfk_not-an-api-token"
+  if message="$(validate_issue_inputs 2>&1)"; then
+    exit 1
+  fi
+  printf '%s' "$message" | grep -q 'Global API Key' || exit 1
+) || fail global-key-prefix
+
+(
+  CF_API_TOKEN="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  if message="$(validate_issue_inputs 2>&1)"; then
+    exit 1
+  fi
+  printf '%s' "$message" | grep -q 'Global API Key' || exit 1
+) || fail global-key-hex
 
 APP_ORIGIN="http://127.0.0.1:3002"
 if origin_message="$(origin_ok 2>&1)"; then
@@ -152,6 +178,36 @@ sync_certificate
   [[ "$CF_MODE_CHANGED" == "0" ]] || exit 1
   grep -F -q 'PATCH {"value":"strict"}' "$cf_calls" || exit 1
 ) || fail restore-strict
+
+(
+  cf_request() {
+    if [[ "$2" == *'/user/tokens/verify'* ]]; then
+      printf '%s\n' '{"success":true,"result":{"status":"active"}}'
+      return 0
+    fi
+    printf '%s\n' '{"success":false,"errors":[{"code":9109,"message":"Unauthorized to access zone"}],"messages":[],"result":null}'
+  }
+  CF_API_TOKEN="synthetic-token-value"
+  if message="$(assert_proxied_dns 2>&1)"; then
+    exit 1
+  fi
+  printf '%s' "$message" | grep -q '9109' || exit 1
+  printf '%s' "$message" | grep -q 'Zone DNS Read' || exit 1
+  if printf '%s' "$message" | grep -q 'synthetic-token-value'; then
+    exit 1
+  fi
+) || fail dns-api-error
+
+(
+  cf_request() {
+    printf '%s\n' '{"success":false,"errors":[{"code":10000,"message":"Authentication error"}]}'
+  }
+  if message="$(assert_proxied_dns 2>&1)"; then
+    exit 1
+  fi
+  printf '%s' "$message" | grep -q '10000' || exit 1
+  printf '%s' "$message" | grep -q 'CF_API_TOKEN' || exit 1
+) || fail token-verify
 
 (
   cf_calls="$tmp/cf-rule"
@@ -331,5 +387,69 @@ printf '%s' "$removed" | grep -E -q '"id": "abc"|"id":"abc"' || fail merge-remov
 if printf '%s' '{"success":true,"result":{}}' | PMS_DOMAIN=pms.example.com PMS_RULE_DESCRIPTION=pms-https-origin-strict PMS_RULE_ACTION=upsert "${py[@]}" "$ROOT/infra/certbot/lib/merge-hostname-rule.py" >/dev/null; then
   fail merge-missing-rules
 fi
+
+command -v curl >/dev/null 2>&1 || fail curl-missing
+cat >"$tmp/cf-listen.py" <<'PY'
+import json
+import socket
+import sys
+
+port_path = sys.argv[1]
+server = socket.socket()
+server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+server.bind(("127.0.0.1", 0))
+server.listen(1)
+with open(port_path, "w", encoding="utf-8") as handle:
+    handle.write(str(server.getsockname()[1]))
+server.settimeout(10)
+conn, _addr = server.accept()
+data = b""
+while b"\r\n\r\n" not in data:
+    chunk = conn.recv(4096)
+    if not chunk:
+        break
+    data += chunk
+headers = data.split(b"\r\n\r\n", 1)[0].decode("latin1")
+authorization = ""
+content_type = ""
+for line in headers.split("\r\n"):
+    if line.lower().startswith("authorization:"):
+        authorization = line.split(":", 1)[1].strip()
+    if line.lower().startswith("content-type:"):
+        content_type = line.split(":", 1)[1].strip()
+body = json.dumps({"authorization": authorization, "contentType": content_type}).encode()
+response = (
+    b"HTTP/1.1 200 OK\r\n"
+    b"Content-Type: application/json\r\n"
+    b"Content-Length: " + str(len(body)).encode() + b"\r\n"
+    b"Connection: close\r\n\r\n" + body
+)
+conn.sendall(response)
+conn.shutdown(socket.SHUT_WR)
+conn.close()
+server.close()
+PY
+"${py[@]}" "$tmp/cf-listen.py" "$tmp/cf-port" &
+listener=$!
+ready=0
+for _attempt in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+  if [[ -s "$tmp/cf-port" ]]; then
+    ready=1
+    break
+  fi
+  sleep 0.1
+done
+if [[ "$ready" != "1" ]]; then
+  kill "$listener" 2>/dev/null || true
+  fail cf-listener
+fi
+port="$(tr -cd '0-9' <"$tmp/cf-port")"
+CF_API_TOKEN="synthetic-token_value-123"
+header_body="$(cf_request GET "http://127.0.0.1:${port}/dns")" || fail cf-authorization-header
+wait "$listener" || true
+printf '%s' "$header_body" | grep -F -q 'Bearer synthetic-token_value-123' || fail cf-authorization-header
+printf '%s' "$header_body" | grep -F -q 'application/json' || fail cf-content-type
+grep -q '^200$' "$CERTBOT_DIR/logs/.cf-last-http" || fail cf-http-status
+rm -f "$CERTBOT_DIR/logs/.cf-last-http"
 
 echo OK

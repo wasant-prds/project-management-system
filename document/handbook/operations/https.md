@@ -32,6 +32,8 @@ sudo bash infra/certbot/setup-https.sh
 
 สคริปต์ถามยืนยันก่อน start หรือ reload nginx. `--yes` ใช้เมื่อไม่มี TTY. `renew` เป็นโหมดที่ cron เรียก, ต่ออายุเฉพาะใบของโดเมนนี้ และ reload nginx เฉพาะเมื่อไฟล์ certificate เปลี่ยน.
 
+ถ้าขึ้นว่าอ่าน DNS จาก Cloudflare ไม่สำเร็จ ให้ดูบรรทัดรหัสถัดไป. `9109` คือ Zone ID ไม่ตรงหรือ token ไม่มี Zone DNS Read. `9106` คือ Cloudflare ไม่ได้รับหัว Authorization. `CF_ZONE_ID` ต้องเป็น Zone ID ในแถบขวาของหน้า Overview ของโดเมนนั้น ไม่ใช่ Account ID. `CF_API_TOKEN` ต้องเป็น API Token ไม่ใช่ Global API Key (`cfk_` หรือค่าที่เป็นเลขฐานสิบหกยาว). Token ต้องมีสิทธิ์ Zone DNS Read, Zone Settings Edit และ Config Rules Edit เฉพาะ zone นี้.
+
 สิ่งที่สคริปต์ทำ: ตรวจ `APP_ORIGIN`, DNS แบบเมฆสีส้ม, พอร์ต 80/443, health บน loopback, สร้าง self-signed ชั่วคราวถ้ายังไม่มีใบ, start nginx, อ่าน zone SSL mode แล้วสลับเป็น `full` ชั่วคราวเฉพาะเมื่อค่าเดิมเป็น `strict`, ขอใบด้วย HTTP-01, deploy, reload, คืน zone SSL mode เดิม, ตั้ง configuration rule ให้ hostname นี้เป็น `strict` โดยไม่เปลี่ยนโหมดของ hostname อื่น, ติดตั้ง cron เวลา 03:15 และ 15:15, แล้วตรวจ `https://<DOMAIN>/api/health`. ถ้า health ไม่ผ่าน สคริปต์เอา rule ของ hostname นี้ออก และไม่เปลี่ยน zone SSL mode ทั้งโซน.
 
 รันซ้ำได้. `--keep-until-expiring` ป้องกันการออกใบซ้ำเมื่อใบเดิมยังไม่ใกล้หมดอายุ. หลังออกใบจริงแล้ว สคริปต์ลบ lineage ของ staging เพื่อไม่ให้การต่ออายุใบอื่นทำให้ใบจริงไม่ถูก deploy.

@@ -71,6 +71,10 @@ test('production compose keeps the app on loopback and publishes nginx only in t
   assert.doesNotMatch(common, /CRON_TZ/);
   assert.match(common, /off \| flexible \| full \| strict/);
   assert.match(common, /geo \\\$realip_remote_addr \\\$pms_cloudflare_client/);
+  assert.match(common, /curl_args=\(-q /);
+  assert.match(common, /-H "@\$\{header_file\}"/);
+  assert.doesNotMatch(common, /header = "Authorization/);
+  assert.match(common, /cfk_\*/);
   assert.match(realip, /geo \$realip_remote_addr \$pms_cloudflare_client/);
   assert.match(realip, /set_real_ip_from /);
   assert.doesNotMatch(realip, /^\s*(allow|deny)\s/m);
