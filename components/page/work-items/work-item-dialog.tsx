@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { DatePicker } from '@/components/ui/lazy-date-picker'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -296,22 +297,22 @@ export function WorkItemDialog({
 
             <div className="space-y-2">
               <Label htmlFor="workDate">Work date</Label>
-              <Input
+              <DatePicker
                 id="workDate"
-                type="date"
+                clearable
                 value={form.workDate}
-                onChange={(event) => setForm({ ...form, workDate: event.target.value })}
+                onValueChange={(workDate) => setForm({ ...form, workDate })}
                 disabled={isLoading}
               />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="dueDate">Due date</Label>
-              <Input
+              <DatePicker
                 id="dueDate"
-                type="date"
+                clearable
                 value={form.dueDate}
-                onChange={(event) => setForm({ ...form, dueDate: event.target.value })}
+                onValueChange={(dueDate) => setForm({ ...form, dueDate })}
                 disabled={isLoading}
               />
             </div>

@@ -49,6 +49,7 @@ const suites = {
   "frontend-polish": { files: [join(testRoot, "frontend-ui", "polish.test.mjs")] },
   "frontend-performance": { files: [join(testRoot, "frontend-ui", "performance.test.mjs")] },
   "frontend-ui": { directory: join(testRoot, "frontend-ui") },
+  "date-picker": { files: [join(testRoot, "frontend-ui", "date-picker.test.mjs")] },
   "filter-select": { files: [join(testRoot, "frontend-ui", "filter-select.test.mjs"), join(testRoot, "dashboard", "summary.test.mjs"), join(testRoot, "board", "workflow.test.mjs")] },
   "color-system": { files: [join(testRoot, "frontend-ui", "color-system.test.mjs"), join(testRoot, "settings", "provider.test.mjs")] },
   "work-items": { directory: join(testRoot, "work-items") },

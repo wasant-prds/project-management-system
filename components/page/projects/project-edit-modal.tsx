@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { DIALOG_SHELL_SCROLL_CLASS } from "@/components/ui/responsive-dialog"
 import { Button } from "@/components/ui/button"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -207,23 +208,21 @@ export function ProjectEditModal({ open, onOpenChange, projectId }: ProjectEditM
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-startDate">Start Date</Label>
-                <Input
+                <DatePicker
                   id="edit-startDate"
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                   required
+                  value={formData.startDate}
+                  onValueChange={(startDate) => setFormData({ ...formData, startDate })}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="edit-dueDate">Due Date</Label>
-                <Input
+                <DatePicker
                   id="edit-dueDate"
-                  type="date"
-                  value={formData.dueDate}
-                  onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                   required
+                  value={formData.dueDate}
+                  onValueChange={(dueDate) => setFormData({ ...formData, dueDate })}
                 />
               </div>
             </div>

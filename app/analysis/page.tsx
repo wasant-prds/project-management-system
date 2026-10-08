@@ -21,7 +21,7 @@ import {
 } from '@/components/layout/page-layout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import { DatePicker } from '@/components/ui/date-picker'
 import { WorkItemsTable, DailyWorkTable, displayRole, displayStatus } from '@/components/page/analysis/report-tables'
 import { PageState } from '@/components/layout/page-state'
 import { loadFailureVisual } from '@/components/ui/product-identity'
@@ -252,11 +252,11 @@ export default function AnalysisPage() {
                   <div className={`${FILTER_ROW} min-w-0`}>
                     <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
                       ตั้งแต่
-                      <Input type="date" required value={draftFilters.startDate} onChange={(event) => setDraftFilters((current) => ({ ...current, startDate: event.target.value }))} />
+                      <DatePicker id="analysis-start-date" required value={draftFilters.startDate} onValueChange={(startDate) => setDraftFilters((current) => ({ ...current, startDate }))} />
                     </label>
                     <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
                       ถึง
-                      <Input type="date" required value={draftFilters.endDate} onChange={(event) => setDraftFilters((current) => ({ ...current, endDate: event.target.value }))} />
+                      <DatePicker id="analysis-end-date" required value={draftFilters.endDate} onValueChange={(endDate) => setDraftFilters((current) => ({ ...current, endDate }))} />
                     </label>
                     <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
                       Company

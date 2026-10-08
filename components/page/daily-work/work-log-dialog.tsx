@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog"
 import { DIALOG_SHELL_WIDE_CLASS } from "@/components/ui/responsive-dialog"
 import { Button } from "@/components/ui/button"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -400,11 +401,11 @@ export function WorkLogDialog({
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="date">Date <span className="text-danger">*</span></Label>
-                    <Input
+                    <DatePicker
                       id="date"
-                      type="date"
+                      required
                       value={formData?.date || ""}
-                      onChange={(event) => onFormDataChange?.({ ...formData!, date: event.target.value })}
+                      onValueChange={(date) => onFormDataChange?.({ ...formData!, date })}
                       disabled={isLoading}
                     />
                   </div>

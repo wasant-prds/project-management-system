@@ -16,7 +16,7 @@ import { SummaryStatCard } from '@/components/layout/summary-stat-card'
 import { getOwner, ownerErrorMessage } from '@/lib/owner'
 import { DashboardQueryError, getDashboardSummary } from '@/lib/dashboard'
 import { dashboardDailyWorkHref, dashboardWorkItemsHref } from '@/lib/dashboard-links'
-import { Input } from '@/components/ui/input'
+import { DatePicker } from '@/components/ui/date-picker'
 import { WorkItemStatusBadge } from '@/components/page/work-items/work-item-status-badge'
 import { ICON_STROKE, loadFailureVisual } from '@/components/ui/product-identity'
 import { progressShiftPercent } from '@/components/ui/cinematic-motion'
@@ -49,11 +49,11 @@ function DashboardFiltersForm({ data }: Readonly<{ data: DashboardResult }>) {
         <form action="/" method="get" className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <label className="grid min-w-0 gap-1" htmlFor="dashboard-start-date">
             <span className="type-label">วันเริ่มต้น</span>
-            <Input id="dashboard-start-date" name="startDate" type="date" required defaultValue={data.meta.period.startDate} className="h-9" />
+            <DatePicker id="dashboard-start-date" name="startDate" required defaultValue={data.meta.period.startDate} className="h-9" />
           </label>
           <label className="grid min-w-0 gap-1" htmlFor="dashboard-end-date">
             <span className="type-label">วันสิ้นสุด</span>
-            <Input id="dashboard-end-date" name="endDate" type="date" required defaultValue={data.meta.period.endDate} className="h-9" />
+            <DatePicker id="dashboard-end-date" name="endDate" required defaultValue={data.meta.period.endDate} className="h-9" />
           </label>
           <label className="grid min-w-0 gap-1" htmlFor="dashboard-company">
             <span className="type-label">Company</span>

@@ -54,7 +54,7 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
   const runtime = createRuntime(initialState)
   const names = [
     'AppSidebar', 'AppHeader', 'SidebarProvider', 'SidebarInset', 'Card', 'CardContent', 'CardHeader', 'CardTitle',
-    'Button', 'Input', 'Label', 'Textarea', 'Select', 'SelectContent', 'SelectItem', 'SelectTrigger', 'SelectValue',
+    'Button', 'Input', 'DatePicker', 'Label', 'Textarea', 'Select', 'SelectContent', 'SelectItem', 'SelectTrigger', 'SelectValue',
     'AlertDialog', 'AlertDialogAction', 'AlertDialogCancel', 'AlertDialogContent', 'AlertDialogDescription',
     'AlertDialogFooter', 'AlertDialogHeader', 'AlertDialogTitle', 'Link', 'Badge', 'Progress',
   ]
@@ -112,6 +112,8 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
       WORK_ITEM_ROLE_LABELS: { Developer: 'Developer', infra: 'Infrastructure', SA: 'System Analyst' },
     },
     '@/components/ui/input': { Input: ui.Input },
+    '@/components/ui/date-picker': { DatePicker: ui.DatePicker },
+    '@/components/ui/lazy-date-picker': { DatePicker: ui.DatePicker },
     '@/components/ui/label': { Label: ui.Label },
     '@/components/ui/textarea': { Textarea: ui.Textarea },
     '@/components/ui/select': {
@@ -327,7 +329,9 @@ test('Project create and edit persist a Company relation and surface API failure
 
   const changeInput = (id, value) => {
     const tree = createPage.runtime.render(createPage.Page)
-    find(tree, (node) => node.type === createPage.ui.Input && node.props.id === id).props.onChange({ target: { value } })
+    const field = find(tree, (node) => node.props?.id === id)
+    if (typeof field.props.onValueChange === 'function') field.props.onValueChange(value)
+    else field.props.onChange({ target: { value } })
   }
   changeInput('project-name', 'Created Project')
   changeInput('project-start', '2026-09-01')

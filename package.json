@@ -40,6 +40,7 @@
     "test:frontend-performance-review": "node scripts/frontend-performance-review-browser.mjs",
     "test:frontend-performance-production": "node scripts/frontend-performance-production-browser.mjs",
     "test:color-system": "node tests/run.mjs color-system",
+    "test:date-picker": "node tests/run.mjs date-picker",
     "test:filter-select": "node tests/run.mjs filter-select",
     "test:work-items": "node tests/run.mjs work-items",
     "test:daily-work": "node tests/run.mjs daily-work",

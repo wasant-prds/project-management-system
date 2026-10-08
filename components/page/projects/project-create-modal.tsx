@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { DIALOG_SHELL_SCROLL_CLASS } from '@/components/ui/responsive-dialog'
 import { Button } from '@/components/ui/button'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -195,12 +196,11 @@ export function ProjectCreateModal({ open, onOpenChange }: ProjectCreateModalPro
               <Label htmlFor="startDate">
                 Start Date <span className="text-danger">*</span>
               </Label>
-              <Input
+              <DatePicker
                 id="startDate"
-                type="date"
-                value={formData.startDate}
-                onChange={(e) => handleChange('startDate', e.target.value)}
                 required
+                value={formData.startDate}
+                onValueChange={(startDate) => handleChange('startDate', startDate)}
                 disabled={isLoading}
               />
             </div>
@@ -209,12 +209,11 @@ export function ProjectCreateModal({ open, onOpenChange }: ProjectCreateModalPro
               <Label htmlFor="dueDate">
                 Due Date <span className="text-danger">*</span>
               </Label>
-              <Input
+              <DatePicker
                 id="dueDate"
-                type="date"
-                value={formData.dueDate}
-                onChange={(e) => handleChange('dueDate', e.target.value)}
                 required
+                value={formData.dueDate}
+                onValueChange={(dueDate) => handleChange('dueDate', dueDate)}
                 disabled={isLoading}
               />
             </div>

@@ -10,6 +10,7 @@ import { DisclosureGlyph } from '@/components/ui/product-icon'
 import { loadFailureVisual } from '@/components/ui/product-identity'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
+import { DatePicker } from '@/components/ui/lazy-date-picker'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -101,8 +102,8 @@ export default function ProjectsPage() {
     <details id="project-form" open={editing !== null || undefined} className="cinematic-beat-support surface-raised scroll-mt-4 rounded-[var(--radius-panel)] border border-border/60 bg-card py-4"><summary className="type-card-title flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-5"><span>{editing ? 'แก้ไข Project' : 'สร้าง Project'}</span><DisclosureGlyph /></summary><div className="mt-5 px-4 sm:px-5"><form onSubmit={submit} className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3 [&>div]:min-w-0 [&>div]:space-y-2">
       <div><Label htmlFor="project-name">ชื่อ Project *</Label><Input id="project-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></div>
       <div><Label htmlFor="project-company">Company *</Label><Select value={form.companyId} onValueChange={(value) => setForm({ ...form, companyId: value })}><SelectTrigger id="project-company"><SelectValue placeholder="เลือก Company" /></SelectTrigger><SelectContent>{companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.displayName ?? company.name}</SelectItem>)}</SelectContent></Select></div>
-      <div><Label htmlFor="project-start">วันเริ่ม *</Label><Input id="project-start" type="date" value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value })} required /></div>
-      <div><Label htmlFor="project-due">วันกำหนดเสร็จ *</Label><Input id="project-due" type="date" value={form.dueDate} onChange={(event) => setForm({ ...form, dueDate: event.target.value })} required /></div>
+      <div><Label htmlFor="project-start">วันเริ่ม *</Label><DatePicker id="project-start" required value={form.startDate} onValueChange={(startDate) => setForm({ ...form, startDate })} /></div>
+      <div><Label htmlFor="project-due">วันกำหนดเสร็จ *</Label><DatePicker id="project-due" required value={form.dueDate} onValueChange={(dueDate) => setForm({ ...form, dueDate })} /></div>
       <div><Label htmlFor="project-status">สถานะ</Label><Select value={form.status} onValueChange={(value) => setForm({ ...form, status: value })}><SelectTrigger id="project-status"><SelectValue /></SelectTrigger><SelectContent>{['Planning', 'In Progress', 'Review', 'Completed', 'On Hold'].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></div>
       <div><Label htmlFor="project-priority">Priority</Label><Select value={form.priority} onValueChange={(value) => setForm({ ...form, priority: value })}><SelectTrigger id="project-priority"><SelectValue /></SelectTrigger><SelectContent>{['Low', 'Medium', 'High', 'Critical'].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></div>
       <div className="flex items-end gap-2"><Button magnetic disabled={saving || !form.companyId}>{editing ? 'บันทึก' : 'สร้าง Project'}</Button>{editing && <Button type="button" variant="outline" onClick={() => { setEditing(null); setForm(initialForm) }}>ยกเลิก</Button>}</div>
