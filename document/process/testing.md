@@ -14,6 +14,8 @@ Award-level experience ของ Issue #34 ใช้ `pnpm test:frontend-cinemat
 
 Motion system ของ Issue #28 ใช้ `pnpm test:frontend-motion` หรือ `node tests/run.mjs frontend-motion`: ตรวจ shared timing/easing tokens, route entrance, reduced-motion/performance rules, sidebar measurement/coalescing/cleanup/lazy mount, keyboard focus restoration, accessible loading layouts, KPI/progress/chart transitions, card state precedence, closed overlay exit timing, toast swipe transitions, sticky scroll frame coalescing, safe integer interpolation/cancellation/accessibility, Daily Work latest-request/error/retry และ shared control states (35 cases). Unit suite ใช้ CSS compiler และ mocks ใน process; ไม่เชื่อม PostgreSQL, Redis, Docker, network หรือ external services. Tree report ใช้ `bash scripts/test-unit.sh frontend-motion`. ดู [Motion handbook](../handbook/frontend/issue-28-motion.md) สำหรับ tokens, preview (`qa=slow`/`qa=error` synthetic GET), schema-validation placeholder และข้อจำกัด SonarQube. Preview ปฏิเสธ API writes และไม่แทน production E2E.
 
+สคริปต์ GitHub (`scripts/github-create-tasks.py` และ `scripts/github-create-labels.py`) ใช้ Python 3.10+ และ `unittest` จาก standard library จึงไม่อยู่ใน `pnpm test` หรือ `node tests/run.mjs`. รันแยกจาก root ด้วย `python -B -m unittest discover -s scripts/tests -p "test_github_*.py" -v`. Tests ใช้ GitHub จำลองในหน่วยความจำ ไม่ติดต่อ GitHub จริง และ `-B` ไม่สร้าง `__pycache__`. ดู [คู่มือ issues](../github-create-tasks.md) และ [คู่มือ labels](../github-create-labels.md).
+
 Project tests use pnpm and Node's built-in test runner; no additional test dependency is required. The root runner discovers `.test.mjs` files under `tests/` and runs them in isolated child processes, one file at a time.
 
 ```powershell

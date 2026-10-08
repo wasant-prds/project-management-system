@@ -92,6 +92,8 @@ bash scripts/docker-dev.sh start-studio
 - **[Database process](./document/process/db.md)** - Prisma and db helper commands
 - **[Docker process](./document/process/docker.md)** - Dev / UAT / production helper commands
 - **[Testing commands](./document/process/testing.md)** - Reusable pnpm test runner commands
+- **[GitHub Issues from work items](./document/github-create-tasks.md)** - Preview, create, or upsert checklist work items as GitHub Issues
+- **[GitHub labels from the work-item catalog](./document/github-create-labels.md)** - Create or update issue labels, one color per prefix
 
 ## 🏗️ Architecture
 
@@ -317,6 +319,14 @@ docker compose -f docker-compose.prod.yml up -d --build
 # http://localhost:3002
 # Schema push runs automatically via the migrations service
 ```
+
+### Cloudflare API token สำหรับ HTTPS
+
+สคริปต์ `sudo bash infra/certbot/setup-https.sh` เรียก Cloudflare สามจุด คนละสิทธิ์ สิทธิ์หนึ่งแถวใช้แทนอีกแถวไม่ได้ จำกัดทุกแถวที่ zone นี้ด้วย Include → Specific zone ขั้นตอนทั้งหมดอยู่ใน [HTTPS certificate](./document/handbook/operations/https.md)
+
+- **Zone → DNS → Read** ใช้ตอนเริ่มสคริปต์ เพื่ออ่าน DNS ของโดเมนและยืนยันว่าเป็น proxied record (เมฆสีส้ม) สคริปต์ไม่สร้างหรือแก้ DNS จึงใช้ Read พอ ถ้า token ไม่มีสิทธิ์นี้ Cloudflare ตอบ HTTP 403 รหัส 10000
+- **Zone → Zone Settings → Edit** ใช้ระหว่างขอใบจาก Let's Encrypt สคริปต์อ่าน SSL mode ของทั้ง zone ถ้าค่าเดิมเป็น `strict` จะสลับเป็น `full` ชั่วคราว แล้วคืนค่าเดิมหลังได้ใบ ต้องสลับเพราะตอนยืนยันโดเมน origin ยังเป็นใบชั่วคราว
+- **Zone → Config Rules → Edit** ใช้หลังออกใบจริงเท่านั้น สคริปต์เพิ่ม configuration rule ให้เฉพาะ hostname นี้เป็น `strict` โดยไม่เปลี่ยน SSL mode ของ hostname อื่นใน zone เดียวกัน รอบ `CERTBOT_STAGING=1` ข้ามขั้นนี้
 
 ## 📦 Requirements
 
