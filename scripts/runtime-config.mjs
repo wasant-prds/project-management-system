@@ -1,13 +1,33 @@
-
+import { readFileSync } from 'node:fs';
 export const TIMEZONE = 'Asia/Bangkok';
 const sensitive = ['OWNER_GATE_USERNAME', 'OWNER_GATE_PASSWORD', 'GITLAB_TOKEN', 'NEXTAUTH_SECRET', 'DATABASE_URL'];
 const invalid = (value) => !value || /^(\?+|<.*>|replace.*|change.*|dev-secret.*)$/i.test(value);
 
+export function issueSyncSecretValues(env) {
+  try {
+    const registry = JSON.parse(env.ISSUE_SYNC_CREDENTIALS || '{}');
+    if (!registry || typeof registry !== 'object' || Array.isArray(registry)) throw new Error();
+    return Object.entries(registry).map(([ref, entry]) => {
+      if (!/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(ref) || !entry || typeof entry !== 'object') throw new Error();
+      const { provider, baseUrl, tokenEnv, tokenFileEnv } = entry;
+      const url = new URL(baseUrl);
+      if (!['gitlab', 'github'].includes(provider) || url.protocol !== 'https:' || url.username || url.password || url.search || url.hash
+        || (provider === 'github' && url.href !== 'https://github.com/')) throw new Error();
+      const variable = tokenEnv ?? tokenFileEnv;
+      if (typeof variable !== 'string' || !/^[A-Z][A-Z0-9_]*$/.test(variable) || variable.startsWith('NEXT_PUBLIC_') || Boolean(tokenEnv) === Boolean(tokenFileEnv)) throw new Error();
+      const token = (tokenEnv ? env[tokenEnv] : readFileSync(env[tokenFileEnv] || '', 'utf8'))?.trim();
+      if (invalid(token) || /[\r\n]/.test(token)) throw new Error();
+      return token;
+    });
+  } catch { throw new Error('Invalid issue sync server credential registry'); }
+}
+
 // Only the launcher imports this module. It must never be imported by React.
 export function loadRuntimeConfig(source = process.env) {
   const env = { ...source };
+  issueSyncSecretValues(env);
   for (const key of Object.keys(env)) {
-    if (/^NEXT_PUBLIC_.*(TOKEN|SECRET|PASSWORD|DATABASE|GITLAB|OWNER_GATE)/i.test(key)) {
+    if (/^NEXT_PUBLIC_.*(TOKEN|SECRET|PASSWORD|DATABASE|GITLAB|GITHUB|ISSUE_SYNC|OWNER_GATE)/i.test(key)) {
       throw new Error('Public credential configuration is forbidden');
     }
   }

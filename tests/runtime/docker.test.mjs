@@ -4,10 +4,14 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { readFileSync } from 'node:fs';
+import { parseEnv } from 'node:util';
 import { verifyCompose } from '../../scripts/runtime-verify.mjs';
 
 const docker = (args) => {
-  try { return execFileSync('docker', args, { encoding: 'utf8', timeout: 30000, stdio: ['ignore', 'pipe', 'pipe'] }); }
+  const envFileIndex = args.indexOf('--env-file');
+  const fixtureEnv = envFileIndex >= 0 ? parseEnv(readFileSync(args[envFileIndex + 1], 'utf8')) : {};
+  try { return execFileSync('docker', args, { encoding: 'utf8', timeout: 30000, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, DB_SCHEMA_SYNC_APPROVED: 'false', ...fixtureEnv } }); }
   catch { throw new Error('Isolated Docker test command failed (diagnostics withheld)'); }
 };
 const enabled = process.env.PMS_RUN_DOCKER_TESTS === '1';

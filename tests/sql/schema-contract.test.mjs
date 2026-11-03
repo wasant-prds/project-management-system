@@ -29,7 +29,9 @@ test('TC-31-01 schema snapshot declares only runtime-used business tables and mi
   assert.doesNotMatch(schema, /\binsert\s+into\b/i);
   const loaded = loadArtifacts(root);
   assert.equal(loaded.revision, '31.0.0');
-  assert.equal(loaded.migrations[0].script, 'database/schema.sql');
+  assert.equal(loaded.migrations[0].script, 'database/migrations/0001_initial_schema.sql');
+  assert.equal(loaded.schema.script, 'database/schema.sql');
+  assert.equal(loaded.schema.throughVersion, loaded.migrations.at(-1).version);
 });
 
 test('every table has a unique database-generated public UUID and all FKs remain numeric', () => {

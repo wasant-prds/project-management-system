@@ -26,7 +26,8 @@ test("GitLab import contract distinguishes implemented repository code from envi
   assert.match(schema, /remoteCreatedAt\s+DateTime\s+@map\("remote_created_at"\)\s+@db\.Timestamp\(3\)/);
   assert.match(status, /export async function GET/);
   assert.match(mappingRoutes, /export async function POST/);
-  assert.match(syncRoute, /approveFirstSync/);
+  assert.match(syncRoute, /PROJECT_SYNC_REQUIRED/);
+  assert.match(await read('app/api/projects/[id]/issue-sync/[configId]/sync/route.ts'), /approveFirstSync/);
   assert.match(service, /Serializable/);
   assert.match(inventory ?? "", /\/api\/integrations\/gitlab\/sync/);
   assert.match(api, /Prisma schema changes ของ #20, #21 และ #25 ยังไม่ได้ apply กับ environment/);

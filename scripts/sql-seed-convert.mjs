@@ -1005,7 +1005,7 @@ export async function generateSqlMasterSeeds({
     companyEvidence: policy.evidence,
   };
   const evidenceContent = `${JSON.stringify(evidence, null, 2)}\n`;
-  const contractChecksum = artifacts.migrations[0].checksum;
+  const contractChecksum = artifacts.schema?.checksum ?? artifacts.migrations[0].checksum;
   const manifestBody = {
     datasetVersion: '1.0.0',
     datasetFingerprint: datasetFingerprint(filesManifest, policy.policyVersion, legacyMapChecksum, contractChecksum),

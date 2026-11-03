@@ -45,7 +45,7 @@ async function writeDataset(dir, mutate) {
     datasetFingerprint: 'fixture',
     schema: {
       targetRevision: artifacts.revision,
-      contractChecksum: artifacts.migrations[0].checksum,
+      contractChecksum: artifacts.schema?.checksum ?? artifacts.migrations[0].checksum,
       tableCount: SEED_TABLE_FILES.length,
     },
     tables,

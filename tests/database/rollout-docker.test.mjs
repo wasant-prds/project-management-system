@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,6 +7,8 @@ import { randomUUID, createHash } from 'node:crypto';
 import { docker, sql, inventory, backup, verifyRollout, rehearse, health, config } from '../../scripts/db-rollout.mjs';
 import { checkDhasBackfill, dhasBackfillSQL } from '../../scripts/company-project-backfill-docker.mjs';
 import { projectDateSnapshot, promoteProjectDatesSQL } from '../../scripts/project-date-promotion.mjs';
+import { LEGACY_SOURCE_DDL } from '../support/legacy-source-schema.mjs';
+import { emptyBootstrap } from '../../scripts/sql-migrate.mjs';
 
 test('real PostgreSQL backup/restore and staged Company relation preserve exact history',
   { skip: process.env.PMS_RUN_ROLLOUT_DOCKER_TESTS !== '1', timeout:180000 }, async () => {
@@ -19,8 +20,14 @@ test('real PostgreSQL backup/restore and staged Company relation preserve exact 
       let ready=false;
       for (let i=0;i<60;i++) { try { sql(name,'SELECT 1;');ready=true;break; } catch {} await new Promise(r => setTimeout(r,250)); }
       assert.ok(ready);
-      const schema=execFileSync(process.execPath,['node_modules/prisma/build/index.js','migrate','diff','--from-empty','--to-schema-datamodel','prisma/schema.prisma','--script'],{ env:{ ...process.env,DATABASE_URL:'postgresql://synthetic@localhost/synthetic' },stdio:['ignore','pipe','pipe'] });
-      sql(name,schema);
+      // This suite rehearses historical Company promotion, not the current runtime schema.
+      sql(name,LEGACY_SOURCE_DDL);
+      sql(name,`ALTER TABLE "User" ALTER COLUMN role SET DEFAULT 'member', ALTER COLUMN theme SET DEFAULT 'light', ALTER COLUMN locale SET DEFAULT 'th', ALTER COLUMN status SET DEFAULT 'Active', ALTER COLUMN "joinDate" SET DEFAULT localtimestamp, ALTER COLUMN "createdAt" SET DEFAULT localtimestamp;
+        ALTER TABLE "Project" ALTER COLUMN status SET DEFAULT 'Planning', ALTER COLUMN priority SET DEFAULT 'Medium', ALTER COLUMN progress SET DEFAULT 0, ALTER COLUMN "createdAt" SET DEFAULT localtimestamp;
+        ALTER TABLE work_items ALTER COLUMN priority SET DEFAULT 'none', ALTER COLUMN status SET DEFAULT 'backlog', ALTER COLUMN labels_types SET DEFAULT ARRAY[]::text[], ALTER COLUMN "createdAt" SET DEFAULT localtimestamp;
+        ALTER TABLE "TimeEntry" ALTER COLUMN "createdAt" SET DEFAULT localtimestamp;
+        ALTER TABLE "Company" ALTER COLUMN "createdAt" SET DEFAULT localtimestamp;
+        ALTER TABLE "TimeEntry" DROP CONSTRAINT "TimeEntry_projectId_fkey", ADD CONSTRAINT "TimeEntry_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"(id) ON DELETE CASCADE;`);
       // Recreate the pre-#18 Project date types before taking the fixture baseline.
       sql(name,`ALTER TABLE "Project" ALTER COLUMN "startDate" TYPE timestamp(3) without time zone USING "startDate"::timestamp,
         ALTER COLUMN "dueDate" TYPE timestamp(3) without time zone USING "dueDate"::timestamp;`);
@@ -47,8 +54,12 @@ test('real PostgreSQL backup/restore and staged Company relation preserve exact 
       assert.equal((await verifyRollout(settings,file,'backfilled')).result,'passed');
       sql(name,`ALTER TABLE "Project" ALTER COLUMN "companyId" SET NOT NULL;`);
       assert.equal((await verifyRollout(settings,file,'required')).result,'passed');
+      // The current app must never be pointed at the legacy CUID fixture.
+      sql(name,'CREATE DATABASE current_runtime');
+      const runtimeQuery = statement => docker(['exec','-i',name,'psql','-U','postgres','-d','current_runtime','-X','-qAt','-v','ON_ERROR_STOP=1'],statement).toString().trim();
+      emptyBootstrap({ root:process.cwd(),target:`docker:${name}`,targetLabel:'rollout-runtime-test',env:{},query:runtimeQuery });
       const envPath=join(folder,'.env');
-      await writeFile(envPath,'APP_ENV=dev\nAPP_ORIGIN=http://localhost:3000\nRUNTIME_DOCKER=true\nPOSTGRES_HOST=127.0.0.1\nPOSTGRES_USER=postgres\nPOSTGRES_DB=postgres\nPOSTGRES_PASSWORD=synthetic\nOWNER_GATE_USERNAME=owner\nOWNER_GATE_PASSWORD=synthetic-owner-password-at-least-32\n');
+      await writeFile(envPath,'APP_ENV=dev\nAPP_ORIGIN=http://localhost:3000\nRUNTIME_DOCKER=true\nPOSTGRES_HOST=127.0.0.1\nPOSTGRES_USER=postgres\nPOSTGRES_DB=current_runtime\nPOSTGRES_PASSWORD=synthetic\nOWNER_GATE_USERNAME=owner\nOWNER_GATE_PASSWORD=synthetic-owner-password-at-least-32\n');
       docker(['run','-d','--name',migration,'--network','none','postgres:16-alpine','true']);
       docker(['run','--rm','-d','--name',app,'--network',`container:${name}`,'--env-file',envPath,
         process.env.PMS_ROLLOUT_TEST_IMAGE || 'project-management-system-production-app:latest']);

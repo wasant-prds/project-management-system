@@ -40,7 +40,6 @@ import { currentBangkokCalendarDate } from '@/lib/bangkok-datetime'
 import { fetchCollection } from '@/lib/fetch-collection'
 import { WorkItemViewDialog } from '@/components/page/work-items/work-item-view-dialog'
 import { WorkItemGroupedList } from '@/components/page/work-items/work-item-grouped-list'
-import { GitLabImportPanel } from '@/components/page/work-items/gitlab-import-panel'
 import {
   createWorkItemFilterKey,
   isWorkItemListLoading,
@@ -1024,7 +1023,7 @@ export default function WorkItemsPage() {
               </section>
             )}
 
-            <GitLabImportPanel projects={projects} onSynced={refreshAfterMutation} />
+            <p className="text-sm text-muted-foreground">Sync GitHub / GitLab Issues ได้จากหน้า Project → Integrations โดยกำหนด assignee ก่อน sync</p>
 
             <div className={`cinematic-beat-data ${STAT_GRID}`}>
               <SummaryStatCard label="Total" value={stats.total} isLoading={isListLoading} unavailable={Boolean(loadError)} />

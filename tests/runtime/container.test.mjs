@@ -4,9 +4,11 @@ import { execFileSync } from 'node:child_process';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { loadArtifacts } from '../../scripts/sql-artifacts.mjs';
+import { buildBootstrapScript, upgrade } from '../../scripts/sql-migrate.mjs';
 
-const docker = (args) => {
-  try { return execFileSync('docker', args, { encoding: 'utf8', timeout: 30000, stdio: ['ignore', 'pipe', 'pipe'] }); }
+const docker = (args, input) => {
+  try { return execFileSync('docker', args, { input, encoding: 'utf8', timeout: 30000, stdio: ['pipe', 'pipe', 'pipe'] }); }
   catch { throw new Error('Isolated app container verification failed (diagnostics withheld)'); }
 };
 
@@ -44,6 +46,9 @@ test('production image enforces owner gate and excludes secrets from client, res
         if (!databaseReady) await new Promise((resolve) => setTimeout(resolve, 200));
       }
       assert.ok(databaseReady);
+      const query = statement => docker(['exec', '-i', databaseName, 'psql', '-U', 'postgres', '-X', '-qAt', '-v', 'ON_ERROR_STOP=1'], statement).trim();
+      const artifacts = loadArtifacts(process.cwd());
+      query(buildBootstrapScript({ ...artifacts, schema: undefined, migrations: artifacts.migrations.slice(0, 1) }, 'runtime-test'));
       start(`container:${databaseName}`);
       let appReady = false;
       for (let attempt = 0; attempt < 30; attempt++) {
@@ -51,6 +56,9 @@ test('production image enforces owner gate and excludes secrets from client, res
         catch { await new Promise((resolve) => setTimeout(resolve, 200)); }
       }
       assert.ok(appReady);
+      // A connected database with only the historical baseline is not ready.
+      assert.match(docker(['exec', name, 'node', '-e', code]), /Production runtime verified/);
+      upgrade({ root: process.cwd(), target: `docker:${databaseName}`, targetLabel: 'runtime-test', env: {}, query });
       assert.match(docker(['exec', name, 'node', '-e', code.replace('assert.equal(h.status,503)', 'assert.equal(h.status,200)')]), /Production runtime verified/);
     } finally {
       try { docker(['rm', '-f', name]); } catch {}

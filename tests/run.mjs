@@ -31,6 +31,7 @@ const suites = {
   "https-docker": { files: [join(testRoot, "runtime", "https-certificate-docker.test.mjs")] },
   "runtime-container": { files: [join(testRoot, "runtime", "container.test.mjs")] },
   gitlab: { directory: join(testRoot, "gitlab") },
+  "issue-sync": { directory: join(testRoot, "issue-sync") },
   contracts: { directory: join(testRoot, "contracts") },
   "api-contracts": { files: [join(testRoot, "contracts", "menu-api-validation.test.mjs")] },
   "migration-contracts": { files: [join(testRoot, "contracts", "customer-project-migration.test.mjs")] },

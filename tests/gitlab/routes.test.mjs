@@ -237,71 +237,15 @@ test('unmapping deletes only the mapping and leaves imported identity references
   assert.deepEqual(references, [{ id: 'reference-1', workItemId: 'work-item-1' }])
 })
 
-test('sync requires explicit first-sync approval and then calls only the configured server-side connector', async () => {
+test('legacy unfiltered sync is retired and directs the owner to Project Integrations', async () => {
   const mocks = makeOwnerMocks()
-  let approveAt
-  let serviceCalls = 0
-  let sentOwnerId
-  mocks['@/lib/gitlab-issue-import'].syncGitLabProject = async ({ ownerId }) => {
-    serviceCalls += 1
-    sentOwnerId = ownerId
-    return {
-      counts: { created: 1, updated: 0, skipped: 0, failed: 0 },
-      results: [{ outcome: 'created', sourceUrl: 'https://gitlab.example.test/base/group/project/-/issues/17', workItemId: '77777777-7777-4777-8777-777777777771' }],
-    }
-  }
-  mocks['@/lib/db'].prisma = {
-    gitLabProjectMapping: {
-      async findFirst() { return mapping },
-      async update({ where, data }) {
-        assert.equal(where.updatedAt.getTime(), mapping.updatedAt.getTime())
-        approveAt = data.firstSyncApprovedAt
-        return { ...mapping, ...data }
-      },
-    },
-  }
+  mocks['@/lib/db'].prisma = new Proxy({}, { get() { assert.fail('retired sync must not access the database') } })
   const { POST } = loadTs('../../app/api/integrations/gitlab/sync/route.ts', mocks)
-  const required = await POST({ json: async () => ({ mappingId: MAPPING_PUBLIC }) })
-  assert.equal(required.status, 409)
-  assert.equal(required.body.error.code, 'FIRST_SYNC_APPROVAL_REQUIRED')
-  assert.equal(serviceCalls, 0)
-
-  const authorized = await POST({ json: async () => ({ mappingId: MAPPING_PUBLIC, approveFirstSync: true }) })
-  assert.equal(authorized.status, 200)
-  assert.equal(approveAt.toISOString(), '2026-09-30T18:00:00.000Z')
-  assert.equal(authorized.body.mappingId, MAPPING_PUBLIC)
-  assert.equal(authorized.body.counts.created, 1)
-  assert.equal(authorized.body.counts.failed, 0)
-  assert.equal(authorized.body.results[0].outcome, 'created')
-  assert.equal(authorized.body.results[0].sourceUrl, 'https://gitlab.example.test/base/group/project/-/issues/17')
-  assert.equal(authorized.body.results[0].workItemId, '77777777-7777-4777-8777-777777777771')
-  assert.equal(sentOwnerId, owner.internalId)
-  assert.equal(serviceCalls, 1)
-  assert.equal(JSON.stringify(authorized.body).includes(config.token), false)
-})
-
-test('first-sync approval stops if the mapping changed after it was read', async () => {
-  const mocks = makeOwnerMocks()
-  let serviceCalls = 0
-  mocks['@/lib/db'].prisma = {
-    gitLabProjectMapping: {
-      async findFirst() { return mapping },
-      async update({ where }) {
-        assert.equal(where.updatedAt.getTime(), mapping.updatedAt.getTime())
-        throw Object.assign(new Error('record changed'), { code: 'P2025' })
-      },
-    },
-  }
-  mocks['@/lib/gitlab-issue-import'].syncGitLabProject = async () => {
-    serviceCalls += 1
-    return { counts: { created: 0, updated: 0, skipped: 0, failed: 0 }, results: [] }
-  }
-  const { POST } = loadTs('../../app/api/integrations/gitlab/sync/route.ts', mocks)
-  const result = await POST({ json: async () => ({ mappingId: MAPPING_PUBLIC, approveFirstSync: true }) })
-
+  const result = await POST({ json: async () => assert.fail('retired sync must not accept an old request') })
   assert.equal(result.status, 409)
-  assert.equal(result.body.error.code, 'CONFLICT')
-  assert.equal(serviceCalls, 0)
+  assert.equal(result.body.error.code, 'PROJECT_SYNC_REQUIRED')
+  assert.equal(mocks['@/lib/gitlab-issue-import'].configurationCalls(), 0)
+  assert.equal(JSON.stringify(result.body).includes(config.token), false)
 })
 
 test('unauthenticated sync is rejected before reading the request, configuration, or mapping', async () => {

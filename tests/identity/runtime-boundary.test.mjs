@@ -181,6 +181,9 @@ test('TC-33-23 keeps db push and JSON seed off the active startup path', () => {
   assert.doesNotMatch(entrypoint, /db-push-safe\.sh|prisma db seed/)
   assert.match(manage, /Reset is refused/)
   assert.match(seed, /PMS_JSON_SEED_ISOLATED_TEST/)
+  const compatibilitySync = readFileSync(new URL('../../scripts/db-push-safe.sh', import.meta.url), 'utf8')
+  assert.match(compatibilitySync, /sql-runtime\.mjs apply/)
+  assert.doesNotMatch(compatibilitySync, /prisma db push/)
   const equivalent = verifyEquivalence(
     { rows: [{ oldId: 'a' }], hours: '1.25', completed: 1, cancelled: 0, total: 2, earliest: '2026-10-01', latest: '2026-10-02' },
     { rows: [{ oldId: 'a' }], hours: '1.25', completed: 1, cancelled: 0, total: 2, earliest: '2026-10-01', latest: '2026-10-02' },

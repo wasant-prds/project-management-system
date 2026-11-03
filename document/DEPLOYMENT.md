@@ -1,5 +1,7 @@
 # DEPLOYMENT
 
+> **Project Issue Sync — current contract:** Project Issue Sync ใช้ server ISSUE_SYNC_CREDENTIALS registry และ tokenEnv/tokenFileEnv references; provision secrets บน server เท่านั้น. Docker app รับ registry และ GitHub/GitLab environment. เตรียม migration 0002 แล้ว แต่การใช้กับฐานข้อมูลจริงต้อง verified baseline/backup, isolated rehearsal และ explicit approval. รายละเอียดและข้อกำหนดล่าสุดอยู่ใน [Project Issue Sync](./ISSUE_SYNC.md); เนื้อหา GitLab-only เดิมด้านล่างให้อ่านเป็นประวัติเมื่อขัดกับ contract นี้.
+
 > **Owner decision 2026-09-29:** การ rollout #18 ใช้ Dhas Company → `Project.companyId` และ backfill แบบ stage ตาม [Company → Project decision](./COMPANY_PROJECT_DECISION.md); Customer migration เดิมไม่ใช่แผนที่ใช้ต่อ.
 
 | รายการ | ค่า |

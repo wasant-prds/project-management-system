@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import sqlManifest from '@/database/migrations/manifest.json'
 
 // Health check endpoint for Docker and monitoring
 export async function GET() {
@@ -11,7 +12,9 @@ export async function GET() {
     const revisions = await prisma.$queryRaw<Array<{ ready: boolean }>>`
       SELECT EXISTS (
         SELECT 1 FROM "schema_migrations"
-        WHERE "version" = '0001' AND "status" = 'applied' AND "schema_revision" LIKE '31.%'
+        WHERE "version" = ${sqlManifest.migrations.at(-1)!.version}
+          AND "checksum" = ${sqlManifest.migrations.at(-1)!.checksum}
+          AND "status" = 'applied' AND "schema_revision" = ${sqlManifest.revision}
       ) AS ready
     `
     if (revisions[0]?.ready !== true) throw new Error('Schema revision is not compatible')

@@ -15,9 +15,9 @@ export const BUSINESS_TABLES = Object.freeze([
   'work_logs',
   'activity_logs',
 ]);
-export const TECHNICAL_TABLES = Object.freeze(['schema_migrations']);
+export const TECHNICAL_TABLES = Object.freeze(['schema_migrations', 'issue_sync_configs', 'issue_sync_runs']);
 export const MUTABLE_TIMESTAMP_TABLES = Object.freeze(
-  BUSINESS_TABLES.filter((name) => name !== 'activity_logs'),
+  [...BUSINESS_TABLES.filter((name) => name !== 'activity_logs'), 'issue_sync_configs', 'issue_sync_runs'],
 );
 
 const VERSION = /^(?:[0-9]{4})$/;
@@ -132,7 +132,8 @@ function migrationRecord(entry, index, bytes) {
   if (!CHECKSUM.test(entry.checksum ?? '')) throw new Error('Invalid migration checksum');
   assertSafeRelativePath(entry.script);
   const baseline = index === 0;
-  if (baseline && (entry.version !== '0001' || entry.kind !== 'baseline_snapshot' || entry.script !== 'database/schema.sql')) {
+  if (baseline && (entry.version !== '0001' || entry.kind !== 'baseline_snapshot'
+    || !['database/schema.sql', 'database/migrations/0001_initial_schema.sql'].includes(entry.script))) {
     throw new Error('Version 0001 must be the schema snapshot baseline');
   }
   if (!baseline && (entry.kind !== 'sql' || !entry.script.startsWith('database/migrations/'))) {
@@ -167,10 +168,23 @@ export function loadArtifacts(root) {
     versions.add(version);
     if (index > 0 && Number(version) <= Number(migrations[index - 1].version)) throw new Error('Migration versions are not ordered');
   }
+  let schema;
+  if (manifest.schema !== undefined) {
+    if (manifest.schema?.script !== 'database/schema.sql' || !CHECKSUM.test(manifest.schema.checksum ?? '')
+      || !migrations.some((migration) => migration.version === manifest.schema.throughVersion)) {
+      throw new Error('Invalid authoritative schema snapshot');
+    }
+    const bytes = readCheckedFile(root, manifest.schema.script);
+    if (sha256(bytes) !== manifest.schema.checksum) throw new Error('Authoritative schema checksum mismatch');
+    const sql = bytes.toString('utf8');
+    assertExecutableSql(sql, true);
+    schema = { ...manifest.schema, sql };
+  }
   return {
     revision: manifest.revision,
     lockTimeoutMs: manifest.lockTimeoutMs,
     statementTimeoutMs: manifest.statementTimeoutMs,
     migrations,
+    ...(schema ? { schema } : {}),
   };
 }

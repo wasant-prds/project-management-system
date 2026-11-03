@@ -34,7 +34,7 @@ export type WorkItem = {
   submittedAt: string | null
   createdAt: string
   updatedAt?: string
-  source?: { provider: 'gitlab'; url: string; issueIid: string } | null
+  source?: { provider: 'gitlab' | 'github'; url: string; issueIid: string; inScope?: boolean } | null
   project: WorkItemProject
   assignee: { id: string; name: string; avatar: string | null }
   timeEntries?: WorkItemTimeEntry[]

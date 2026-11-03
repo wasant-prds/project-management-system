@@ -1,13 +1,14 @@
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { loadRuntimeConfig, safeRuntimeSummary } from './runtime-config.mjs';
+import { issueSyncSecretValues, loadRuntimeConfig, safeRuntimeSummary } from './runtime-config.mjs';
 import { databaseUrl } from './database-url.mjs';
 import { createOwnerGate } from './owner-gate.mjs';
 
 export function redact(value, env) {
   let result = value;
-  for (const key of ['OWNER_GATE_USERNAME', 'OWNER_GATE_PASSWORD', 'PMS_INTERNAL_OWNER_PROOF', 'GITLAB_TOKEN', 'NEXTAUTH_SECRET', 'DATABASE_URL', 'POSTGRES_PASSWORD']) {
+  for (const secret of issueSyncSecretValues(env)) result = result.split(secret).join('[redacted]');
+  for (const key of ['OWNER_GATE_USERNAME', 'OWNER_GATE_PASSWORD', 'PMS_INTERNAL_OWNER_PROOF', 'GITLAB_TOKEN', 'GITHUB_TOKEN', 'NEXTAUTH_SECRET', 'DATABASE_URL', 'POSTGRES_PASSWORD']) {
     if (env[key]) result = result.split(env[key]).join('[redacted]');
   }
   return result.replace(/postgres(?:ql)?:\/\/[^\s]+/gi, '[redacted database URL]');

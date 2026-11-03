@@ -14,6 +14,7 @@ const enabled = process.env.PMS_RUN_SQL_MIGRATION_DOCKER_TESTS === '1';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const businessTables = [
   'activity_logs', 'companies', 'external_project_mappings', 'external_work_item_references',
+  'issue_sync_configs', 'issue_sync_runs',
   'project_documents', 'project_members', 'project_milestones', 'projects',
   'schema_migrations', 'users', 'work_items', 'work_logs',
 ];
@@ -59,12 +60,19 @@ function spawnSql(container, sqlText) {
 async function artifactCopy(mutate) {
   const directory = await mkdtemp(join(tmpdir(), 'pms-sql-docker-'));
   await mkdir(join(directory, 'database', 'migrations'), { recursive: true });
-  const schema = await readFile(join(repoRoot, 'database', 'schema.sql'));
+  // Legacy baseline fixtures deliberately replay historical migrations;
+  // the repository target itself bootstraps from authoritative schema.sql.
+  const schema = await readFile(join(repoRoot, 'database', 'migrations', '0001_initial_schema.sql'));
   const nextSchema = mutate ? mutate(schema) : schema;
   await writeFile(join(directory, 'database', 'schema.sql'), nextSchema);
   const migrations = [{
     version: '0001', name: 'initial_schema', kind: 'baseline_snapshot', script: 'database/schema.sql', checksum: sha256(nextSchema),
   }];
+  const current = JSON.parse(await readFile(join(repoRoot, 'database', 'migrations', 'manifest.json'), 'utf8'));
+  for (const entry of current.migrations.slice(1)) {
+    await writeFile(join(directory, entry.script), await readFile(join(repoRoot, entry.script)));
+    migrations.push(entry);
+  }
   await writeFile(join(directory, 'database', 'migrations', 'manifest.json'), JSON.stringify({
     revision: '31.0.0', lockTimeoutMs: 5000, statementTimeoutMs: 120000, migrations,
   }));
@@ -78,14 +86,15 @@ if (!enabled) {
   let query;
   test.before(async () => {
     query = await startPostgres(name);
-    emptyBootstrap({ root: repoRoot, target: `docker:${name}`, targetLabel: 'issue-31', query, env: {} });
+    const bootstrapped = emptyBootstrap({ root: repoRoot, target: `docker:${name}`, targetLabel: 'issue-31', query, env: {} });
+    assert.deepEqual(bootstrapped.applied, ['0001', '0002']);
   });
   test.after(() => { removeContainer(name); });
 
   test('TC-31-01 empty bootstrap creates the business and technical tables', () => {
     const tables = query(`SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' ORDER BY c.relname COLLATE "C"`);
     assert.equal(tables, businessTables.join('\n'));
-    assert.equal(query(`SELECT count(DISTINCT trigger_name) FROM information_schema.triggers WHERE trigger_schema = 'public'`), '13');
+    assert.equal(query(`SELECT count(DISTINCT trigger_name) FROM information_schema.triggers WHERE trigger_schema = 'public'`), '15');
     assert.equal(query(`SELECT string_agg(proname, ',' ORDER BY proname) FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public'`), 'pms_align_identity,pms_bangkok_now,pms_bangkok_today,pms_reject_immutable_row,pms_stamp_created_at,pms_stamp_timestamps');
   });
 
@@ -113,7 +122,9 @@ if (!enabled) {
     assert.equal(query(`SELECT conname || ' ' || confdeltype::text FROM pg_constraint WHERE contype = 'f' AND connamespace = 'public'::regnamespace ORDER BY conname COLLATE "C"`), [
       'activity_logs_project_id_fkey r', 'activity_logs_user_id_fkey r',
       'external_project_mappings_project_id_fkey r', 'external_work_item_references_project_id_fkey r',
-      'external_work_item_references_work_item_id_fkey r', 'project_documents_project_id_fkey r', 'project_documents_uploader_id_fkey n',
+      'external_work_item_references_work_item_id_fkey r',
+      'issue_sync_configs_mapping_id_fkey r', 'issue_sync_runs_config_id_fkey r',
+      'project_documents_project_id_fkey r', 'project_documents_uploader_id_fkey n',
       'project_members_project_id_fkey r', 'project_members_user_id_fkey c', 'project_milestones_project_id_fkey r',
       'projects_company_id_fkey r', 'projects_creator_id_fkey n', 'work_items_assignee_id_fkey r', 'work_items_project_id_fkey r',
       'work_logs_project_id_fkey r', 'work_logs_user_id_fkey c', 'work_logs_work_item_id_fkey r',
@@ -147,8 +158,8 @@ if (!enabled) {
   });
 
   test('every table has public UUID metadata and generated UUIDs are unique and immutable', () => {
-    assert.equal(query(`SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public' AND column_name = 'public_id' AND data_type = 'uuid' AND is_nullable = 'NO' AND column_default LIKE '%gen_random_uuid()%'`), '12');
-    assert.equal(query(`SELECT count(*) FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND contype = 'u' AND conname LIKE '%_public_id_key' AND pg_get_constraintdef(oid) = 'UNIQUE (public_id)'`), '12');
+    assert.equal(query(`SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public' AND column_name = 'public_id' AND data_type = 'uuid' AND is_nullable = 'NO' AND column_default LIKE '%gen_random_uuid()%'`), '14');
+    assert.equal(query(`SELECT count(*) FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND contype = 'u' AND conname LIKE '%_public_id_key' AND pg_get_constraintdef(oid) = 'UNIQUE (public_id)'`), '14');
     const publicId = query(`SELECT public_id FROM companies WHERE id = 1`);
     assert.match(publicId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     assert.equal(query(`SELECT count(DISTINCT public_id) FROM companies`), query(`SELECT count(*) FROM companies`));
@@ -279,7 +290,7 @@ if (!enabled) {
     const before = query(`SELECT count(*)::text || ' ' || checksum FROM "schema_migrations" GROUP BY checksum`);
     const skipped = upgrade({ root: repoRoot, target: `docker:${name}`, targetLabel: 'issue-31', query, env: {} });
     assert.deepEqual(skipped.applied, []);
-    assert.deepEqual(skipped.skipped, ['0001']);
+    assert.deepEqual(skipped.skipped, ['0001', '0002']);
     assert.throws(() => emptyBootstrap({ root: repoRoot, target: `docker:${name}`, targetLabel: 'issue-31', query, env: {} }), /not empty/);
     assert.equal(query(`SELECT count(*)::text || ' ' || checksum FROM "schema_migrations" GROUP BY checksum`), before);
     const copy = await artifactCopy((schema) => Buffer.concat([schema, Buffer.from('\n-- checksum drift\n')]));
@@ -294,8 +305,8 @@ if (!enabled) {
   test('TC-31-12 a second runner fails on the migration lock without writing history', async () => {
     const copy = await artifactCopy();
     const extra = 'CREATE TABLE "upgrade_marker" (id integer);\n';
-    await writeFile(join(copy.directory, 'database', 'migrations', '0002_marker.sql'), extra);
-    copy.migrations.push({ version: '0002', name: 'marker', kind: 'sql', script: 'database/migrations/0002_marker.sql', checksum: sha256(extra) });
+    await writeFile(join(copy.directory, 'database', 'migrations', '0003_marker.sql'), extra);
+    copy.migrations.push({ version: '0003', name: 'marker', kind: 'sql', script: 'database/migrations/0003_marker.sql', checksum: sha256(extra) });
     await writeFile(join(copy.directory, 'database', 'migrations', 'manifest.json'), JSON.stringify({
       revision: '31.0.0', lockTimeoutMs: 5000, statementTimeoutMs: 120000, migrations: copy.migrations,
     }));
@@ -309,7 +320,7 @@ if (!enabled) {
       assert.equal(locked, true);
       assert.throws(() => upgrade({ root: copy.directory, target: `docker:${name}`, targetLabel: 'issue-31', query, env: {} }), /lock timeout/i);
       assert.equal(query(`SELECT to_regclass('public.upgrade_marker') IS NULL`), 't');
-      assert.equal(query(`SELECT count(*) FROM "schema_migrations"`), '1');
+      assert.equal(query(`SELECT count(*) FROM "schema_migrations"`), '2');
     } finally {
       if (process.platform === 'win32') spawnSync('taskkill', ['/PID', String(holder.child.pid), '/T', '/F'], { windowsHide: true });
       else holder.child.kill('SIGKILL');
@@ -347,6 +358,7 @@ if (!enabled) {
     const replayQuery = await startPostgres(replayName);
     try {
       emptyBootstrap({ root: repoRoot, target: `docker:${replayName}`, targetLabel: 'issue-31-replay', query: replayQuery, env: {} });
+      upgrade({ root: repoRoot, target: `docker:${replayName}`, targetLabel: 'issue-31-replay', query: replayQuery, env: {} });
       const left = query(FINGERPRINT_SQL);
       const right = replayQuery(FINGERPRINT_SQL);
       assert.equal(diffFingerprints(left, right).equal, true);
@@ -370,17 +382,19 @@ if (!enabled) {
     const snapshotName = `pms-sql31-snap-${randomUUID()}`;
     const replayName = `pms-sql31-step-${randomUUID()}`;
     try {
-      await writeFile(join(replayRoot.directory, 'database', 'migrations', '0002_company_name_idx.sql'), addition);
-      replayRoot.migrations.push({
-        version: '0002', name: 'company_name_idx', kind: 'sql', script: 'database/migrations/0002_company_name_idx.sql', checksum: sha256(addition),
-      });
-      await writeFile(join(replayRoot.directory, 'database', 'migrations', 'manifest.json'), JSON.stringify({
-        revision: '31.0.0', lockTimeoutMs: 5000, statementTimeoutMs: 120000, migrations: replayRoot.migrations,
-      }));
       const snapshotQuery = await startPostgres(snapshotName);
       const replayQuery = await startPostgres(replayName);
       emptyBootstrap({ root: snapshotRoot.directory, target: `docker:${snapshotName}`, targetLabel: 'issue-31-snapshot', query: snapshotQuery, env: {} });
       emptyBootstrap({ root: replayRoot.directory, target: `docker:${replayName}`, targetLabel: 'issue-31-replay', query: replayQuery, env: {} });
+      upgrade({ root: snapshotRoot.directory, target: `docker:${snapshotName}`, targetLabel: 'issue-31-snapshot', query: snapshotQuery, env: {} });
+      upgrade({ root: replayRoot.directory, target: `docker:${replayName}`, targetLabel: 'issue-31-replay', query: replayQuery, env: {} });
+      await writeFile(join(replayRoot.directory, 'database', 'migrations', '0003_company_name_idx.sql'), addition);
+      replayRoot.migrations.push({
+        version: '0003', name: 'company_name_idx', kind: 'sql', script: 'database/migrations/0003_company_name_idx.sql', checksum: sha256(addition),
+      });
+      await writeFile(join(replayRoot.directory, 'database', 'migrations', 'manifest.json'), JSON.stringify({
+        revision: '31.0.0', lockTimeoutMs: 5000, statementTimeoutMs: 120000, migrations: replayRoot.migrations,
+      }));
       assert.equal(diffFingerprints(snapshotQuery(FINGERPRINT_SQL), replayQuery(FINGERPRINT_SQL)).equal, false);
       upgrade({ root: replayRoot.directory, target: `docker:${replayName}`, targetLabel: 'issue-31-replay', query: replayQuery, env: {} });
       assert.equal(diffFingerprints(snapshotQuery(FINGERPRINT_SQL), replayQuery(FINGERPRINT_SQL)).equal, true);

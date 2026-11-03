@@ -13,6 +13,7 @@ import { SummaryStatCard } from '@/components/layout/summary-stat-card'
 import { PageState } from '@/components/layout/page-state'
 import { workItemRoleLabel } from '@/components/page/work-items/work-item-role-label'
 import { WorkItemStatusBadge } from '@/components/page/work-items/work-item-status-badge'
+import { ProjectIssueSync } from '@/components/page/projects/project-issue-sync'
 import { useRouter } from 'next/navigation'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -35,6 +36,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [loading, setLoading] = useState(true)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [syncRevision, setSyncRevision] = useState(0)
   useEffect(() => {
     async function load() {
       try {
@@ -46,7 +48,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       finally { setLoading(false) }
     }
     load()
-  }, [id])
+  }, [id, syncRevision])
   const deleteProject = async () => {
     setDeleting(true)
     setMessage('')
@@ -80,6 +82,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         <div><p className="mb-2 text-xs text-muted-foreground">ช่วงเวลา · Asia/Bangkok</p><p>{project.startDate} → {project.dueDate}</p></div>
         <p className="whitespace-pre-wrap break-words text-muted-foreground">{project.description}</p>
       </CardContent></Card>
+      <ProjectIssueSync projectId={id} onSynced={() => setSyncRevision((revision) => revision + 1)} />
       <div className="grid gap-5 md:grid-cols-2">
         <Card><CardHeader><CardTitle>สถานะ Work Items</CardTitle></CardHeader><CardContent>{Object.entries(project.summary.statusCounts).length ? Object.entries(project.summary.statusCounts).map(([status, count]) => <div key={status} className="data-row flex items-center justify-between gap-3 text-sm"><WorkItemStatusBadge status={status} /><Badge variant="secondary" className="tabular-nums">{count}</Badge></div>) : <PageState title="ยังไม่มี Work Items" />}</CardContent></Card>
         <Card><CardHeader><CardTitle>Functional roles</CardTitle></CardHeader><CardContent>{Object.entries(project.summary.roles).map(([role, count]) => <div key={role} className="data-row flex items-center justify-between gap-3 text-sm"><span>{workItemRoleLabel(role)}</span><Badge variant="outline" className="tabular-nums">{count}</Badge></div>)}</CardContent></Card>

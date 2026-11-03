@@ -1,5 +1,7 @@
 # API
 
+> **Project Issue Sync — current contract:** API ปัจจุบันเพิ่ม GET/POST /api/projects/{id}/issue-sync, PATCH /api/projects/{id}/issue-sync/{configId}, POST .../{configId}/sync และ GET .../{configId}/runs. ทุก route owner-only, Project-scoped และใช้ public UUIDv4. Legacy POST /api/integrations/gitlab/sync คืน 409 PROJECT_SYNC_REQUIRED เพื่อบังคับ assignee filter. รายละเอียดและข้อกำหนดล่าสุดอยู่ใน [Project Issue Sync](./ISSUE_SYNC.md); เนื้อหา GitLab-only เดิมด้านล่างให้อ่านเป็นประวัติเมื่อขัดกับ contract นี้.
+
 > **Identifier decision 2026-10-04:** API/UI/URL/export ใช้ public UUIDv4. ความสัมพันธ์ในฐานข้อมูลใช้ BIGINT. โค้ดแอปของ Issue #33 ตรวจ UUID ที่ขอบเขต HTTP แล้วค่อยเขียน numeric FK. การตัดระบบฐานข้อมูลที่ใช้งานอยู่ยังไม่เกิดขึ้นในงานนี้. ดู [public identifier contract](./database/PUBLIC_IDENTIFIERS.md).
 
 > **Owner decision 2026-09-29:** Customer API และ `customerId` ที่กล่าวในสัญญาเดิมถูกยกเลิก ใช้ Company หลายรายกับ `Project.companyId`; Projects เดิมผูก Dhas. ดู [Company → Project decision](./COMPANY_PROJECT_DECISION.md). ข้อความ Customer ด้านล่างเป็นประวัติข้อเสนอเดิม ไม่ใช่ contract ที่ใช้พัฒนาใหม่.

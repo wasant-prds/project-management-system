@@ -145,16 +145,21 @@ export async function verifySeedFilesChecksums(seedDir, manifest) {
 
 function assertSchemaContract(manifest, root) {
   const artifacts = loadArtifacts(root);
-  if (manifest.schema?.targetRevision !== artifacts.revision || manifest.schema?.contractChecksum !== artifacts.migrations[0].checksum) {
+  const checksum = artifacts.schema?.checksum ?? artifacts.migrations[0].checksum;
+  if (manifest.schema?.targetRevision !== artifacts.revision || manifest.schema?.contractChecksum !== checksum) {
     throw new Error('Seed manifest schema contract does not match the SQL artifacts');
   }
-  return { revision: artifacts.revision, checksum: artifacts.migrations[0].checksum };
+  return { revision: artifacts.revision, checksum, migrations: artifacts.migrations.map(({ version, checksum: migrationChecksum }) => ({ version, checksum: migrationChecksum })) };
 }
 
-export function buildSeedTransaction({ schemaRevision, schemaChecksum, seedSql }) {
+export function buildSeedTransaction({ schemaRevision, schemaChecksum, migrations = [{ version: '0001', checksum: schemaChecksum }], seedSql }) {
   if (!/^\d+\.\d+\.\d+$/.test(schemaRevision) || !/^[0-9a-f]{64}$/.test(schemaChecksum)) {
     throw new Error('Invalid schema contract for seed execution');
   }
+  if (!Array.isArray(migrations) || migrations.length === 0 || migrations.some(({ version, checksum }) => !/^\d{4}$/.test(version) || !/^[0-9a-f]{64}$/.test(checksum))) {
+    throw new Error('Invalid migration contract for seed execution');
+  }
+  const migrationChecks = migrations.map(({ version, checksum }) => `(SELECT count(*) FROM "schema_migrations" WHERE "version" = '${version}' AND "schema_revision" = '${schemaRevision}' AND "checksum" = '${checksum}' AND "status" = 'applied') <> 1`);
   const checks = BUSINESS_TABLES.map((table) => `IF (SELECT count(*) FROM "${table}") <> 0 THEN RAISE EXCEPTION 'nonempty target table ${table}'; END IF;`);
   const align = BUSINESS_TABLES.map((table) => `SELECT public.pms_align_identity('public."${table}"')`);
   return [
@@ -166,7 +171,7 @@ export function buildSeedTransaction({ schemaRevision, schemaChecksum, seedSql }
     PRESERVE_TIMESTAMPS_SQL,
     `DO ${GUARD_DELIMITER}
 BEGIN
-  IF (SELECT count(*) FROM "schema_migrations" WHERE "version" = '0001' AND "schema_revision" = '${schemaRevision}' AND "checksum" = '${schemaChecksum}' AND "status" = 'applied') <> 1 THEN
+  IF ${migrationChecks.join(' OR ')} THEN
     RAISE EXCEPTION 'schema contract mismatch';
   END IF;
   ${checks.join('\n  ')}
@@ -218,6 +223,7 @@ export async function executeSqlSeed({
   const transactionSql = buildSeedTransaction({
     schemaRevision: schema.revision,
     schemaChecksum: schema.checksum,
+    migrations: schema.migrations,
     seedSql: chunks.join(';\n'),
   });
   const query = customQuery ?? createQuery(target, spawnSync, env);

@@ -7,8 +7,20 @@
       "version": "0001",
       "name": "initial_schema",
       "kind": "baseline_snapshot",
-      "script": "database/schema.sql",
+      "script": "database/migrations/0001_initial_schema.sql",
       "checksum": "e17c32c0e0257de11cddfbec25998902fde6fc2c008b998ba66f12b06f080a8b"
+    },
+    {
+      "version": "0002",
+      "name": "issue_sync",
+      "kind": "sql",
+      "script": "database/migrations/0002_issue_sync.sql",
+      "checksum": "94eff464a0cdf87971ddaf3416765595b319a6c2c9d34bb9a59766e8c663dc32"
     }
-  ]
+  ],
+  "schema": {
+    "script": "database/schema.sql",
+    "checksum": "8dff28edc4b87b4b9b30b5be996caf8a63f5bcf3a1662522914af51e7fd00ba4",
+    "throughVersion": "0002"
+  }
 }

@@ -15,7 +15,7 @@ export const workItemInclude = {
     },
   },
   externalReference: {
-    select: { externalUrl: true, gitLabIssueIid: true, provider: true },
+    select: { externalUrl: true, gitLabIssueIid: true, provider: true, inScope: true },
   },
 } as const
 
@@ -53,7 +53,7 @@ type WorkItemResponseRecord = {
     colorProject: string | null
     company: { publicId: string; name: string; displayName: string | null }
   }
-  externalReference?: { externalUrl: string; gitLabIssueIid: string; provider: string } | null
+  externalReference?: { externalUrl: string; gitLabIssueIid: string; provider: string; inScope?: boolean } | null
   timeEntries?: Array<{
     publicId: string
     date: Date
@@ -74,7 +74,7 @@ function publicParty(party: PublicParty) {
 }
 
 export function serializeWorkItem(item: WorkItemResponseRecord) {
-  const gitlab = item.externalReference?.provider === 'gitlab' ? item.externalReference : null
+  const source = item.externalReference && ['gitlab', 'github'].includes(item.externalReference.provider) ? item.externalReference : null
   return {
     id: item.publicId,
     title: item.title,
@@ -101,10 +101,11 @@ export function serializeWorkItem(item: WorkItemResponseRecord) {
         displayName: item.project.company.displayName,
       },
     },
-    source: gitlab ? {
-      provider: 'gitlab',
-      url: gitlab.externalUrl,
-      issueIid: gitlab.gitLabIssueIid,
+    source: source ? {
+      provider: source.provider,
+      url: source.externalUrl,
+      issueIid: source.gitLabIssueIid,
+      inScope: source.inScope ?? true,
     } : null,
     ...(item.timeEntries ? {
       timeEntries: item.timeEntries.map((entry) => ({

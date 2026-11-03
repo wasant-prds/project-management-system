@@ -219,6 +219,7 @@ model GitLabProjectMapping {
   updatedAt                  DateTime  @default(dbgenerated("public.pms_bangkok_now()")) @map("updated_at") @db.Timestamp(3)
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  syncConfig IssueSyncConfig?
 
   @@unique([provider, canonicalGitLabInstanceUrl, gitLabProjectId], map: "external_project_mappings_source_key")
   @@index([projectId], map: "external_project_mappings_project_id_idx")
@@ -241,12 +242,53 @@ model ExternalWorkItemReference {
   createdAt                  DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("created_at") @db.Timestamp(3)
   updatedAt                  DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("updated_at") @db.Timestamp(3)
   workItemId                 BigInt   @unique @map("work_item_id")
+  inScope                    Boolean  @default(true) @map("in_scope")
   workItem                   WorkItem @relation(fields: [workItemId], references: [id], onDelete: Restrict)
   project                    Project  @relation(fields: [projectId], references: [id], onDelete: Restrict)
 
   @@unique([provider, canonicalGitLabInstanceUrl, gitLabProjectId, gitLabGlobalIssueId], map: "external_work_item_references_source_key")
   @@index([projectId], map: "external_work_item_references_project_id_idx")
   @@map("external_work_item_references")
+}
+
+model IssueSyncConfig {
+  id                BigInt @id @default(autoincrement())
+  publicId          String @unique @default(dbgenerated("pg_catalog.gen_random_uuid()")) @map("public_id") @db.Uuid
+  mappingId         BigInt @unique @map("mapping_id")
+  sourceProjectPath String @map("source_project_path")
+  assignees         String[]
+  credentialRef     String @map("credential_ref")
+  enabled           Boolean @default(true)
+  revision          Int @default(0)
+  leaseUntil        DateTime? @map("lease_until") @db.Timestamp(3)
+  leaseToken        String? @map("lease_token") @db.Uuid
+  createdAt         DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("created_at") @db.Timestamp(3)
+  updatedAt         DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("updated_at") @db.Timestamp(3)
+  mapping           GitLabProjectMapping @relation(fields: [mappingId], references: [id], onDelete: Restrict)
+  runs              IssueSyncRun[]
+
+  @@map("issue_sync_configs")
+}
+
+model IssueSyncRun {
+  id             BigInt @id @default(autoincrement())
+  publicId       String @unique @default(dbgenerated("pg_catalog.gen_random_uuid()")) @map("public_id") @db.Uuid
+  configId       BigInt @map("config_id")
+  status         String @default("running")
+  configSnapshot Json @map("config_snapshot") @db.JsonB
+  createdCount   Int @default(0) @map("created_count")
+  updatedCount   Int @default(0) @map("updated_count")
+  skippedCount   Int @default(0) @map("skipped_count")
+  failedCount    Int @default(0) @map("failed_count")
+  results        Json @default("[]") @db.JsonB
+  runError       Json? @map("run_error") @db.JsonB
+  finishedAt     DateTime? @map("finished_at") @db.Timestamp(3)
+  createdAt      DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("created_at") @db.Timestamp(3)
+  updatedAt      DateTime @default(dbgenerated("public.pms_bangkok_now()")) @map("updated_at") @db.Timestamp(3)
+  config         IssueSyncConfig @relation(fields: [configId], references: [id], onDelete: Restrict)
+
+  @@index([configId, id], map: "issue_sync_runs_config_id_id_idx")
+  @@map("issue_sync_runs")
 }
 
 model Milestone {

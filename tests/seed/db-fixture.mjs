@@ -1,56 +1,48 @@
-import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { PrismaClient } from '@prisma/client';
-import { seedDatabase } from '../../scripts/seed-database.mjs';
-const FIXED_CONTAINER_PATH = '/usr/local/bin:/usr/bin:/bin';
-const prisma = new PrismaClient({ log: [] });
-const folder = await mkdtemp(join(tmpdir(), 'seed-db-fixture-'));
-let stage = 'schema sync';
+import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
+import { PrismaClient } from '@prisma/client'
+
+// This process is launched only inside a disposable PostgreSQL test network.
+const prisma = new PrismaClient({ log: [] })
+let stage = 'SQL schema sync'
 try {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) throw new Error('DATABASE_URL is required for the isolated seed fixture');
-  const fixtureEnvironment = {
-    PATH: FIXED_CONTAINER_PATH,
-    DATABASE_URL: databaseUrl,
-    APP_ENV: 'local',
-    DB_SCHEMA_SYNC_APPROVED: 'true',
-    TZ: 'Asia/Bangkok',
-    PGTZ: 'Asia/Bangkok',
-  };
-  execFileSync('/bin/sh', ['scripts/db-push-safe.sh'], { stdio: 'pipe', env: fixtureEnvironment });
-  stage = 'fixture setup';
-  const company = await prisma.company.create({ data: { id: 'existing-company', name: 'Keep existing company' } });
-  const owner = await prisma.user.create({ data: { id: 'existing-owner', name: 'Owner', email: 'owner@fixture.invalid', password: 'synthetic' } });
-  const tables = ['Company', 'User', 'Project', 'WorkItem'];
-  await writeFile(join(folder, 'config.json'), JSON.stringify({ tables: tables.map(table => ({ table, file: `${table}.json` })) }));
-  // Company/User files deliberately absent: populated tables must skip them.
-  await writeFile(join(folder, 'Project.json'), JSON.stringify([{ id: 'fixture-project', name: 'Fixture', creatorId: owner.id, companyId: company.id, startDate: '2026-09-28T08:00:00Z', dueDate: '2026-09-29T08:00:00Z' }]));
-  await writeFile(join(folder, 'WorkItem.json'), JSON.stringify([{ id: 'fixture-work', title: 'Fixture', kind: 'Task', projectId: 'fixture-project', assigneeId: owner.id, workDate: '2026-09-28T00:00:00Z', dueDate: '2026-09-29T00:00:00Z' }]));
-  stage = 'initial seed';
-  assert.deepEqual((await seedDatabase(prisma, folder)).map(r => r.status), ['skipped-existing', 'skipped-existing', 'inserted', 'inserted']);
-  assert.deepEqual(await prisma.company.findUnique({ where: { id: company.id } }), company);
-  assert.deepEqual(await prisma.user.findUnique({ where: { id: owner.id } }), owner);
-  const dateColumns = await prisma.$queryRaw`SELECT "column_name", "data_type" FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'work_items' AND column_name IN ('workDate', 'dueDate') ORDER BY column_name`;
-  assert.deepEqual(dateColumns.map(({ column_name, data_type }) => [column_name, data_type]), [['dueDate', 'date'], ['workDate', 'date']]);
-  const workDate = await prisma.workItem.findUnique({ where: { id: 'fixture-work' }, select: { workDate: true, dueDate: true } });
-  assert.equal(workDate.workDate.toISOString().slice(0, 10), '2026-09-28');
-  assert.equal(workDate.dueDate.toISOString().slice(0, 10), '2026-09-29');
-  await prisma.timeEntry.create({ data: { userId: owner.id, projectId: 'fixture-project', workItemId: 'fixture-work', hours: 1, date: new Date('2026-09-30T00:00:00.000Z') } });
-  const workItemDeleteRule = await prisma.$queryRaw`SELECT rc.delete_rule FROM information_schema.referential_constraints AS rc INNER JOIN information_schema.key_column_usage AS kcu USING (constraint_catalog, constraint_schema, constraint_name) WHERE kcu.table_name = 'TimeEntry' AND kcu.column_name = 'workItemId'`;
-  assert.deepEqual(workItemDeleteRule.map(({ delete_rule }) => delete_rule), ['RESTRICT']);
-  await assert.rejects(prisma.workItem.delete({ where: { id: 'fixture-work' } }), error => error.code === 'P2003');
-  stage = 'repeat seed';
-  assert.ok((await seedDatabase(prisma, folder)).every(r => r.status === 'skipped-existing'));
-  assert.equal(await prisma.workItem.count(), 1);
-  stage = 'rollback check';
-  await writeFile(join(folder, 'config.json'), JSON.stringify({ tables: [{ table: 'Milestone', file: 'Milestone.json' }, { table: 'Notification', file: 'Notification.json' }] }));
-  await writeFile(join(folder, 'Milestone.json'), JSON.stringify([{ id: 'rollback-milestone', name: 'Rollback', dueDate: '2026-09-29T08:00:00Z', projectId: 'fixture-project' }]));
-  await writeFile(join(folder, 'Notification.json'), JSON.stringify([{ id: 'invalid-reference', title: 'Rollback', message: 'Fixture', userId: 'absent-user' }]));
-  await assert.rejects(seedDatabase(prisma, folder), error => error.code === 'P2003' && error.table === 'Notification');
-  assert.equal(await prisma.milestone.count(), 0);
-  console.log('WorkItem PostgreSQL DATE columns and Restrict FK verified');
-} catch { console.error(`Isolated seed verification failed during ${stage}; diagnostics withheld`); process.exitCode = 1; }
-finally { await prisma.$disconnect(); await rm(folder, { recursive: true, force: true }); }
+  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required')
+  execFileSync('/bin/sh', ['scripts/db-push-safe.sh'], { stdio: 'pipe', env: {
+    PATH: '/usr/local/bin:/usr/bin:/bin', DATABASE_URL: process.env.DATABASE_URL,
+    APP_ENV: 'local', DB_SCHEMA_SYNC_APPROVED: 'true', TZ: 'Asia/Bangkok', PGTZ: 'Asia/Bangkok',
+  } })
+  stage = 'fixture setup'
+  const company = await prisma.company.create({ data: { name: 'Synthetic company' } })
+  const owner = await prisma.user.create({ data: { name: 'Synthetic owner', email: 'owner@fixture.invalid', password: 'synthetic' } })
+  const project = await prisma.project.create({ data: {
+    name: 'Synthetic project', companyId: company.id, creatorId: owner.id,
+    startDate: new Date('2026-09-28T00:00:00Z'), dueDate: new Date('2026-09-29T00:00:00Z'),
+  } })
+  const item = await prisma.workItem.create({ data: {
+    title: 'Synthetic item', kind: 'Task', projectId: project.id, assigneeId: owner.id,
+    workDate: new Date('2026-09-28T00:00:00Z'), dueDate: new Date('2026-09-29T00:00:00Z'),
+  } })
+  assert.equal(typeof item.id, 'bigint')
+  assert.match(item.publicId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+  const columns = await prisma.$queryRawUnsafe("SELECT column_name, data_type FROM information_schema.columns WHERE table_name='work_items' AND column_name IN ('work_date','due_date') ORDER BY column_name")
+  assert.deepEqual(columns.map(row => [row.column_name,row.data_type]), [['due_date','date'],['work_date','date']])
+  await prisma.timeEntry.create({ data: { userId: owner.id, projectId: project.id, workItemId: item.id, hours: '1.25', date: new Date('2026-09-30T00:00:00Z') } })
+  const rules = await prisma.$queryRawUnsafe("SELECT rc.delete_rule FROM information_schema.referential_constraints rc JOIN information_schema.key_column_usage kcu USING (constraint_catalog,constraint_schema,constraint_name) WHERE kcu.table_name='work_logs' AND kcu.column_name='work_item_id'")
+  assert.deepEqual(rules.map(row => row.delete_rule), ['RESTRICT'])
+  await assert.rejects(prisma.workItem.delete({ where: { id: item.id } }), error => error.code === 'P2003')
+  stage = 'idempotent schema apply'
+  execFileSync('/bin/sh', ['scripts/db-push-safe.sh'], { stdio: 'pipe', env: {
+    PATH: '/usr/local/bin:/usr/bin:/bin', DATABASE_URL: process.env.DATABASE_URL,
+    APP_ENV: 'local', DB_SCHEMA_SYNC_APPROVED: 'true', TZ: 'Asia/Bangkok', PGTZ: 'Asia/Bangkok',
+  } })
+  assert.deepEqual(await prisma.workItem.findUnique({ where: { id: item.id } }), item)
+  assert.equal(await prisma.workItem.count(), 1)
+  stage = 'transaction rollback'
+  await assert.rejects(prisma.$transaction(async tx => {
+    await tx.milestone.create({ data: { name: 'Must roll back', dueDate: new Date('2026-10-01T00:00:00Z'), projectId: project.id } })
+    await tx.timeEntry.create({ data: { userId: owner.id, projectId: project.id, workItemId: 999999n, hours: '1', date: new Date('2026-10-01T00:00:00Z') } })
+  }), error => error.code === 'P2003')
+  assert.equal(await prisma.milestone.count(), 0)
+  console.log('WorkItem PostgreSQL DATE columns and Restrict FK verified')
+} catch { console.error(`Isolated SQL verification failed during ${stage}; diagnostics withheld`); process.exitCode = 1 }
+finally { await prisma.$disconnect() }

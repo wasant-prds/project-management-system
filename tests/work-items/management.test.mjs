@@ -695,6 +695,7 @@ test('delete refuses imported GitLab WorkItems to preserve their external identi
     provider: 'gitlab',
     url: 'https://gitlab.example.test/group/project/-/issues/17',
     issueIid: '17',
+    inScope: true,
   })
 
   const blocked = await system.detail.DELETE({}, context(id))
@@ -861,5 +862,6 @@ test('Work Items loading state compares the complete shared filter key and fills
   assert.match(page, /isWorkItemListLoading\(loadedFilterKey, loadingFilterKey, filterKey, loadError\)/)
   assert.match(page, /PageState kind="loading" title="กำลังโหลด Work Items…" loadingLayout="rows"/)
   const pageState = readFileSync(new URL('../../components/layout/page-state.tsx', import.meta.url), 'utf8')
-  assert.match(pageState, /role=\{kind === 'error' \? 'alert' : 'status'\} aria-busy=\{kind === 'loading'\}/)
+  assert.match(pageState, /const busy = kind === 'loading'/)
+  assert.match(pageState, /role=\{kind === 'error' \? 'alert' : 'status'\} aria-busy=\{busy\}/)
 })

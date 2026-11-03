@@ -99,7 +99,7 @@ export function applyApprovedSchema({ env, query, root = resolve('.'), targetLab
     if (count !== '0') throw new Error('Bootstrap target is not empty');
     query(buildBootstrapScript(loaded, targetLabel));
     rememberBaseline(env, root, { baseline: 'empty-database', receiptPath: null }, approvalPath);
-    return { action, applied: [loaded.migrations[0].version], skipped: [] };
+    return { action, applied: loaded.migrations.map((migration) => migration.version), skipped: [] };
   }
   const state = readMigrationState(loaded, query);
   const verified = state.pending.length > 0 ? resolveAutoBaseline(env) : { baseline: 'unverified', receiptPath: null };

@@ -60,7 +60,7 @@ export function loadSqlContract(root = resolve('.')) {
   if (!baseline) throw new Error('SQL baseline is missing');
   const migrations = loaded.migrations.map(({ version, script, checksum }) => ({ version, script, checksum }));
   const migrationSetSha256 = createHash('sha256').update(JSON.stringify({ revision: loaded.revision, migrations })).digest('hex');
-  return { revision: loaded.revision, sqlChecksum: baseline.checksum, version: baseline.version, migrations, migrationSetSha256 };
+  return { revision: loaded.revision, sqlChecksum: loaded.schema?.checksum ?? baseline.checksum, version: baseline.version, migrations, migrationSetSha256 };
 }
 
 function bangkokTimestamp(now = new Date()) {

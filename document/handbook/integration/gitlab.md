@@ -1,5 +1,7 @@
 # GitLab Issue import
 
+> **Flow ปัจจุบัน:** ตั้งค่าและกด sync จากหน้า Project → Integrations ตาม [Project Issue Sync](../../ISSUE_SYNC.md). รองรับ GitLab/GitHub และต้องระบุ assignee filter. Legacy sync endpoint ด้านล่างคืน 409 PROJECT_SYNC_REQUIRED; คำอธิบาย unfiltered sync เป็นประวัติเดิม.
+
 ## สถานะปัจจุบัน
 
 Issue #20 เพิ่ม manual one-way pull ของ GitLab Issues เข้า Work Items. Route ทั้งหมด owner-only; service เรียก GitLab Issues REST API ด้วย `GET` เท่านั้น. ไม่มี write-back, scheduler, webhook หรือ background sync job. Config ที่พร้อมไม่ได้ยืนยันว่า schema, mapping หรือ GitLab credentials ใน environment จริงพร้อมแล้ว.

@@ -139,12 +139,13 @@ export function WorkItemViewDialog({
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex max-w-full items-center gap-1.5 text-sm text-link underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label={`Open GitLab Issue ${item.source.issueIid}`}
+              aria-label={`Open ${item.source.provider === 'github' ? 'GitHub' : 'GitLab'} Issue ${item.source.issueIid}`}
             >
               <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">GitLab Issue #{item.source.issueIid}</span>
+              <span className="truncate">{item.source.provider === 'github' ? 'GitHub' : 'GitLab'} Issue #{item.source.issueIid}</span>
             </a>
           )}
+          {item.source?.inScope === false && <p className="text-sm text-muted-foreground">อยู่นอก assignee filter — เก็บข้อมูลเดิมและหยุดอัปเดตจากต้นทาง</p>}
         </div>
 
         <section className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-3 sm:px-6 sm:py-4">

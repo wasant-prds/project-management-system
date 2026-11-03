@@ -1,3 +1,4 @@
+import { LEGACY_SOURCE_DDL as SOURCE_DDL } from '../support/legacy-source-schema.mjs'
 import assert from 'node:assert/strict'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
@@ -10,21 +11,6 @@ import { exportPostCutoverWrites, readLiveMappings, rollbackPlan, runLiveUpgrade
 import { createRuntimeQuery } from '../../scripts/sql-runtime.mjs'
 
 const enabled = process.env.PMS_RUN_SQL_LIVE_UPGRADE_DOCKER_TESTS === '1'
-const SOURCE_DDL = `
-CREATE TABLE "User" (id text PRIMARY KEY, email text NOT NULL UNIQUE, name text NOT NULL, password text NOT NULL, role text NOT NULL, avatar text, phone text, theme text NOT NULL, locale text NOT NULL, status text NOT NULL, "joinDate" timestamp(3) NOT NULL, "createdAt" timestamp(3) NOT NULL, "updatedAt" timestamp(3) NOT NULL);
-CREATE TABLE "Company" (id text PRIMARY KEY, code text, "displayName" text, location text, name text NOT NULL, industry text, email text, phone text, address text, website text, logo text, description text, "createdAt" timestamp(3) NOT NULL, "updatedAt" timestamp(3) NOT NULL);
-CREATE TABLE "Project" (id text PRIMARY KEY, name text NOT NULL, description text, status text NOT NULL, priority text NOT NULL, "startDate" date NOT NULL, "dueDate" date NOT NULL, budget numeric, spent numeric, progress integer NOT NULL, "colorProject" text, "createdAt" timestamp(3) NOT NULL, "updatedAt" timestamp(3) NOT NULL, "creatorId" text REFERENCES "User"(id), "companyId" text NOT NULL REFERENCES "Company"(id));
-CREATE TABLE "ProjectMember" (id text PRIMARY KEY, role text NOT NULL, "joinedAt" timestamp(3) NOT NULL, "projectId" text NOT NULL REFERENCES "Project"(id), "userId" text NOT NULL REFERENCES "User"(id), UNIQUE("projectId", "userId"));
-CREATE TABLE work_items (id text PRIMARY KEY, title text NOT NULL, description text, kind text NOT NULL, priority text NOT NULL, role text, status text NOT NULL, labels_types text[] NOT NULL, "workDate" date, "dueDate" date, "submittedAt" timestamp(3), "createdAt" timestamp(3) NOT NULL, "updatedAt" timestamp(3) NOT NULL, "projectId" text NOT NULL REFERENCES "Project"(id), "assigneeId" text NOT NULL REFERENCES "User"(id));
-CREATE TABLE "TimeEntry" (id text PRIMARY KEY, description text, remarks text, hours numeric(65,30) NOT NULL, date date NOT NULL, status text, "createdAt" timestamp(3) NOT NULL, "updatedAt" timestamp(3) NOT NULL, "userId" text NOT NULL REFERENCES "User"(id), "projectId" text REFERENCES "Project"(id), "workItemId" text REFERENCES work_items(id));
-CREATE TABLE "Milestone" (id text PRIMARY KEY, name text NOT NULL, description text, "dueDate" timestamp(3) NOT NULL, status text NOT NULL, "createdAt" timestamp(3) NOT NULL, "updatedAt" timestamp(3) NOT NULL, "projectId" text NOT NULL REFERENCES "Project"(id));
-CREATE TABLE "Document" (id text PRIMARY KEY, name text NOT NULL, description text, "fileUrl" text NOT NULL, "fileSize" integer, "fileType" text, "createdAt" timestamp(3) NOT NULL, "updatedAt" timestamp(3) NOT NULL, "projectId" text REFERENCES "Project"(id), "uploaderId" text REFERENCES "User"(id));
-CREATE TABLE "ActivityLog" (id text PRIMARY KEY, action text NOT NULL, entity text NOT NULL, "entityId" text NOT NULL, description text, metadata jsonb, "createdAt" timestamp(3) NOT NULL, "userId" text REFERENCES "User"(id), "projectId" text REFERENCES "Project"(id));
-CREATE TABLE "GitLabProjectMapping" (id text PRIMARY KEY, "canonicalGitLabInstanceUrl" text NOT NULL, "gitLabProjectId" text NOT NULL, "projectId" text NOT NULL REFERENCES "Project"(id), "approvedLabelMap" jsonb NOT NULL, "firstSyncApprovedAt" timestamp(3), "createdAt" timestamp(3) NOT NULL, "updatedAt" timestamp(3) NOT NULL);
-CREATE TABLE "ExternalWorkItemReference" (id text PRIMARY KEY, provider text NOT NULL, "canonicalGitLabInstanceUrl" text NOT NULL, "gitLabProjectId" text NOT NULL, "gitLabGlobalIssueId" text NOT NULL, "gitLabIssueIid" text NOT NULL, "externalUrl" text NOT NULL, "projectId" text NOT NULL REFERENCES "Project"(id), "remoteCreatedAt" timestamp(3) NOT NULL, "remoteUpdatedAt" timestamp(3) NOT NULL, "lastSyncedAt" timestamp(3) NOT NULL, "workItemId" text NOT NULL UNIQUE REFERENCES work_items(id));
-CREATE TABLE "Comment" (id text PRIMARY KEY, content text NOT NULL, "createdAt" timestamp NOT NULL, "updatedAt" timestamp NOT NULL, "authorId" text NOT NULL REFERENCES "User"(id));
-CREATE TABLE "Notification" (id text PRIMARY KEY, title text NOT NULL, message text NOT NULL, type text NOT NULL, read boolean NOT NULL, link text, "createdAt" timestamp NOT NULL, "userId" text NOT NULL REFERENCES "User"(id));
-`
 const SOURCE_ROWS = `
 INSERT INTO "User" VALUES ('owner-cuid','owner@fixture.invalid','Fixture owner','fixture-password-hash','owner',NULL,NULL,'dark','en','Active','2026-10-04 10:00:00.000','2026-10-04 10:00:00.000','2026-10-04 10:00:00.000');
 INSERT INTO "Company" VALUES ('company-cuid',NULL,NULL,NULL,'Fixture company',NULL,NULL,NULL,NULL,NULL,NULL,NULL,'2026-10-04 10:00:00.000','2026-10-04 10:00:00.000');
@@ -73,7 +59,9 @@ test('TC-33-LIVE-PG: verified legacy snapshot converts to isolated PostgreSQL 16
 
     sql(target, await readFile(resolve('database/schema.sql'), 'utf8'))
     const sqlManifest = JSON.parse(await readFile(resolve('database/migrations/manifest.json'), 'utf8'))
-    sql(target, `INSERT INTO "schema_migrations" ("version","checksum","schema_revision","status","script_name","target_label") VALUES ('0001','${sqlManifest.migrations[0].checksum}','${sqlManifest.revision}','applied','database/schema.sql','uat');`)
+    for (const migration of sqlManifest.migrations) {
+      sql(target, `INSERT INTO "schema_migrations" ("version","checksum","schema_revision","status","script_name","target_label") VALUES ('${migration.version}','${migration.checksum}','${sqlManifest.revision}','applied','${migration.script}','uat');`)
+    }
     const targetUrl = 'postgresql://reviewer:synthetic@replacement.invalid:5432/pms_uat?schema=public'
     const env = {
       APP_ENV: 'uat',

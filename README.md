@@ -43,17 +43,13 @@ A comprehensive, full-stack project management system built with **Next.js 15**,
 # 1. Install dependencies
 pnpm install
 
-# 2. Set up PostgreSQL database
-createdb project_management_dev
+# 2. Configure the single root environment file
+cp .env.example .env
 
-# 3. Configure environment
-cp env.dev.example .env
+# 3. Prepare PostgreSQL using the approved SQL workflow in database/README.md.
+# database/schema.sql is authoritative; do not use prisma db push or JSON seed.
 
-# 4. Set up database
-sh scripts/db-push-safe.sh
-pnpm prisma db seed
-
-# 5. Start development server
+# 4. Start development server after the database is ready
 pnpm dev
 
 # Visit http://localhost:3000
@@ -73,7 +69,7 @@ bash scripts/docker-dev.sh start-studio
 # 🎨 Prisma Studio: http://localhost:5555
 ```
 
-**That's it!** Docker handles PostgreSQL, `db:generate` / `push` / `seed`, and hot reload.
+Docker uses `database/schema.sql` and reviewed SQL migrations behind the rollout approval gate. Seeding is separate and defaults to `RUN_SEED=false`; development supports hot reload.
 
 ## 📚 Documentation
 
@@ -92,6 +88,7 @@ bash scripts/docker-dev.sh start-studio
 - **[Database process](./document/process/db.md)** - Prisma and db helper commands
 - **[Docker process](./document/process/docker.md)** - Dev / UAT / production helper commands
 - **[Testing commands](./document/process/testing.md)** - Reusable pnpm test runner commands
+- **[Project Issue Sync](./document/ISSUE_SYNC.md)** — ตั้งค่า GitHub/GitLab ต่อ Project, กรอง assignees แบบ OR, แยก server secrets และเก็บประวัติ sync. เตรียม migration แล้ว; การ apply กับฐานข้อมูลใช้งานจริงเป็นขั้นตอนแยกที่ต้องอนุมัติ.
 - **[GitHub Issues from work items](./document/github-create-tasks.md)** - Preview, create, or upsert checklist work items as GitHub Issues
 - **[GitHub labels from the work-item catalog](./document/github-create-labels.md)** - Create or update issue labels, one color per prefix
 
@@ -139,7 +136,7 @@ bash scripts/docker-dev.sh start-studio
 │   ├── db.ts             # Prisma client instance
 │   └── utils.ts          # Utility functions
 ├── prisma/
-│   ├── schema.prisma     # Database schema (14 models)
+│   ├── schema.prisma     # ORM mapping of database/schema.sql
 │   └── seed.ts           # Mock data seeding
 ├── scripts/
 │   ├── docker-entrypoint-dev.sh   # Dev: DB init + pnpm dev

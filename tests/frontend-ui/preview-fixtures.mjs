@@ -45,6 +45,12 @@ export function previewResponse(url, method = 'GET', mode) {
   if (path === '/api/settings/me') value = settings
   else if (path === '/api/company') value = { companies, page: { nextCursor: null } }
   else if (path === '/api/projects') value = { projects, page: { nextCursor: null } }
+  else if (/^\/api\/projects\/[^/]+\/issue-sync$/.test(path)) value = {
+    configs: ['gitlab', 'github'].map((provider, index) => ({ id: `10000000-0000-4000-8000-00000000000${index + 1}`, provider, instanceUrl: provider === 'github' ? 'https://github.com' : 'https://gitlab.example.test', sourceProject: provider === 'github' ? 'example/project' : 'group/project', externalProjectId: '42', assignees: ['alice', 'bob'], credentialRef: `preview-${provider}`, enabled: true, approvedLabelMap: { bug: 'bug' }, firstSyncApproved: false })),
+    credentials: ['gitlab', 'github'].map((provider) => ({ ref: `preview-${provider}`, provider, instanceUrl: provider === 'github' ? 'https://github.com' : 'https://gitlab.example.test' })),
+    legacyMappings: [],
+  }
+  else if (/^\/api\/projects\/[^/]+\/issue-sync\/[^/]+\/runs$/.test(path)) value = { runs: [{ id: '10000000-0000-4000-8000-000000000090', status: 'partial', startedAt: '2026-11-03T13:00:00+07:00', finishedAt: '2026-11-03T13:00:05+07:00', configSnapshot: { sourceProject: 'group/project', assignees: ['alice', 'bob'] }, counts: { created: 1, updated: 0, skipped: 1, failed: 0 }, runError: { code: 'RATE_LIMITED', message: 'ตัวอย่าง: provider จำกัดจำนวนคำขอ สามารถลองใหม่ได้' }, results: [{ outcome: 'created', title: 'ตัวอย่าง Issue ที่นำเข้า', sourceUrl: 'https://github.com/example/project/issues/17', reason: 'created_from_source', warnings: [] }, { outcome: 'skipped', title: 'ตัวอย่าง Issue ที่เปลี่ยน assignee', sourceUrl: null, reason: 'out_of_scope', warnings: [] }] }], nextBefore: null }
   else if (path.startsWith('/api/projects/')) {
     const project = projects.find((item) => item.id === path.split('/').at(-1))
     if (!project) return { status: 404, value: { error: { code: 'NOT_FOUND', message: 'ไม่พบ Project' } } }

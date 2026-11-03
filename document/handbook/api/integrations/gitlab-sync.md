@@ -1,5 +1,7 @@
 # Manual GitLab Issue sync
 
+> **Deprecated:** Endpoint นี้คืน `409 PROJECT_SYNC_REQUIRED` หลัง owner authentication. ใช้ POST `/api/projects/{projectId}/issue-sync/{configId}/sync` พร้อม assignee config ตาม [Project Issue Sync](../../../ISSUE_SYNC.md). Request/response ด้านล่างเป็นประวัติก่อนการเปลี่ยน flow.
+
 ## Overview
 
 ดึง Issues แบบ read-only จาก GitLab Project ที่ map ไว้ แล้วสร้างหรืออัปเดต PMS WorkItems ด้วย identity ที่แน่นอน. Owner ต้องอนุมัติ sync ครั้งแรกของ mapping.

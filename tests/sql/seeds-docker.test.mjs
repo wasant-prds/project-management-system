@@ -107,7 +107,15 @@ async function mutatedArtifacts() {
   const schema = Buffer.concat([await readFile(join(repoRoot, 'database', 'schema.sql')), Buffer.from('\n-- isolated checksum fixture\n')]);
   await writeFile(join(directory, 'database', 'schema.sql'), schema);
   const manifest = JSON.parse(await readFile(join(repoRoot, 'database', 'migrations', 'manifest.json'), 'utf8'));
-  manifest.migrations[0].checksum = sha256(schema);
+  manifest.schema.checksum = sha256(schema);
+  for (const entry of manifest.migrations) {
+    await writeFile(join(directory, entry.script), await readFile(join(repoRoot, entry.script)));
+  }
+  // The applied migration history must differ, not just an SQL source comment.
+  const changed = manifest.migrations.at(-1);
+  const changedSql = Buffer.concat([await readFile(join(directory, changed.script)), Buffer.from('\n-- isolated migration contract drift\n')]);
+  await writeFile(join(directory, changed.script), changedSql);
+  changed.checksum = sha256(changedSql);
   await writeFile(join(directory, 'database', 'migrations', 'manifest.json'), JSON.stringify(manifest));
   return directory;
 }

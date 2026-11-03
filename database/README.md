@@ -1,165 +1,34 @@
-# Database Directory
+# Database — authoritative SQL schema
 
-This directory contains persistent database storage for the Project Management System.
+`database/schema.sql` เป็นแหล่งอ้างอิงหลักของโครงสร้างฐานข้อมูลทั้งหมด: tables, columns, constraints, indexes, functions, triggers และ PostgreSQL comments. `prisma/schema.prisma` เป็น ORM mapping ที่ต้องตรงกับ SQL นี้ ห้ามใช้ Prisma db push เพื่อกำหนด schema แทนไฟล์หลัก.
 
-Issue #31 adds an empty SQL target at `schema.sql` and `migrations/manifest.json`. It is not applied by Compose. The active migration path remains guarded `prisma db push` until Issue #33. Run `node scripts/sql-migrate.mjs` only against an explicit isolated target, never the `APP_ENV` database. See [SQL schema foundation](../document/handbook/database/issue-31-sql-schema.md).
+## ไฟล์และความรับผิดชอบ
 
-Issue #32 adds deterministic SQL master seeds at `database/seeds/sql-master/` (`manifest.json`, `legacy-id-map.json`, and 11 SQL tables). The dataset is gitignored and excluded from the Docker build context by `.dockerignore`. Company assignment policy is the tracked file `database/seed-policy/issue-32.json`. Issue #33 startup can apply those seeds only after a separate seed approval, and the default is `RUN_SEED=false`. The seed map does not authorize live owner identity. See [SQL runtime handbook](../document/handbook/database/issue-33-sql-runtime.md).
+- `schema.sql`: schema ล่าสุดสำหรับฐานข้อมูลว่าง ไม่มี business rows หรือ credentials.
+- `migrations/0001_initial_schema.sql`: baseline เดิมที่เก็บ byte/checksum ไว้เพื่อรักษาประวัติ migration ที่ apply แล้ว.
+- `migrations/0002_issue_sync.sql`: delta สำหรับอัปเกรดฐานเดิมให้ตรงกับ schema หลัก.
+- `migrations/manifest.json`: checksum ของ schema หลัก, version ที่ snapshot ครอบคลุม และ migration history ตามลำดับ.
+- `rollout/`: approval และหลักฐาน backup/restore/rehearsal; ไม่เก็บ secrets.
+- `postgres/data/`: ข้อมูล PostgreSQL จริงบน Docker bind mount ห้ามล้างหรือแก้ไฟล์เอง.
+- `backups/postgres_data/`: custom pg_dump พร้อม checksum, inventory และ verified restore receipt ตาม BACKUP_DIR.
 
-The target gives every table an internal BIGINT identity `id` and an immutable random UUIDv4 `public_id`. PK/FK relations use numeric keys; API/UI references use public UUIDs after #33 adoption. See the [identifier contract](../document/database/PUBLIC_IDENTIFIERS.md) and [project rule](../.cursor/rules/05-record-identifiers.mdc).
+## ติดตั้งและอัปเกรด
 
-## Structure
+ฐานข้อมูลว่างสร้างจาก schema.sql แล้วบันทึก versions ที่ snapshot ครอบคลุม พร้อม apply delta ที่ใหม่กว่า snapshot ใน transaction เดียว. ฐานข้อมูลที่มี SQL history ตรวจ checksum เดิมก่อน apply เฉพาะ pending migrations; ไม่รัน CREATE TABLE จาก snapshot ทับฐานที่มีข้อมูล.
 
-```
-database/
-└── postgres/
-    ├── data/          # PostgreSQL data files (persistent storage)
-    ├── .gitignore     # Ignores data contents but keeps structure
-    └── README.md      # This file
-```
+การเปลี่ยน schema ต้องแก้ schema.sql และ Prisma mapping ให้ตรงกัน พร้อมเพิ่ม migration สำหรับฐานเดิม. Archived migrations ที่ apply แล้วคงเนื้อหา/checksum เดิม. ตรวจว่า snapshot และ migration replay ให้ catalog เดียวกันด้วย isolated PostgreSQL ก่อน rollout.
 
-## PostgreSQL Data
+ทุกตารางมี internal BIGINT identity `id` และ immutable UUIDv4 `public_id` ที่ database generate. Foreign keys ใช้ BIGINT; API/UI ใช้ UUID. วันที่และ timestamps ใช้ Asia/Bangkok wall-clock. ดู [Identifier contract](../document/database/PUBLIC_IDENTIFIERS.md).
 
-- **Location**: `./database/postgres/data`
-- **Type**: Bind mount volume
-- **Persistence**: Data persists between container restarts
-- **Backup**: Configured for daily backups (see docker-compose.yml labels)
-- **Retention**: 30 days (configurable)
+## ใช้กับฐานข้อมูลจริง
 
-## Data Management
+ใช้ APP_ENV จาก root .env เพื่อเลือก Docker Compose/container/data directory. ก่อน schema change ต้องหยุด business writes, ทำ backup ใหม่, verify checksum และ restore ในฐานแยก พร้อมซ้อม migration และเทียบข้อมูลเดิม. Apply ได้เมื่อมี explicit approval และผ่าน rollout gate เท่านั้น. ห้าม reset, force-seed, ลบ volume หรือใช้ seed เพื่อแก้ปัญหา migration.
 
-### First Run
-When you first run `docker-compose up`, the database will be initialized automatically:
-1. PostgreSQL creates its data structure
-2. Prisma runs migrations (`sh scripts/db-push-safe.sh`)
-3. Seed script checks if data exists
-4. If empty, seeds initial data
-5. If data exists, **skips seeding to prevent data loss**
+`RUN_SEED=false` เป็นค่าเริ่มต้น. การ seed/import เป็นงานแยกและไม่เป็นส่วนหนึ่งของการ sync issues หรือ schema upgrade. อย่า seed ชุด legacy JSON ลง SQL/BIGINT runtime.
 
-### Checking Data Existence
+## Verification
 
-Set `RUN_SEED=true` in root `.env`. The seed runner checks each table listed in `database/seeds/master/config.json`, in dependency order. Empty tables receive seed rows; tables with any existing rows are skipped without updating or deleting those rows. A skipped table does not require its seed file. Foreign keys must resolve against existing or newly seeded parent records. Invalid files or constraints roll back inserts from the entire seed transaction; never reset production to work around a seed error.
+`node tests/run.mjs sql-schema` ตรวจ SQL/Prisma/migration contracts. `node tests/run.mjs sql-migrations-docker` ตรวจ snapshot, replay, transactions, history และ constraints บน disposable PostgreSQL. `node tests/run.mjs issue-sync` ตรวจ provider adapters, assignee filtering และ API boundaries โดยไม่ใช้ token จริง.
 
-### Resetting the Database
-
-#### Option 1: Remove Volume (Recommended)
-```bash
-# Stop containers
-docker-compose down
-
-# Remove the volume (this deletes all data)
-docker volume rm pms-postgres-data-dev
-# or manually delete the directory
-rm -rf ./database/postgres/data/*
-
-# Restart (will seed fresh data)
-docker-compose up -d
-```
-
-#### Option 2: Manual Reset (Advanced)
-```bash
-# Connect to the database
-docker exec -it pms-postgres-dev psql -U <username> -d <database>
-
-# Drop and recreate schema
-DROP SCHEMA public CASCADE;
-CREATE SCHEMA public;
-GRANT ALL ON SCHEMA public TO <username>;
-GRANT ALL ON SCHEMA public TO public;
-
-# Exit and run migrations + seed
-sh scripts/db-push-safe.sh
-pnpm prisma db seed
-```
-
-#### Option 3: Use Docker Volume
-```bash
-# Stop and remove everything including volumes
-docker-compose down -v
-
-# Start fresh
-docker-compose up -d
-```
-
-## Performance Optimizations
-
-The development PostgreSQL configuration includes:
-
-### Memory Settings
-Sized for a 1 vCPU / 2 GB host running two projects (this stack ~384 MB for Postgres):
-- `shared_buffers`: 64MB - Memory for caching data
-- `work_mem`: 2MB - Memory for query operations
-- `maintenance_work_mem`: 32MB - Memory for maintenance tasks
-- `effective_cache_size`: 192MB - Estimated OS cache size
-- `max_connections`: 20 - Fits the small shared_buffers / work_mem budget
-
-### Development-Only Optimizations
-⚠️ **These settings are for DEVELOPMENT ONLY** - They trade data safety for speed:
-- `fsync=off` - Don't force writes to disk (faster but risky)
-- `synchronous_commit=off` - Don't wait for disk confirmation
-- `full_page_writes=off` - Don't write full pages after checkpoints
-
-**DO NOT USE THESE IN PRODUCTION!**
-
-## Backup Strategy
-
-The volume is labeled with backup metadata:
-- **Frequency**: Daily
-- **Retention**: owner-approved default `BACKUP_KEEP_DAYS=30` (override supported); labels do not certify that backups have run
-- **Type**: Database
-
-Use [Database Rollout](../document/DATABASE_ROLLOUT.md) for approved `BACKUP_DIR`, retention, verified custom `pg_dump`, isolated restore, staged checks and recovery. Raw copies of a running PostgreSQL data directory are not verified backups. Database/session defaults are `Asia/Bangkok`; preserve Bangkok local wall-clock values without UTC conversion.
-
-## Troubleshooting
-
-### Permission Issues
-If you encounter permission issues:
-```bash
-# Check ownership
-ls -la ./database/postgres/data/
-
-# Fix permissions (Linux/Mac)
-sudo chown -R $USER:$USER ./database/postgres/data/
-
-# For Windows, ensure Docker Desktop has access to the directory
-```
-
-### Corrupted Data
-Stop affected writes, preserve the current volume and incident snapshot, and follow [the recovery runbook](../document/DATABASE_ROLLOUT.md). Restore a verified backup to an isolated replacement, reconcile post-backup writes and obtain owner approval before cutover. Never delete the original data directory or initialize a fresh database as a recovery shortcut.
-
-### Connection Issues
-```bash
-# Check if PostgreSQL is healthy
-docker ps
-docker logs pms-postgres-dev
-
-# Check if port is available
-netstat -an | grep 5432
-
-# Test connection
-docker exec -it pms-postgres-dev pg_isready
-```
-
-## Environment Variables
-
-Database configuration is read from root `.env`: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`. Do not commit `.env`. See `document/RUNTIME_SECURITY.md`.
-
-## Security Notes
-
-🔒 **Important Security Considerations**:
-
-1. **Never commit** the actual data directory contents
-2. **Keep secrets secure** - don't commit secret files
-3. **Use strong passwords** in production
-4. **Change default settings** before production deployment
-5. **Enable SSL/TLS** for production databases
-6. **Regular backups** are essential
-7. **Test restore procedures** regularly
-
-## Additional Resources
-
-- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
-- [Prisma Documentation](https://www.prisma.io/docs/)
-- [Docker Volumes](https://docs.docker.com/storage/volumes/)
-- [PostgreSQL Performance Tuning](https://wiki.postgresql.org/wiki/Performance_Optimization)
+ดู [Migration workflow](migrations/README.md), [Database Rollout](../document/DATABASE_ROLLOUT.md), [SQL runtime](../document/handbook/database/issue-33-sql-runtime.md) และ [Project Issue Sync](../document/ISSUE_SYNC.md).
 

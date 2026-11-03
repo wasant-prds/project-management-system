@@ -1,5 +1,7 @@
 # GitLab Issue Import Contract
 
+> **ปรับใช้ flow ใหม่:** ใช้ [Project Issue Sync](./ISSUE_SYNC.md) สำหรับ GitLab/GitHub, sync by Project และ mandatory assignee filter. Legacy sync endpoint ในเอกสารนี้ถูกปิดด้วย `409 PROJECT_SYNC_REQUIRED`; mapping/identity เดิมยังคงไว้. ข้อความ GitLab-only ด้านล่างเป็น contract ก่อนการเปลี่ยนแปลง.
+
 > **Owner decision 2026-09-29:** GitLab Project mapping still targets a PMS Project, but its parent context is Company Dhas. Customer references in this historical contract are superseded by [Company → Project decision](./COMPANY_PROJECT_DECISION.md).
 
 | รายการ | ค่า |

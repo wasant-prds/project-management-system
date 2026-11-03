@@ -28,7 +28,7 @@ bash scripts/dump-master-seeds.sh
 | `pnpm prisma migrate dev` | สร้างและ apply migration |
 | `pnpm prisma db seed` | seed ข้อมูลลงฐานข้อมูล (ตรวจแต่ละตาราง: insert จาก seed เฉพาะตารางว่าง ข้ามตารางที่มีข้อมูล และไม่แก้ข้อมูลเดิม) |
 | `pnpm prisma studio` | เปิด Prisma Studio |
-| `bash scripts/db-push-safe.sh` | push schema แบบไม่ทำลายข้อมูล (ปฏิเสธ flags ที่อาจทำให้ข้อมูลสูญหาย) |
+| `bash scripts/db-push-safe.sh` | compatibility command สำหรับ approved SQL runtime จาก database/schema.sql และ versioned migrations; ไม่ใช้ Prisma db push และไม่ seed |
 | `bash scripts/dump-master-seeds.sh` | export ข้อมูลจาก PostgreSQL ของ site ที่เลือกเป็น JSON ใน `database/seeds/master` (แยก `WorkItem/` ตามปีและลบ JSON ที่ไม่อยู่ใน config) แล้ว zip seeds ชุดใหม่ไว้ใน `./backups` |
 
 ## สคริปต์ช่วยจัดการ

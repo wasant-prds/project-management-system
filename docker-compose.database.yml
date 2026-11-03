@@ -110,6 +110,8 @@ services:
       OWNER_USER_ID: ${OWNER_USER_ID:-}
       GITLAB_BASE_URL: ${GITLAB_BASE_URL:-}
       GITLAB_TOKEN: ${GITLAB_TOKEN:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      ISSUE_SYNC_CREDENTIALS: ${ISSUE_SYNC_CREDENTIALS:-}
     depends_on:
       postgres:
         condition: service_healthy

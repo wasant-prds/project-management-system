@@ -190,7 +190,6 @@ function sessionPrefix(loaded) {
 }
 
 export function buildBootstrapScript(loaded, targetLabel) {
-  const baseline = loaded.migrations[0];
   assertLabel(targetLabel);
   const guard = `DO $pms_migrate_guard$
 BEGIN
@@ -199,7 +198,15 @@ BEGIN
   END IF;
 END
 $pms_migrate_guard$`;
-  return [...sessionPrefix(loaded), guard, trimStatement(baseline.sql), historyInsert(baseline, loaded.revision, targetLabel), 'COMMIT', ''].join(';\n');
+  // schema.sql is authoritative for new installations. Historical migration
+  // artifacts retain their original checksums for upgrades and replay checks.
+  const covered = loaded.schema ? loaded.migrations.findIndex((migration) => migration.version === loaded.schema.throughVersion) : -1;
+  const migrations = loaded.schema ? [
+    trimStatement(loaded.schema.sql),
+    ...loaded.migrations.slice(0, covered + 1).map((migration) => historyInsert(migration, loaded.revision, targetLabel)),
+    ...loaded.migrations.slice(covered + 1).flatMap((migration) => [trimStatement(migration.sql), historyInsert(migration, loaded.revision, targetLabel)]),
+  ] : loaded.migrations.flatMap((migration) => [trimStatement(migration.sql), historyInsert(migration, loaded.revision, targetLabel)]);
+  return [...sessionPrefix(loaded), guard, ...migrations, 'COMMIT', ''].join(';\n');
 }
 
 export function buildUpgradeScript(loaded, migration, targetLabel) {
@@ -266,7 +273,7 @@ export function emptyBootstrap(options) {
   const count = query(EMPTY_TABLE_SQL);
   if (count !== '0') throw new Error('Bootstrap target is not empty');
   query(buildBootstrapScript(loaded, options.targetLabel));
-  return { command: 'empty-bootstrap', applied: [loaded.migrations[0].version], skipped: [], revision: loaded.revision };
+  return { command: 'empty-bootstrap', applied: loaded.migrations.map((migration) => migration.version), skipped: [], revision: loaded.revision };
 }
 
 export function plan(options) {

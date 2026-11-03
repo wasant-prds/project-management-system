@@ -74,12 +74,15 @@ test('current SQL artifacts are accepted after a migration is added', async () =
     await mkdir(join(root, 'database'), { recursive: true });
     await writeFile(join(root, 'database', 'schema.sql'), await readFile(resolve('database/schema.sql')));
     const manifest = JSON.parse(await readFile(resolve('database/migrations/manifest.json'), 'utf8'));
+    for (const entry of manifest.migrations) {
+      await writeFile(join(root, entry.script), await readFile(resolve(entry.script)));
+    }
     await writeFile(join(root, 'database', 'migrations', 'manifest.json'), JSON.stringify(manifest, null, 2));
     const initial = loadSqlContract(root);
     const script = 'SELECT 1;\n';
-    await writeFile(join(root, 'database', 'migrations', '0002_review.sql'), script);
+    await writeFile(join(root, 'database', 'migrations', '0003_review.sql'), script);
     manifest.migrations.push({
-      version: '0002', name: 'review', kind: 'sql', script: 'database/migrations/0002_review.sql',
+      version: '0003', name: 'review', kind: 'sql', script: 'database/migrations/0003_review.sql',
       checksum: sha256(Buffer.from(script)),
     });
     await writeFile(join(root, 'database', 'migrations', 'manifest.json'), JSON.stringify(manifest, null, 2));
@@ -193,6 +196,10 @@ test('pending upgrades require a verified receipt and an empty database can boot
     const empty = runtimeQuery({ history: 'f' });
     const bootstrapped = applyApprovedSchema({ env, query: empty.query, targetLabel: 'uat', approvalPath });
     assert.equal(bootstrapped.action, 'empty-bootstrap');
+    assert.deepEqual(bootstrapped.applied, ['0001', '0002']);
+    const bootstrapSql = empty.calls.find((sql) => sql.startsWith('BEGIN'));
+    assert.match(bootstrapSql, /CREATE TABLE "issue_sync_configs"/);
+    assert.match(bootstrapSql, /CREATE TABLE "issue_sync_runs"/);
     assert.equal(JSON.parse(await readFile(approvalPath, 'utf8')).baseline, 'empty-database');
 
     const current = runtimeQuery({ history: 't', applied });
