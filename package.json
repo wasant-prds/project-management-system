@@ -8,7 +8,7 @@
     "test:database-rollout-docker": "node tests/run.mjs database-rollout-docker",
     "build": "next build",
     "dev": "node scripts/runtime-launch.mjs --dev",
-    "lint": "next lint",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx,.mjs,.cjs --max-warnings=0 --report-unused-disable-directives",
     "typecheck": "tsc --noEmit",
     "quality": "pnpm lint && pnpm typecheck && pnpm exec prisma validate && pnpm test",
     "test": "node tests/run.mjs",

@@ -65,7 +65,6 @@ const COMPANY_B = '66666666-6666-4666-8666-666666666666'
 const PROJECT_A = '33333333-3333-4333-8333-333333333331'
 const PROJECT_A2 = '33333333-3333-4333-8333-333333333332'
 const PROJECT_B = '44444444-4444-4444-8444-444444444444'
-const MISSING_PUBLIC = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const companies = [
   { id: 11n, publicId: COMPANY_A, name: 'Alpha Company', displayName: 'Alpha' },
   { id: 12n, publicId: COMPANY_B, name: 'Beta Company', displayName: null },

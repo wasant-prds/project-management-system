@@ -16,9 +16,9 @@ export function loader(mocks = {}, globals = {}) {
     path = resolve(ROOT, path)
     if (cache.has(path)) return cache.get(path).exports
     const output = ts.transpileModule(readFileSync(path, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
-    const module = { exports: {} }
-    cache.set(path, module)
-    vm.runInNewContext(output, { module, exports: module.exports,
+    const loadedModule = { exports: {} }
+    cache.set(path, loadedModule)
+    vm.runInNewContext(output, { module: loadedModule, exports: loadedModule.exports,
       require(name) {
         if (Object.hasOwn(mocks, name)) return mocks[name]
         if (name.startsWith('@/')) return load(`${name.slice(2)}.ts`)
@@ -26,7 +26,7 @@ export function loader(mocks = {}, globals = {}) {
       }, Date, Intl, URL, URLSearchParams, Buffer, AbortController, Response, Headers, setTimeout, clearTimeout, process,
       console: { error() {} }, fetch: async () => { throw new Error('Unexpected real network request') }, ...globals,
     }, { filename: path })
-    return module.exports
+    return loadedModule.exports
   }
   return load
 }

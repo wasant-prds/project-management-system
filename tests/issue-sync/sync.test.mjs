@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { loader, fixture, rawIssue, database, plain, uuid } from './support.mjs'
+import { loader, fixture, rawIssue, database, uuid } from './support.mjs'
 
 const load = loader()
 const { IssueSourceClient, IssueSyncError } = load('lib/issue-sync-provider.ts')

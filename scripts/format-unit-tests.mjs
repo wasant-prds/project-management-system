@@ -1,6 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { dirname, join, relative, sep } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { pathToFileURL } from 'node:url'
 
 const projectRoot = process.cwd()
 const testsRoot = join(projectRoot, 'tests')

@@ -217,7 +217,7 @@ function navigationFixture({ active = true, withObserver = true } = {}) {
   const writes = []
   let nextFrame = 0
   let reads = 0
-  let resizeObserver
+  const resizeObservers = []
   const view = {
     requestAnimationFrame(callback) { frames.set(++nextFrame, callback); return nextFrame },
     cancelAnimationFrame(id) { frames.delete(id) },
@@ -232,7 +232,7 @@ function navigationFixture({ active = true, withObserver = true } = {}) {
   }
   const indicator = { style: { opacity: '0', setProperty: (key, value) => writes.push([key, value]) } }
   class FakeResizeObserver {
-    constructor(callback) { this.callback = callback; resizeObserver = this }
+    constructor(callback) { this.callback = callback; resizeObservers.push(this) }
     observe(element) { assert.equal(element, navigation); this.observed = true }
     disconnect() { this.disconnected = true }
   }
@@ -244,7 +244,7 @@ function navigationFixture({ active = true, withObserver = true } = {}) {
     frames.clear()
     pending.forEach((callback) => callback())
   }
-  return { frames, listeners, writes, indicator, dispose, flush, get reads() { return reads }, get observer() { return resizeObserver } }
+  return { frames, listeners, writes, indicator, dispose, flush, get reads() { return reads }, get observer() { return resizeObservers[0] } }
 }
 
 test('TC-28-11 navigation coalesces resize bursts into one measurement and accepts later updates', () => {

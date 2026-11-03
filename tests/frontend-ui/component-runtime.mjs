@@ -16,13 +16,13 @@ export function createComponentLoader(mocks = {}, globals = {}) {
   function load(file) {
     const path = resolve(root, file)
     if (cache.has(path)) return cache.get(path).exports
-    const module = { exports: {} }
-    cache.set(path, module)
+    const loadedModule = { exports: {} }
+    cache.set(path, loadedModule)
     const js = typescript.transpileModule(readFileSync(path, 'utf8'), {
       compilerOptions: { module: typescript.ModuleKind.CommonJS, target: typescript.ScriptTarget.ES2022, jsx: typescript.JsxEmit.ReactJSX, esModuleInterop: true },
     }).outputText
     vm.runInNewContext(js, {
-      module, exports: module.exports,
+      module: loadedModule, exports: loadedModule.exports,
       require: (name) => {
         if (Object.hasOwn(mocks, name)) return mocks[name]?.default ? { __esModule: true, ...mocks[name] } : mocks[name]
         if (name.startsWith('@/') || name.startsWith('.')) {
@@ -38,7 +38,7 @@ export function createComponentLoader(mocks = {}, globals = {}) {
       console, URL, URLSearchParams, Intl, AbortController,
       ...globals,
     }, { filename: path })
-    return module.exports
+    return loadedModule.exports
   }
   return load
 }

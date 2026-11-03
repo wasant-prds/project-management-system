@@ -124,6 +124,8 @@ pnpm quality
 
 `pnpm quality` runs ESLint, TypeScript type checking, Prisma schema validation, and the full Node test suite. Run `pnpm lint`, `pnpm typecheck`, or the focused `pnpm test:company-projects` separately while iterating.
 
+`pnpm lint` ตรวจ JavaScript/TypeScript ทั้งโปรเจกต์ รวม root configs, `hooks`, `scripts`, `tests` และไฟล์ `.mjs`/`.cjs`; ต้องไม่มี warning และตรวจ unused eslint-disable directives ด้วย. ข้าม build output, design sources, database files และ private seed/backup datasets ตาม `.eslintrc.json`. `pnpm typecheck` เปิด `noUnusedLocals` และ `noUnusedParameters` เพื่อให้การตรวจ TypeScript ตรงกับปัญหา unused declarations ใน editor. ไม่ต้องใช้ database หรือ provider token สำหรับ static checks เหล่านี้.
+
 GitHub Actions runs `pnpm quality` and then the SonarQube quality gate. Configure repository variable `SONAR_HOST_URL` and repository secret `SONAR_TOKEN` before pushing; the scan waits for the server's quality-gate result. Fork pull requests run the local quality job without Sonar credentials.
 
 Run only the one-way GitLab Issue import contract checks:

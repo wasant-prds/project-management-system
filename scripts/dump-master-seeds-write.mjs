@@ -7,8 +7,8 @@
  *   --write <destDir> <stageDir> <config.json>  Write snapshot files and drop leftovers
  */
 
-const fs = require('fs')
-const path = require('path')
+import fs from 'node:fs'
+import path from 'node:path'
 
 const PG_TABLE_BY_MODEL = {
   WorkItem: 'work_items',
@@ -386,7 +386,7 @@ function main() {
   }
 
   throw new Error(
-    'Usage: dump-master-seeds-write.js --print-tables <config.json> | --write <destDir> <stageDir> <config.json>',
+    'Usage: dump-master-seeds-write.mjs --print-tables <config.json> | --write <destDir> <stageDir> <config.json>',
   )
 }
 

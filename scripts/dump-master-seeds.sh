@@ -10,7 +10,7 @@ DB_ROOT="$ROOT"
 DEST="${ROOT}/database/seeds/master"
 BACKUP_DIR="${ROOT}/backups"
 INNER="${ROOT}/scripts/dump-master-seeds-inner.sh"
-WRITE="${ROOT}/scripts/dump-master-seeds-write.js"
+WRITE="${ROOT}/scripts/dump-master-seeds-write.mjs"
 CONFIG="${DEST}/config.json"
 
 DB_SITE="$(db_resolve_env)"
@@ -137,7 +137,7 @@ prepare_app_writer() {
     fi
     APP_TMP="/tmp/pms-seed-export-$$"
     docker_exec -u 0 "$APP_CONTAINER" mkdir -p "$APP_TMP"
-    docker_cp "$(host_path "$WRITE")" "${APP_CONTAINER}:${APP_TMP}/dump-master-seeds-write.js"
+    docker_cp "$(host_path "$WRITE")" "${APP_CONTAINER}:${APP_TMP}/dump-master-seeds-write.mjs"
     docker_cp "$(host_path "$CONFIG")" "${APP_CONTAINER}:${APP_TMP}/config.json"
   fi
 }
@@ -147,7 +147,7 @@ run_print_tables() {
     node "$WRITE" --print-tables "$CONFIG"
   else
     prepare_app_writer
-    docker_exec -u 0 "$APP_CONTAINER" node "$APP_TMP/dump-master-seeds-write.js" --print-tables "$APP_TMP/config.json"
+    docker_exec -u 0 "$APP_CONTAINER" node "$APP_TMP/dump-master-seeds-write.mjs" --print-tables "$APP_TMP/config.json"
   fi
 }
 
@@ -185,7 +185,7 @@ write_seed_snapshot() {
   docker_exec -u 0 "$APP_CONTAINER" mkdir -p "$APP_TMP/dest" "$APP_TMP/stage"
   docker_cp "$(host_path "$DEST")/." "${APP_CONTAINER}:${APP_TMP}/dest/"
   docker_cp "$(host_path "$STAGE")/." "${APP_CONTAINER}:${APP_TMP}/stage/"
-  docker_exec -u 0 "$APP_CONTAINER" node "$APP_TMP/dump-master-seeds-write.js" \
+  docker_exec -u 0 "$APP_CONTAINER" node "$APP_TMP/dump-master-seeds-write.mjs" \
     --write "$APP_TMP/dest" "$APP_TMP/stage" "$APP_TMP/config.json"
 
   WRITTEN_STAGE="$(make_written_temp_dir)"

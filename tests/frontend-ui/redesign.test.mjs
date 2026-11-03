@@ -24,9 +24,12 @@ test('TC-27-01 navigation identifies only the current route and its nested detai
 
 function sidebarFixture(pathname) {
   const closed = []
-  const primitive = ({ children, asChild, isActive, className, variant, ...props }) => asChild
-    ? React.cloneElement(React.Children.only(children), { 'data-active': isActive, ...props })
-    : React.createElement('div', { className }, children)
+  const primitive = ({ children, asChild, isActive, className, ...props }) => {
+    delete props.variant
+    return asChild
+      ? React.cloneElement(React.Children.only(children), { 'data-active': isActive, ...props })
+      : React.createElement('div', { className }, children)
+  }
   const sidebar = Object.fromEntries(['Sidebar', 'SidebarContent', 'SidebarFooter', 'SidebarGroup', 'SidebarGroupContent', 'SidebarGroupLabel', 'SidebarHeader', 'SidebarMenu', 'SidebarMenuButton', 'SidebarMenuItem'].map((name) => [name, primitive]))
   sidebar.useSidebar = () => ({ setOpenMobile: (value) => closed.push(value) })
   const fixtureLoad = createComponentLoader({
@@ -290,7 +293,9 @@ test('TC-27-21 GitLab PMS Project mapping renders the shared accessible themed S
 })
 
 test('TC-27-22 Board Work Item detail uses the same responsive width shell as Work Items dialogs', () => {
-  const pass = (tag) => ({ children, ...props }) => React.createElement(tag, props, children)
+  const pass = (tag) => function MockElement({ children, ...props }) {
+    return React.createElement(tag, props, children)
+  }
   const mocks = {
     '@/components/ui/dialog': {
       Dialog: ({ children }) => React.createElement(React.Fragment, null, children),
