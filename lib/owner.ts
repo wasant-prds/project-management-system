@@ -2,11 +2,14 @@ import { headers } from 'next/headers'
 import { timingSafeEqual } from 'node:crypto'
 import { resolve } from 'node:path'
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { users } from '@/lib/database/repositories/users'
 import { classifyOwnerSelector, readLiveIdentityFile, resolveLivePublicId } from '@/lib/legacy-identity'
 
 export class OwnerUnavailableError extends Error {
-  constructor(message: string, readonly status: 401 | 503) {
+  constructor(
+    message: string,
+    readonly status: 401 | 503,
+  ) {
     super(message)
   }
 }
@@ -21,16 +24,6 @@ export type OwnerIdentity = {
   status: string
 }
 
-const ownerSelect = {
-  id: true,
-  publicId: true,
-  name: true,
-  email: true,
-  avatar: true,
-  role: true,
-  status: true,
-} as const
-
 export function ownerErrorMessage(error: unknown) {
   if (!(error instanceof OwnerUnavailableError)) return null
   return error.status === 401 ? 'กรุณายืนยันตัวตนเจ้าของระบบ' : 'ไม่พบเจ้าของระบบที่กำหนดไว้อย่างถูกต้อง'
@@ -39,12 +32,15 @@ export function ownerErrorMessage(error: unknown) {
 export function ownerErrorResponse(error: unknown) {
   if (!(error instanceof OwnerUnavailableError)) return null
   const unauthenticated = error.status === 401
-  return NextResponse.json({
-    error: {
-      code: unauthenticated ? 'OWNER_UNAUTHENTICATED' : 'DEPENDENCY_UNAVAILABLE',
-      message: ownerErrorMessage(error),
+  return NextResponse.json(
+    {
+      error: {
+        code: unauthenticated ? 'OWNER_UNAUTHENTICATED' : 'DEPENDENCY_UNAVAILABLE',
+        message: ownerErrorMessage(error),
+      },
     },
-  }, { status: error.status, headers: { 'Cache-Control': 'no-store' } })
+    { status: error.status, headers: { 'Cache-Control': 'no-store' } },
+  )
 }
 
 export function ownerProfile(owner: OwnerIdentity) {
@@ -87,15 +83,17 @@ function toOwner(user: {
 
 function liveIdentityRecords() {
   const configured = process.env.OWNER_IDENTITY_MAP?.trim()
-  const filePath = configured && configured.length > 0
-    ? configured
-    : resolve(process.cwd(), 'database/live-identity/mappings.json')
+  const filePath =
+    configured && configured.length > 0
+      ? configured
+      : resolve(process.cwd(), 'database/live-identity/mappings.json')
   return readLiveIdentityFile(filePath)
 }
 
 async function ownerByPublicId(publicId: string) {
-  const user = await prisma.user.findUnique({ where: { publicId }, select: ownerSelect })
-  if (!user || user.publicId !== publicId) throw new OwnerUnavailableError('Exactly one owner User must exist', 503)
+  const user = await users.byPublicId(publicId)
+  if (!user || user.publicId !== publicId)
+    throw new OwnerUnavailableError('Exactly one owner User must exist', 503)
   return toOwner(user)
 }
 
@@ -125,7 +123,7 @@ export async function getOwner(): Promise<OwnerIdentity> {
     return ownerByPublicId(publicId)
   }
 
-  const users = await prisma.user.findMany({ take: 2, select: ownerSelect })
-  if (users.length !== 1) throw new OwnerUnavailableError('Exactly one owner User must exist', 503)
-  return toOwner(users[0])
+  const candidates = await users.ownerCandidates()
+  if (candidates.length !== 1) throw new OwnerUnavailableError('Exactly one owner User must exist', 503)
+  return toOwner(candidates[0])
 }

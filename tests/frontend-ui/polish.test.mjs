@@ -353,28 +353,11 @@ test('TC-29-25 layout audit waits for cards and catches local overflow or change
   assert.deepEqual(result.failures, ['Card 1: Horizontal overflow', 'Card 1: Exact hours changed'])
 })
 
-function prismaConfigFixture(loadEnvFile) {
-  return createComponentLoader({ 'node:process': { loadEnvFile }, 'prisma/config': { defineConfig: (config) => config } })('prisma.config.ts').default
-}
-
-test('TC-29-26 Prisma CLI config preserves schema and seed command in local and tooling images without legacy warning config', () => {
-  let loads = 0
-  const config = prismaConfigFixture(() => { loads += 1 })
-  assert.equal(loads, 1)
-  assert.equal(config.schema, 'prisma/schema.prisma')
-  assert.equal(config.migrations.seed, 'tsx prisma/seed.ts')
-  assert.equal(Object.hasOwn(JSON.parse(readFileSync(`${root}/package.json`, 'utf8')), 'prisma'), false)
-  const dockerfile = readFileSync(`${root}/Dockerfile`, 'utf8')
-  for (const target of ['migrate', 'development']) {
-    const stage = dockerfile.split(`FROM base AS ${target}`)[1].split(/\nFROM /)[0]
-    assert.match(stage, /COPY prisma\.config\.ts \.\//)
-  }
-})
-
-test('TC-29-27 Prisma config accepts an absent root env file but propagates read failures', () => {
-  assert.equal(prismaConfigFixture(() => { throw { code: 'ENOENT' } }).migrations.seed, 'tsx prisma/seed.ts')
-  const failure = Object.assign(new Error('synthetic read failure'), { code: 'EACCES' })
-  assert.throws(() => prismaConfigFixture(() => { throw failure }), (error) => error === failure)
+test('TC-29-26 app and database tools build independently without generated database code', () => {
+  const dockerfile = readFileSync(root + '/Dockerfile','utf8')
+  assert.match(dockerfile,/FROM base AS database-tools/)
+  assert.match(dockerfile,/COPY database\/schema\.sql/)
+  assert.match(dockerfile,/RUN pnpm build/)
 })
 
 test('TC-29-28 native env loading keeps shell/container values and reads missing values from the root env', () => {

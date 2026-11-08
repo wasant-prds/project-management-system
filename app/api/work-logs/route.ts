@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server'
-import { Prisma } from '@prisma/client'
-import { prisma } from '@/lib/db'
+import { database } from '@/lib/database/client'
+import { workLogs as logStore, type WorkLogChanges } from '@/lib/database/repositories/work-logs'
+import { projects } from '@/lib/database/repositories/projects'
+import { companies } from '@/lib/database/repositories/companies'
+import { sql, and, type Sql } from '@/lib/database/sql'
 import { WORK_ITEM_KINDS, WORK_ITEM_ROLES } from '@/lib/work-items'
 import { getOwner, ownerErrorResponse } from '@/lib/owner'
 import { bangkokDateRange } from '@/lib/bangkok-datetime'
 import { parseCreateWorkLogInput, parseWorkLogRequestBody } from '@/lib/work-log-input'
 import { lockOwnedWorkItemForUpdate } from '@/lib/work-item-lock'
-import { resolveOwnedWorkItem, serializeWorkLog, workLogInclude } from '@/lib/work-logs'
+import { resolveOwnedWorkItem, serializeWorkLog } from '@/lib/work-logs'
 import { parsePublicId } from '@/lib/public-id'
 
 function apiError(status: number, code: string, message: string, field?: string) {
@@ -35,32 +38,39 @@ export async function GET(request: Request) {
       return validationError('Use either date or a date range, not both', 'date')
     }
 
-    if (role !== null && role !== 'none' && !WORK_ITEM_ROLES.includes(role as typeof WORK_ITEM_ROLES[number])) {
+    if (
+      role !== null &&
+      role !== 'none' &&
+      !WORK_ITEM_ROLES.includes(role as (typeof WORK_ITEM_ROLES)[number])
+    ) {
       return validationError('Invalid Work Item role', 'role')
     }
-    if (kind !== null && !WORK_ITEM_KINDS.includes(kind as typeof WORK_ITEM_KINDS[number])) {
+    if (kind !== null && !WORK_ITEM_KINDS.includes(kind as (typeof WORK_ITEM_KINDS)[number])) {
       return validationError('Invalid Work Item kind', 'kind')
     }
 
-    if (companyId !== null && !parsePublicId(companyId)) return validationError('ต้องเป็น public UUID', 'companyId')
-    if (projectId !== null && !parsePublicId(projectId)) return validationError('ต้องเป็น public UUID', 'projectId')
-    const company = companyId
-      ? await prisma.company.findUnique({ where: { publicId: companyId }, select: { id: true } })
-      : null
+    if (companyId !== null && !parsePublicId(companyId))
+      return validationError('ต้องเป็น public UUID', 'companyId')
+    if (projectId !== null && !parsePublicId(projectId))
+      return validationError('ต้องเป็น public UUID', 'projectId')
+    const company = companyId ? await companies.byPublicId(companyId) : null
     if (companyId && !company) return apiError(404, 'NOT_FOUND', 'Company not found', 'companyId')
-    const project = projectId
-      ? await prisma.project.findUnique({ where: { publicId: projectId }, select: { id: true, companyId: true } })
-      : null
+    const project = projectId ? await projects.byPublicId(projectId) : null
     if (projectId && !project) return apiError(404, 'NOT_FOUND', 'Project not found', 'projectId')
     if (company && project && project.companyId !== company.id) {
-      return apiError(400, 'RELATION_MISMATCH', 'Project does not belong to the selected Company', 'projectId')
+      return apiError(
+        400,
+        'RELATION_MISMATCH',
+        'Project does not belong to the selected Company',
+        'projectId',
+      )
     }
 
-    const where: Prisma.TimeEntryWhereInput = { userId: owner.internalId }
+    const clauses: Sql[] = [sql`l.user_id=${owner.internalId}`]
     if (date !== null) {
       const range = bangkokDateRange(date)
       if (!range) return validationError('date must use a valid YYYY-MM-DD value', 'date')
-      where.date = { gte: range.start, lt: range.end }
+      clauses.push(sql`l.work_date>=${range.start} AND l.work_date<${range.end}`)
     } else if ((startDate === null) !== (endDate === null)) {
       return validationError('startDate and endDate must be provided together', 'startDate')
     } else if (startDate !== null && endDate !== null) {
@@ -69,24 +79,15 @@ export async function GET(request: Request) {
       if (!start || !end || end.start < start.start) {
         return validationError('startDate and endDate must be valid ordered dates', 'startDate')
       }
-      where.date = { gte: start.start, lt: end.end }
+      clauses.push(sql`l.work_date>=${start.start} AND l.work_date<${end.end}`)
     }
 
-    const workItemFilter: Prisma.WorkItemWhereInput = {}
-    const projectFilter: Prisma.ProjectWhereInput = {}
-    if (project) projectFilter.id = project.id
-    if (company) projectFilter.companyId = company.id
-    if (role === 'none') workItemFilter.role = null
-    else if (role) workItemFilter.role = role as typeof WORK_ITEM_ROLES[number]
-    if (kind) workItemFilter.kind = kind as typeof WORK_ITEM_KINDS[number]
-    if (Object.keys(projectFilter).length > 0) workItemFilter.project = { is: projectFilter }
-    if (Object.keys(workItemFilter).length > 0) where.workItem = { is: workItemFilter }
-
-    const workLogs = await prisma.timeEntry.findMany({
-      where,
-      include: workLogInclude,
-      orderBy: [{ date: 'desc' }, { id: 'desc' }],
-    })
+    if (project) clauses.push(sql`w.project_id=${project.id}`)
+    if (company) clauses.push(sql`p.company_id=${company.id}`)
+    if (role === 'none') clauses.push(sql`w.id IS NOT NULL AND w.functional_role IS NULL`)
+    else if (role) clauses.push(sql`w.functional_role=${role}`)
+    if (kind) clauses.push(sql`w.kind=${kind}`)
+    const workLogs = await logStore.list(and(...clauses))
 
     return NextResponse.json(
       { workLogs: workLogs.map((workLog) => serializeWorkLog(workLog, owner.internalId)) },
@@ -109,7 +110,7 @@ export async function POST(request: Request) {
     const input = parseCreateWorkLogInput(body.value, owner.id)
     if (!input.ok) return validationError(input.error.message, input.error.field)
 
-    const outcome = await prisma.$transaction(async (transaction) => {
+    const outcome = await database.transaction(async (transaction) => {
       const workItem = await resolveOwnedWorkItem(input.value.workItemId, owner.internalId, transaction)
       if (!workItem) return { kind: 'work-item-missing' as const }
       await lockOwnedWorkItemForUpdate(transaction, workItem.id, owner.internalId)
@@ -117,7 +118,7 @@ export async function POST(request: Request) {
         return { kind: 'project-mismatch' as const }
       }
 
-      const data: Prisma.TimeEntryUncheckedCreateInput = {
+      const data: WorkLogChanges = {
         hours: input.value.hours,
         date: input.value.date,
         userId: owner.internalId,
@@ -127,13 +128,18 @@ export async function POST(request: Request) {
         ...(input.value.remarks !== undefined ? { remarks: input.value.remarks } : {}),
         ...(input.value.status !== undefined ? { status: input.value.status } : {}),
       }
-      const workLog = await transaction.timeEntry.create({ data, include: workLogInclude })
+      const workLog = await logStore.create(data, transaction)
       return { kind: 'created' as const, workLog }
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+    })
 
-    if (outcome.kind === 'work-item-missing') return apiError(404, 'NOT_FOUND', 'Work Item not found', 'workItemId')
-    if (outcome.kind === 'project-mismatch') return apiError(400, 'RELATION_MISMATCH', 'Project must match the Work Item Project', 'projectId')
-    return NextResponse.json({ workLog: serializeWorkLog(outcome.workLog, owner.internalId) }, { status: 201 })
+    if (outcome.kind === 'work-item-missing')
+      return apiError(404, 'NOT_FOUND', 'Work Item not found', 'workItemId')
+    if (outcome.kind === 'project-mismatch')
+      return apiError(400, 'RELATION_MISMATCH', 'Project must match the Work Item Project', 'projectId')
+    return NextResponse.json(
+      { workLog: serializeWorkLog(outcome.workLog, owner.internalId) },
+      { status: 201 },
+    )
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError

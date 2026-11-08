@@ -249,6 +249,6 @@ pnpm test:runner
 - [Dashboard query and metrics](../../../../lib/dashboard.ts)
 - [Owner resolver](../../../../lib/owner.ts)
 - [Owner middleware](../../../../middleware.ts)
-- [Prisma schema](../../../../prisma/schema.prisma)
+- [SQL schema](../../../../database/schema.sql)
 - [Dashboard unit tests](../../../../tests/dashboard/summary.test.mjs)
 - [API contract tests](../../../../tests/contracts/menu-api-validation.test.mjs)

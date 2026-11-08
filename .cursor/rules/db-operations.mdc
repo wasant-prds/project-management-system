@@ -1,19 +1,16 @@
 ---
-description: Safe DB commands, seed, backup, and APP_ENV targeting
-globs: scripts/db-*.{sh,ps1},prisma/seed.ts,database/**,document/process/db.md
+description: SQL initialization, private seeds, verified backups and APP_ENV targeting
+globs: scripts/database/**,scripts/db-*.{sh,ps1},database/**,document/process/db.md
 alwaysApply: false
 ---
 
 # Database operations
 
-- Run from repo root. Use `bash` for `.sh` (Git Bash on Windows). One root `.env`. `APP_ENV` = `local`|`dev`|`uat`|`prod` selects Compose, container, and volume.
-- `SEED_PATH` default `database/seeds/master` (path from `/app` in the container).
-- Prisma: `pnpm prisma generate` | `migrate dev` | `db seed` (skip if data exists, never wipe) | `studio`. `postinstall` already runs generate.
-- Schema push only via `bash scripts/db-push-safe.sh` (checks rollout approval and refuses data-loss flags); Docker migrations also gate before Prisma generation.
-- Docker schema sync is blocked until `DB_SCHEMA_SYNC_APPROVED=true`. The migrations service uses `APP_ENV` and computes schema/SQL/migration/target/release fingerprints. An empty database may bootstrap. Pending migrations on a database with SQL history require a fresh isolated-restore receipt in `BACKUP_DIR` whose archive, manifest and receipt checksums match. The record is `database/rollout/schema-approval.json`. `RUN_SEED=true` is enough to seed. Do not put those hashes in `.env`.
-- Seed dump: `bash scripts/dump-master-seeds.sh` snapshots current `APP_ENV` Postgres into seed JSON (`WorkItem/` by year; leftover JSON removed) then zips to `./backups`. That site's Postgres must be up.
-- `bash scripts/db-manage.sh <cmd>` (or `.ps1`): status, backup, restore, verify-rollout, health, prune-backups, connect, logs, seed, reset, force-seed — all target `APP_ENV` only. Backup/restore commands require the local Node toolchain and Docker CLI.
-- Never `reset` or `force-seed` on production or any database with real data. Seed skips when configured tables already have rows.
-- Backup before schema change. A file that was never restored is not verified. #16 manual backups are custom archives with checksum/inventory and isolated restore evidence, stored in approved `BACKUP_DIR` with the site name in the filename. Legacy SQL backups remain under `database/backups`; do not overwrite them.
-- `restore` is an isolated rehearsal, never a live overwrite. Follow `document/DATABASE_ROLLOUT.md` for staged nullable/backfilled/required validation, history preservation, retention pins and owner-approved recovery/cutover.
-- Production Compose profile `backup`: atomic daily custom `pg_dump` candidates. Owner-approved defaults: `BACKUP_DIR=./database/backups/postgres_data` from repository root and `BACKUP_KEEP_DAYS=30`. Both can be overridden; validate retention as an integer in 1..3650. Daily candidates alone are not rollout evidence.
+- Run from repository root with one root .env. APP_ENV local|dev|uat|prod selects the Compose environment. Use Bash for .sh scripts and Git Bash on Windows.
+- Use scripts/database/initialize.mjs with DB_SCHEMA_SYNC_APPROVED=true for an empty database. It reads only database/schema.sql; never resets or upgrades an existing mismatched database.
+- SEED_PATH must be database/seeds/sql-master. All contents are private and gitignored; never force-add them. Do not create another seed source or edit private datasets for testing.
+- scripts/database/seed.mjs executes numbered SQL INSERT files atomically on an empty initialized database. Keep source UUIDs/timestamps and align identity sequences. RUN_SEED defaults false; disable it after first seed.
+- db-manage.sh/.ps1 supports status, connect, logs, seed, backup, restore, health and prune-backups. reset and force-seed are refused.
+- Backup uses scripts/database/backup.mjs: custom pg_dump + checksum/inventory + disposable restore verification. restore is an isolated rehearsal, never a live overwrite. Preserve pinned archives and the newest verified backup.
+- Before live schema changes, obtain a fresh verified baseline and explicit cutover approval. Never reset, migrate, seed or deploy a used database just to satisfy a test.
+- Run pnpm test:database-docker against disposable containers only. No production mounts, real tokens, or implicit live DB connections.

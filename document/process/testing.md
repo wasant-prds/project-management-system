@@ -1,293 +1,70 @@
 # Testing Commands
 
-Final visual polish ของ Issue #29 ใช้ `pnpm test:frontend-polish` หรือ `node tests/run.mjs frontend-polish`: 28 cases ตรวจ KPI baseline/pending/failure/real-zero, long text/exact Decimal, form contracts, shared Analysis tables/source links/Bangkok dates, empty/error/404 feedback, modal autofocus restoration, compiled touch/wrapping CSS, browser geometry verdict และ Prisma CLI config/env precedence. ใช้ production components กับ mocks และ synthetic temporary env; ไม่เชื่อม PostgreSQL, Redis, Docker หรือ external services. รายงาน tree ใช้ `bash scripts/test-unit.sh frontend-polish`; PowerShell formatter ที่รักษา exit code และ read-only preview modes อยู่ใน [Polish handbook](../handbook/frontend/issue-29-polish.md). Browser regression ใช้ preview `/daily-work?theme=light&qa=edge&layoutCheck=1` แล้ว resize ตาม handbook: ตรวจ actual DOM widths/heights/overflow/exact hours และแสดง PASS/FAIL; เป็น browser check แยกจาก unit suite. ผลและข้อจำกัด gate อยู่ใน [Implementation report](../ISSUE_29_IMPLEMENTATION.md).
-
-ระบบสีของ Issue #27 ใช้ `pnpm test:color-system` หรือ `node tests/run.mjs color-system`: ตรวจ contrast ทั้งสามธีม, action/focus states, custom Project colors, compiled dark variants และ theme persistence ด้วย mocks. ทั้ง suite ไม่ใช้ network/DB/Docker. ใช้ `bash scripts/test-unit.sh color-system` สำหรับรายงาน tree; รายละเอียดและขอบเขต browser/build อยู่ใน [COLOR_SYSTEM.md](../COLOR_SYSTEM.md).
-
-Dropdown ของ Dashboard / Kanban Board ใช้ `pnpm test:filter-select` หรือ `node tests/run.mjs filter-select`: ตรวจ shared themed Select, empty GET values, SSR defaults, controlled callbacks และ loading locks รวม Dashboard filter/summary กับ Board workflow regressions. ไม่เชื่อม network/DB/Docker; reusable tree runner ใช้ `bash scripts/test-unit.sh filter-select` เมื่อมี Bash และ Node 22+.
-
-Final competition audit ของ Issue #36 ใช้ `pnpm test:frontend-competition` หรือ `node tests/run.mjs frontend-competition`: ตรวจ `InlineState` ที่ใช้ identity mark โดยไม่มีเส้นประและไม่ประกาศ empty หลายจุดพร้อมกัน, status glyph บน Dashboard/Board/Analysis/Project detail, role label ของค่าที่รู้จัก/ว่าง/ไม่รู้จัก, Settings error visual, disclosure icon ของ Company/Projects, sticky header ที่ไม่มี backdrop-blur, และคำสั่ง runner. Unit suite ไม่เชื่อม PostgreSQL, Redis, Docker, network หรือ external services. รายงาน tree ใช้ `bash scripts/test-unit.sh frontend-competition`. ไม่มี Makefile target.
-
-Product visual identity ของ Issue #35 ใช้ `pnpm test:frontend-identity` หรือ `node tests/run.mjs frontend-identity`: ตรวจ typography hierarchy, fluid scale ที่ไม่ขยายทุกบทบาทเท่ากัน, icon stroke/size/motion, semantic chart color ที่ไม่พึ่งสีอย่างเดียว, status glyph, empty/error/partial state และ signature class. Unit suite ไม่เชื่อม PostgreSQL, Redis, Docker, network หรือ external services. รายงาน tree ใช้ `bash scripts/test-unit.sh frontend-identity`. ไม่มี Makefile target. รายละเอียดอยู่ที่ [Visual identity handbook](../handbook/frontend/issue-35-visual-identity.md).
-
-Award-level experience ของ Issue #34 ใช้ `pnpm test:frontend-cinematic` หรือ `node tests/run.mjs frontend-cinematic`: ตรวจ spatial profile, choreography, pointer/magnetic limits, route-transition decisions, KPI/progress continuity, reduced-motion และ desktop/touch fallback. Unit suite ไม่เชื่อม PostgreSQL, Redis, Docker, network หรือ external services. รายงาน tree ใช้ `bash scripts/test-unit.sh frontend-cinematic`. ไม่มี Makefile target. รายละเอียดอยู่ที่ [Cinematic handbook](../handbook/frontend/issue-34-cinematic.md).
-
-Motion system ของ Issue #28 ใช้ `pnpm test:frontend-motion` หรือ `node tests/run.mjs frontend-motion`: ตรวจ shared timing/easing tokens, route entrance, reduced-motion/performance rules, sidebar measurement/coalescing/cleanup/lazy mount, keyboard focus restoration, accessible loading layouts, KPI/progress/chart transitions, card state precedence, closed overlay exit timing, toast swipe transitions, sticky scroll frame coalescing, safe integer interpolation/cancellation/accessibility, Daily Work latest-request/error/retry และ shared control states (35 cases). Unit suite ใช้ CSS compiler และ mocks ใน process; ไม่เชื่อม PostgreSQL, Redis, Docker, network หรือ external services. Tree report ใช้ `bash scripts/test-unit.sh frontend-motion`. ดู [Motion handbook](../handbook/frontend/issue-28-motion.md) สำหรับ tokens, preview (`qa=slow`/`qa=error` synthetic GET), schema-validation placeholder และข้อจำกัด SonarQube. Preview ปฏิเสธ API writes และไม่แทน production E2E.
-
-สคริปต์ GitHub (`scripts/github-create-tasks.py` และ `scripts/github-create-labels.py`) ใช้ Python 3.10+ และ `unittest` จาก standard library จึงไม่อยู่ใน `pnpm test` หรือ `node tests/run.mjs`. รันแยกจาก root ด้วย `python -B -m unittest discover -s scripts/tests -p "test_github_*.py" -v`. Tests ใช้ GitHub จำลองในหน่วยความจำ ไม่ติดต่อ GitHub จริง และ `-B` ไม่สร้าง `__pycache__`. ดู [คู่มือ issues](../github-create-tasks.md) และ [คู่มือ labels](../github-create-labels.md).
-
-Project tests use pnpm and Node's built-in test runner; no additional test dependency is required. The root runner discovers `.test.mjs` files under `tests/` and runs them in isolated child processes, one file at a time.
-
-```powershell
+```sh
+pnpm quality          # lint + typecheck + unit/provider/UI suites
 pnpm test
-```
-
-To print the test results as a package → file → test tree, use the reusable Bash wrapper. Pass an existing suite name such as `auth` to run only that suite:
-
-```bash
+node tests/run.mjs
 bash scripts/test-unit.sh
-bash scripts/test-unit.sh auth
-bash scripts/test-unit.sh work-items
 ```
 
-The wrapper uses Node's TAP reporter and the existing `tests/run.mjs` suite selection; it does not discover or execute tests independently. Verify the formatter itself with `pnpm test:runner` or `bash scripts/test-unit.sh runner`.
+Node.js 22+; runner รวม `.test.mjs` แต่ละไฟล์ใน process แยก. Unit tests ใช้ synthetic data, mock repositories/provider HTTP และ components จริง. SQL/API persistence ถูกตรวจผ่าน PostgreSQL จริงใน isolated suite แทน ORM mocks เดิม
 
-The full suite requires Node.js 22 or newer. When launched from WSL with an older Linux Node, the wrapper uses the installed Windows `node.exe` if it is available; otherwise it stops with a version hint instead of printing a partial report.
-
-Use `bash scripts/test-unit.sh local` to name the complete local unit run explicitly; it is equivalent to running the wrapper without a suite name.
-
-Run all documentation/data contract suites:
-
-```powershell
-pnpm test:contracts
+```sh
+docker build --target database-tools -t pms-sql-tools-check .
+docker build --target production -t pms-sql-app-check .
+pnpm test:database-docker
 ```
 
-Run only the Customer/Project migration contract checks:
+Database suite ตรวจ fresh initialization, SQL seeding/rollback, comments/identities/FKs, exact decimals, Bangkok dates, API ownership, pagination, CRUD/history guards, GitLab/GitHub sync, pg_dump/restore และ standalone HTTP. Containers ไม่มี production mounts หรือ host ports และถูกลบเมื่อเสร็จ. ไม่อ่าน private seed dataset หรือ token จริง. `PMS_DATABASE_TEST_IMAGE` / `PMS_APP_TEST_IMAGE` เปลี่ยนชื่อ image สำหรับ CI ได้
 
-```powershell
-pnpm test:migration-contracts
+Focused suites (ใช้รูปแบบเดียวกัน เช่น `pnpm test:settings`, `node tests/run.mjs settings`, `bash scripts/test-unit.sh settings`):
+
+- auth, identity, company-projects, work-items, daily-work, board, dashboard, analysis, settings
+- issue-sync: provider filtering/pagination/token variables, sync state และ config endpoints
+- contracts: schema และ API/document contracts (`pnpm test:api-contracts`, `node tests/run.mjs api-contracts`)
+- frontend-ui, frontend-redesign, frontend-motion, frontend-cinematic, frontend-identity, frontend-competition, frontend-polish, frontend-performance
+- date-picker, filter-select, color-system, runtime-security, https, runner
+
+ตัวอย่าง: `pnpm test:analysis`, `node tests/run.mjs analysis`, `bash scripts/test-unit.sh analysis`; `pnpm test:dashboard`, `pnpm test:work-items`, `pnpm test:daily-work`. รายการทั้งหมดอยู่ใน package.json และ tests/run.mjs. Suite ชื่อ frontend-* ใช้ Node runner และ Bash reporter ชื่อเดียวกัน
+
+Python GitHub tooling แยกจาก Node suite และใช้ HTTP จำลอง:
+
+```sh
+python -B -m unittest discover -s scripts/tests -p "test_github_*.py" -v
 ```
 
-Run only the menu API and validation contract checks:
-
-```powershell
-pnpm test:api-contracts
-```
-
-Run only the Company and Project management regression tests:
-
-```powershell
-pnpm test:company-projects
-```
-
-Run Issue #22 Board workflow unit tests:
-
-```powershell
-pnpm test:board
-node tests/run.mjs board
-```
-
-The shared terminal reporter also accepts `bash scripts/test-unit.sh board`.
-
-Run Issue #23 Dashboard aggregate, filter, date, timezone, deep-link, empty/error and owner regressions:
-
-```powershell
-pnpm test:dashboard
-node tests/run.mjs dashboard
-```
-
-The suite uses an in-memory Prisma fake and does not connect to PostgreSQL or external services. Work Item and Daily Work source routes also have deep-link filter regressions; run them with `pnpm test:work-items` and `pnpm test:daily-work`. The shared Bash reporter accepts `bash scripts/test-unit.sh dashboard` when Bash is available.
-
-Run Issue #24 Analysis aggregate, shared Dashboard formula/filter, Bangkok grouping, export, source-link, owner, validation, and error regressions:
-
-```powershell
-pnpm test:analysis
-node tests/run.mjs analysis
-```
-
-The reusable unit reporter also accepts `bash scripts/test-unit.sh analysis`. The suite uses an in-memory Prisma fake and route mocks; it does not connect to PostgreSQL, Redis, Docker, network, or external services. Run `pnpm test:dashboard` as well to verify the shared query behavior remains consistent.
-
-This suite uses in-memory API responses and WorkItem fixtures; it does not connect to PostgreSQL or external services. It checks shared status columns, Company/Project/role filters and pagination, Bangkok date rendering, the existing Work Items PATCH contract, status validation, rejection of stale reads during status writes, and selection state following rollback after a failed save.
-
-Run the Work Item management, validation, import, history-retention, and Bangkok date regressions:
-
-```powershell
-pnpm test:work-items
-node tests/run.mjs work-items
-```
-
-The suite also covers the `/work-items` loading regression: request and display state share a complete key for all active filters, the loading state clears for matching results or an error, and its message spans the list width.
-
-Run the Daily Work/TimeEntry owner, positive Decimal, WorkItem/Project, Bangkok date, exact summary, and live logged-hours regressions:
-
-```powershell
-pnpm test:daily-work
-node tests/run.mjs daily-work
-```
-
-The suite uses mocked Prisma Route Handlers and client wiring; it does not connect to PostgreSQL or create TimeEntries from GitLab. The Bash reporter also accepts `bash scripts/test-unit.sh daily-work`.
-
-Run schema rollout approval checks without connecting to a database:
-
-```powershell
-pnpm test:schema-rollout-gate
-node tests/run.mjs schema-rollout-gate
-```
-
-This focused suite checks the schema rollout gate without connecting to PostgreSQL. Schema validation uses `pnpm exec prisma validate`. Applying schema changes still requires `DB_SCHEMA_SYNC_APPROVED=true`. The gate computes fingerprints and can record them in `database/rollout/schema-approval.json`.
-
-Run the local quality gates used before review:
-
-```powershell
-pnpm quality
-```
-
-`pnpm quality` runs ESLint, TypeScript type checking, Prisma schema validation, and the full Node test suite. Run `pnpm lint`, `pnpm typecheck`, or the focused `pnpm test:company-projects` separately while iterating.
-
-`pnpm lint` ตรวจ JavaScript/TypeScript ทั้งโปรเจกต์ รวม root configs, `hooks`, `scripts`, `tests` และไฟล์ `.mjs`/`.cjs`; ต้องไม่มี warning และตรวจ unused eslint-disable directives ด้วย. ข้าม build output, design sources, database files และ private seed/backup datasets ตาม `.eslintrc.json`. `pnpm typecheck` เปิด `noUnusedLocals` และ `noUnusedParameters` เพื่อให้การตรวจ TypeScript ตรงกับปัญหา unused declarations ใน editor. ไม่ต้องใช้ database หรือ provider token สำหรับ static checks เหล่านี้.
-
-GitHub Actions runs `pnpm quality` and then the SonarQube quality gate. Configure repository variable `SONAR_HOST_URL` and repository secret `SONAR_TOKEN` before pushing; the scan waits for the server's quality-gate result. Fork pull requests run the local quality job without Sonar credentials.
-
-Run only the one-way GitLab Issue import contract checks:
-
-```powershell
-pnpm test:gitlab-contracts
-```
-
-Run the GitLab Issue import service and API regression tests with an in-memory Prisma fixture and synthetic GitLab responses:
-
-```powershell
-pnpm test:gitlab
-node tests/run.mjs gitlab
-bash scripts/test-unit.sh gitlab
-```
-
-These tests never read real GitLab credentials or call a configured GitLab instance. They cover server-side owner gates, mapping and first-sync approval, exact identity upsert, field ownership, Bangkok dates/timestamps, pagination, rate limiting, partial failure, safe retry and mapping removal retention.
-
-Add reusable Node test files under `tests/` with the `.test.mjs` suffix. `pnpm test` runs the full suite; `pnpm test:contracts` uses the same root runner with the `contracts` suite filter; `pnpm test:migration-contracts` and `pnpm test:gitlab-contracts` run a focused contract file through the root runner without spawning a child process.
-
-The API and GitLab contract checks cover documentation and current route inventory. `pnpm test:api-contracts` (or `node tests/run.mjs api-contracts`) runs only `tests/contracts/menu-api-validation.test.mjs`; `pnpm test:gitlab-contracts` (or `node tests/run.mjs gitlab-contracts`) runs only `tests/contracts/gitlab-issue-import.test.mjs` through the shared root runner. `pnpm test:gitlab` covers the implemented #20 routes and service with synthetic mocks.
-
-## Date and timezone checks
-
-Date/filter/report contract tests must use `Asia/Bangkok` as the system, application, and database-session default in every environment, regardless of the test runner's or browser's local timezone. Cover date-only inputs, current year/month defaults, inclusive day boundaries around midnight in Bangkok, database-generated `now()` defaults, and verify persisted timestamps retain Bangkok local wall-clock values without UTC normalization. Verify Settings cannot override the fixed system timezone.
-
-## Issue #15 — runtime security
-
-```powershell
-pnpm test:runtime-security
-node tests/run.mjs runtime-security
-pnpm test:runtime-docker
-node tests/run.mjs runtime-docker
-pnpm runtime:check
-```
-
-Focused security suite ใช้ synthetic credentials, HTTP server และ Node subprocess; ไม่เรียก GitLab จริง. Docker suite เป็น opt-in; `pnpm test` skip Docker integration tests. Docker tests ต้องมี Docker daemon และ `postgres:16-alpine` กับ local migrations image ที่มี Prisma client (`PMS_PRISMA_TEST_IMAGE` override ได้). ใช้ disposable PostgreSQL ไม่มี published port, volume ของระบบจริงหรือ schema migration และ cleanup container หลังจบ. Runtime .env configuration/rotate/revoke และ read-only deployment verification อยู่ใน [Runtime Security](../RUNTIME_SECURITY.md).
-
-Production container smoke (ไม่ deploy):
-
-```powershell
-docker build --target production -t pms-issue15-validation .
-pnpm test:runtime-container
-node tests/run.mjs runtime-container
-```
-
-`PMS_RUNTIME_TEST_IMAGE` override validation image ได้. Container smoke ใช้ network none หรือ network namespace ของ PostgreSQL ชั่วคราว, synthetic `.env` ชั่วคราว และไม่มี host ports; ตรวจ non-root image, owner gate หน้า Next standalone, health 200 กับ PostgreSQL ชั่วคราว และ health 503 แบบไม่เผย raw error, Bangkok timestamp, client JS และ application logs ที่ไม่มี token. Full `pnpm test` skip container smoke จนเรียก focused command. Windows local `pnpm build` อาจติด EACCES ของ optional sharp package; production Docker build ใช้ Linux toolchain จาก lockfile โดยไม่เปลี่ยน local dependencies.
-
-`pnpm test:runtime-docker` also runs the migrations entrypoint with fixture commands: schema sync is blocked before Prisma/database commands without approval; approved fixtures then verify absent/default `RUN_SEED` skips seeding and explicit `RUN_SEED=true` fails on missing config with an actionable message and without printing captured credentials. The test never modifies the installation database.
-
-### Per-table seed regression
-
-- `pnpm test:seed`: empty/populated/mixed tables, repeat runs, missing/malformed files, directory JSON, invalid config and rollback fixtures.
-- `docker build --target migrate -t pms-seed-validation .` then `pnpm test:seed-docker`: PostgreSQL/Prisma mixed tables, existing parent references, idempotency and transaction rollback. Uses disposable containers without installation volumes.
-- `pnpm test:work-item-schema-docker`: gated `prisma db push` on disposable PostgreSQL 16 and verifies WorkItem `DATE` columns, stored calendar days, and the `TimeEntry.workItem` `RESTRICT` foreign key.
-
-When `database/seeds/master/config.json` is available, `pnpm test:seed-docker` additionally runs the real migrations entrypoint with `RUN_SEED=true` against a fresh disposable database using the installation dataset. It then reruns seeding and verifies every existing record is unchanged. Row contents and raw errors are withheld; the test never uses installation volumes.
-
-## Issue #16 — database rollout และ recovery
-
-```powershell
-pnpm test:database-rollout
-node tests/run.mjs database-rollout
-pnpm test:database-rollout-docker
-node tests/run.mjs database-rollout-docker
-```
-
-Unit suite ใช้ temporary artifacts/mocked operations; Docker suite เป็น opt-in ที่ focused command เปิดให้อัตโนมัติ (`pnpm test` skip). ต้องมี Docker daemon, `postgres:16-alpine` และ production app image ที่มี runtime launcher/health route (`PMS_ROLLOUT_TEST_IMAGE` override ได้; default `project-management-system-production-app:latest`). ใช้ Node/Prisma CLI จาก lockfile เพื่อสร้าง As-Is schema เฉพาะ fixture แล้วทดลอง nullable/backfilled/required target DDL. ตรวจ backup/checksum/full restore/schema/exact hashes, same-count history changes, unmapped Customer, relation mismatch, database-generated Bangkok wall-clock default และ real Next.js `/api/health` กับ migration-container exit. Fixture ใช้ network none/shared isolated namespace ไม่มี ports หรือ installation volumes/root `.env`; cleanup container/temporary files หลังจบ.
-
-Runbook และข้อจำกัด environment จริงอยู่ใน [Database Rollout](../DATABASE_ROLLOUT.md). Compose/scheduled backup regression ใช้ `pnpm test:runtime-docker`.
-
-หากไม่มี production app image สำหรับ health smoke ให้ build validation image (ไม่ deploy) และเลือกผ่าน runtime environment:
-
-```powershell
-docker build --target production -t pms-issue16-app-validation .
-$env:PMS_ROLLOUT_TEST_IMAGE = 'pms-issue16-app-validation'
-pnpm test:database-rollout-docker
-```
-
-## Issue #31 — SQL schema, numeric IDs and versioned migrations
-
-Unit contract tests do not connect to PostgreSQL, Redis, Docker or external services:
-
-```powershell
-pnpm test:sql-schema
-node tests/run.mjs sql-schema
-bash scripts/test-unit.sh sql-schema
-```
-
-Isolated PostgreSQL 16 evidence is a separate command. It starts disposable `postgres:16-alpine` containers with `--network none`, trust authentication and no published port, then removes them. It does not read root `.env` or the installation volume:
-
-```powershell
-pnpm test:sql-migrations-docker
-node tests/run.mjs sql-migrations-docker
-```
-
-`bash scripts/test-unit.sh sql-migrations-docker` is rejected because that reporter is for unit suites. `pnpm test` skips the Docker cases until the focused command sets the opt-in flag.
-
-## Issue #25 — Owner Settings
-
-Run owner profile/preferences validation, authenticated API persistence/reload, fixed timezone, conflicts, safe database errors, and unsupported security/notification field checks:
-
-```powershell
-pnpm test:settings
-node tests/run.mjs settings
-```
-
-The shared Bash reporter also supports `bash scripts/test-unit.sh settings`. API tests use an in-memory User/Prisma mock and mocked owner/auth boundary; UI and provider tests use mocked React/UI components and API requests to cover shared Settings/header state, load/save ordering, partial updates, and disabled inputs while saving. They do not open a browser or connect to PostgreSQL, Docker, network, external providers, or production data. Schema deployment checks remain separate and must use the verified database rollout gate.
-
-## Issue #26 — Shared responsive visual system
-
-Run the focused Neumorphism tokens, theme states, page shell, dialog, chart-boundary, reduced-motion, and test-runner contract checks:
-
-```powershell
-pnpm test:frontend-ui
-node tests/run.mjs frontend-ui
-```
-
-The focused suite checks local CSS and source contracts, compiles the Tailwind stylesheet and font tokens, renders the root layout under both Vercel Analytics settings, renders the Daily Work card with mocked UI primitives to verify native button markup, exercises reduced-motion subscription behavior, and checks tooltip positioning with the installed Recharts helper. It requires no PostgreSQL, Redis, browser, Docker, network, or external service. `pnpm test` also discovers the same `.test.mjs` cases as part of the full suite.
-
-## Issue #27 — Full Frontend redesign
-
-รัน unit tests ของ shell/navigation, real presentation components, accessible states, Calendar callback และ installed MUI year/month selectors, retryable Company/Projects collection errors, theme contrast, emitted responsive/motion CSS, GitLab PMS Project themed option popup และ Board/Work Items modal shell consistency:
-
-```powershell
-pnpm test:frontend-redesign
-node tests/run.mjs frontend-redesign
-pnpm test:frontend-ui
-pnpm test:company-projects
-pnpm test:runner
-pnpm test
-```
-
-Shared runner ใช้ Node test file isolation และ `--test-concurrency=1` โดยคง exit code ของ failure/spawn error. ไม่ให้ React/TypeScript/Tailwind compilation ของ UI block timers ของ suite อื่น. Docker integration suites ยังคง opt-in ตามคำสั่งเดิม.
-
-Company/Projects regression checks initial collection failures show retryable error alerts rather than false zero/empty results, and that retry restores the real list/empty state. Calendar regression binds styles to the utility classes exported by the installed MUI version. TC-27-21 checks GitLab PMS Project uses the shared Select trigger and theme-aware popover/option/focus tokens. TC-27-22 checks Board detail, Work Items create/edit and Work Items view dialogs all use the same responsive shell and desktop width. Theme test titles stay literal so the shared case report maps every case to its source file.
-
-รายงานรายเคสแบบ tree ใช้ `bash scripts/test-unit.sh frontend-redesign` ได้. เครื่องที่ไม่มี Bash ใช้ PowerShell โดยเก็บ exit code ก่อนส่ง TAP เข้า formatter:
-
-```powershell
-node --test-reporter=tap tests/run.mjs frontend-redesign > issue-27-tests.tap
-$taskTestExit = $LASTEXITCODE
-Get-Content issue-27-tests.tap | node scripts/format-unit-tests.mjs --stdin
-if ($taskTestExit -ne 0) { throw "Unit tests failed (exit $taskTestExit)" }
-```
-
-Browser QA ใช้ isolated read-only fixture preview ซึ่งไม่ต่อฐานข้อมูลจริง:
-
-```powershell
-node scripts/frontend-preview.mjs
-# http://127.0.0.1:3791
-# ?theme=dark หรือ ?theme=special-dark
-# หยุดด้วย Ctrl+C
-```
-
-Preview ไม่อ่าน `.env`, ใช้ production UI กับ mocked Next/owner/data boundaries และปฏิเสธ API writes. ใช้ตรวจ layout/interaction; ไม่แทน production E2E/auth/hydration tests. Production standalone build บน Windows ที่ติด symlink EPERM ตรวจด้วย `docker build --target production -t pms-issue27-validation .` ได้โดยไม่ deploy. ดู [รายงาน #27](../FRONTEND_REDESIGN.md) และ [ผลทุกเคส](../issue-27-test-cases.txt).
-
-Theme save follow-up: `pnpm test:settings` ตรวจว่า origin-denied save คง persisted theme และ retry ได้; `pnpm test:runtime-security` รวม direct owner-origin unit cases (exact scheme/host/port และยังต้องมี valid credentials). ถ้า page โหลดได้แต่ PATCH เป็น `403 ACCESS_DENIED` ให้เทียบ browser origin กับ `APP_ORIGIN` ของ app container จริง. Dev compose publish พอร์ต 3777; `localhost` กับ `127.0.0.1` เป็นคนละ origin. การเปลี่ยน root `.env` ต้อง recreate เฉพาะ app เพื่อโหลด environment ใหม่; อย่าแก้ด้วยการข้าม origin/authentication check.
-
-## Issue #30 — Performance และ review regressions
-
-`pnpm test:frontend-performance` / `node tests/run.mjs frontend-performance` รัน 29 unit cases ด้วย mocks ไม่มี real infrastructure. Browser suites แยกชัดเจน: `pnpm test:frontend-performance-browser` ใช้ isolated preview matrix; `pnpm test:frontend-performance-review` เน้น fresh reads, local chunk recovery, preserved data nodes/geometry และ Dialog motion; `pnpm test:frontend-performance-production` ใช้ actual Next standalone test container พร้อม synthetic middleware proof/API fixtures เพื่อทดสอบ SSR/hydration/chunk retry. Build scratch ของ preview ถูกลบทิ้งหลังนำ assets เข้า memory.
-
-ดู [performance handbook](../handbook/frontend/issue-30-performance.md) สำหรับ setup, full commands, budget runner, cleanup และขอบเขตของหลักฐาน. Browser tests ไม่ใช่ unit tests และไม่อ้าง real auth/DB integration หรือ field Core Web Vitals.
-Project Issue Sync: `pnpm test:issue-sync` หรือ `node tests/run.mjs issue-sync` ตรวจ providers, mandatory assignee filters, owner/UUID boundaries, idempotence และ run history โดยไม่เรียก providers จริง. ดู SQL integration แบบ isolated ใน [Project Issue Sync](../ISSUE_SYNC.md).
+Unit tests ไม่แทน browser review หรือ deployment. การใช้ token จริง/ฐานจริงเป็นงานแยกที่ต้องได้รับอนุญาต
+
+## คำสั่งเฉพาะ suite
+
+- `pnpm test:contracts` / `node tests/run.mjs contracts` / `bash scripts/test-unit.sh contracts`
+- `pnpm test:api-contracts` / `node tests/run.mjs api-contracts` / `bash scripts/test-unit.sh api-contracts`
+- `pnpm test:issue-sync` / `node tests/run.mjs issue-sync` / `bash scripts/test-unit.sh issue-sync`
+- `pnpm test:auth` / `node tests/run.mjs auth` / `bash scripts/test-unit.sh auth`
+- `pnpm test:company-projects` / `node tests/run.mjs company-projects` / `bash scripts/test-unit.sh company-projects`
+- `pnpm test:board` / `node tests/run.mjs board` / `bash scripts/test-unit.sh board`
+- `pnpm test:dashboard` / `node tests/run.mjs dashboard` / `bash scripts/test-unit.sh dashboard`
+- `pnpm test:analysis` / `node tests/run.mjs analysis` / `bash scripts/test-unit.sh analysis`
+- `pnpm test:settings` / `node tests/run.mjs settings` / `bash scripts/test-unit.sh settings`
+- `pnpm test:frontend-ui` / `node tests/run.mjs frontend-ui` / `bash scripts/test-unit.sh frontend-ui`
+- `pnpm test:frontend-redesign` / `node tests/run.mjs frontend-redesign` / `bash scripts/test-unit.sh frontend-redesign`
+- `pnpm test:frontend-motion` / `node tests/run.mjs frontend-motion` / `bash scripts/test-unit.sh frontend-motion`
+- `pnpm test:frontend-cinematic` / `node tests/run.mjs frontend-cinematic` / `bash scripts/test-unit.sh frontend-cinematic`
+- `pnpm test:frontend-identity` / `node tests/run.mjs frontend-identity` / `bash scripts/test-unit.sh frontend-identity`
+- `pnpm test:frontend-competition` / `node tests/run.mjs frontend-competition` / `bash scripts/test-unit.sh frontend-competition`
+- `pnpm test:frontend-polish` / `node tests/run.mjs frontend-polish` / `bash scripts/test-unit.sh frontend-polish`
+- `pnpm test:frontend-performance` / `node tests/run.mjs frontend-performance` / `bash scripts/test-unit.sh frontend-performance`
+- `pnpm test:color-system` / `node tests/run.mjs color-system` / `bash scripts/test-unit.sh color-system`
+- `pnpm test:date-picker` / `node tests/run.mjs date-picker` / `bash scripts/test-unit.sh date-picker`
+- `pnpm test:filter-select` / `node tests/run.mjs filter-select` / `bash scripts/test-unit.sh filter-select`
+- `pnpm test:work-items` / `node tests/run.mjs work-items` / `bash scripts/test-unit.sh work-items`
+- `pnpm test:daily-work` / `node tests/run.mjs daily-work` / `bash scripts/test-unit.sh daily-work`
+- `pnpm test:runner` / `node tests/run.mjs runner` / `bash scripts/test-unit.sh runner`
+- `pnpm test:runtime-security` / `node tests/run.mjs runtime-security` / `bash scripts/test-unit.sh runtime-security`
+- `pnpm test:https` / `node tests/run.mjs https` / `bash scripts/test-unit.sh https`
+- `pnpm test:https-docker` / `node tests/run.mjs https-docker`
+- `pnpm test:identity` / `node tests/run.mjs identity` / `bash scripts/test-unit.sh identity`
+- `pnpm test:database` / `node tests/run.mjs database` / `bash scripts/test-unit.sh database`
+- `pnpm test:database-docker` / `node tests/run.mjs database-docker`
+
+ทุก suite ใช้ runner ร่วมกัน ไม่มี Makefile target. Docker suites ให้เรียก pnpm โดยตรง; Bash unit reporter ปฏิเสธ database-docker และ https-docker

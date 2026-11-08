@@ -3,10 +3,13 @@ import { getOwner, ownerErrorResponse } from '@/lib/owner'
 import { getDashboardSummary, DashboardQueryError } from '@/lib/dashboard'
 
 function apiError(status: number, code: string, message: string, field?: string) {
-  return NextResponse.json({ error: { code, message, ...(field ? { field } : {}) } }, {
-    status,
-    headers: { 'Cache-Control': 'no-store' },
-  })
+  return NextResponse.json(
+    { error: { code, message, ...(field ? { field } : {}) } },
+    {
+      status,
+      headers: { 'Cache-Control': 'no-store' },
+    },
+  )
 }
 
 export async function GET(request: Request) {

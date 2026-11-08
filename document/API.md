@@ -30,13 +30,10 @@
 | `GET`, `POST` | `/api/work-items` | Work Items; filter, cursor pagination และสร้าง WorkItem ด้วย validation กลาง | WorkItem พร้อม Project/Company/owner; `{ workItems, page, summary, years? }` หรือ `{ workItem }` |
 | `GET`, `PATCH`, `DELETE` | `/api/work-items/{id}` | Work Items อ่าน/แก้/ลบ WorkItem; detail คืน Daily Work ที่ผูกอยู่ | WorkItem เดียว; wrapper `{ workItem }`; DELETE ปฏิเสธเมื่อมีประวัติเวลา |
 | `POST` | `/api/work-items/import` | Work Items bulk import แบบแยกผลรายแถว | ตรวจ WorkItem input และ Project/owner references; valid rows ทำต่อได้เมื่อแถวอื่นผิด |
-| `GET` | `/api/dashboard/summary` | Dashboard aggregates สำหรับช่วงและ Company/Project/role/kind ที่เลือก (#23) | `{ meta, summary, filterOptions }`; query-time Prisma aggregates, `Cache-Control: no-store` |
+| `GET` | `/api/dashboard/summary` | Dashboard aggregates สำหรับช่วงและ Company/Project/role/kind ที่เลือก (#23) | `{ meta, summary, filterOptions }`; query-time SQL aggregates, `Cache-Control: no-store` |
 | `GET` | `/api/analysis/summary` | Analysis report สำหรับ WorkItems และ TimeEntries ตามช่วงและตัวกรอง (#24) | `{ meta, summary, breakdowns, loggedHoursByPeriod, workItems, timeEntries, filterOptions }`; owner-only, query-time, `Cache-Control: no-store` |
 | `GET`, `PATCH` | `/api/settings/me` | อ่าน/บันทึก profile และ preferences ของ owner ที่ยืนยันตัวตน (#25) | `{ profile, preferences }`; owner-scoped, validates fields, `Cache-Control: no-store` |
-| `GET` | `/api/integrations/gitlab/status` | ตรวจว่ามี GitLab server configuration พร้อมหรือไม่ | `{ configured }`; ไม่คืน token/secret metadata (#20) |
-| `GET`, `POST` | `/api/integrations/gitlab/projects` | อ่าน/สร้าง owner-managed GitLab Project mappings | `{ mappings }` / `{ mapping }`; exact label map และ Project relation (#20) |
-| `PATCH`, `DELETE` | `/api/integrations/gitlab/projects/{mappingId}` | แก้ mapping หรือถอน mapping โดยเก็บ imported history | `{ mapping }` / `{ deleted }`; move ปลายทางที่มี references เป็น `409` (#20) |
-| `POST` | `/api/integrations/gitlab/sync` | Owner-triggered read-only GitLab Issue import | counts และผลราย Issue; partial pagination failures อยู่ใน `runError` (#20) |
+| `POST` | `/api/integrations/gitlab/sync` | Compatibility endpoint | ตอบ 409 ให้ใช้ project-scoped sync |
 | `GET`, `POST` | `/api/work-logs` | Daily Work อ่าน/สร้าง TimeEntry | `TimeEntry` พร้อม User/Project/WorkItem; wrapper `{ workLogs }` หรือ `{ workLog }` |
 | `GET` | `/api/work-logs/summary` | รวมชั่วโมง owner ทั้งหมดหรือช่วง Bangkok calendar dates | `{ summary: { hours, timezone, startDate?, endDate? } }`; Decimal string, `Cache-Control: no-store` |
 | `GET`, `PATCH`, `DELETE` | `/api/work-logs/{id}` | Daily Work อ่าน/แก้/ลบ TimeEntry | TimeEntry เดียว; wrapper `{ workLog }` |
@@ -51,7 +48,7 @@ Dashboard API เพิ่มใน #23 และ Analysis API เพิ่ม�
 
 `GET /api/work-logs` อ่านตาม Bangkok calendar day หรือ inclusive date range และกรอง owner; Dashboard drill-through เพิ่ม `companyId`, `projectId`, `role` และ `kind` โดยกรองผ่าน `TimeEntry.workItem → WorkItem.project`. คืน `date` เป็น `YYYY-MM-DD`; timestamps serialize เป็น Bangkok wall-clock `+07:00`. `POST/PATCH` ปฏิเสธชั่วโมงที่ไม่ใช่ finite Decimal บวก, ผูก WorkItem ของ owner และ derive Project จาก WorkItem; Project mismatch ตอบ 400. `GET /api/work-logs/summary` รวมชั่วโมงด้วย PostgreSQL Decimal aggregate สำหรับ owner และ optional date range. Collection ยังไม่มี cursor/limit.
 
-Issue #19 ทำให้ Work Item API รับ `workDate`/`dueDate` เป็น business date `YYYY-MM-DD`, ใช้ Prisma `DATE`, คืน business date ในรูปแบบเดิม และคืน timestamps เป็น Bangkok `+07:00`. `submittedAt` ใช้ Bangkok local wall-clock. WorkItem GET/PATCH/POST/import ใช้ owner-side validation ชุดเดียวกัน; เปลี่ยน Project ของ WorkItem ที่มี Daily Work จะถูกปฏิเสธเป็น `409 RELATION_MISMATCH` ใน serializable transaction. Import จับ lookup/create failure เป็นผลรายแถว. Export เดิน cursor จนครบ filtered result.
+Issue #19 ทำให้ Work Item API รับ `workDate`/`dueDate` เป็น business date `YYYY-MM-DD`, ใช้ PostgreSQL `DATE`, คืน business date ในรูปแบบเดิม และคืน timestamps เป็น Bangkok `+07:00`. `submittedAt` ใช้ Bangkok local wall-clock. WorkItem GET/PATCH/POST/import ใช้ owner-side validation ชุดเดียวกัน; เปลี่ยน Project ของ WorkItem ที่มี Daily Work จะถูกปฏิเสธเป็น `409 RELATION_MISMATCH` ใน serializable transaction. Import จับ lookup/create failure เป็นผลรายแถว. Export เดิน cursor จนครบ filtered result.
 
 `GET /api/projects` รองรับ `status`, `search`, `limit`, `cursor` และ `options=work-items`. Project/Company handlers ของ #18 ใช้ error envelope; legacy handlers อื่นบางตัวอาจยังใช้ `{ "error": "..." }` และมี validation ไม่ครบ.
 
@@ -253,7 +250,7 @@ Mutation success คืน canonical resource หลัง server commit. UI อ
 
 Route proposals ที่ยังไม่ implement ขึ้นกับ owner access และ shared WorkItem/TimeEntry validation ตามลำดับใน [SCOPE.md](./SCOPE.md). Company/Project rollout ของ #18 ผ่านแล้ว; รายละเอียด migration เดิมเก็บไว้ใน [Customer/Project Migration Contract](./CUSTOMER_PROJECT_MIGRATION.md) เพื่ออ้างอิงย้อนหลังเท่านั้น. GitLab import (#20) และ Settings (#25) implement ใน repository แล้ว แต่ schema source ของทั้งสอง issue ยังต้องผ่าน rollout gate ของ target environment.
 
-Contract regression tests ตรวจเอกสารและ route inventory; `pnpm test:gitlab` เพิ่ม mocked service/API behavior checks. คำสั่งดูที่ [Testing Commands](./process/testing.md): `pnpm test:api-contracts`, `pnpm test:contracts`, `pnpm test`, `pnpm test:gitlab`, `pnpm test:gitlab-contracts`.
+Contract regression tests ตรวจเอกสารและ route inventory; `pnpm test:gitlab` เพิ่ม mocked service/API behavior checks. คำสั่งดูที่ [Testing Commands](./process/testing.md): `pnpm test:api-contracts`, `pnpm test:contracts`, `pnpm test`, `pnpm test:gitlab`, `pnpm test:issue-sync`.
 
 **สถานะ #22:** Board ใช้ WorkItem collection แบบ cursor pagination และ filters เดิม; status update ถูกตรวจด้วย shared WorkItem parser/service ที่ `PATCH /api/work-items/{id}`. ไม่มี Board-owned status field หรือ endpoint ใหม่; API ตอบ record เดิมหลังบันทึก และ client rollback เมื่อรับ error.
 
@@ -264,3 +261,12 @@ Contract regression tests ตรวจเอกสารและ route inventor
 ## Database operations ที่ implement ใน #16
 
 เครื่องมือ backup/isolated restore/staged validation/health และ retention อยู่ใน [Database Rollout](./DATABASE_ROLLOUT.md). Production Company/Project schema และ business API ของ #18 ผ่าน rollout แล้ว; GitLab schema source/API ของ #20 ต้องผ่าน verified backup, isolated restore, schema hash approval, sync gate, health/API checks ก่อน deploy.
+
+## Project-scoped GitLab/GitHub sync (current)
+
+- GET/POST `/api/projects/{id}/issue-sync`: list/create configs
+- PATCH `/api/projects/{id}/issue-sync/{configId}`: assignees, tokenEnvVar, enabled และ approvedLabelMap
+- POST `/api/projects/{id}/issue-sync/{configId}/sync`: manual sync พร้อม first-sync approval
+- GET `/api/projects/{id}/issue-sync/{configId}/runs`: public UUID history/pagination
+
+Owner authentication ทำก่อนอ่าน body หรือ credentials. Config ต้องอยู่ใน Project ของ URL. Token จริงอ่านจาก .env ผ่านชื่อตัวแปรใน issue_sync_configs.token_env_var. See [Issue Sync](ISSUE_SYNC.md). ทดสอบด้วย `pnpm test:issue-sync` และ `pnpm test:database-docker`.

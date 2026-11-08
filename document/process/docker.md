@@ -14,7 +14,7 @@ Compose is tuned so **this stack uses about half the machine**, leaving room for
 
 Production profile `https` เพิ่ม nginx อีก 0.05 CPU และ 64 MB. `docker-prod.sh start` เปิด profile นี้เมื่อมีไฟล์ certificate แล้ว และไม่ขอใบใหม่.
 
-PostgreSQL uses `max_connections=20`, `shared_buffers=64MB`, and a Prisma `connection_limit=5`. Node heap is capped with `NODE_OPTIONS=--max-old-space-size=256`. Do not run two heavy `pnpm dev` stacks on this host; use UAT/production images.
+PostgreSQL uses `max_connections=20`, `shared_buffers=64MB`, and a pg pool max=5. Node heap is capped with `NODE_OPTIONS=--max-old-space-size=256`. Do not run two heavy `pnpm dev` stacks on this host; use UAT/production images.
 
 ```bash
 bash scripts/docker-dev.sh <command>
@@ -33,7 +33,6 @@ App: http://localhost:3777 · PostgreSQL: localhost:5437 (loopback เท่า�
 | Command | Description |
 | --- | --- |
 | `bash scripts/docker-dev.sh start` | Start development environment |
-| `bash scripts/docker-dev.sh start-studio` | Start with Prisma Studio |
 | `bash scripts/docker-dev.sh stop` | Stop all services |
 | `bash scripts/docker-dev.sh restart` | Restart all services |
 | `bash scripts/docker-dev.sh logs` | View all logs |

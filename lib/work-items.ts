@@ -1,4 +1,4 @@
-import type { WorkItemKind, WorkItemPriority, WorkItemRole, WorkItemStatus } from '@prisma/client'
+import type { WorkItemKind, WorkItemPriority, WorkItemRole, WorkItemStatus } from '@/lib/database/types'
 
 export const WORK_ITEM_KINDS = ['Incident', 'Issue', 'Task'] as const
 export type WorkItemKindValue = (typeof WORK_ITEM_KINDS)[number]
@@ -37,28 +37,6 @@ export type WorkItemTypeValue = (typeof WORK_ITEM_TYPES)[number]
 
 export const SUBMITTED_AT_STATUSES: readonly WorkItemStatusValue[] = ['sa-testing', 'completed']
 
-const STATUS_TO_PRISMA: Record<WorkItemStatusValue, WorkItemStatus> = {
-  backlog: 'backlog',
-  todo: 'todo',
-  'in-progress': 'in_progress',
-  blocked: 'blocked',
-  'sa-testing': 'sa_testing',
-  'pm-testing': 'pm_testing',
-  completed: 'completed',
-  cancelled: 'cancelled',
-}
-
-const STATUS_FROM_PRISMA: Record<WorkItemStatus, WorkItemStatusValue> = {
-  backlog: 'backlog',
-  todo: 'todo',
-  in_progress: 'in-progress',
-  blocked: 'blocked',
-  sa_testing: 'sa-testing',
-  pm_testing: 'pm-testing',
-  completed: 'completed',
-  cancelled: 'cancelled',
-}
-
 export function isWorkItemKind(value: unknown): value is WorkItemKind {
   return typeof value === 'string' && WORK_ITEM_KINDS.includes(value as WorkItemKindValue)
 }
@@ -73,17 +51,12 @@ export function isWorkItemRole(value: unknown): value is WorkItemRole {
 
 export function parseWorkItemStatus(value: unknown): WorkItemStatus | null {
   if (typeof value !== 'string') return null
-  if (value in STATUS_TO_PRISMA) {
-    return STATUS_TO_PRISMA[value as WorkItemStatusValue]
-  }
-  if (value in STATUS_FROM_PRISMA) {
-    return value as WorkItemStatus
-  }
-  return null
+  const status = value.replaceAll('_', '-')
+  return WORK_ITEM_STATUSES.includes(status as WorkItemStatusValue) ? (status as WorkItemStatus) : null
 }
 
 export function serializeWorkItemStatus(status: WorkItemStatus): WorkItemStatusValue {
-  return STATUS_FROM_PRISMA[status]
+  return status
 }
 
 export function shouldStampSubmittedAt(status: WorkItemStatus): boolean {

@@ -204,14 +204,14 @@ test("focused API contract runner is reusable and documented", async () => {
   assert.match(guide, /pnpm test:api-contracts/);
   assert.match(guide, /node tests\/run\.mjs api-contracts/);
   assert.match(api, /`pnpm test:api-contracts`, `pnpm test:contracts`, `pnpm test`/);
-  assert.match(api, /`pnpm test:gitlab-contracts`/);
+  assert.match(api, /`pnpm test:issue-sync`/);
   assert.ok(checklist.includes("- [x] **#13** [Define Menu API and Validation Contracts]"));
 });
 
 test("Owner Settings route persists only supported profile/preferences and has a handbook", async () => {
   const route = await read("app/api/settings/me/route.ts");
   const service = await read("lib/settings.ts");
-  const schema = await read("prisma/schema.prisma");
+  const schema = await read("database/schema.sql");
   const handbook = await read("document/handbook/api/settings/me.md");
   const runner = await read("tests/run.mjs");
   const packageJson = JSON.parse(await read("package.json"));
@@ -220,10 +220,10 @@ test("Owner Settings route persists only supported profile/preferences and has a
   assert.match(route, /getOwner\(\)/);
   assert.match(route, /parseOwnerSettingsPatch/);
   assert.match(route, /Cache-Control.*no-store/);
-  assert.match(service, /where: \{ id: ownerInternalId \}/);
+  assert.match(service, /users\.byId\(ownerInternalId\)/);
   assert.match(service, /timezone: SYSTEM_TIMEZONE/);
-  assert.match(schema, /theme\s+UserTheme\s+@default\(light\)/);
-  assert.match(schema, /locale\s+UserLocale\s+@default\(th\)/);
+  assert.match(schema, /"theme" "user_theme" NOT NULL DEFAULT 'light'/);
+  assert.match(schema, /"locale" "user_locale" NOT NULL DEFAULT 'th'/);
   assert.match(handbook, /`GET` and `PATCH \/api\/settings\/me`/);
   assert.match(handbook, /Timezone เป็น read-only/);
   assert.match(handbook, /never returns the `User\.password` field/);

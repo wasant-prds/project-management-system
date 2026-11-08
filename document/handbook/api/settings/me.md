@@ -120,7 +120,7 @@ Error ของ Route Handler และ runtime gate ใช้ JSON envelope; er
 | `400` | `VALIDATION_ERROR` | JSON ผิดรูปแบบ, body/object ว่าง, field ไม่รองรับ, หรือค่า profile/preferences ไม่ผ่าน validation |
 | `401` | `OWNER_UNAUTHENTICATED` | ไม่มี/ผิด Basic credentials หรือ middleware/owner resolver ไม่ยืนยัน owner |
 | `403` | `ACCESS_DENIED` | `Origin` ไม่ตรงกับ `APP_ORIGIN` ตาม owner gate |
-| `404` | `NOT_FOUND` | ไม่พบ owner settings row ตอนอ่าน หรือ Prisma แจ้งว่า update row ไม่พบ |
+| `404` | `NOT_FOUND` | ไม่พบ owner settings row ตอนอ่าน หรือ repository แจ้งว่า update row ไม่พบ |
 | `409` | `CONFLICT` | Email ซ้ำ; response ระบุ `field: "email"` |
 | `500` | `INTERNAL_ERROR` | Error ที่ไม่เข้ากรณีที่ map ไว้; ไม่คืน raw database error หรือ stack trace |
 | `503` | `DEPENDENCY_UNAVAILABLE` | Owner resolver ไม่พบ User หนึ่งแถวพอดี, database unavailable หรือ runtime upstream ใช้งานไม่ได้ |
@@ -176,8 +176,8 @@ curl -i -u "${OWNER_GATE_USERNAME}:${OWNER_GATE_PASSWORD}" \
 
 ### Unit/API tests และ schema
 
-- `pnpm test:settings` หรือ `node tests/run.mjs settings` — API tests ใช้ in-memory Prisma/owner mocks; Settings/provider tests ใช้ mocked React และ fetch ไม่ต่อ PostgreSQL หรือ external services.
-- `pnpm exec prisma validate` — ตรวจ Prisma schema source.
+- `pnpm test:settings` หรือ `node tests/run.mjs settings` — API tests ใช้ mock repositories/owner; Settings/provider tests ใช้ mocked React และ fetch ไม่ต่อ PostgreSQL หรือ external services.
+- `pnpm test:database-docker` — ตรวจ SQL schema และ Settings persistence กับ PostgreSQL แยก.
 - `GET /api/settings/me` และ `PATCH /api/settings/me` ต้องผ่าน verified backup/restore, explicit environment approval และ schema-hash rollout gate ก่อน apply schema กับ environment จริง; Issue #25 ไม่ได้ sync schema หรือแก้ database จริง.
 
 ## Source references
@@ -186,7 +186,7 @@ curl -i -u "${OWNER_GATE_USERNAME}:${OWNER_GATE_PASSWORD}" \
 - [Settings parser and types](../../../../lib/settings-input.ts)
 - [Settings database service](../../../../lib/settings.ts)
 - [Owner resolver](../../../../lib/owner.ts)
-- [Prisma schema](../../../../prisma/schema.prisma)
+- [SQL schema](../../../../database/schema.sql)
 - [Owner Settings provider](../../../../components/layout/owner-settings-provider.tsx)
 - [Settings API tests](../../../../tests/settings/management.test.mjs)
 - [Settings UI tests](../../../../tests/settings/ui.test.mjs)

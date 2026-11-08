@@ -64,5 +64,6 @@ secrets
 backups
 database/postgres
 database/backups
-database/seeds/sql-master
+database/seeds
+database/rollout
 .env*

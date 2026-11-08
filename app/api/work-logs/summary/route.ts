@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import type { Prisma } from '@prisma/client'
-import { prisma } from '@/lib/db'
+import { reports } from '@/lib/database/repositories/reports'
+import { sql, and } from '@/lib/database/sql'
 import { getOwner, ownerErrorResponse } from '@/lib/owner'
 import { bangkokDateRange } from '@/lib/bangkok-datetime'
 
@@ -18,24 +18,32 @@ export async function GET(request: Request) {
       return apiError(400, 'VALIDATION_ERROR', 'startDate and endDate must be provided together', 'startDate')
     }
 
-    const where: Prisma.TimeEntryWhereInput = { userId: owner.internalId }
+    let where = sql`l.user_id=${owner.internalId}`
     if (startDate !== null && endDate !== null) {
       const start = bangkokDateRange(startDate)
       const end = bangkokDateRange(endDate)
       if (!start || !end || end.start < start.start) {
-        return apiError(400, 'VALIDATION_ERROR', 'startDate and endDate must be valid ordered dates', 'startDate')
+        return apiError(
+          400,
+          'VALIDATION_ERROR',
+          'startDate and endDate must be valid ordered dates',
+          'startDate',
+        )
       }
-      where.date = { gte: start.start, lt: end.end }
+      where = and(where, sql`l.work_date>=${start.start} AND l.work_date<${end.end}`)
     }
 
-    const result = await prisma.timeEntry.aggregate({ where, _sum: { hours: true } })
-    return NextResponse.json({
-      summary: {
-        hours: result._sum.hours?.toString() ?? '0',
-        timezone: 'Asia/Bangkok',
-        ...(startDate !== null && endDate !== null ? { startDate, endDate } : {}),
+    const result = await reports.hours(where)
+    return NextResponse.json(
+      {
+        summary: {
+          hours: result,
+          timezone: 'Asia/Bangkok',
+          ...(startDate !== null && endDate !== null ? { startDate, endDate } : {}),
+        },
       },
-    }, { status: 200, headers: { 'Cache-Control': 'no-store' } })
+      { status: 200, headers: { 'Cache-Control': 'no-store' } },
+    )
   } catch (error) {
     const ownerError = ownerErrorResponse(error)
     if (ownerError) return ownerError

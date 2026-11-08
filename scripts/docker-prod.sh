@@ -74,7 +74,7 @@ case "$1" in
   init)
     warning_prompt
     echo -e "${GREEN}Initializing production database...${NC}"
-    compose up migrations
+    compose up database-init
     echo -e "${GREEN}✅ Production database initialized${NC}"
     ;;
     

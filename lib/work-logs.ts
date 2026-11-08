@@ -1,52 +1,29 @@
-import { prisma } from '@/lib/db'
+import { database, type Database } from '@/lib/database/client'
+import { workItems } from '@/lib/database/repositories/work-items'
 import { serializeWorkItemStatus } from '@/lib/work-items'
 import { serializeBangkokCalendarDate, serializeBangkokTimestamp } from '@/lib/bangkok-datetime'
-import type { Prisma, WorkItemStatus } from '@prisma/client'
+import type { WorkItemStatus } from '@/lib/database/types'
 import { parsePublicId } from '@/lib/public-id'
-
-export const workLogInclude = {
-  user: {
-    select: {
-      publicId: true,
-      name: true,
-      email: true,
-      avatar: true,
-    },
-  },
-  project: {
-    select: {
-      publicId: true,
-      name: true,
-      colorProject: true,
-    },
-  },
-  workItem: {
-    select: {
-      publicId: true,
-      title: true,
-      kind: true,
-      status: true,
-      assigneeId: true,
-    },
-  },
-} as const
 
 export async function resolveOwnedWorkItem(
   workItemId: unknown,
   ownerInternalId: bigint,
-  database: Pick<Prisma.TransactionClient, 'workItem'> = prisma,
+  connection: Database = database,
 ) {
   const publicId = parsePublicId(typeof workItemId === 'string' ? workItemId.trim() : '')
   if (!publicId) return null
 
-  return database.workItem.findFirst({
-    where: { publicId, assigneeId: ownerInternalId },
-    select: { id: true, publicId: true, projectId: true, project: { select: { publicId: true } } },
-  })
+  return workItems.byPublicId(publicId, ownerInternalId, connection)
 }
 
 function serializeOwnedWorkItem(
-  workItem: { publicId: string; title: string; kind: string; status: WorkItemStatus; assigneeId: bigint } | null,
+  workItem: {
+    publicId: string
+    title: string
+    kind: string
+    status: WorkItemStatus
+    assigneeId: bigint
+  } | null,
   ownerInternalId: bigint,
 ) {
   if (!workItem || workItem.assigneeId !== ownerInternalId) return null
@@ -70,7 +47,13 @@ export function serializeWorkLog<
     updatedAt?: Date
     user: { publicId: string; name: string; email: string; avatar: string | null }
     project: { publicId: string; name: string; colorProject: string | null } | null
-    workItem: { publicId: string; title: string; kind: string; status: WorkItemStatus; assigneeId: bigint } | null
+    workItem: {
+      publicId: string
+      title: string
+      kind: string
+      status: WorkItemStatus
+      assigneeId: bigint
+    } | null
   },
 >(workLog: T, ownerInternalId: bigint) {
   return {
@@ -88,11 +71,13 @@ export function serializeWorkLog<
       email: workLog.user.email,
       avatar: workLog.user.avatar,
     },
-    project: workLog.project ? {
-      id: workLog.project.publicId,
-      name: workLog.project.name,
-      colorProject: workLog.project.colorProject,
-    } : null,
+    project: workLog.project
+      ? {
+          id: workLog.project.publicId,
+          name: workLog.project.name,
+          colorProject: workLog.project.colorProject,
+        }
+      : null,
     workItem: serializeOwnedWorkItem(workLog.workItem, ownerInternalId),
   }
 }

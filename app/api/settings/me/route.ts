@@ -4,17 +4,24 @@ import { getOwnerSettings, updateOwnerSettings } from '@/lib/settings'
 import { parseOwnerSettingsPatch } from '@/lib/settings-input'
 
 function apiError(status: number, code: string, message: string, field?: string) {
-  return NextResponse.json({ error: { code, message, ...(field ? { field } : {}) } }, {
-    status,
-    headers: { 'Cache-Control': 'no-store' },
-  })
+  return NextResponse.json(
+    { error: { code, message, ...(field ? { field } : {}) } },
+    {
+      status,
+      headers: { 'Cache-Control': 'no-store' },
+    },
+  )
 }
 
 function databaseErrorResponse(error: unknown) {
   if (typeof error !== 'object' || error === null || !('code' in error)) return null
-  if (error.code === 'P2002') return apiError(409, 'CONFLICT', 'อีเมลนี้ถูกใช้แล้ว', 'email')
-  if (error.code === 'P2025') return apiError(404, 'NOT_FOUND', 'ไม่พบข้อมูล owner settings')
-  if (error.code === 'P1001' || error.code === 'P1002' || error.code === 'P1017') {
+  if (error.code === '23505') return apiError(409, 'CONFLICT', 'อีเมลนี้ถูกใช้แล้ว', 'email')
+  if (error.code === 'P0002') return apiError(404, 'NOT_FOUND', 'ไม่พบข้อมูล owner settings')
+  if (
+    ['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', '57P01', '57P03', '53300', '08006'].includes(
+      String(error.code),
+    )
+  ) {
     return apiError(503, 'DEPENDENCY_UNAVAILABLE', 'ฐานข้อมูลยังไม่พร้อมใช้งาน')
   }
   return null

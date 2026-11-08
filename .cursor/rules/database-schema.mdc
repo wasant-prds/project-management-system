@@ -1,20 +1,17 @@
 ---
-description: Prisma/PostgreSQL conventions, target models, and integrity
-globs: prisma/**/*.{prisma,ts}
+description: Authoritative SQL schema and PostgreSQL repository conventions
+globs: database/**/*.sql,lib/database/**/*.ts
 alwaysApply: false
 ---
 
 # Database schema
 
-- PostgreSQL 16 + Prisma 6 via `DATABASE_URL`. Follow the always-on identifier standard in `05-record-identifiers.mdc`: internal BIGINT PK/FKs plus immutable random UUIDv4 public_id on every table. Active Prisma still uses legacy cuid() until #33 adopts the SQL target; do not treat that legacy shape as the standard for new target work.
-- Use `Asia/Bangkok` as the timezone for all persisted dates and timestamps. Date-only values represent Bangkok calendar dates; timestamp columns represent Bangkok local wall-clock values. Configure the PostgreSQL session timezone to `Asia/Bangkok` for database-generated defaults and use explicit application conversions; never normalize persisted values to UTC.
-- `WorkItem` maps to table `work_items`. Active legacy field `types` maps to `labels_types` (`String[]`); SQL target uses type_labels per dictionary.
-- Target: multiple Companies + `Project.companyId` (nullable only during Dhas backfill, then NOT NULL). No Customer model.
-- Target integrations: external_project_mappings unique(provider, instance_url, external_project_id); external_work_item_references unique(provider, instance_url, external_project_id, external_issue_id) and unique(work_item_id). Local relations use numeric IDs; local client references use public UUIDs. Never store tokens in tables.
-- TimeEntry workflow requires `workItemId`. `projectId` must match the WorkItem. Schema today allows nulls and does not enforce the pair — close this in API now, DB when ready.
-- Set Decimal precision. Retain current DECIMAL(65,30) for hours/budget/spending. Validate positive hours/progress in services; add DB checks only after reviewing existing rows.
-- Do not put Developer/Infra/SA on `User.role`. Reserve unique Company code `dhas` for the default existing-Project backfill. `ProjectMember` stays unused by product.
-- Current Project/WorkItem delete guards and restrictive relations preserve history; never infer cascade behavior from an older backup. Review archive/soft-delete policy before any change.
-- Indexes from real queries (`projectId+status`, `role+status`, `TimeEntry(date)`, `companyId+status`). Measure first.
-- Rollout: backup + restore test → additive nullable → backfill → validate → NOT NULL/unique. Active legacy runtime uses guarded db-push-safe until #33; SQL target uses its versioned runner after compatible adoption.
-- If multiple User rows exist, pick the owner with audit. Do not delete user rows until every FK is remapped.
+- database/schema.sql is the sole DDL authority: tables, columns, defaults, enums, constraints, indexes, triggers and comments. Do not add a second schema or generated mapping.
+- Use pg through lib/database/client.ts and explicit domain repositories in lib/database/repositories. Bind external values with the sql tag; identifiers must come from reviewed static code.
+- Follow 05-record-identifiers.mdc: BIGINT identity PK/FKs and immutable database-generated UUIDv4 public_id. Explicit public DTOs contain UUIDs only.
+- Keep bigint and numeric values exact: internal IDs use bigint; DECIMAL(65,30) uses strings. Never coerce stored numeric values through Number for persistence or sums.
+- Date-only and timestamp values represent Asia/Bangkok calendar/wall-clock values. Use the shared parsers and serializers; host/browser timezone must not alter storage.
+- Keep SQL status/theme values hyphenated: in-progress, sa-testing, pm-testing, special-dark.
+- Company is required on Project. Daily Work creates require an owned WorkItem and derive its numeric project_id server-side. Retain restrictive history guards.
+- External source IDs remain separate from local identities. issue_sync_configs.token_env_var names a server .env token variable; never store token values in a table.
+- Initialize schema.sql only on an empty approved target. Existing mismatched schemas are refused. Validate SQL against disposable databases; preserve live data and private seeds.

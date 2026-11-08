@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { type WorkItemStatus, type WorkItemRole } from '@prisma/client'
+import { type WorkItemStatus, type WorkItemRole } from '@/lib/database/types'
 import { sumDecimalHours } from '@/lib/decimal-hours'
 import { decodeOpaqueCursor, encodeOpaqueCursor } from '@/lib/opaque-cursor'
 import { parsePublicId } from '@/lib/public-id'
@@ -37,7 +37,10 @@ export function nextPage<T extends { id: bigint; publicId: string }>(
   return { items, page: { limit, nextCursor } }
 }
 
-export function optionalPublicId(value: string | null, field: string): { publicId: string | null } | { error: string; field: string } {
+export function optionalPublicId(
+  value: string | null,
+  field: string,
+): { publicId: string | null } | { error: string; field: string } {
   if (!value) return { publicId: null }
   const publicId = parsePublicId(value)
   if (!publicId) return { error: 'ต้องเป็น public UUID', field }
@@ -49,11 +52,15 @@ export function apiError(status: number, code: string, message: string, field?: 
 }
 
 export function companyRelationConflict(error: unknown) {
-  if (typeof error !== 'object' || error === null || !('code' in error) || error.code !== 'P2003') return null
-  const meta = 'meta' in error && typeof error.meta === 'object' && error.meta !== null ? error.meta : null
-  const field = meta && 'field_name' in meta ? String(meta.field_name) : ''
-  if (!field.toLowerCase().replaceAll('_', '').includes('companyid')) return null
-  return apiError(409, 'COMPANY_CONFLICT', 'Company ถูกลบหรือใช้งานไม่ได้ กรุณาเลือก Company ใหม่', 'companyId')
+  if (typeof error !== 'object' || error === null || !('code' in error) || error.code !== '23503') return null
+  const field = 'constraint' in error ? String(error.constraint) : ''
+  if (!field.includes('company_id')) return null
+  return apiError(
+    409,
+    'COMPANY_CONFLICT',
+    'Company ถูกลบหรือใช้งานไม่ได้ กรุณาเลือก Company ใหม่',
+    'companyId',
+  )
 }
 
 export function parseCalendarDate(value: unknown): Date | null {
@@ -71,13 +78,18 @@ export function bangkokTimestamp(value: Date) {
 }
 
 export function serializeTimestamps<T extends { createdAt: Date; updatedAt: Date }>(value: T) {
-  return { ...value, createdAt: bangkokTimestamp(value.createdAt), updatedAt: bangkokTimestamp(value.updatedAt) }
+  return {
+    ...value,
+    createdAt: bangkokTimestamp(value.createdAt),
+    updatedAt: bangkokTimestamp(value.updatedAt),
+  }
 }
 
 function readProjectIdentity(input: Record<string, unknown>, data: Record<string, unknown>) {
   for (const field of ['name', 'companyId']) {
     if (input[field] === undefined) continue
-    if (typeof input[field] !== 'string' || !input[field].trim()) return { error: 'Required text is empty', field }
+    if (typeof input[field] !== 'string' || !input[field].trim())
+      return { error: 'Required text is empty', field }
     data[field] = input[field].trim()
   }
   return null
@@ -103,20 +115,35 @@ function readProjectOptions(input: Record<string, unknown>, data: Record<string,
     data[field] = input[field]
   }
   if (input.status !== undefined) {
-    if (!PROJECT_STATUSES.includes(input.status as typeof PROJECT_STATUSES[number])) return { error: 'Invalid status', field: 'status' }
+    if (!PROJECT_STATUSES.includes(input.status as (typeof PROJECT_STATUSES)[number]))
+      return { error: 'Invalid status', field: 'status' }
     data.status = input.status
   }
   if (input.priority !== undefined) {
-    if (!PROJECT_PRIORITIES.includes(input.priority as typeof PROJECT_PRIORITIES[number])) return { error: 'Invalid priority', field: 'priority' }
+    if (!PROJECT_PRIORITIES.includes(input.priority as (typeof PROJECT_PRIORITIES)[number]))
+      return { error: 'Invalid priority', field: 'priority' }
     data.priority = input.priority
   }
   return null
 }
 
-export function parseProjectInput(body: unknown, partial = false): { data?: Record<string, unknown>; error?: string; field?: string } {
-  if (!body || typeof body !== 'object' || Array.isArray(body)) return { error: 'Invalid request body', field: 'body' }
+export function parseProjectInput(
+  body: unknown,
+  partial = false,
+): { data?: Record<string, unknown>; error?: string; field?: string } {
+  if (!body || typeof body !== 'object' || Array.isArray(body))
+    return { error: 'Invalid request body', field: 'body' }
   const input = body as Record<string, unknown>
-  const allowed = ['name', 'companyId', 'description', 'status', 'priority', 'startDate', 'dueDate', 'colorProject']
+  const allowed = [
+    'name',
+    'companyId',
+    'description',
+    'status',
+    'priority',
+    'startDate',
+    'dueDate',
+    'colorProject',
+  ]
   const unknownField = Object.keys(input).find((key) => !allowed.includes(key))
   if (unknownField) return { error: 'Unsupported field', field: unknownField }
   if (!partial && ['name', 'companyId', 'startDate', 'dueDate'].some((key) => input[key] === undefined)) {
@@ -124,7 +151,8 @@ export function parseProjectInput(body: unknown, partial = false): { data?: Reco
   }
   if (partial && Object.keys(input).length === 0) return { error: 'No changes supplied', field: 'body' }
   const data: Record<string, unknown> = {}
-  const error = readProjectIdentity(input, data) ?? readProjectDates(input, data) ?? readProjectOptions(input, data)
+  const error =
+    readProjectIdentity(input, data) ?? readProjectDates(input, data) ?? readProjectOptions(input, data)
   if (error) return error
   return { data }
 }
@@ -145,7 +173,11 @@ export function projectSummary(
   const total = workItems.length
   const totalHours = sumDecimalHours(hours.map((entry) => entry.hours.toString()))
   return {
-    statusCounts, roles, total, completed, cancelled,
+    statusCounts,
+    roles,
+    total,
+    completed,
+    cancelled,
     open: total - completed - cancelled,
     progress: completionRate(total, completed, cancelled),
     hours: totalHours,
@@ -154,7 +186,7 @@ export function projectSummary(
 
 export function completionRate(total: number, completed: number, cancelled: number) {
   const eligible = total - cancelled
-  return eligible === 0 ? 0 : completed / eligible * 100
+  return eligible === 0 ? 0 : (completed / eligible) * 100
 }
 
 export function companySummary(projects: ReadonlyArray<{ summary: { total: number; hours: string } }>) {

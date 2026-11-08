@@ -274,7 +274,6 @@ test('TC-35-09 review regressions keep utility overrides, icon size, toast layou
   assert.match(source('../../components/layout/dashboard-charts.tsx'), /visual="chart"/)
   assert.match(source('../../components/layout/dashboard-charts.tsx'), /useChartDatasetKey/)
   assert.match(source('../../components/page/analysis/analysis-charts.tsx'), /chartStrokeDasharray\('secondary'\)/)
-  assert.match(source('../../components/page/work-items/gitlab-import-panel.tsx'), /intent=\{loading \? 'refresh' : 'idle'\}/)
   assert.equal(identity.loadFailureVisual('Failed to fetch'), 'network')
   assert.equal(identity.loadFailureVisual('Load failed'), 'network')
   assert.equal(identity.loadFailureVisual('NetworkError when attempting to fetch resource.'), 'network')

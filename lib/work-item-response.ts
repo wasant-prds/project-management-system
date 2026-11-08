@@ -1,36 +1,14 @@
-import type { WorkItemStatus } from '@prisma/client'
+import type { WorkItemStatus } from '@/lib/database/types'
 import { serializeWorkItemStatus } from '@/lib/work-items'
 import { serializeBangkokCalendarDate, serializeBangkokTimestamp } from '@/lib/bangkok-datetime'
 
-export const workItemInclude = {
-  assignee: {
-    select: { publicId: true, name: true, email: true, avatar: true },
-  },
-  project: {
-    select: {
-      publicId: true,
-      name: true,
-      colorProject: true,
-      company: { select: { publicId: true, name: true, displayName: true } },
-    },
-  },
-  externalReference: {
-    select: { externalUrl: true, gitLabIssueIid: true, provider: true, inScope: true },
-  },
-} as const
-
-export function workItemDetailInclude(ownerInternalId: bigint) {
-  return {
-    ...workItemInclude,
-    timeEntries: {
-      where: { userId: ownerInternalId },
-      select: { publicId: true, date: true, hours: true, description: true, remarks: true },
-      orderBy: [{ date: 'desc' as const }, { id: 'desc' as const }],
-    },
-  }
+type PublicParty = {
+  publicId: string
+  name: string
+  email?: string
+  avatar?: string | null
+  displayName?: string | null
 }
-
-type PublicParty = { publicId: string; name: string; email?: string; avatar?: string | null; displayName?: string | null }
 
 type WorkItemResponseRecord = {
   publicId: string
@@ -53,7 +31,12 @@ type WorkItemResponseRecord = {
     colorProject: string | null
     company: { publicId: string; name: string; displayName: string | null }
   }
-  externalReference?: { externalUrl: string; gitLabIssueIid: string; provider: string; inScope?: boolean } | null
+  externalReference?: {
+    externalUrl: string
+    externalIssueNumber: string
+    provider: string
+    inScope?: boolean
+  } | null
   timeEntries?: Array<{
     publicId: string
     date: Date
@@ -74,7 +57,10 @@ function publicParty(party: PublicParty) {
 }
 
 export function serializeWorkItem(item: WorkItemResponseRecord) {
-  const source = item.externalReference && ['gitlab', 'github'].includes(item.externalReference.provider) ? item.externalReference : null
+  const source =
+    item.externalReference && ['gitlab', 'github'].includes(item.externalReference.provider)
+      ? item.externalReference
+      : null
   return {
     id: item.publicId,
     title: item.title,
@@ -101,20 +87,24 @@ export function serializeWorkItem(item: WorkItemResponseRecord) {
         displayName: item.project.company.displayName,
       },
     },
-    source: source ? {
-      provider: source.provider,
-      url: source.externalUrl,
-      issueIid: source.gitLabIssueIid,
-      inScope: source.inScope ?? true,
-    } : null,
-    ...(item.timeEntries ? {
-      timeEntries: item.timeEntries.map((entry) => ({
-        id: entry.publicId,
-        date: serializeBangkokCalendarDate(entry.date),
-        hours: entry.hours.toString(),
-        description: entry.description,
-        remarks: entry.remarks,
-      })),
-    } : {}),
+    source: source
+      ? {
+          provider: source.provider,
+          url: source.externalUrl,
+          issueIid: source.externalIssueNumber,
+          inScope: source.inScope ?? true,
+        }
+      : null,
+    ...(item.timeEntries
+      ? {
+          timeEntries: item.timeEntries.map((entry) => ({
+            id: entry.publicId,
+            date: serializeBangkokCalendarDate(entry.date),
+            hours: entry.hours.toString(),
+            description: entry.description,
+            remarks: entry.remarks,
+          })),
+        }
+      : {}),
   }
 }

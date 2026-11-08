@@ -5,37 +5,15 @@ import { runTestFiles } from '../scripts/unit-test-process.mjs';
 
 const testRoot = resolve(dirname(fileURLToPath(import.meta.url)));
 const suites = {
-  "database-rollout": { files: [join(testRoot, "database", "rollout.test.mjs")] },
-  "database-rollout-docker": { files: [join(testRoot, "database", "rollout-docker.test.mjs")] },
-  seed: { files: [join(testRoot, "seed", "seed.test.mjs")] },
-  "seed-docker": { files: [join(testRoot, "seed", "docker.test.mjs")] },
-  "work-item-schema-docker": { files: [join(testRoot, "seed", "docker.test.mjs")] },
-  "runtime-docker": { files: [join(testRoot, "runtime", "docker.test.mjs")] },
-  "schema-rollout-gate": { files: [join(testRoot, "runtime", "schema-rollout-gate.test.mjs")] },
-  "sql-schema": { files: [
-    join(testRoot, "sql", "id-contract.test.mjs"),
-    join(testRoot, "sql", "legacy-id.test.mjs"),
-    join(testRoot, "sql", "schema-contract.test.mjs"),
-    join(testRoot, "sql", "migrate-runner.test.mjs"),
-  ] },
-  "sql-migrations-docker": { files: [join(testRoot, "sql", "migrations-docker.test.mjs")] },
-  "sql-live-upgrade-docker": { files: [join(testRoot, "identity", "live-upgrade-docker.test.mjs")] },
+  database: { directory: join(testRoot, "database") },
+  "database-docker": { files: [join(testRoot,"database","postgres-docker.test.mjs"),join(testRoot,"database","backup-docker.test.mjs")] },
   identity: { directory: join(testRoot, "identity") },
-  "sql-seeds": { files: [
-    join(testRoot, "sql", "seeds-convert.test.mjs"),
-    join(testRoot, "sql", "seed-runner.test.mjs"),
-  ] },
-  "sql-seeds-docker": { files: [join(testRoot, "sql", "seeds-docker.test.mjs")] },
   "runtime-security": { files: [join(testRoot, "runtime", "security.test.mjs"), join(testRoot, "runtime", "launcher.test.mjs"), join(testRoot, "runtime", "owner-origin.test.mjs")] },
   https: { files: [join(testRoot, "runtime", "https-certificate.test.mjs")] },
   "https-docker": { files: [join(testRoot, "runtime", "https-certificate-docker.test.mjs")] },
-  "runtime-container": { files: [join(testRoot, "runtime", "container.test.mjs")] },
-  gitlab: { directory: join(testRoot, "gitlab") },
   "issue-sync": { directory: join(testRoot, "issue-sync") },
   contracts: { directory: join(testRoot, "contracts") },
   "api-contracts": { files: [join(testRoot, "contracts", "menu-api-validation.test.mjs")] },
-  "migration-contracts": { files: [join(testRoot, "contracts", "customer-project-migration.test.mjs")] },
-  "gitlab-contracts": { files: [join(testRoot, "contracts", "gitlab-issue-import.test.mjs")] },
   auth: { directory: join(testRoot, "auth") },
   "company-projects": { directory: join(testRoot, "company-projects") },
   board: { directory: join(testRoot, "board") },
@@ -58,18 +36,8 @@ const suites = {
   runner: { directory: join(testRoot, "runner") },
 };
 const requestedSuite = process.argv[2];
-if (requestedSuite === "database-rollout-docker") process.env.PMS_RUN_ROLLOUT_DOCKER_TESTS = "1";
-if (requestedSuite === "runtime-container") process.env.PMS_RUN_CONTAINER_TESTS = "1";
-if (requestedSuite === "runtime-docker") process.env.PMS_RUN_DOCKER_TESTS = "1";
-if (requestedSuite === "https-docker") process.env.PMS_RUN_HTTPS_DOCKER_TESTS = "1";
-if (requestedSuite === "seed-docker") process.env.PMS_RUN_SEED_DOCKER_TESTS = "1";
-if (requestedSuite === "sql-migrations-docker") process.env.PMS_RUN_SQL_MIGRATION_DOCKER_TESTS = "1";
-if (requestedSuite === "sql-live-upgrade-docker") process.env.PMS_RUN_SQL_LIVE_UPGRADE_DOCKER_TESTS = "1";
-if (requestedSuite === "sql-seeds-docker") process.env.PMS_RUN_SQL_SEED_DOCKER_TESTS = "1";
-if (requestedSuite === "work-item-schema-docker") {
-  process.env.PMS_RUN_SEED_DOCKER_TESTS = "1";
-  process.env.PMS_SKIP_INSTALLATION_SEED_DOCKER = "1";
-}
+if (requestedSuite === 'database-docker') process.env.PMS_RUN_POSTGRES_TESTS = '1';
+if (requestedSuite === 'https-docker') process.env.PMS_RUN_HTTPS_DOCKER_TESTS = '1';
 if (requestedSuite && !Object.hasOwn(suites, requestedSuite)) {
   throw new Error(`Unknown test suite: ${requestedSuite}. Available suites: ${Object.keys(suites).join(", ")}`);
 }

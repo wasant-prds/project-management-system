@@ -1,4 +1,4 @@
-# Shared postgres + migrations. Included by the env compose files.
+# Shared PostgreSQL + database initialization. Included by the env compose files.
 # SEED_PATH is relative to /app. Default is the SQL master pack, applied only when RUN_SEED=true.
 #
 # Sized for a Basic VPS (1 vCPU / 2 GB RAM / 50 GB disk) running two
@@ -67,11 +67,11 @@ services:
       -c huge_pages=off
       -c random_page_cost=1.1
 
-  migrations:
+  database-init:
     build:
       context: .
-      target: migrate
-    container_name: pms-migrations-${APP_ENV:-dev}
+      target: database-tools
+    container_name: pms-database-init-${APP_ENV:-dev}
     depends_on:
       postgres:
         condition: service_healthy
@@ -85,20 +85,13 @@ services:
       <<: *database-env
       APP_ENV: ${APP_ENV:-dev}
       SEED_PATH: ${SEED_PATH:-database/seeds/sql-master}
-      SEEDS_ROOT: /app
       RUN_SEED: ${RUN_SEED:-false}
       DB_SCHEMA_SYNC_APPROVED: ${DB_SCHEMA_SYNC_APPROVED:-false}
-      BACKUP_DIR: /run/pms-rollout-backups
-      MIGRATION_MAX_ATTEMPTS: ${MIGRATION_MAX_ATTEMPTS:-3}
       NODE_OPTIONS: --max-old-space-size=192
     volumes:
-      - ./prisma:/app/prisma
       - ./database/schema.sql:/app/database/schema.sql:ro
-      - ./database/migrations:/app/database/migrations:ro
       - ./database/seeds:/app/database/seeds:ro
       - ./scripts:/app/scripts:ro
-      - ./database/rollout:/app/database/rollout
-      - ${BACKUP_DIR:-./database/backups/postgres_data}:/run/pms-rollout-backups:ro
 
   app:
     env_file:
@@ -118,7 +111,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      migrations:
+      database-init:
         condition: service_completed_successfully
     networks: [pms-network]
     logging: *logging

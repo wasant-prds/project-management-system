@@ -2,13 +2,14 @@
 
 ## Overview
 
-คู่มือนี้สรุป API, access gate, data model และงานปฏิบัติการจาก implementation ปัจจุบันของ Project Management System (PMS). ใช้ source code และ Prisma schema เป็นหลัก; เอกสารนี้ไม่ถือว่า API ที่ยังเป็น target contract เปิดใช้งานแล้ว.
+คู่มือนี้สรุป API, access gate, data model และงานปฏิบัติการจาก implementation ปัจจุบันของ Project Management System (PMS). ใช้ source code และ SQL schema เป็นหลัก; เอกสารนี้ไม่ถือว่า API ที่ยังเป็น target contract เปิดใช้งานแล้ว.
 
-ระบบเป็น Next.js App Router + Prisma + PostgreSQL สำหรับ owner หนึ่งคน ใช้ Company → Project → WorkItem → TimeEntry และยึด Asia/Bangkok สำหรับวันและเวลา อ่าน [Owner access](./operations/owner-access.md), [Database model](./database/data-model.md) และ [Runtime operations](./operations/runtime.md) ก่อนเปลี่ยนแปลงระบบ.
+ระบบเป็น Next.js App Router + pg + PostgreSQL สำหรับ owner หนึ่งคน ใช้ Company → Project → WorkItem → TimeEntry และยึด Asia/Bangkok สำหรับวันและเวลา อ่าน [Owner access](./operations/owner-access.md), [Database model](./database/data-model.md) และ [Runtime operations](./operations/runtime.md) ก่อนเปลี่ยนแปลงระบบ.
+ดู [Database workflow ปัจจุบัน](../../database/README.md): schema.sql, private SQL seeds, verified backups และ isolated PostgreSQL tests.
 
 Issue #19 ใช้ WorkItem record เดียวร่วมกันระหว่างเมนู Work Items, Board, Projects, Dashboard และ Analysis; มี CRUD, filters, cursor pagination, JSON import แบบรายแถว และ CSV/Markdown/JSON export ที่สร้างใน browser. Detail API แสดง Company ผ่าน Project และ Daily Work ที่ผูกกับ WorkItem.
 
-Issue #21 บังคับให้ Daily Work ที่สร้าง/แก้ไขผูกกับ WorkItem ของ owner และ derive Project จาก WorkItem; ชั่วโมงเป็น positive Decimal, date เป็น Bangkok calendar day และ summary ใช้ exact Decimal aggregate. Dashboard/Analysis แสดงเฉพาะ logged-hours metric ที่อ่านจาก TimeEntry ตามขอบเขต issue. Prisma schema source เปลี่ยนแล้วแต่ยังต้องผ่าน verified environment rollout ก่อน sync.
+Issue #21 บังคับให้ Daily Work ที่สร้าง/แก้ไขผูกกับ WorkItem ของ owner และ derive Project จาก WorkItem; ชั่วโมงเป็น positive Decimal, date เป็น Bangkok calendar day และ summary ใช้ exact Decimal aggregate. Dashboard/Analysis แสดงเฉพาะ logged-hours metric ที่อ่านจาก TimeEntry ตามขอบเขต issue. SQL schema source เปลี่ยนแล้วแต่ยังต้องผ่าน verified environment rollout ก่อน sync.
 
 Issue #22 เชื่อม Board กับ WorkItem status ชุดเดียวกับ Work Items; Board ใช้ API เดิมสำหรับ cards, filters และ status update. ไม่มี Board-specific status, API หรือ table. ดู [Board workflow](./board/workflow.md).
 
@@ -18,7 +19,7 @@ Issue #25 เพิ่ม owner-only [Settings API](./api/settings/me.md) แล
 
 Issue #38 เพิ่ม nginx ของ production ใน Compose profile `https` และสคริปต์เดียวสำหรับออก Let's Encrypt certificate. ดู [HTTPS certificate](./operations/https.md) และ [HTTPS renew](./jobs/operations/https-renew.md).
 
-สำหรับ Issue #18 ระบบรองรับหลาย Company แต่ Project แต่ละรายการต้องอ้าง Company หนึ่งรายการผ่าน companyId. Prisma schema ปัจจุบันไม่มี Customer model; รายละเอียด Dhas, Company APIs และ Project APIs อยู่ในหน้า Company/Projects และ [Database model](./database/data-model.md). Handbook ยืนยันพฤติกรรมจาก repository; สถานะข้อมูลในฐานข้อมูล environment จริงต้องตรวจจาก environment นั้นแยกต่างหาก.
+สำหรับ Issue #18 ระบบรองรับหลาย Company แต่ Project แต่ละรายการต้องอ้าง Company หนึ่งรายการผ่าน companyId. SQL schema ปัจจุบันไม่มี Customer model; รายละเอียด Dhas, Company APIs และ Project APIs อยู่ในหน้า Company/Projects และ [Database model](./database/data-model.md). Handbook ยืนยันพฤติกรรมจาก repository; สถานะข้อมูลในฐานข้อมูล environment จริงต้องตรวจจาก environment นั้นแยกต่างหาก.
 
 ## API
 
@@ -95,15 +96,12 @@ Route Handler ปัจจุบันมีดังนี้:
 - [Runtime operations](./operations/runtime.md) — start, health, logs และ troubleshooting; links ไปยัง Docker/DB runbooks.
 - [Production HTTPS certificate](./operations/https.md) — nginx, Let's Encrypt และ Cloudflare ด้วย script เดียว.
 - [Database data model](./database/data-model.md) — relations และ tables ที่ current APIs ใช้.
-- [SQL schema, numeric IDs and migrations — Issue #31](./database/issue-31-sql-schema.md) — empty SQL snapshot (11 runtime-used business tables + schema_migrations), BIGINT identity PKs / random public UUIDs, Bangkok wall-clock timestamps, advisory locking, versioned migration runner และ isolated test evidence. การเชื่อมแอปอยู่ที่ Issue #33; live cutover ยังไม่เกิด.
-- [SQL master seeds and backup conversion — Issue #32](./database/issue-32-sql-master-seeds.md) — การแปลง production backup เป็น deterministic SQL master seeds, การ persist immutable public UUIDv4 ลง legacy-id-map.json, นโยบายความสัมพันธ์บริษัทและเวลา Bangkok, transactional seed runner และ isolated verification evidence.
-- [SQL runtime, public UUIDs and recovery — Issue #33](./database/issue-33-sql-runtime.md) — โค้ดแอปใช้ BIGINT ภายในและ public UUIDv4 ที่ API; startup ผ่าน rollout gate ก่อนเรียก SQL runtime และมี converter สำหรับ legacy backup พร้อม isolated rehearsal. ยังไม่มีคำสั่ง live cutover/rollback และ live cutover ยังไม่ได้รับอนุญาต.
 - [GitLab integration](./integration/gitlab.md) — configuration, security, data ownership, sync behavior และ rollout readiness.
 
 ## Source references
 
 - [API inventory and target contracts](../API.md)
-- [Prisma schema](../../prisma/schema.prisma)
+- [SQL schema](../../database/schema.sql)
 - [Runtime security](../RUNTIME_SECURITY.md)
 - [Database rollout runbook](../DATABASE_ROLLOUT.md)
 - [WorkItem collection handler](../../app/api/work-items/route.ts)

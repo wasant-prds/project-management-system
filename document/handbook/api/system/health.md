@@ -15,7 +15,7 @@
 
 ## ดึงข้อมูลจากตารางไหน
 
-ไม่อ่าน table. รัน `SELECT current_setting('TimeZone') AS timezone` ผ่าน Prisma เพื่อเช็ก PostgreSQL session.
+ใช้ pg query ตรวจ session timezone และ catalog ของ issue_sync_configs.token_env_var กับ BIGINT/UUID ของ work_items; ไม่อ่าน business values หรือ migration history.
 
 ## Request
 
@@ -49,10 +49,10 @@ HTTP `200` เมื่อ query สำเร็จและ timezone ถูก�
 
 ## Processing Flow
 
-GET request → owner gate health exception → Prisma query current session timezone → compare กับ `Asia/Bangkok` → JSON 200 หรือ 503.
+GET request → owner gate health exception → SQL query timezone/schema readiness → compare กับ `Asia/Bangkok` → JSON 200 หรือ 503.
 
 ## Verification
 
 1. เรียก `/api/health` ใน environment ที่เริ่มแล้ว; คาดหวัง 200 และ `database: connected`. Production ที่เปิดผ่าน nginx ใช้ `https://<DOMAIN>/api/health` ตาม [HTTPS certificate](../../operations/https.md). พอร์ตของแอปยังเป็น loopback.
 2. ตรวจ PostgreSQL readiness และ timezone ใน environment ทดสอบเพื่อวิเคราะห์ 503.
-3. Automated coverage: `pnpm test:runtime-security`, `pnpm test:runtime-docker`, `pnpm test:database-rollout-docker` (Docker tests อาจเป็น opt-in).
+3. Automated coverage: `pnpm test:runtime-security`, `pnpm test:database-docker` (Docker tests อาจเป็น opt-in).

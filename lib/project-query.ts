@@ -1,11 +1,5 @@
 import { calendarDate, bangkokTimestamp, projectSummary } from './project-management'
 
-export const projectListInclude = {
-  company: { select: { id: true, publicId: true, name: true, displayName: true } },
-  workItems: { select: { status: true, role: true } },
-  timeEntries: { select: { hours: true } },
-} as const
-
 function decimalText(value: { toString(): string } | null | undefined) {
   return value ? value.toString() : null
 }
@@ -24,7 +18,10 @@ export function serializeProject(project: {
   createdAt: Date
   updatedAt: Date
   company: { publicId: string; name: string; displayName: string | null } | null
-  workItems: Array<{ status: import('@prisma/client').WorkItemStatus; role: import('@prisma/client').WorkItemRole | null }>
+  workItems: Array<{
+    status: import('@/lib/database/types').WorkItemStatus
+    role: import('@/lib/database/types').WorkItemRole | null
+  }>
   timeEntries: Array<{ hours: { toString(): string } }>
 }) {
   const summary = projectSummary(project.workItems, project.timeEntries)
@@ -42,16 +39,22 @@ export function serializeProject(project: {
     createdAt: bangkokTimestamp(project.createdAt),
     updatedAt: bangkokTimestamp(project.updatedAt),
     companyId: project.company?.publicId ?? null,
-    company: project.company ? {
-      id: project.company.publicId,
-      name: project.company.name,
-      displayName: project.company.displayName,
-    } : null,
+    company: project.company
+      ? {
+          id: project.company.publicId,
+          name: project.company.name,
+          displayName: project.company.displayName,
+        }
+      : null,
     progress: summary.progress,
     summary,
   }
 }
 
-export function serializeProjectOption(project: { publicId: string; name: string; colorProject: string | null }) {
+export function serializeProjectOption(project: {
+  publicId: string
+  name: string
+  colorProject: string | null
+}) {
   return { id: project.publicId, name: project.name, colorProject: project.colorProject }
 }

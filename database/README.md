@@ -1,36 +1,53 @@
-# Database — authoritative SQL schema
+# Database
 
-`database/schema.sql` เป็นแหล่งอ้างอิงหลักของโครงสร้างฐานข้อมูลทั้งหมด: tables, columns, constraints, indexes, functions, triggers และ PostgreSQL comments. `prisma/schema.prisma` เป็น ORM mapping ที่ต้องตรงกับ SQL นี้ ห้ามใช้ Prisma db push เพื่อกำหนด schema แทนไฟล์หลัก.
+`database/schema.sql` เป็นแหล่งหลักเพียงไฟล์เดียวของ DDL ทั้งหมด. Application ใช้ `pg` ผ่าน `lib/database/repositories`; ไม่มี schema generation, ORM mapping หรือ versioned migration runner
 
-## ไฟล์และความรับผิดชอบ
+## Paths
 
-- `schema.sql`: schema ล่าสุดสำหรับฐานข้อมูลว่าง ไม่มี business rows หรือ credentials.
-- `migrations/0001_initial_schema.sql`: baseline เดิมที่เก็บ byte/checksum ไว้เพื่อรักษาประวัติ migration ที่ apply แล้ว.
-- `migrations/0002_issue_sync.sql`: delta สำหรับอัปเกรดฐานเดิมให้ตรงกับ schema หลัก.
-- `migrations/manifest.json`: checksum ของ schema หลัก, version ที่ snapshot ครอบคลุม และ migration history ตามลำดับ.
-- `rollout/`: approval และหลักฐาน backup/restore/rehearsal; ไม่เก็บ secrets.
-- `postgres/data/`: ข้อมูล PostgreSQL จริงบน Docker bind mount ห้ามล้างหรือแก้ไฟล์เอง.
-- `backups/postgres_data/`: custom pg_dump พร้อม checksum, inventory และ verified restore receipt ตาม BACKUP_DIR.
+- `schema.sql`: tables, enums, PK/FK, indexes, functions, triggers และ comments. ไม่มี business data หรือ credentials
+- `seeds/sql-master/`: private numbered SQL files เช่น `010_companies.sql`, `020_users.sql`, `120_issue_sync_configs.sql`. ทั้ง directory ถูก gitignore; `SEED_PATH` รองรับ path นี้เท่านั้น
+- `live-identity/mappings.json`: reviewed compatibility mappings สำหรับ public references เดิม; ไม่ใช่ source ของ schema
+- `postgres/data/`: PostgreSQL data directory บนเครื่อง ห้ามล้างเพื่อทดสอบ
+- `backups/postgres_data/`: verified archives ตาม BACKUP_DIR
 
-## ติดตั้งและอัปเกรด
+## Initialize ฐานว่าง
 
-ฐานข้อมูลว่างสร้างจาก schema.sql แล้วบันทึก versions ที่ snapshot ครอบคลุม พร้อม apply delta ที่ใหม่กว่า snapshot ใน transaction เดียว. ฐานข้อมูลที่มี SQL history ตรวจ checksum เดิมก่อน apply เฉพาะ pending migrations; ไม่รัน CREATE TABLE จาก snapshot ทับฐานที่มีข้อมูล.
+```sh
+# host: DATABASE_URL ต้องชี้ไปยังฐานทดสอบ/ฐานใหม่ที่อนุมัติแล้ว
+pnpm db:initialize
+# Docker: service database-init ใช้ target database-tools
+```
 
-การเปลี่ยน schema ต้องแก้ schema.sql และ Prisma mapping ให้ตรงกัน พร้อมเพิ่ม migration สำหรับฐานเดิม. Archived migrations ที่ apply แล้วคงเนื้อหา/checksum เดิม. ตรวจว่า snapshot และ migration replay ให้ catalog เดียวกันด้วย isolated PostgreSQL ก่อน rollout.
+ต้องตั้ง `DB_SCHEMA_SYNC_APPROVED=true` สำหรับการสร้างครั้งแรก. Initializer ใช้ transaction และ advisory lock, อ่าน schema.sql แล้วบันทึก SHA-256 ใน comment ของ public schema. การเรียกซ้ำยอมรับเฉพาะ checksum และ table set เดิม. ฐานที่มี tables/functions อยู่แล้วแต่ไม่ตรงจะถูกปฏิเสธ แม้เปิด approval flag; ไม่มีการ drop/reset/upgrade อัตโนมัติ
 
-ทุกตารางมี internal BIGINT identity `id` และ immutable UUIDv4 `public_id` ที่ database generate. Foreign keys ใช้ BIGINT; API/UI ใช้ UUID. วันที่และ timestamps ใช้ Asia/Bangkok wall-clock. ดู [Identifier contract](../document/database/PUBLIC_IDENTIFIERS.md).
+`database/migrations` และ history เดิมถูกยกเลิกเพื่อเริ่มใหม่. การลบไฟล์เหล่านั้นไม่ลบข้อมูล PostgreSQL จริง. ถ้าต้องย้ายฐานที่ใช้งานอยู่ ต้องมี fresh verified backup, ซ้อมในฐานแยก, ตรวจ identities/relations/decimals/timestamps และอนุมัติ cutover ใหม่ก่อน
 
-## ใช้กับฐานข้อมูลจริง
+## SQL seeds
 
-ใช้ APP_ENV จาก root .env เพื่อเลือก Docker Compose/container/data directory. ก่อน schema change ต้องหยุด business writes, ทำ backup ใหม่, verify checksum และ restore ในฐานแยก พร้อมซ้อม migration และเทียบข้อมูลเดิม. Apply ได้เมื่อมี explicit approval และผ่าน rollout gate เท่านั้น. ห้าม reset, force-seed, ลบ volume หรือใช้ seed เพื่อแก้ปัญหา migration.
+```sh
+pnpm db:seed
+```
 
-`RUN_SEED=false` เป็นค่าเริ่มต้น. การ seed/import เป็นงานแยกและไม่เป็นส่วนหนึ่งของการ sync issues หรือ schema upgrade. อย่า seed ชุด legacy JSON ลง SQL/BIGINT runtime.
+Runner อ่านเฉพาะ `NNN_table_name.sql` ใน sql-master เรียงตามชื่อ และยอมรับ INSERT ของ table ตามชื่อไฟล์. ไม่ใช้ JSON config/manifest ของ flow เก่า. ต้องใช้ schema.sql ปัจจุบันและทุก application table ต้องว่าง. ทุกไฟล์อยู่ใน transaction เดียว; failure rollback ทั้งชุด. Runner รักษา reviewed public UUIDs/source timestamps และ align identity sequences หลังนำเข้า. ไม่ overwrite business data
 
-## Verification
+Docker ใช้ `RUN_SEED=true` สำหรับ fresh install ที่เตรียม seed แล้ว; ตั้งกลับ false หลัง seed. ค่าเริ่มต้นคือ false และ SQL files mount จาก host แบบ read-only. การแก้ไฟล์ seed ไม่ทำให้ฐานเดิมเปลี่ยนเอง
 
-`node tests/run.mjs sql-schema` ตรวจ SQL/Prisma/migration contracts. `node tests/run.mjs sql-migrations-docker` ตรวจ snapshot, replay, transactions, history และ constraints บน disposable PostgreSQL. `node tests/run.mjs issue-sync` ตรวจ provider adapters, assignee filtering และ API boundaries โดยไม่ใช้ token จริง.
+`issue_sync_configs.token_env_var` ระบุ **ชื่อตัวแปร** ใน root `.env` เช่น `GITLAB_WORK_TOKEN` หรือ `GITHUB_PROJECT_A_TOKEN`. Token จริงไม่อยู่ใน table. แต่ละ row ใช้ชื่อต่างกันหรือใช้ชื่อเดียวกันได้. ตัวอย่างส่วนตัว 120_issue_sync_configs.sql คงอยู่บนเครื่องและไม่ถูก commit
 
-ดู [Migration workflow](migrations/README.md), [Database Rollout](../document/DATABASE_ROLLOUT.md), [SQL runtime](../document/handbook/database/issue-33-sql-runtime.md) และ [Project Issue Sync](../document/ISSUE_SYNC.md).
+## Backup และ verification
 
+```sh
+bash scripts/db-manage.sh backup
+bash scripts/db-manage.sh restore /path/to/archive.dump
+bash scripts/db-manage.sh health
+```
 
-Issue sync config ใช้ `issue_sync_configs.token_env_var` ระบุชื่อตัวแปร token ใน root `.env` โดยตรง. Migration `0003_issue_sync_token_env.sql` หยุด configs เดิมจนตั้งชื่อตัวแปรใหม่ โดยรักษา public IDs และ run history. ตัวอย่าง GitLab/GitHub อยู่ใน `database/seeds/sql-master/120_issue_sync_configs.sql`; ยังไม่ลงทะเบียนใน checksummed seed manifest.
+Backup เก็บ custom pg_dump, SHA-256, row inventory และผล restore ใน disposable container. `restore` เป็นการซ้อมในฐานแยก ไม่เขียนทับฐานจริง. เก็บไฟล์ .pin สำหรับ archive ที่ห้าม prune
+
+```sh
+docker build --target database-tools -t pms-sql-tools-check .
+docker build --target production -t pms-sql-app-check .
+pnpm test:database-docker
+```
+
+Integration suite สร้าง containers ชั่วคราวที่ไม่มี host ports หรือ production volumes, ทดสอบแล้วลบเฉพาะ containers ของตัวเอง. ไม่อ่าน private seeds และไม่เรียก GitLab/GitHub ด้วย token จริง

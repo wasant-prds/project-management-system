@@ -108,7 +108,7 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
     '@/components/page/work-items/work-item-status-badge': {
       WorkItemStatusBadge: Object.assign(({ status }) => ({ type: 'span', props: { 'data-slot': 'status-badge', children: status } }), { renderInTest: true }),
     },
-    // Inlined because this harness rejects unexpected imports, and lib/work-items is the Prisma enum boundary.
+    // Inlined because this harness rejects unexpected imports, and lib/work-items is the shared enum boundary.
     '@/lib/work-items': {
       WORK_ITEM_ROLE_LABELS: { Developer: 'Developer', infra: 'Infrastructure', SA: 'System Analyst' },
     },

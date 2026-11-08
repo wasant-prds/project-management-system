@@ -46,7 +46,7 @@ case "$1" in
     
   init)
     echo -e "${GREEN}Initializing UAT database...${NC}"
-    compose up migrations
+    compose up database-init
     echo -e "${GREEN}✅ UAT database initialized${NC}"
     ;;
     

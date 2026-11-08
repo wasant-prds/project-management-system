@@ -9,6 +9,4 @@ export PGOPTIONS="-c timezone=Asia/Bangkok"
 DATABASE_URL="$(node /app/scripts/database-url.mjs)"
 export DATABASE_URL
 
-pnpm prisma generate
-
 exec pnpm dev

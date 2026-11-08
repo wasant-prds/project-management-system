@@ -12,7 +12,7 @@ WorkItem enums must match API and UI:
 - role: `Developer` | `infra` | `SA` | null (functional work role, not permission)
 - status: `backlog` | `todo` | `in-progress` | `blocked` | `sa-testing` | `pm-testing` | `completed` | `cancelled`
 
-Serialize Prisma underscores to hyphenated public status: `in_progress` ↔ `in-progress`, `sa_testing` ↔ `sa-testing`, `pm_testing` ↔ `pm-testing`.
+SQL, API and UI use the same hyphenated status values. Legacy import aliases may be normalized at input only.
 
 One formula everywhere:
 

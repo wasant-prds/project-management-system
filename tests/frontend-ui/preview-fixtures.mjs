@@ -60,7 +60,6 @@ export function previewResponse(url, method = 'GET', mode) {
   else if (path === '/api/work-logs/summary') value = { summary: { hours: summary.loggedHours, total: workLogs.length } }
   else if (path === '/api/analysis/summary') value = analysis
   else if (path === '/api/integrations/gitlab/status') value = { configured: false, instanceUrl: null }
-  else if (path === '/api/integrations/gitlab/projects') value = { mappings: [] }
   else return { status: 404, value: { error: { code: 'NOT_FOUND', message: 'ไม่มี fixture สำหรับ route นี้' } } }
   return { status: 200, value }
 }

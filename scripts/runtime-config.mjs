@@ -39,7 +39,7 @@ export function loadRuntimeConfig(source = process.env) {
     if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) throw new Error('Invalid GitLab server configuration');
     env.GITLAB_BASE_URL = url.href.replace(/\/$/, '');
   }
-  // libpq (operations) and Prisma (application) must both set session timezone.
+  // libpq (operations) and node-postgres (application) must both set session timezone.
   env.PGTZ = TIMEZONE;
   env.PGOPTIONS = '-c timezone=Asia/Bangkok';
   if (env.DATABASE_URL) {

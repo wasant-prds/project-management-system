@@ -9,7 +9,7 @@ export function databaseUrl(env = process.env) {
   const host = env.POSTGRES_HOST || 'postgres';
   const port = env.POSTGRES_PORT || '5432';
   if (!/^[a-zA-Z0-9.-]+$/.test(host) || !/^\d+$/.test(port)) throw new Error('Invalid PostgreSQL endpoint');
-  return `postgresql://${secret('POSTGRES_USER')}:${secret('POSTGRES_PASSWORD')}@${host}:${port}/${secret('POSTGRES_DB')}?schema=public&connection_limit=5&pool_timeout=20&options=--timezone%3DAsia%2FBangkok`;
+  return `postgresql://${secret('POSTGRES_USER')}:${secret('POSTGRES_PASSWORD')}@${host}:${port}/${secret('POSTGRES_DB')}?options=--timezone%3DAsia%2FBangkok`;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

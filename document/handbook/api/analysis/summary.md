@@ -267,5 +267,5 @@ pnpm test:api-contracts
 - [Analysis query and response builder](../../../../lib/analysis.ts)
 - [Shared dashboard filters and query predicates](../../../../lib/dashboard.ts)
 - [Owner resolver](../../../../lib/owner.ts)
-- [Prisma schema](../../../../prisma/schema.prisma)
+- [SQL schema](../../../../database/schema.sql)
 - [Analysis tests](../../../../tests/analysis/summary.test.mjs)

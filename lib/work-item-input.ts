@@ -1,9 +1,4 @@
-import type {
-  WorkItemKind,
-  WorkItemPriority,
-  WorkItemRole,
-  WorkItemStatus,
-} from '@prisma/client'
+import type { WorkItemKind, WorkItemPriority, WorkItemRole, WorkItemStatus } from '@/lib/database/types'
 import {
   isWorkItemKind,
   isWorkItemPriority,
@@ -44,7 +39,9 @@ function parseDescription(value: unknown): { data: string | null } | { error: st
   return { data: value.trim() || null }
 }
 
-function parseClassification(body: Record<string, unknown>):
+function parseClassification(
+  body: Record<string, unknown>,
+):
   | { data: Pick<ParsedWorkItemInput, 'kind' | 'status' | 'priority' | 'role' | 'types'> }
   | { error: string } {
   if (!isWorkItemKind(body.kind)) {
@@ -57,7 +54,7 @@ function parseClassification(body: Record<string, unknown>):
   const priority = body.priority ?? 'none'
   if (!isWorkItemPriority(priority)) return { error: 'Invalid priority' }
 
-  const role = body.role === '' ? null : body.role ?? null
+  const role = body.role === '' ? null : (body.role ?? null)
   if (role !== null && !isWorkItemRole(role)) return { error: 'Invalid role' }
 
   const types = parseWorkItemTypes(body.types)
@@ -66,7 +63,10 @@ function parseClassification(body: Record<string, unknown>):
   return { data: { kind: body.kind, status, priority, role, types } }
 }
 
-function parseOptionalFields(body: Record<string, unknown>, ownerId: string):
+function parseOptionalFields(
+  body: Record<string, unknown>,
+  ownerId: string,
+):
   | { data: Pick<ParsedWorkItemInput, 'description' | 'workDate' | 'dueDate' | 'assigneeId' | 'id'> }
   | { error: string } {
   const description = parseDescription(body.description)
@@ -94,7 +94,9 @@ function parseOptionalFields(body: Record<string, unknown>, ownerId: string):
     return { error: 'assigneeId must match the authenticated owner' }
   }
 
-  return { data: { ...(id ? { id } : {}), description: description.data, workDate, dueDate, assigneeId: ownerId } }
+  return {
+    data: { ...(id ? { id } : {}), description: description.data, workDate, dueDate, assigneeId: ownerId },
+  }
 }
 
 export function parseWorkItemInput(value: unknown, ownerId: string): ParseResult {

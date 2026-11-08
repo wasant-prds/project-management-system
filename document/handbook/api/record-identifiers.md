@@ -19,7 +19,7 @@ Issue #33 แยก identity สำหรับฐานข้อมูลออ
 
 ตัวอย่าง `POST /api/projects` ใช้ `companyId` เป็น public UUID. Server resolve Company จาก `public_id` แล้วเก็บ `company.id` เป็น numeric foreign key ภายใน. `POST /api/work-logs` ใช้ public `workItemId`; server resolve WorkItem ของ owner และ derive Project กับ numeric foreign keys จาก record นั้น.
 
-Ordinary create ไม่รับ client-chosen `id`; database สร้าง internal ID และ UUIDv4 ให้. ข้อยกเว้นที่ตรวจสอบแล้วคือ `POST /api/work-items/import`: นำเข้าอาจใช้ public UUID ที่คงที่เพื่อให้ retry รักษา identity หรือใช้ legacy nonnumeric source ID เมื่อพบ exact mapping ใน `database/live-identity/mappings.json`. Numeric IDs ถูกปฏิเสธ; legacy mapping ต้อง durable และ scoped ต่อ source. ดู [Bulk WorkItem import](./work-items/import.md) และ [SQL runtime / upgrade](../database/issue-33-sql-runtime.md).
+Ordinary create ไม่รับ client-chosen `id`; database สร้าง internal ID และ UUIDv4 ให้. ข้อยกเว้นที่ตรวจสอบแล้วคือ `POST /api/work-items/import`: นำเข้าอาจใช้ public UUID ที่คงที่เพื่อให้ retry รักษา identity หรือใช้ legacy nonnumeric source ID เมื่อพบ exact mapping ใน `database/live-identity/mappings.json`. Numeric IDs ถูกปฏิเสธ; legacy mapping ต้อง durable และ scoped ต่อ source. ดู [Bulk WorkItem import](./work-items/import.md) และ [SQL runtime / upgrade](../../../database/README.md).
 
 ## รูปแบบ response
 

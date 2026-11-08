@@ -1,364 +1,60 @@
-# 📊 Project Management System
+# Project Management System
 
-A comprehensive, full-stack project management system built with **Next.js 15**, **PostgreSQL**, **Prisma ORM**, and **Docker**.
+ระบบจัดการ Project และ Work Item สำหรับ owner คนเดียว ใช้ Next.js 15, React 19, TypeScript, PostgreSQL 16 และ Docker Compose
 
-![Next.js](https://img.shields.io/badge/Next.js-15.2-black?logo=next.js)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?logo=postgresql)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)
-![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?logo=prisma)
+เมนูหลัก: Dashboard, Company, Projects, Work Items, Kanban Board, Analysis, Daily Work และ Settings. Incident, Issue และ Task เป็นชนิดของ Work Item เดียวกัน. GitLab/GitHub sync ตั้งค่าต่อ Project และรับเฉพาะ assignees ที่กำหนด
 
-## ✨ Features
+## เริ่มต้น
 
-### Core Functionality
-- 📁 **Project Management** - Track projects with status, priority, budgets, and progress
-- ✅ **Work Item Management** - Manage Incidents, Issues, and Tasks as kinds of the same WorkItem record
-- 👤 **Single-owner workspace** - One system owner; Developer, Infra, and SA are functional roles on WorkItems
-- 📊 **Data Analysis** - Comprehensive analytics and insights dashboard
-- 📋 **Kanban Board** - Visual workflow management with drag-and-drop
-- 📅 **Daily Work Logs** - Track daily activities and time entries
-- ⚙️ **Settings** - User profile and application preferences
-- ⏱️ **Time Tracking** - Log work hours and track estimates vs actuals
-- 📝 **Activity Logs** - Complete audit trail of all actions
-- 🔔 **Notifications** - Stay updated on project activities
+1. ติดตั้ง Node.js 22+ และ pnpm ตาม `packageManager` ใน package.json
+2. รัน `pnpm install` แล้วคัดลอก `.env.example` เป็น `.env` และกรอกค่าจริง
+3. เตรียม PostgreSQL 16. สำหรับฐานว่าง ตั้ง `DB_SCHEMA_SYNC_APPROVED=true` แล้วรัน `pnpm db:initialize`; ถ้าทำบน host ให้กำหนด `DATABASE_URL` ไปยัง PostgreSQL ที่ต้องการ
+4. วาง SQL seeds ส่วนตัวใน `database/seeds/sql-master` และรัน `pnpm db:seed` เฉพาะฐานที่ยังไม่มีข้อมูล
+5. ตั้ง `OWNER_USER_ID` เป็น users.public_id ของ owner แล้วรัน `pnpm dev`
 
-### Technical Features
-- 🎨 **Modern UI** - Built with Tailwind CSS and Radix UI
-- 🌓 **Multi-Theme System** - Light, Dark, Special Dark, and System themes
-- 📱 **Responsive Design** - Works seamlessly on all devices
-- 🔒 **Type-Safe** - Full TypeScript coverage with Prisma
-- 🐳 **Docker Ready** - Complete containerization for all environments
-- 🗄️ **PostgreSQL** - Robust relational database with optimized queries
-- 🚀 **Performance** - Optimized builds and database indexing (3-5x faster)
-- 📡 **RESTful API** - Complete API routes for all operations
-- 🛡️ **Smart Seeding** - Prevents data loss with automatic detection
-- 💾 **Auto Backup** - Database backup and restore utilities
-- 🔧 **Management Tools** - Bash & PowerShell scripts for easy database management
+Docker development ใช้ `docker compose up -d --build`. UAT/production ใช้ compose file ของ environment นั้น. `database-init` อ่าน `database/schema.sql` ก่อน app เริ่ม; ฐานที่ schema ไม่ตรงจะถูกปฏิเสธ. การติดตั้งใหม่ไม่ลบหรืออัปเกรดฐานเดิมอัตโนมัติ. ดู [ขั้นตอนฐานข้อมูล](database/README.md) ก่อนใช้กับฐานที่มีข้อมูล
 
-## 🚀 Quick Start
+## โครงสร้าง
 
-### Local Development (Without Docker)
-
-```bash
-# 1. Install dependencies
-pnpm install
-
-# 2. Configure the single root environment file
-cp .env.example .env
-
-# 3. Prepare PostgreSQL using the approved SQL workflow in database/README.md.
-# database/schema.sql is authoritative; do not use prisma db push or JSON seed.
-
-# 4. Start development server after the database is ready
-pnpm dev
-
-# Visit http://localhost:3000
+```text
+app/api/                      HTTP validation, authorization และ public DTOs
+components/                   UI แยกตามหน้าและ shared controls
+lib/database/client.ts        pg connection pool, type parsers และ transactions
+lib/database/sql.ts           parameterized SQL composition
+lib/database/projections.ts   explicit SQL result aliases
+lib/database/repositories/    queries แยกตามข้อมูลและหน้าที่
+lib/integrations/             validation สำหรับ external sources
+lib/issue-sync*.ts            project sync และ provider adapters
+database/schema.sql           authoritative DDL, constraints, indexes, comments, triggers
+database/seeds/sql-master/     SQL seeds ส่วนตัว; gitignored ทั้ง directory
+scripts/database/             initialize, seed และ verified backup/restore
+scripts/github-create-*.py    issue/label tooling
 ```
 
-### Docker Development (Recommended)
+ทุกตารางใช้ BIGINT identity สำหรับ PK/FK ภายใน และ immutable UUIDv4 สำหรับ API/UI. วันที่และ timestamps ใช้ Asia/Bangkok; ชั่วโมงและยอดเงินรักษาความละเอียด DECIMAL(65,30)
 
-```bash
-# Dev (live reload) — http://localhost:3000
-docker compose up -d --build
+## ตรวจคุณภาพ
 
-# Or via helper scripts (see document/process/docker.md)
-bash scripts/docker-dev.sh start
-
-# With Prisma Studio (database GUI)
-bash scripts/docker-dev.sh start-studio
-# 🎨 Prisma Studio: http://localhost:5555
+```sh
+pnpm quality
+# PostgreSQL/API/backup/standalone HTTP integration บน containers ชั่วคราว
+# สร้าง images ตามคู่มือก่อนรัน
+pnpm test:database-docker
+python -B -m unittest discover -s scripts/tests -p "test_github_*.py" -v
 ```
 
-Docker uses `database/schema.sql` and reviewed SQL migrations behind the rollout approval gate. Seeding is separate and defaults to `RUN_SEED=false`; development supports hot reload.
-
-## 📚 Documentation
-
-- **[Engineering Spec (EV)](./document/ENGINEERING_SPEC.md)** - Shared data rules and engineering acceptance criteria
-- **[Architecture (EV)](./document/ARCHITECTURE.md)** - Current and target application architecture
-- **[Business Requirement](./document/BUSINESS_REQUIREMENT.md)** - Requirements organized by menu
-- **[Scope](./document/SCOPE.md)** - Step 1 boundary and menu-by-menu delivery scope
-- **[Database](./document/DATABASE.md)** - Current Prisma schema and proposed Customer/data-integrity changes
-- **[Customer/Project Migration Contract](./document/CUSTOMER_PROJECT_MIGRATION.md)** - Auditable mapping, staged rollout, validation, and recovery gates
-- **[Database Mapping](./document/DATABASE_MAPPING.md)** - Mapping between menus, APIs, and database records
-- **[Shared Data Model](./document/SHARED_DATA_MODEL.md)** - Canonical Customer, Project, WorkItem, TimeEntry, owner, and metric contract
-- **[API](./document/API.md)** - Current endpoint inventory and target API gaps
-- **[Deployment](./document/DEPLOYMENT.md)** - Docker environments, database initialization, and operations
-- **[Database README](./database/README.md)** - Database setup and management
-- **[Runtime Security](./document/RUNTIME_SECURITY.md)** - Root .env configuration guide
-- **[Database process](./document/process/db.md)** - Prisma and db helper commands
-- **[Docker process](./document/process/docker.md)** - Dev / UAT / production helper commands
-- **[Testing commands](./document/process/testing.md)** - Reusable pnpm test runner commands
-- **[Project Issue Sync](./document/ISSUE_SYNC.md)** — ตั้งค่า GitHub/GitLab ต่อ Project, กรอง assignees แบบ OR, แยก server secrets และเก็บประวัติ sync. เตรียม migration แล้ว; การ apply กับฐานข้อมูลใช้งานจริงเป็นขั้นตอนแยกที่ต้องอนุมัติ.
-- **[GitHub Issues from work items](./document/github-create-tasks.md)** - Preview, create, or upsert checklist work items as GitHub Issues
-- **[GitHub labels from the work-item catalog](./document/github-create-labels.md)** - Create or update issue labels, one color per prefix
-
-## 🏗️ Architecture
-
-### Tech Stack
-
-**Frontend:**
-- Next.js 15 (App Router)
-- React 19
-- TypeScript 5
-- Tailwind CSS 4
-- Radix UI Components
-- Lucide Icons
-
-**Backend:**
-- Next.js API Routes
-- Prisma ORM
-- PostgreSQL 16
-
-**DevOps:**
-- Docker & Docker Compose
-- Multi-stage builds
-- Environment-specific configurations
-
-### Project Structure
-
-```
-├── app/
-│   ├── api/              # API routes (projects, tasks, issues, users, work-logs)
-│   ├── projects/         # Project management pages
-│   ├── tasks/            # Task management pages
-│   ├── issues/           # Issue tracking pages
-│   ├── company/          # Team & department pages
-│   ├── analysis/         # Data analysis and analytics
-│   ├── board/            # Kanban board view
-│   ├── daily-work/       # Daily work logs and time tracking
-│   ├── settings/         # User settings and preferences
-│   └── layout.tsx        # Root layout
-├── components/
-│   ├── ui/               # Reusable UI components
-│   ├── app-sidebar.tsx   # Navigation sidebar
-│   └── app-header.tsx    # Application header
-├── lib/
-│   ├── db.ts             # Prisma client instance
-│   └── utils.ts          # Utility functions
-├── prisma/
-│   ├── schema.prisma     # ORM mapping of database/schema.sql
-│   └── seed.ts           # Mock data seeding
-├── scripts/
-│   ├── docker-entrypoint-dev.sh   # Dev: DB init + pnpm dev
-│   ├── docker-entrypoint-app.sh   # UAT/prod: DATABASE_URL from secrets
-│   └── docker-*.sh                # Compose helper scripts
-├── Dockerfile            # Multi-stage: development | uat | production
-├── docker-compose.yml    # Development (target: development)
-├── docker-compose.uat.yml    # UAT (target: uat)
-└── docker-compose.prod.yml   # Production (target: production)
-```
-
-## 🗄️ Database Schema
-
-Current Prisma models: Company, User, Project, legacy ProjectMember, WorkItem, TimeEntry, Comment, Milestone, Document, ActivityLog, and Notification. Incident, Issue, and Task are WorkItem kinds, not separate source-of-truth tables. The target product has one owner; ProjectMember is not a team-management feature. Customer and the required Project relation are target requirements and are not yet present in the current schema.
-
-See the [Shared Data Model](./document/SHARED_DATA_MODEL.md) for the target model and the [Database](./document/DATABASE.md) document for the As-Is schema.
-
-## 🐳 Docker Environments
-
-The Dockerfile exposes three app targets:
-
-| Target | Compose file | Behavior |
-|--------|----------------|----------|
-| `development` | `docker-compose.yml` | Bind-mount source, `pnpm dev` hot reload, auto `db:generate` / `push` / `seed` |
-| `uat` | `docker-compose.uat.yml` | Standalone build, `NEXT_PUBLIC_ENV=uat` baked in |
-| `production` | `docker-compose.prod.yml` | Standalone build, `NEXT_PUBLIC_ENV=production` baked in |
-| `migrate` | UAT/prod `migrations` service | Prisma only (no Next build); safe `db:push` (+ seed on UAT) before app — never deletes existing rows |
-
-**How it fits together**
-- Shared: `base` → `deps` → `builder` (app images) and `migrate` (schema push)
-- UAT/prod: same standalone image pattern + `docker-entrypoint-app.sh` (sets `DATABASE_URL` from secrets)
-- UAT/prod also run a one-shot `migrations` service (safe `db:push` that refuses data-loss flags; plus seed on UAT which skips if data exists) before `app` starts
-- Dev: `docker-entrypoint-dev.sh` (DB init + hot reload); source mounted via compose volumes
-
-`NEXT_PUBLIC_ENV` is passed as a **build arg** on UAT/prod so it is inlined into the client bundle. Runtime `ENV` alone is not enough for client code.
-
-### Run
-
-```bash
-# Dev (live reload) — http://localhost:3000
-docker compose up -d --build
-
-# UAT — http://localhost:3001
-docker compose -f docker-compose.uat.yml up -d --build
-
-# Prod — http://localhost:3002
-docker compose -f docker-compose.prod.yml up -d --build
-```
-
-Or use the helper scripts under `scripts/` — see [Docker process](./document/process/docker.md).
-
-## 📊 Mock Data
-
-The project includes comprehensive mock data:
-
-- **1 Company** (ProjectHub Inc.)
-- **5 Departments** (Engineering, Design, Product, Marketing, Operations)
-- **10 Users** with complete profiles
-- **6 Projects** in various statuses
-- **12+ Tasks** with assignments and time entries
-- **6 Issues** (bugs, features, enhancements)
-- **Work Logs** for time tracking and daily activities
-- **Analytics Data** for charts and insights
-- Comments, notifications, activity logs, and more!
-
-## 🛠️ Available Scripts
-
-### Development
-```bash
-pnpm dev                 # Start dev server
-pnpm build              # Build for production
-pnpm start              # Start production server
-pnpm lint               # Run linter
-pnpm test               # Run all Node tests
-pnpm test:frontend-ui   # Verify shared responsive UI, themes, charts, and motion
-pnpm test:contracts     # Verify data and document contracts
-pnpm test:migration-contracts  # Verify Customer/Project migration and identity contract
-pnpm test:settings      # Verify owner settings persistence and validation
-```
-
-### Database
-
-Prisma and helper scripts for generate, push, seed, backup, and reset. Full command list: [document/process/db.md](./document/process/db.md).
-
-### Docker
-
-Helper scripts for dev, UAT, and production live under `scripts/`. Full command list: [document/process/docker.md](./document/process/docker.md).
-
-## 📡 API Endpoints
-
-### Projects
-- `GET /api/projects` - List all projects
-- `POST /api/projects` - Create project
-- `GET /api/projects/[id]` - Get project details
-- `PATCH /api/projects/[id]` - Update project
-- `DELETE /api/projects/[id]` - Delete project
-
-### Tasks
-- `GET /api/tasks` - List all tasks
-- `POST /api/tasks` - Create task
-- `GET /api/tasks/[id]` - Get task details
-- `PATCH /api/tasks/[id]` - Update task
-- `DELETE /api/tasks/[id]` - Delete task
-
-### Issues
-- `GET /api/issues` - List all issues
-- `POST /api/issues` - Create issue
-- `GET /api/issues/[id]` - Get issue details
-- `PATCH /api/issues/[id]` - Update issue
-- `DELETE /api/issues/[id]` - Delete issue
-
-### Users
-- `GET /api/users` - List all users
-
-### Work Logs
-- `GET /api/work-logs` - List all work logs
-- `POST /api/work-logs` - Create work log
-- `GET /api/work-logs/[id]` - Get work log details
-- `PATCH /api/work-logs/[id]` - Update work log
-- `DELETE /api/work-logs/[id]` - Delete work log
-
-### Health Check
-- `GET /api/health` - Application health status
-
-## 🎯 Key Features
-
-### Performance
-- ⚡ Next.js 15 with App Router
-- 🎨 Tailwind CSS for optimal styling
-- 🗄️ PostgreSQL with strategic indexing
-- 🔄 Prisma for type-safe database access
-- 📦 Docker standalone build (70% smaller images)
-
-### Security
-- 🔒 Type-safe API routes
-- 🛡️ Non-root Docker user
-- 🔐 Environment variable isolation
-- 📝 Activity logging and audit trails
-
-### Developer Experience
-- 🔥 Hot reload in development
-- 🎨 Prisma Studio for database management
-- 🐳 One-command Docker setup
-- 📚 Comprehensive documentation
-- 🧪 UAT environment for testing
-
-### User Interface
-- 📊 **Interactive Dashboard** - Real-time project metrics and statistics
-- 📋 **Kanban Board** - Visual task management with drag-and-drop functionality
-- 📈 **Data Analysis** - Comprehensive analytics with charts and insights
-- 📅 **Daily Work Logs** - Time tracking and activity logging
-- ⚙️ **Settings Panel** - User profile and application preferences
-- 🎨 **Modern UI Components** - Built with Radix UI and Tailwind CSS
-
-## 🚀 Deployment
-
-ตั้งค่าทั้งหมดใน root `.env` ก่อนเริ่มบริการ (ดู [Runtime Security](./document/RUNTIME_SECURITY.md)); ไม่ใช้ Docker secrets แล้ว.
-
-### Development
-```bash
-docker compose up -d --build
-# http://localhost:3000
-```
-
-### UAT
-```bash
-cp env.uat.example .env.uat
-docker compose -f docker-compose.uat.yml up -d --build
-# http://localhost:3001
-# Schema push + seed run automatically via the migrations service
-```
-
-### Production
-```bash
-cp env.prod.example .env.production
-docker compose -f docker-compose.prod.yml up -d --build
-# http://localhost:3002
-# Schema push runs automatically via the migrations service
-```
-
-### Cloudflare API token สำหรับ HTTPS
-
-สคริปต์ `sudo bash infra/certbot/setup-https.sh` เรียก Cloudflare สามจุด คนละสิทธิ์ สิทธิ์หนึ่งแถวใช้แทนอีกแถวไม่ได้ จำกัดทุกแถวที่ zone นี้ด้วย Include → Specific zone ขั้นตอนทั้งหมดอยู่ใน [HTTPS certificate](./document/handbook/operations/https.md)
-
-- **Zone → DNS → Read** ใช้ตอนเริ่มสคริปต์ เพื่ออ่าน DNS ของโดเมนและยืนยันว่าเป็น proxied record (เมฆสีส้ม) สคริปต์ไม่สร้างหรือแก้ DNS จึงใช้ Read พอ ถ้า token ไม่มีสิทธิ์นี้ Cloudflare ตอบ HTTP 403 รหัส 10000
-- **Zone → Zone Settings → Edit** ใช้ระหว่างขอใบจาก Let's Encrypt สคริปต์อ่าน SSL mode ของทั้ง zone ถ้าค่าเดิมเป็น `strict` จะสลับเป็น `full` ชั่วคราว แล้วคืนค่าเดิมหลังได้ใบ ต้องสลับเพราะตอนยืนยันโดเมน origin ยังเป็นใบชั่วคราว
-- **Zone → Config Rules → Edit** ใช้หลังออกใบจริงเท่านั้น สคริปต์เพิ่ม configuration rule ให้เฉพาะ hostname นี้เป็น `strict` โดยไม่เปลี่ยน SSL mode ของ hostname อื่นใน zone เดียวกัน รอบ `CERTBOT_STAGING=1` ข้ามขั้นนี้
-
-## 📦 Requirements
-
-- Node.js 20+
-- pnpm 10+
-- PostgreSQL 16+ (or Docker)
-- Docker Desktop (for containerized deployment)
-
-## 🤝 Contributing
-
-This is a demonstration project showcasing best practices for:
-- Next.js application architecture
-- PostgreSQL database design
-- Docker multi-environment setup
-- Type-safe full-stack development
-
-## 📄 License
-
-This project is provided as-is for educational and demonstration purposes.
-
-## 🙏 Acknowledgments
-
-Built with:
-- [Next.js](https://nextjs.org/)
-- [Prisma](https://www.prisma.io/)
-- [PostgreSQL](https://www.postgresql.org/)
-- [Docker](https://www.docker.com/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Radix UI](https://www.radix-ui.com/)
-
----
-
-**Ready to start?** Run `bash scripts/docker-dev.sh start` and you're good to go! 🚀
-
-
-## Runtime owner gate (#15)
-
-การเริ่มแอปผ่าน `pnpm dev`, `pnpm start` หรือ Docker ต้อง provision owner gate credential และ `APP_ORIGIN` ก่อน. Host ports ของแอปและ PostgreSQL จำกัด loopback; GitLab secrets เป็น server-only. ดู [Runtime Security](document/RUNTIME_SECURITY.md) สำหรับ provisioning, safe verification และ rotate/revoke. ทดสอบซ้ำได้ด้วย `pnpm test:runtime-security` และ `pnpm test:runtime-docker`. Owner User/session และ GitLab connector เป็นงาน #17/#20.
+Unit suite รวม provider tests แบบจำลองและ UI regressions. Database suite ไม่อ่าน private seeds หรือ token จริง. ดู [testing](document/process/testing.md)
+
+## คู่มือ
+
+- [Database workflow](database/README.md)
+- [Project Issue Sync และ token variables](document/ISSUE_SYNC.md)
+- [API contracts](document/API.md)
+- [Database commands](document/process/db.md)
+- [Docker commands](document/process/docker.md)
+- [Runtime security](document/RUNTIME_SECURITY.md)
+- [Public identifiers](document/database/PUBLIC_IDENTIFIERS.md)
+- [Engineering spec](document/ENGINEERING_SPEC.md)
+- [GitHub issue script](document/github-create-tasks.md)
+
+ไฟล์รายงาน issue เก่าเป็นหลักฐานของเวอร์ชันในเวลานั้น. สำหรับ database tooling ปัจจุบันให้ใช้ schema.sql และ scripts/database ตามคู่มือนี้

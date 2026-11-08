@@ -1,4 +1,7 @@
-import { prisma } from '@/lib/db'
+import { database as defaultDatabase, type Database } from '@/lib/database/client'
+import { syntax } from '@/lib/database/sql'
+import { workItems as workItemStore } from '@/lib/database/repositories/work-items'
+import { reports } from '@/lib/database/repositories/reports'
 import {
   bangkokDateRange,
   currentBangkokCalendarDate,
@@ -139,7 +142,11 @@ function serializeWorkItem(item: {
   dueDate: Date | null
   createdAt: Date
   updatedAt: Date
-  project: { publicId: string; name: string; company: { publicId: string; name: string; displayName: string | null } | null }
+  project: {
+    publicId: string
+    name: string
+    company: { publicId: string; name: string; displayName: string | null } | null
+  }
 }) {
   return {
     id: item.publicId,
@@ -155,11 +162,13 @@ function serializeWorkItem(item: {
     project: {
       id: item.project.publicId,
       name: item.project.name,
-      company: item.project.company ? {
-        id: item.project.company.publicId,
-        name: item.project.company.name,
-        displayName: item.project.company.displayName,
-      } : null,
+      company: item.project.company
+        ? {
+            id: item.project.company.publicId,
+            name: item.project.company.name,
+            displayName: item.project.company.displayName,
+          }
+        : null,
     },
   }
 }
@@ -173,7 +182,11 @@ function serializeTimeEntry(entry: {
   workItem: {
     publicId: string
     title: string
-    project: { publicId: string; name: string; company: { publicId: string; name: string; displayName: string | null } | null }
+    project: {
+      publicId: string
+      name: string
+      company: { publicId: string; name: string; displayName: string | null } | null
+    }
   } | null
 }) {
   return {
@@ -182,26 +195,30 @@ function serializeTimeEntry(entry: {
     hours: entry.hours.toString(),
     description: entry.description,
     remarks: entry.remarks,
-    workItem: entry.workItem ? {
-      id: entry.workItem.publicId,
-      title: entry.workItem.title,
-      project: {
-        id: entry.workItem.project.publicId,
-        name: entry.workItem.project.name,
-        company: entry.workItem.project.company ? {
-          id: entry.workItem.project.company.publicId,
-          name: entry.workItem.project.company.name,
-          displayName: entry.workItem.project.company.displayName,
-        } : null,
-      },
-    } : null,
+    workItem: entry.workItem
+      ? {
+          id: entry.workItem.publicId,
+          title: entry.workItem.title,
+          project: {
+            id: entry.workItem.project.publicId,
+            name: entry.workItem.project.name,
+            company: entry.workItem.project.company
+              ? {
+                  id: entry.workItem.project.company.publicId,
+                  name: entry.workItem.project.company.name,
+                  displayName: entry.workItem.project.company.displayName,
+                }
+              : null,
+          },
+        }
+      : null,
   }
 }
 
 export async function getAnalysisSummary(
   ownerId: bigint,
   params: URLSearchParams,
-  database: typeof prisma = prisma,
+  database: Database = defaultDatabase,
   now = new Date(),
 ) {
   const parsed = parseDashboardFilters(params, now)
@@ -214,73 +231,21 @@ export async function getAnalysisSummary(
   const todayDate = currentBangkokCalendarDate(now)
   const today = bangkokDateRange(todayDate)
   if (!today) throw new Error('Bangkok business date is invalid')
-  const workItemSelect = {
-    publicId: true,
-    title: true,
-    kind: true,
-    priority: true,
-    role: true,
-    status: true,
-    workDate: true,
-    dueDate: true,
-    createdAt: true,
-    updatedAt: true,
-    project: {
-      select: {
-        publicId: true,
-        name: true,
-        company: { select: { publicId: true, name: true, displayName: true } },
-      },
-    },
-  } as const
-  const timeEntrySelect = {
-    publicId: true,
-    date: true,
-    hours: true,
-    description: true,
-    remarks: true,
-    workItem: {
-      select: {
-        publicId: true,
-        title: true,
-        project: {
-          select: {
-            publicId: true,
-            name: true,
-            company: { select: { publicId: true, name: true, displayName: true } },
-          },
-        },
-      },
-    },
-  } as const
   const [workItems, timeEntries, companies, projects] = await Promise.all([
-    database.workItem.findMany({
-      where: workItemWhere,
-      select: workItemSelect,
-      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
-    }),
-    database.timeEntry.findMany({
-      where: timeEntryWhere,
-      select: timeEntrySelect,
-      orderBy: [{ date: 'desc' }, { id: 'desc' }],
-    }),
-    database.company.findMany({
-      select: { publicId: true, name: true, displayName: true },
-      orderBy: [{ name: 'asc' }, { id: 'asc' }],
-    }),
-    database.project.findMany({
-      select: { publicId: true, name: true, company: { select: { publicId: true } } },
-      orderBy: [{ name: 'asc' }, { id: 'asc' }],
-    }),
+    workItemStore.list(workItemWhere, syntax('w.updated_at DESC,w.id DESC'), undefined, database),
+    reports.logs(timeEntryWhere, ownerId, database),
+    reports.companies(database),
+    reports.projects({}, database),
   ])
 
   const completed = workItems.filter((item) => item.status === 'completed').length
   const cancelled = workItems.filter((item) => item.status === 'cancelled').length
-  const overdue = workItems.filter((item) =>
-    item.dueDate !== null
-    && dateText(item.dueDate) < todayDate
-    && item.status !== 'completed'
-    && item.status !== 'cancelled',
+  const overdue = workItems.filter(
+    (item) =>
+      item.dueDate !== null &&
+      dateText(item.dueDate) < todayDate &&
+      item.status !== 'completed' &&
+      item.status !== 'cancelled',
   ).length
   const items = workItems.map(serializeWorkItem)
   const entries = timeEntries.map(serializeTimeEntry)
@@ -310,9 +275,18 @@ export async function getAnalysisSummary(
       loggedHours: sumDecimalHours(entries.map((entry) => entry.hours)),
     },
     breakdowns: {
-      status: countBreakdown(items.map((item) => item.status), WORK_ITEM_STATUSES),
-      kind: countBreakdown(items.map((item) => item.kind), WORK_ITEM_KINDS),
-      priority: countBreakdown(items.map((item) => item.priority), WORK_ITEM_PRIORITIES),
+      status: countBreakdown(
+        items.map((item) => item.status),
+        WORK_ITEM_STATUSES,
+      ),
+      kind: countBreakdown(
+        items.map((item) => item.kind),
+        WORK_ITEM_KINDS,
+      ),
+      priority: countBreakdown(
+        items.map((item) => item.priority),
+        WORK_ITEM_PRIORITIES,
+      ),
     },
     loggedHoursByPeriod: groupHours(timeEntries, filters, grouping),
     workItems: items,

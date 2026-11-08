@@ -2,7 +2,7 @@
 
 ## Runtime ที่ยืนยันจาก repository
 
-ระบบรัน Next.js App Router และ Prisma บน PostgreSQL 16 ผ่าน Docker Compose. Node owner gate รับ traffic, ตรวจ Basic credential/Origin แล้ว forward ไปยัง Next.js child ที่ bind กับ `127.0.0.1`; PostgreSQL port ก็ bind กับ loopback. ทุก environment กำหนด `TZ`, `PGTZ` และ database session เป็น `Asia/Bangkok`.
+ระบบรัน Next.js App Router และ pg บน PostgreSQL 16 ผ่าน Docker Compose. Node owner gate รับ traffic, ตรวจ Basic credential/Origin แล้ว forward ไปยัง Next.js child ที่ bind กับ `127.0.0.1`; PostgreSQL port ก็ bind กับ loopback. ทุก environment กำหนด `TZ`, `PGTZ` และ database session เป็น `Asia/Bangkok`.
 
 | Environment | Compose file | App URL default |
 | --- | --- | --- |
@@ -36,7 +36,7 @@ docker compose -f docker-compose.prod.yml up -d --build
 
 ```bash
 docker compose ps
-docker compose logs --tail=100 app postgres migrations
+docker compose logs --tail=100 app postgres database-init
 ```
 
 สำหรับ UAT/Production ให้เพิ่ม `-f docker-compose.uat.yml` หรือ `-f docker-compose.prod.yml` ตามลำดับ. อ่าน [Docker operations](../../process/docker.md) สำหรับ helper commands และ [DB operations](../../process/db.md) สำหรับ backup/restore/seed. ห้ามพิมพ์ raw Compose environment, `.env`, Basic credentials, GitLab token หรือ database URL ลง log/ticket.
@@ -45,8 +45,8 @@ docker compose logs --tail=100 app postgres migrations
 
 | อาการ | จุดตรวจ |
 | --- | --- |
-| App ไม่เริ่ม | app/migrations logs, required environment, host port และ database health |
-| Health เป็น 503 | PostgreSQL health, migrations exit status, session timezone และ DB connection |
+| App ไม่เริ่ม | app/database-init logs, required environment, host port และ database health |
+| Health เป็น 503 | PostgreSQL health, database-init exit status, session timezone และ DB connection |
 | API ตอบ 401 | Basic credential ที่ gate และ owner proof path; ตรวจว่าเข้า endpoint ผ่าน runtime launcher |
 | API ตอบ 503 ตอน resolve owner | ต้อง resolve `User` ได้หนึ่งแถว; ตรวจ `OWNER_USER_ID` และข้อมูล owner โดยไม่แสดง password |
 | เรียก API เขียนแล้วได้ 403 | `Origin` ต้องตรงกับ `APP_ORIGIN`; browser ต้องเข้าผ่าน configured origin |
@@ -54,7 +54,7 @@ docker compose logs --tail=100 app postgres migrations
 
 ## Database startup
 
-Compose รอ PostgreSQL healthy แล้วรัน one-shot `migrations` service ผ่าน schema rollout gate และ `scripts/sql-runtime.mjs apply`. `RUN_SEED` ค่าเริ่มต้นคือ `false`. Gate ปิดการเขียนไว้จนกว่าจะยืนยัน backup/isolated restore หรือฐานข้อมูลว่าง, approval ของ target environment, hash ของ Prisma schema, checksum ของ SQL, revision และ release fingerprint. App เริ่มหลัง migrations สำเร็จ. `reset` และ `force-seed` ถูกปฏิเสธ. ทำ schema/restore operation ตาม [Database Rollout](../../DATABASE_ROLLOUT.md) และ [Issue #33 handbook](../database/issue-33-sql-runtime.md).
+Compose รอ PostgreSQL healthy แล้วรัน one-shot database-init จาก scripts/database/entrypoint.sh. สร้างเฉพาะฐานว่างที่อนุมัติจาก schema.sql; existing schema ที่ไม่ตรงจะถูกปฏิเสธ. RUN_SEED defaults false และใช้ SQL master เท่านั้น. ดู [Database workflow](../../../database/README.md).
 
 ## Background processing
 

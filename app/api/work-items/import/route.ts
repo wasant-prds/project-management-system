@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { workItems } from '@/lib/database/repositories/work-items'
+import { projects } from '@/lib/database/repositories/projects'
 import { shouldStampSubmittedAt } from '@/lib/work-items'
 import { parseWorkItemInput } from '@/lib/work-item-input'
 import { currentBangkokWallClockDate } from '@/lib/bangkok-datetime'
@@ -20,10 +21,7 @@ function getImportRows(body: unknown): unknown[] | null {
 }
 
 function hasErrorCode(error: unknown, code: string) {
-  return typeof error === 'object'
-    && error !== null
-    && 'code' in error
-    && error.code === code
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === code
 }
 
 function rowError(row: number, code: string, message: string, field?: string) {
@@ -32,13 +30,17 @@ function rowError(row: number, code: string, message: string, field?: string) {
 
 function liveRecords() {
   const configured = process.env.OWNER_IDENTITY_MAP?.trim()
-  const filePath = configured && configured.length > 0
-    ? configured
-    : resolve(process.cwd(), 'database/live-identity/mappings.json')
+  const filePath =
+    configured && configured.length > 0
+      ? configured
+      : resolve(process.cwd(), 'database/live-identity/mappings.json')
   return readLiveIdentityFile(filePath)
 }
 
-async function resolveImportReference(value: string | undefined, entityName: string): Promise<{ publicId: string | null } | { error: string }> {
+async function resolveImportReference(
+  value: string | undefined,
+  entityName: string,
+): Promise<{ publicId: string | null } | { error: string }> {
   if (!value) return { publicId: null as string | null }
   const classified = classifyReference(value)
   if (classified.kind === 'rejected') return { error: 'ต้องเป็น public UUID' }
@@ -58,9 +60,17 @@ async function processImportRow(value: unknown, row: number, ownerPublicId: stri
   try {
     const projectRef = await resolveImportReference(input.projectId, 'projects')
     if ('error' in projectRef || !projectRef.publicId) {
-      return { result: rowError(row, 'VALIDATION_ERROR', 'error' in projectRef ? projectRef.error : 'Project not found', 'projectId'), imported: false }
+      return {
+        result: rowError(
+          row,
+          'VALIDATION_ERROR',
+          'error' in projectRef ? projectRef.error : 'Project not found',
+          'projectId',
+        ),
+        imported: false,
+      }
     }
-    const project = await prisma.project.findUnique({ where: { publicId: projectRef.publicId }, select: { id: true } })
+    const project = await projects.byPublicId(projectRef.publicId)
     if (!project) {
       return { result: rowError(row, 'NOT_FOUND', 'Project not found', 'projectId'), imported: false }
     }
@@ -70,23 +80,25 @@ async function processImportRow(value: unknown, row: number, ownerPublicId: stri
       return { result: rowError(row, 'VALIDATION_ERROR', workItemRef.error, 'id'), imported: false }
     }
     if (workItemRef.publicId) {
-      const existing = await prisma.workItem.findUnique({ where: { publicId: workItemRef.publicId }, select: { publicId: true } })
+      const existing = await workItems.byPublicId(workItemRef.publicId)
       if (existing) {
         return {
           result: {
             row,
             outcome: 'skipped',
             workItemId: existing.publicId,
-            error: { code: 'DUPLICATE', message: 'Work Item ID already exists; existing data was left unchanged.' },
+            error: {
+              code: 'DUPLICATE',
+              message: 'Work Item ID already exists; existing data was left unchanged.',
+            },
           },
           imported: false,
         }
       }
     }
 
-    const workItem = await prisma.workItem.create({
-      data: {
-        ...(workItemRef.publicId ? { publicId: workItemRef.publicId } : {}),
+    const workItem = await workItems.import(
+      {
         title: input.title,
         description: input.description,
         kind: input.kind,
@@ -100,19 +112,22 @@ async function processImportRow(value: unknown, row: number, ownerPublicId: stri
         assigneeId: ownerInternalId,
         submittedAt: shouldStampSubmittedAt(input.status) ? currentBangkokWallClockDate() : null,
       },
-      select: { publicId: true },
-    })
+      workItemRef.publicId,
+    )
     return { result: { row, outcome: 'created', workItemId: workItem.publicId }, imported: true }
   } catch (error) {
-    if (hasErrorCode(error, 'P2003')) {
+    if (hasErrorCode(error, '23503')) {
       return { result: rowError(row, 'NOT_FOUND', 'Project not found', 'projectId'), imported: false }
     }
-    if (hasErrorCode(error, 'P2002')) {
+    if (hasErrorCode(error, '23505')) {
       return {
         result: {
           row,
           outcome: 'skipped',
-          error: { code: 'DUPLICATE', message: 'Work Item ID already exists; existing data was left unchanged.' },
+          error: {
+            code: 'DUPLICATE',
+            message: 'Work Item ID already exists; existing data was left unchanged.',
+          },
         },
         imported: false,
       }
@@ -130,7 +145,10 @@ export async function POST(request: Request) {
     try {
       body = await request.json()
     } catch {
-      return NextResponse.json({ error: { code: 'VALIDATION_ERROR', message: 'Request body must be valid JSON' } }, { status: 400 })
+      return NextResponse.json(
+        { error: { code: 'VALIDATION_ERROR', message: 'Request body must be valid JSON' } },
+        { status: 400 },
+      )
     }
 
     const rows = getImportRows(body)

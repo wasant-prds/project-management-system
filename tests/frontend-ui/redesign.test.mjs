@@ -271,27 +271,6 @@ test('TC-27-20 chart dot links have stable period keys, accessible names and unc
   assert.equal(renderToStaticMarkup(renderHoursChartDot({})), '<g></g>')
 })
 
-test('TC-27-21 GitLab PMS Project mapping renders the shared accessible themed Select', () => {
-  const source = readFileSync(`${root}/components/page/work-items/gitlab-import-panel.tsx`, 'utf8')
-  const selectSource = readFileSync(`${root}/components/ui/select.tsx`, 'utf8')
-  const { GitLabImportPanel } = load('components/page/work-items/gitlab-import-panel.tsx')
-  const html = render(GitLabImportPanel, {
-    projects: [{ id: 'project-1', name: 'Project Alpha' }, { id: 'project-2', name: 'Project Beta' }],
-    onSynced: async () => {},
-  })
-
-  assert.doesNotMatch(source, /<select\b|<option\b/)
-  assert.match(html, /role="combobox"/)
-  assert.match(html, /id="gitlab-pms-project"/)
-  assert.match(html, /aria-labelledby="gitlab-pms-project-label"/)
-  assert.match(html, /aria-required="true"/)
-  assert.match(html, /เลือก Project/)
-  assert.match(html, /surface-inset[^\"]*rounded-md[^\"]*border[^\"]*bg-input/)
-  assert.match(selectSource, /bg-popover text-popover-foreground/)
-  assert.match(selectSource, /focus:bg-accent focus:text-accent-foreground/)
-  assert.match(selectSource, /max-h-\(--radix-select-content-available-height\)/)
-})
-
 test('TC-27-22 Board Work Item detail uses the same responsive width shell as Work Items dialogs', () => {
   const pass = (tag) => function MockElement({ children, ...props }) {
     return React.createElement(tag, props, children)

@@ -53,9 +53,9 @@ function makeHarness(options = {}) {
       update: async (query) => {
         calls.writes.push(query)
         if (options.writeFailure) throw options.writeFailure
-        if (query.where.id !== user.id) throw { code: 'P2025' }
+        if (query.where.id !== user.id) throw { code: 'P0002' }
         if (query.data.email && query.data.email !== user.email && options.duplicateEmail) {
-          throw { code: 'P2002', message: 'private unique failure details' }
+          throw { code: '23505', message: 'private unique failure details' }
         }
         Object.assign(user, query.data)
         return { ...user }
@@ -64,7 +64,7 @@ function makeHarness(options = {}) {
   }
   const input = loadTypeScript('../../lib/settings-input.ts', {})
   const service = loadTypeScript('../../lib/settings.ts', {
-    '@/lib/db': { prisma: database },
+    '@/lib/database/repositories/users': { users: { byId: (id) => database.user.findUnique({ where:{ id } }), update: (id,data) => database.user.update({ where:{ id },data }) } },
     '@/lib/settings-input': input,
   })
   const response = {
@@ -171,7 +171,7 @@ test('PATCH persists profile and preferences for server-resolved owner and GET r
     name: 'New Owner',
     email: 'new@example.test',
     phone: '+66 80 000 0000',
-    theme: 'special_dark',
+    theme: 'special-dark',
     locale: 'en',
   })
 
@@ -233,7 +233,7 @@ test('settings returns not found and dependency errors as safe API envelopes', a
   assert.equal(missingWriteResponse.status, 404)
   assert.equal(missingWriteResponse.body.error.code, 'NOT_FOUND')
 
-  const unavailable = makeHarness({ readFailure: { code: 'P1001', message: 'private database endpoint' } })
+  const unavailable = makeHarness({ readFailure: { code: 'ECONNREFUSED', message: 'private database endpoint' } })
   const unavailableResponse = await unavailable.route.GET()
   assert.equal(unavailableResponse.status, 503)
   assert.equal(unavailableResponse.body.error.code, 'DEPENDENCY_UNAVAILABLE')

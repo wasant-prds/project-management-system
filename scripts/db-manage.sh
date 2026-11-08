@@ -72,7 +72,7 @@ run_seed_mode() {
   compose run --rm --no-deps \
     --name "pms-db-${mode}-${DB_SITE}-$$" \
     -e "DB_MANAGE_MODE=$mode" \
-    --entrypoint sh migrations -c 'sh scripts/docker-entrypoint-migrate.sh'
+    --entrypoint sh database-init -c 'sh scripts/database/entrypoint.sh'
 }
 
 require_container() {
@@ -183,7 +183,7 @@ seed() {
     return 1
   fi
 
-  print_info "Running Prisma seed for APP_ENV=$DB_SITE..."
+  print_info "Running SQL seed for APP_ENV=$DB_SITE..."
   run_seed_mode seed
 }
 
@@ -206,12 +206,11 @@ usage() {
   echo "  reset        Refused. Does not delete the selected site"
   echo "  backup       Back up selected site's database"
   echo "  restore      Rehearse custom archive in an isolated disposable database"
-  echo "  verify-rollout <archive> <stage>  Check staged rollout and exact history"
-  echo "  health       Check app, PostgreSQL, migration completion and /api/health"
+  echo "  health       Check app, PostgreSQL, database initialization and /api/health"
   echo "  prune-backups Remove expired verified backups, preserving newest/pinned"
   echo "  connect      Connect to selected site's database (psql)"
   echo "  logs         Show selected site's PostgreSQL logs"
-  echo "  seed         Run Prisma seed against the configured DATABASE_URL"
+  echo "  seed         Run SQL seed against the configured DATABASE_URL"
   echo "  force-seed   Refused. Does not delete data or force a reseed"
   echo
 }
@@ -219,11 +218,10 @@ usage() {
 case "${1:-}" in
   status) status ;;
   reset) reset ;;
-  backup) node scripts/db-rollout.mjs backup ;;
-  restore) node scripts/db-rollout.mjs rehearse "${2:-}" ;;
-  verify-rollout) node scripts/db-rollout.mjs verify "${2:-}" "${3:-}" ;;
-  health) node scripts/db-rollout.mjs health ;;
-  prune-backups) node scripts/db-rollout.mjs prune ;;
+  backup) node scripts/database/backup.mjs backup ;;
+  restore) node scripts/database/backup.mjs rehearse "${2:-}" ;;
+  health) node scripts/database/backup.mjs health ;;
+  prune-backups) node scripts/database/backup.mjs prune ;;
   connect) connect ;;
   logs) logs ;;
   seed) seed ;;

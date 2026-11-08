@@ -46,17 +46,6 @@ case "$1" in
     echo "To view logs: bash scripts/docker-dev.sh logs"
     ;;
     
-  start-studio)
-    echo -e "${GREEN}Starting development with Prisma Studio...${NC}"
-    compose --profile studio up -d
-    echo ""
-    echo -e "${GREEN}✅ Development environment with Prisma Studio is running!${NC}"
-    echo ""
-    echo "📱 Application: http://localhost:3000"
-    echo "🎨 Prisma Studio: http://localhost:5555"
-    echo "🗄️  PostgreSQL: localhost:5432"
-    ;;
-    
   stop)
     echo -e "${YELLOW}Stopping development services...${NC}"
     compose down
@@ -108,7 +97,6 @@ case "$1" in
     echo ""
     echo "Available commands:"
     echo "  start         - Start development environment"
-    echo "  start-studio  - Start with Prisma Studio"
     echo "  stop          - Stop all services"
     echo "  restart       - Restart all services"
     echo "  logs          - View all logs"

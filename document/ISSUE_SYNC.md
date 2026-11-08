@@ -12,7 +12,7 @@
 
 `issue_sync_configs` เป็นตารางใหม่สำหรับ assignees, `token_env_var`, enabled, source path, revision และ lease; เชื่อม numeric FK กับ `external_project_mappings`. ใช้ mapping และ external identity เดิมเพื่อไม่สร้าง Work Item ซ้ำเมื่อเพิ่ม config ให้ mapping เก่า. `issue_sync_runs` เก็บ config snapshot ที่ไม่มี secret, start/finish, lifecycle, counts, per-issue outcomes/warnings และ run-level error. ทุกตารางมี internal BIGINT identity และ immutable database-generated UUIDv4; API ใช้ public UUID เท่านั้น. วันที่และ timestamps ในฐานข้อมูลเป็น Asia/Bangkok wall-clock และ API timestamps ใช้ `+07:00`.
 
-ชื่อ Prisma fields เดิม เช่น `GitLabProjectMapping.gitLabProjectId` และ `ExternalWorkItemReference.gitLabGlobalIssueId` ยังคงไว้เพื่อ compatibility; SQL columns เป็น provider-neutral `external_project_id` และ `external_issue_id` อยู่แล้ว. GitHub ใช้ stable numeric repository ID ที่ API ส่งมาเป็น source text identity; `owner/repository` ใช้เรียก API และต้อง resolve ID ตรงเดิมก่อนทุก run. เปลี่ยนชื่อ/ย้ายต้นทางแล้วเกิด redirect จะหยุดอย่างปลอดภัย ให้ผู้ดูแลตรวจ mapping ก่อนแก้ด้วยขั้นตอนที่ review แล้ว.
+Repository fields ใช้ชื่อกลาง instanceUrl, externalProjectId, externalIssueId และ externalIssueNumber สำหรับทั้งสอง provider. Source identity ถูกตรวจใหม่ทุก run; การเปลี่ยนชื่อ/ย้ายต้นทางที่ redirect ต้องตรวจ mapping ก่อน.
 
 ## Credentials
 
@@ -61,7 +61,7 @@ Source writes และ per-issue history checkpoint commit ใน Serializable 
 
 `POST /api/integrations/gitlab/sync` เดิมถูกปิดด้วย `409 PROJECT_SYNC_REQUIRED` หลังตรวจ owner; ไม่มี unfiltered fallback. Mapping เดิมยังเก็บไว้ และเพิ่ม config จากหน้า Project ด้วย source เดิมเพื่อใช้ histories เดิม. ก่อนมี config และ assignees จะ sync ไม่ได้.
 
-`database/schema.sql` เป็น schema หลักฉบับล่าสุด รวมสองตารางและ `in_scope` แล้ว. Baseline เดิมเก็บใน `database/migrations/0001_initial_schema.sql` โดยคง checksum เดิม; migration additive `0002_issue_sync.sql` และ `0003_issue_sync_token_env.sql` ใช้อัปเกรดฐานเดิมโดยไม่สร้าง business rows หรือ regenerate UUIDs. Empty bootstrap สร้างจาก schema หลักและบันทึก migration history ภายใน transaction เดียว ส่วนฐานข้อมูลที่มี history รันเฉพาะ pending migrations. ดู [SQL migration history](../database/migrations/README.md). ฐาน Docker local `pms-postgres-prod` apply `0002` แล้วหลัง verified backup/restore และ rehearsal ตามคำอนุญาตของเจ้าของ; ดูหลักฐานใน `database/rollout/issue-sync-live-migration.json`. ไม่ได้ seed หรือทดสอบด้วย token จริง. การ rollout ครั้งถัดไปยังต้อง fresh verified baseline/backup และ explicit approval ตาม [Database Rollout](./DATABASE_ROLLOUT.md).
+`database/schema.sql` เป็น DDL หลักเพียงไฟล์เดียว. Fresh initialization ใช้ scripts/database/initialize.mjs; ไม่ใช้ migration history เดิม. ฐานใช้งานจริงไม่มีการ reset/upgrade ใน case cleanup นี้. ดู [Database workflow](../database/README.md); live cutover ต้องมี verified baseline และ approval แยก.
 
 ## Verification
 

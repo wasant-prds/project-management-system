@@ -6,7 +6,7 @@ alwaysApply: true
 # Core product
 
 - Single-owner Project Management System. Modular Next.js monolith — no new microservice or framework swap.
-- Stack: Next.js App Router, Route Handlers, Prisma, PostgreSQL 16, Docker Compose.
+- Stack: Next.js App Router, Route Handlers, pg repositories, PostgreSQL 16, Docker Compose.
 - Eight menus: `/` Dashboard, `/projects`, `/work-items`, `/board`, `/analysis`, `/daily-work`, `/company`, `/settings`. Do not treat `/tasks` or `/issues` as a second source of truth.
 - Thai-first UI, docs, and chat. Keep English system terms (WorkItem, TimeEntry, Company, Project).
 - System default time zone in every environment, including application and database sessions, is `Asia/Bangkok`. Persist every date and timestamp using Bangkok calendar/wall-clock semantics; do not convert stored values to UTC.

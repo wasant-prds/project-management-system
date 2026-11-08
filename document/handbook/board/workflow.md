@@ -122,5 +122,5 @@ pnpm test:auth
 - [Project collection handler](../../../app/api/projects/route.ts)
 - [Shared WorkItem parser](../../../lib/work-item-input.ts)
 - [Owner resolver](../../../lib/owner.ts)
-- [Prisma schema](../../../prisma/schema.prisma)
+- [SQL schema](../../../database/schema.sql)
 - [Board unit tests](../../../tests/board/workflow.test.mjs)
