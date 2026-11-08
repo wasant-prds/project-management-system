@@ -10,26 +10,29 @@
 
 ใช้ Next.js Route Handlers, `lib/issue-sync.ts` และ provider adapters ใน `lib/issue-sync-provider.ts` เรียก REST APIs ด้วย GET เท่านั้น. ไม่ต้องเพิ่มบริการภายนอกสำหรับขอบเขตไม่เกิน 1,000 issues ต่อ config. ปุ่ม Sync ทั้ง Project เรียก configs ที่เปิดใช้ตามลำดับ; ผลแต่ละ config มี run history แยกกัน. รอบหนึ่งมี provider request budget 90 วินาที, request timeout สูงสุด 15 วินาที และ retry network/5xx/short rate limits สูงสุดสาม attempts. `Retry-After` ที่ยาวกว่า 2 วินาทีจะจบรอบให้ retry ภายหลังแทนการส่งคำขอก่อนกำหนด. งานที่ commit แล้วไม่ rollback เพราะหน้าถัดไปล้มเหลว.
 
-`issue_sync_configs` เป็นตารางใหม่สำหรับ assignees, `credential_ref`, enabled, source path, revision และ lease; เชื่อม numeric FK กับ `external_project_mappings`. ใช้ mapping และ external identity เดิมเพื่อไม่สร้าง Work Item ซ้ำเมื่อเพิ่ม config ให้ mapping เก่า. `issue_sync_runs` เก็บ config snapshot ที่ไม่มี secret, start/finish, lifecycle, counts, per-issue outcomes/warnings และ run-level error. ทุกตารางมี internal BIGINT identity และ immutable database-generated UUIDv4; API ใช้ public UUID เท่านั้น. วันที่และ timestamps ในฐานข้อมูลเป็น Asia/Bangkok wall-clock และ API timestamps ใช้ `+07:00`.
+`issue_sync_configs` เป็นตารางใหม่สำหรับ assignees, `token_env_var`, enabled, source path, revision และ lease; เชื่อม numeric FK กับ `external_project_mappings`. ใช้ mapping และ external identity เดิมเพื่อไม่สร้าง Work Item ซ้ำเมื่อเพิ่ม config ให้ mapping เก่า. `issue_sync_runs` เก็บ config snapshot ที่ไม่มี secret, start/finish, lifecycle, counts, per-issue outcomes/warnings และ run-level error. ทุกตารางมี internal BIGINT identity และ immutable database-generated UUIDv4; API ใช้ public UUID เท่านั้น. วันที่และ timestamps ในฐานข้อมูลเป็น Asia/Bangkok wall-clock และ API timestamps ใช้ `+07:00`.
 
 ชื่อ Prisma fields เดิม เช่น `GitLabProjectMapping.gitLabProjectId` และ `ExternalWorkItemReference.gitLabGlobalIssueId` ยังคงไว้เพื่อ compatibility; SQL columns เป็น provider-neutral `external_project_id` และ `external_issue_id` อยู่แล้ว. GitHub ใช้ stable numeric repository ID ที่ API ส่งมาเป็น source text identity; `owner/repository` ใช้เรียก API และต้อง resolve ID ตรงเดิมก่อนทุก run. เปลี่ยนชื่อ/ย้ายต้นทางแล้วเกิด redirect จะหยุดอย่างปลอดภัย ให้ผู้ดูแลตรวจ mapping ก่อนแก้ด้วยขั้นตอนที่ review แล้ว.
 
 ## Credentials
 
-ตั้งค่า registry ฝั่ง server ด้วย `ISSUE_SYNC_CREDENTIALS`; config ในฐานข้อมูลเก็บเฉพาะชื่อ entry. ตัวอย่างใช้ placeholders เท่านั้น:
+แต่ละ row ใน `issue_sync_configs.token_env_var` กำหนดชื่อตัวแปรที่เก็บ token จริงใน root `.env` โดยตรง. Provider และ instance URL อยู่ใน mapping ของ row นั้น; ไม่มี JSON credential registry และไม่เก็บ token จริงใน DB, request body, DTO, run snapshot หรือ logs.
 
 ```dotenv
-ISSUE_SYNC_CREDENTIALS='{"work-gitlab":{"provider":"gitlab","baseUrl":"https://gitlab.example.com","tokenEnv":"GITLAB_TOKEN"},"work-github":{"provider":"github","baseUrl":"https://github.com","tokenEnv":"GITHUB_TOKEN"}}'
-GITLAB_BASE_URL=https://gitlab.example.com
-GITLAB_TOKEN=<provision-on-server>
-GITHUB_TOKEN=<provision-on-server>
+GITLAB_PROJECT_A_TOKEN=<provision-token-A-on-server>
+GITLAB_PROJECT_B_TOKEN=<provision-token-B-on-server>
+GITHUB_PROJECT_C_TOKEN=<provision-token-C-on-server>
 ```
 
-ใช้ token ที่อ่าน project และ issues ได้ เช่น GitLab `read_api` และ GitHub fine-grained PAT ที่เลือก repository กับ Issues: read. ไม่ส่ง token เข้า browser, body, response, run snapshot หรือ log. Registry ที่ส่งให้ UI มีเพียง ref, provider และ instance URL. Frontend เลือกได้เฉพาะ credentials ที่ operator เตรียมไว้; client เลือก arbitrary host พร้อม token ไม่ได้.
+ตัวอย่าง row A ใช้ `token_env_var=GITLAB_PROJECT_A_TOKEN` กับ GitLab instance A; row B ใช้ `GITLAB_PROJECT_B_TOKEN` กับ GitLab อีก instance; row C ใช้ `GITHUB_PROJECT_C_TOKEN` กับ GitHub.com. หลาย rows ใช้ชื่อตัวแปรเดียวกันได้เมื่อต้องการใช้ token ร่วมกัน. เมื่อเพิ่ม row ที่ใช้ token ใหม่ ให้เพิ่มตัวแปรชื่อตรงกันใน `.env`; ไม่ต้องแก้ Compose หรือ config registry. SQL ตัวอย่างอยู่ใน `database/seeds/sql-master/120_issue_sync_configs.sql` และยังไม่ลงทะเบียนใน checksummed seed manifest.
 
-หลาย tokens สามารถใช้ตัวแปรอื่น เช่น `WORK_GITLAB_TOKEN` และ `OTHER_GITHUB_TOKEN`. Local runtime รับจาก server environment; Docker เพิ่มตัวแปรเหล่านี้ใน deployment override เฉพาะ app service. Compose กลางส่ง `ISSUE_SYNC_CREDENTIALS`, `GITHUB_TOKEN` และ GitLab variables เดิมให้ app แล้ว.
+ชื่อตัวแปรยาวไม่เกิน 128 ตัวอักษร ใช้อักษรใหญ่/ตัวเลข/underscore, ขึ้นต้น `GITLAB_`, `GITHUB_` หรือ `ISSUE_SYNC_` และลงท้าย `TOKEN` หรือ `TOKEN_ชื่อเพิ่มเติม` เช่น `GITLAB_TEAM_TOKEN`, `GITHUB_TOKEN_PROJECT_A`, `ISSUE_SYNC_TOKEN_TEAM_B`. จำกัดชื่อสำหรับ token ของ feature นี้เพื่อไม่ให้ config อ้าง `OWNER_GATE_PASSWORD`, `DATABASE_URL`, Cloudflare credentials หรือ `NEXT_PUBLIC_*`. Runtime launcher redact ทุกตัวแปรตามรูปแบบนี้โดยไม่ต้องอ่าน DB.
 
-สำหรับ Docker secrets ใช้ registry `tokenFileEnv` แทน `tokenEnv` เช่น `{"work":{"provider":"gitlab","baseUrl":"https://gitlab.example.com","tokenFileEnv":"WORK_SYNC_SECRET_FILE"}}`; operator mount secret แบบ read-only และตั้ง `WORK_SYNC_SECRET_FILE=/run/secrets/work_sync_token` ใน app service. เลือกได้อย่างใดอย่างหนึ่งต่อ entry. ไม่เก็บ file contents ในฐานข้อมูล และห้ามใช้ `NEXT_PUBLIC_*`. การหมุน token ใช้ชื่อ ref เดิมจึงไม่เปลี่ยน source identities. Runtime launcher redact token values รวม custom registry entries และ mounted secret contents.
+ใช้ token ที่อ่าน project และ issues ได้ เช่น GitLab `read_api` และ GitHub fine-grained PAT ที่เลือก repository กับ Issues: read. Server ตรวจ HTTPS URL และยอมรับเฉพาะ GitHub.com สำหรับ GitHub; GitLab host มาจาก mapping ที่ owner กำหนด. ทุก request ผูกกับ instance ของ config และไม่ตาม redirects. Config ที่ไม่มีตัวแปร/ค่า token พร้อมใช้จะล้มเหลวก่อนส่ง request ไป provider.
+
+Local runtime อ่าน root `.env`. Docker app รับตัวแปรจาก root `.env` ผ่าน `env_file` อัตโนมัติและยังคง internal port 3000; หากใช้ไฟล์ environment อื่น ให้ตั้ง `PMS_ENV_FILE` เป็น path ของไฟล์นั้นพร้อม `--env-file`. หลังเพิ่มหรือหมุน token ให้ recreate app เพื่อโหลด environment ใหม่. Token อยู่เฉพาะ runtime ไม่ถูก COPY เข้า image หรือ browser bundle. ชื่อตัวแปรใน DB คงเดิมได้เมื่อหมุนค่า token จึงไม่เปลี่ยน source identity หรือ public UUID.
+
+Migration `0003_issue_sync_token_env.sql` เปลี่ยนจาก credential reference เป็น `token_env_var` โดยคง config IDs, mappings, Work Items และ historical run snapshots. Config เดิมถูกหยุด, ล้าง lease, เพิ่ม revision และ reset first-sync approval; ชื่อตัวแปรเป็น NULL จน operator กำหนดเอง เพราะไม่สามารถเดาว่า credential เดิมผูกกับ token ไหน. รอบที่ยัง running ถูกจบเป็น failed พร้อมเหตุผล setup required โดยรักษา counts/results/snapshot. ตั้งชื่อตัวแปรที่ถูกต้องและเปิด config ใหม่ก่อน approve sync ครั้งแรก. NULL อนุญาตเฉพาะ config ที่หยุด.
 
 ## การอัปเดตและรักษาประวัติ
 
@@ -44,9 +47,9 @@ GITHUB_TOKEN=<provision-on-server>
 
 ทุก route ใช้ owner authentication เดิม, ตรวจ public UUIDv4 และตรวจว่า config อยู่ภายใน Project ใน URL. Reject unknown fields รวม token, internal IDs และ client-chosen public IDs.
 
-- `GET /api/projects/{projectId}/issue-sync`: configs, credential choices ที่ไม่มี secret และ mapping เดิมที่ยังไม่มี config.
-- `POST /api/projects/{projectId}/issue-sync`: create/adopt source mapping โดยรับ `provider`, `instanceUrl`, `sourceProject`, `assignees`, `credentialRef`, `approvedLabelMap` optional. Resolve stable source identity บน server; คืน 201.
-- `PATCH /api/projects/{projectId}/issue-sync/{configId}`: แก้ `assignees`, `credentialRef`, `approvedLabelMap`, `enabled`. เปลี่ยน filter/labels/credential จะ reset first-sync approval. ไม่ย้าย source หรือ PMS destination ผ่าน route นี้.
+- `GET /api/projects/{projectId}/issue-sync`: configs พร้อมชื่อตัวแปร token และ mapping เดิมที่ยังไม่มี config; ไม่ enumerate server environment หรือส่งรายชื่อ credentials.
+- `POST /api/projects/{projectId}/issue-sync`: create/adopt source mapping โดยรับ `provider`, `instanceUrl`, `sourceProject`, `assignees`, `tokenEnvVar`, `approvedLabelMap` optional. Resolve stable source identity บน server; คืน 201.
+- `PATCH /api/projects/{projectId}/issue-sync/{configId}`: แก้ `assignees`, `tokenEnvVar`, `approvedLabelMap`, `enabled`. เปลี่ยน filter/labels/token variable จะ reset first-sync approval. ไม่ย้าย source หรือ PMS destination ผ่าน route นี้.
 - `POST /api/projects/{projectId}/issue-sync/{configId}/sync`: รับเฉพาะ `approveFirstSync` boolean optional. ครั้งแรกหรือหลังเปลี่ยน policy ต้องเป็น true. คืน run DTO; ให้ตรวจ status/counts/runError แม้ HTTP 200 เพราะอาจเป็น partial หรือ failed run.
 - `GET /api/projects/{projectId}/issue-sync/{configId}/runs?limit=10&before={runPublicUuid}`: ประวัติเรียงใหม่ไปเก่า, limit 1–50, nextBefore เป็น public UUID ที่ resolve เฉพาะ config เดียวกัน ไม่ส่ง internal cursor.
 
@@ -58,7 +61,7 @@ Source writes และ per-issue history checkpoint commit ใน Serializable 
 
 `POST /api/integrations/gitlab/sync` เดิมถูกปิดด้วย `409 PROJECT_SYNC_REQUIRED` หลังตรวจ owner; ไม่มี unfiltered fallback. Mapping เดิมยังเก็บไว้ และเพิ่ม config จากหน้า Project ด้วย source เดิมเพื่อใช้ histories เดิม. ก่อนมี config และ assignees จะ sync ไม่ได้.
 
-`database/schema.sql` เป็น schema หลักฉบับล่าสุด รวมสองตารางและ `in_scope` แล้ว. Baseline เดิมเก็บใน `database/migrations/0001_initial_schema.sql` โดยคง checksum เดิม; migration additive `0002_issue_sync.sql` ใช้อัปเกรดฐานเดิมโดยไม่สร้าง business rows หรือ regenerate UUIDs. Empty bootstrap สร้างจาก schema หลักและบันทึก migration history ภายใน transaction เดียว ส่วนฐานข้อมูลที่มี history รันเฉพาะ pending migrations. ดู [SQL migration history](../database/migrations/README.md). ฐาน Docker local `pms-postgres-prod` apply `0002` แล้วหลัง verified backup/restore และ rehearsal ตามคำอนุญาตของเจ้าของ; ดูหลักฐานใน `database/rollout/issue-sync-live-migration.json`. ไม่ได้ seed หรือทดสอบด้วย token จริง. การ rollout ครั้งถัดไปยังต้อง fresh verified baseline/backup และ explicit approval ตาม [Database Rollout](./DATABASE_ROLLOUT.md).
+`database/schema.sql` เป็น schema หลักฉบับล่าสุด รวมสองตารางและ `in_scope` แล้ว. Baseline เดิมเก็บใน `database/migrations/0001_initial_schema.sql` โดยคง checksum เดิม; migration additive `0002_issue_sync.sql` และ `0003_issue_sync_token_env.sql` ใช้อัปเกรดฐานเดิมโดยไม่สร้าง business rows หรือ regenerate UUIDs. Empty bootstrap สร้างจาก schema หลักและบันทึก migration history ภายใน transaction เดียว ส่วนฐานข้อมูลที่มี history รันเฉพาะ pending migrations. ดู [SQL migration history](../database/migrations/README.md). ฐาน Docker local `pms-postgres-prod` apply `0002` แล้วหลัง verified backup/restore และ rehearsal ตามคำอนุญาตของเจ้าของ; ดูหลักฐานใน `database/rollout/issue-sync-live-migration.json`. ไม่ได้ seed หรือทดสอบด้วย token จริง. การ rollout ครั้งถัดไปยังต้อง fresh verified baseline/backup และ explicit approval ตาม [Database Rollout](./DATABASE_ROLLOUT.md).
 
 ## Verification
 

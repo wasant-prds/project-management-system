@@ -34,7 +34,7 @@ export function loader(mocks = {}, globals = {}) {
 export function fixture(provider = 'gitlab') {
   const sourceProjectPath = provider === 'github' ? 'acme/repo' : 'group/project'
   return {
-    id: 50n, publicId: uuid(50), mappingId: 40n, sourceProjectPath, assignees: ['alice', 'bob'], credentialRef: 'work', enabled: true,
+    id: 50n, publicId: uuid(50), mappingId: 40n, sourceProjectPath, assignees: ['alice', 'bob'], tokenEnvVar: 'GITLAB_WORK_TOKEN', enabled: true,
     revision: 0, leaseUntil: null, leaseToken: null, createdAt: new Date('2026-10-01T12:00:00Z'), updatedAt: new Date('2026-10-01T12:00:00Z'),
     mapping: { id: 40n, publicId: uuid(40), provider, canonicalGitLabInstanceUrl: provider === 'github' ? 'https://github.com' : 'https://gitlab.example.test/base',
       gitLabProjectId: '42', projectId: 20n, approvedLabelMap: { bug: 'bug' }, firstSyncApprovedAt: new Date('2026-10-01T12:00:00Z'),

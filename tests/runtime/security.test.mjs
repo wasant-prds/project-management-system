@@ -56,7 +56,7 @@ test('missing, invalid, ambiguous and public credentials fail closed', () => {
   for (const change of [
     { APP_ENV: 'other' }, { OWNER_GATE_PASSWORD: '' }, { OWNER_GATE_PASSWORD: '<replace-password>' },
     { OWNER_GATE_USERNAME: 'user:name' }, { TZ: 'UTC' }, { APP_ORIGIN: 'http://public.example.test' },
-    { APP_ORIGIN: 'https://user:password@example.test' }, { GITLAB_TOKEN: '' },
+    { APP_ORIGIN: 'https://user:password@example.test' },
     { GITLAB_BASE_URL: 'http://gitlab.example.test' }, { GITLAB_BASE_URL: 'https://user:password@example.test' },
     { GITLAB_BASE_URL: 'https://example.test?token=secret' }, { GITLAB_TOKEN: 'bad\nheader' },
     { NEXT_PUBLIC_GITLAB_TOKEN: 'must-not-be-public' }, { OWNER_GATE_PASSWORD_FILE: '/missing' }, { DATABASE_URL: 'invalid' },
@@ -68,6 +68,8 @@ test('environment values preserve characters and reject removed secret-file sett
   assert.equal(loadRuntimeConfig({ ...fixture(), OWNER_GATE_PASSWORD: value }).OWNER_GATE_PASSWORD, value);
   assert.throws(() => loadRuntimeConfig({ ...fixture(), GITLAB_TOKEN_FILE: '/unused' }), /no longer supported/);
   assert.equal(safeRuntimeSummary(loadRuntimeConfig({ ...fixture(), GITLAB_BASE_URL: '', GITLAB_TOKEN: '' })).gitlab, 'disabled');
+  assert.equal(loadRuntimeConfig({ ...fixture(), GITLAB_BASE_URL: '', GITLAB_TOKEN: 'synthetic-row-token' }).GITLAB_TOKEN, 'synthetic-row-token');
+  assert.equal(loadRuntimeConfig({ ...fixture(), GITLAB_TOKEN: '' }).GITLAB_TOKEN, '');
 });
 
 test('real HTTP protects pages/APIs and mutations, strips credentials, rejects bypass and WebSocket abuse', async (t) => {
@@ -146,7 +148,8 @@ test('deployment, generic health and reusable runner regressions', async () => {
   }
   const shared = await read('docker-compose.database.yml');
   assert.match(shared, /127\.0\.0\.1:\$\{POSTGRES_PORT/); assert.match(shared, /TZ: Asia\/Bangkok/);
-  assert.match(shared, /OWNER_GATE_PASSWORD: \$\{OWNER_GATE_PASSWORD/); assert.doesNotMatch(shared, /secrets:|_FILE|RUNTIME_SECRETS_DIR/);
+  assert.match(shared, /OWNER_GATE_PASSWORD: \$\{OWNER_GATE_PASSWORD/); assert.doesNotMatch(shared, /secrets:|\b(?:OWNER_GATE_PASSWORD|GITLAB_TOKEN|DATABASE_URL)_FILE|RUNTIME_SECRETS_DIR/);
+  assert.match(shared, /env_file:/);
   assert.match(await read('.dockerignore'), /\r?\nsecrets\r?\n/); assert.match(await read('.gitignore'), /\/secrets\/\*\*\/\*\.txt/);
   assert.match(await read('Dockerfile'), /COPY scripts\/runtime-\*\.mjs scripts\/owner-gate\.mjs/);
   assert.match(await read('scripts/docker-entrypoint-app.sh'), /exec node \/app\/scripts\/runtime-launch.mjs/);

@@ -20,7 +20,7 @@ test('production image enforces owner gate and excludes secrets from client, res
     const folder = await mkdtemp(join(tmpdir(), 'pms-app-secrets-'));
     const token = 'synthetic-container-gitlab-token'; const password = 'synthetic-container-owner-password-more-than-32';
     try {
-      await writeFile(join(folder, '.env'), `APP_ENV=prod\nAPP_ORIGIN=http://localhost:3000\nRUNTIME_DOCKER=true\nPOSTGRES_HOST=127.0.0.1\nPOSTGRES_USER=postgres\nPOSTGRES_PASSWORD=synthetic\nPOSTGRES_DB=postgres\nOWNER_GATE_USERNAME=owner\nOWNER_GATE_PASSWORD=${password}\nGITLAB_TOKEN=${token}\nGITLAB_BASE_URL=https://gitlab.example.test\n`);
+      await writeFile(join(folder, '.env'), `APP_ENV=prod\nAPP_ORIGIN=http://localhost:3000\nRUNTIME_DOCKER=true\nPOSTGRES_HOST=127.0.0.1\nPOSTGRES_USER=postgres\nPOSTGRES_PASSWORD=synthetic\nPOSTGRES_DB=postgres\nOWNER_GATE_USERNAME=owner\nOWNER_GATE_PASSWORD=${password}\nGITLAB_TOKEN=${token}\n`);
       assert.equal(docker(['image', 'inspect', image, '--format', '{{.Config.User}}']).trim(), 'nextjs');
       const start = (network) => docker(['run', '--rm', '-d', '--name', name, '--network', network, '--env-file', join(folder, '.env'), image]);
       start('none');

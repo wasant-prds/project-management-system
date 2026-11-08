@@ -61,7 +61,7 @@ test('schema rollout gate computes the current release instead of reading SHA-25
 test('schema rollout approval rejects an inconsistent migration set', () => {
   const laterMigration = {
     ...contract,
-    migrations: [...contract.migrations, { version: '0002', script: 'database/migrations/0002_review.sql', checksum: 'a'.repeat(64) }],
+    migrations: [...contract.migrations, { version: '0004', script: 'database/migrations/0004_review.sql', checksum: 'a'.repeat(64) }],
     migrationSetSha256: 'b'.repeat(64),
   };
   assert.match(schemaRolloutGateError(approvedEnv, schemaHash, laterMigration), /ordered SQL migration set/);
@@ -80,9 +80,11 @@ test('current SQL artifacts are accepted after a migration is added', async () =
     await writeFile(join(root, 'database', 'migrations', 'manifest.json'), JSON.stringify(manifest, null, 2));
     const initial = loadSqlContract(root);
     const script = 'SELECT 1;\n';
-    await writeFile(join(root, 'database', 'migrations', '0003_review.sql'), script);
+    const version = String(Number(manifest.migrations.at(-1).version) + 1).padStart(4, '0');
+    const scriptPath = `database/migrations/${version}_review.sql`;
+    await writeFile(join(root, scriptPath), script);
     manifest.migrations.push({
-      version: '0003', name: 'review', kind: 'sql', script: 'database/migrations/0003_review.sql',
+      version, name: 'review', kind: 'sql', script: scriptPath,
       checksum: sha256(Buffer.from(script)),
     });
     await writeFile(join(root, 'database', 'migrations', 'manifest.json'), JSON.stringify(manifest, null, 2));
@@ -196,7 +198,7 @@ test('pending upgrades require a verified receipt and an empty database can boot
     const empty = runtimeQuery({ history: 'f' });
     const bootstrapped = applyApprovedSchema({ env, query: empty.query, targetLabel: 'uat', approvalPath });
     assert.equal(bootstrapped.action, 'empty-bootstrap');
-    assert.deepEqual(bootstrapped.applied, ['0001', '0002']);
+    assert.deepEqual(bootstrapped.applied, ['0001', '0002', '0003']);
     const bootstrapSql = empty.calls.find((sql) => sql.startsWith('BEGIN'));
     assert.match(bootstrapSql, /CREATE TABLE "issue_sync_configs"/);
     assert.match(bootstrapSql, /CREATE TABLE "issue_sync_runs"/);

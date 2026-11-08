@@ -47,7 +47,7 @@ test('effective Dev/UAT/Production Compose has loopback ports, secrets and timez
   try {
     const envPath = join(folder, '.env');
     for (const [site, file, port] of [['dev', 'docker-compose.yml', 3777], ['uat', 'docker-compose.uat.yml', 3001], ['prod', 'docker-compose.prod.yml', 3002]]) {
-      await writeFile(envPath, `APP_ENV=${site}\nAPP_PORT=${port}\nAPP_ORIGIN=http://localhost:${port}\nPOSTGRES_USER=synthetic\nPOSTGRES_PASSWORD=synthetic\nPOSTGRES_DB=synthetic\nRUN_SEED=false\nOWNER_GATE_USERNAME=owner\nOWNER_GATE_PASSWORD=synthetic-owner-password-at-least-32\nGITLAB_TOKEN=synthetic-gitlab-token\nPOSTGRES_DATA_DIR=${folder.replaceAll('\\', '/')}\n`);
+      await writeFile(envPath, `PMS_ENV_FILE=${envPath.replaceAll('\\', '/')}\nAPP_ENV=${site}\nAPP_PORT=${port}\nAPP_ORIGIN=http://localhost:${port}\nPOSTGRES_USER=synthetic\nPOSTGRES_PASSWORD=synthetic\nPOSTGRES_DB=synthetic\nRUN_SEED=false\nOWNER_GATE_USERNAME=owner\nOWNER_GATE_PASSWORD=synthetic-owner-password-at-least-32\nGITLAB_TOKEN=synthetic-gitlab-token\nGITLAB_TEAM_A_TOKEN=synthetic-team-a\nGITHUB_TEAM_B_TOKEN=synthetic-team-b\nPOSTGRES_DATA_DIR=${folder.replaceAll('\\', '/')}\n`);
       await writeFile(envPath, `BACKUP_DIR=${folder.replaceAll('\\', '/')}\nBACKUP_KEEP_DAYS=3\n`, { flag: 'a' });
       const config = JSON.parse(docker(['compose', '--env-file', envPath, '-f', file, 'config', '--format', 'json']));
       assert.equal(verifyCompose(config), true);
@@ -60,11 +60,14 @@ test('effective Dev/UAT/Production Compose has loopback ports, secrets and timez
       assert.equal(config.services.migrations.environment.DB_SEED_APPROVED_FINGERPRINT, undefined);
       assert.equal(config.services.migrations.environment.BACKUP_DIR, '/run/pms-rollout-backups');
       assert.equal(config.services.app.environment.GITLAB_TOKEN, 'synthetic-gitlab-token');
+      assert.equal(config.services.app.environment.GITLAB_TEAM_A_TOKEN, 'synthetic-team-a');
+      assert.equal(config.services.app.environment.GITHUB_TEAM_B_TOKEN, 'synthetic-team-b');
+      assert.equal(config.services.app.environment.PORT, '3000');
       assert.equal(config.secrets, undefined);
       assert.equal(config.services.app.secrets, undefined);
     }
     // Blank/unset BACKUP_DIR must mount the same default used by the operations CLI.
-    await writeFile(envPath, 'APP_ENV=prod\nAPP_ORIGIN=http://localhost:3002\nPOSTGRES_USER=synthetic\nPOSTGRES_PASSWORD=synthetic\nPOSTGRES_DB=synthetic\nOWNER_GATE_USERNAME=owner\nOWNER_GATE_PASSWORD=synthetic-owner-password-at-least-32\nBACKUP_KEEP_DAYS=\nBACKUP_DIR=\n');
+    await writeFile(envPath, `PMS_ENV_FILE=${envPath.replaceAll('\\', '/')}\n` + 'APP_ENV=prod\nAPP_ORIGIN=http://localhost:3002\nPOSTGRES_USER=synthetic\nPOSTGRES_PASSWORD=synthetic\nPOSTGRES_DB=synthetic\nOWNER_GATE_USERNAME=owner\nOWNER_GATE_PASSWORD=synthetic-owner-password-at-least-32\nBACKUP_KEEP_DAYS=\nBACKUP_DIR=\n');
     const defaults = JSON.parse(docker(['compose','--env-file',envPath,'-f','docker-compose.prod.yml','--profile','backup','config','--format','json']));
     assert.equal(defaults.services.backup.environment.BACKUP_DIR, './database/backups/postgres_data');
     assert.equal(defaults.services.backup.environment.BACKUP_KEEP_DAYS,'30');

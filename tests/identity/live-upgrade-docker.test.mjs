@@ -40,7 +40,7 @@ test('TC-33-LIVE-PG: verified legacy snapshot converts to isolated PostgreSQL 16
         '-e', 'POSTGRES_USER=postgres', '-e', 'POSTGRES_DB=postgres', 'postgres:16-alpine', '-c', 'timezone=Asia/Bangkok'])
       let ready = false
       for (let attempt = 0; attempt < 80; attempt += 1) {
-        try { sql(name, 'SELECT 1;'); ready = true; break } catch { await new Promise((done) => setTimeout(done, 250)) }
+        try { docker(['exec', name, 'pg_isready', '-h', '127.0.0.1', '-U', 'postgres', '-d', 'postgres']); ready = true; break } catch { await new Promise((done) => setTimeout(done, 250)) }
       }
       assert.ok(ready, `PostgreSQL container ${name} did not become ready`)
     }

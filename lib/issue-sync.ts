@@ -17,7 +17,7 @@ export function syncConfigDto(config: SyncConfig) {
   return {
     id: config.publicId, provider: config.mapping.provider, instanceUrl: config.mapping.canonicalGitLabInstanceUrl,
     sourceProject: config.sourceProjectPath, externalProjectId: config.mapping.gitLabProjectId,
-    assignees: config.assignees, credentialRef: config.credentialRef, enabled: config.enabled,
+    assignees: config.assignees, tokenEnvVar: config.tokenEnvVar, enabled: config.enabled,
     approvedLabelMap: config.mapping.approvedLabelMap,
     firstSyncApproved: Boolean(config.mapping.firstSyncApprovedAt),
     createdAt: serializeBangkokTimestamp(config.createdAt), updatedAt: serializeBangkokTimestamp(config.updatedAt),
@@ -46,6 +46,8 @@ function safeError(error: unknown) {
 async function assertLease(tx: Prisma.TransactionClient, config: SyncConfig, run: IssueSyncRun) {
   const current = await tx.issueSyncConfig.findUnique({ where: { id: config.id }, include: { mapping: true } })
   if (!current?.enabled || current.revision !== config.revision || current.leaseToken !== run.publicId
+    || current.tokenEnvVar !== config.tokenEnvVar || current.mappingId !== config.mappingId
+    || current.sourceProjectPath !== config.sourceProjectPath || JSON.stringify(current.assignees) !== JSON.stringify(config.assignees)
     || !current.leaseUntil || current.leaseUntil <= currentBangkokWallClockDate()
     || current.mapping.updatedAt.getTime() !== config.mapping.updatedAt.getTime()) {
     throw new IssueSyncError('CONFIG_CHANGED', 'Config หรือสิทธิ์ของรอบ sync เปลี่ยนแล้ว กรุณาโหลดใหม่', 409)
@@ -111,7 +113,7 @@ export async function startIssueSync(db: PrismaClient, config: SyncConfig, appro
     if (!mapping.firstSyncApprovedAt) config.mapping = await tx.gitLabProjectMapping.update({ where: { id: mapping.id }, data: { firstSyncApprovedAt: now } })
     const run = await tx.issueSyncRun.create({ data: { configId: config.id, configSnapshot: {
       provider: mapping.provider, instanceUrl: mapping.canonicalGitLabInstanceUrl, sourceProject: config.sourceProjectPath,
-      assignees: config.assignees, credentialRef: config.credentialRef, approvedLabelMap: mapping.approvedLabelMap,
+      assignees: config.assignees, tokenEnvVar: config.tokenEnvVar, approvedLabelMap: mapping.approvedLabelMap,
     } } })
     await tx.issueSyncConfig.update({ where: { id: config.id }, data: { leaseToken: run.publicId } })
     return run
@@ -162,7 +164,7 @@ export async function executeIssueSync(db: PrismaClient, config: SyncConfig, run
   }
   try {
     if (!labelMap || !parseAssignees(config.assignees)) throw new IssueSyncError('INVALID_CONFIG', 'Config ไม่ถูกต้อง', 409)
-    client ??= new IssueSourceClient(requiredCredential(config.credentialRef, config.mapping.provider, config.mapping.canonicalGitLabInstanceUrl))
+    client ??= new IssueSourceClient(requiredCredential(config.tokenEnvVar, config.mapping.provider, config.mapping.canonicalGitLabInstanceUrl))
     // Resolve and compare stable repository/project IDs on every run; renames cannot cross-link histories.
     const verified = await client.resolveProject(config.sourceProjectPath)
     if (verified.id !== source.id) throw new IssueSyncError('SOURCE_IDENTITY_CHANGED', 'Source project identity เปลี่ยน กรุณาตรวจ config', 409)

@@ -8,7 +8,7 @@ const { executeIssueSync, startIssueSync, syncConfigDto, syncRunDto } = load('li
 const owner = 10n
 
 function sourceClient(config, rows, { absent = [], error, resolvedId = '42' } = {}) {
-  const client = new IssueSourceClient({ ref: 'work', provider: config.mapping.provider, baseUrl: config.mapping.canonicalGitLabInstanceUrl, token: 'synthetic-secret' })
+  const client = new IssueSourceClient({ tokenEnvVar: config.tokenEnvVar, provider: config.mapping.provider, baseUrl: config.mapping.canonicalGitLabInstanceUrl, token: 'synthetic-secret' })
   client.resolveProject = async () => ({ id: resolvedId, path: config.sourceProjectPath })
   client.issues = async function* () { for (const row of rows) yield row; if (error) throw error }
   client.issue = async (_source, number) => { const issue = absent.find((row) => String(row.iid ?? row.number) === number); if (!issue) throw new IssueSyncError('PROVIDER_UNAVAILABLE', 'ตรวจ issue เดิมไม่ได้', 503, true); return issue }
@@ -113,6 +113,16 @@ test('config edits and source identity changes stop writes safely', async () => 
   assert.equal(result.runError.code, 'CONFIG_CHANGED'); assert.equal(fx.state.items.length, 0)
   const other = database(); const identityChanged = await sync(other, [rawIssue()], { resolvedId: '43' })
   assert.equal(identityChanged.runError.code, 'SOURCE_IDENTITY_CHANGED'); assert.equal(other.state.items.length, 0)
+})
+
+test('direct table edits to the token variable or assignee filter stop in-flight writes without relying on API revisions', async () => {
+  for (const change of [{ tokenEnvVar: 'GITLAB_OTHER_TOKEN' }, { assignees: ['charlie'] }]) {
+    const fx = database(); const config = structuredClone(fx.state.config)
+    const run = await startIssueSync(fx.db, config, false)
+    fx.mutate((state) => Object.assign(state.config, change))
+    const result = await executeIssueSync(fx.db, config, run, owner, sourceClient(config, [rawIssue()]))
+    assert.equal(result.runError.code, 'CONFIG_CHANGED'); assert.equal(fx.state.items.length, 0)
+  }
 })
 
 test('foreign owner and destination conflicts cannot modify existing work items', async () => {

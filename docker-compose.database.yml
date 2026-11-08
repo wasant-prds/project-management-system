@@ -101,7 +101,11 @@ services:
       - ${BACKUP_DIR:-./database/backups/postgres_data}:/run/pms-rollout-backups:ro
 
   app:
+    env_file:
+      - path: ${PMS_ENV_FILE:-.env}
+        required: false
     environment:
+      PORT: "3000"
       RUNTIME_DOCKER: "true"
       <<: *database-env
       APP_ORIGIN: ${APP_ORIGIN:?Set APP_ORIGIN in root .env}
@@ -111,7 +115,6 @@ services:
       GITLAB_BASE_URL: ${GITLAB_BASE_URL:-}
       GITLAB_TOKEN: ${GITLAB_TOKEN:-}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-      ISSUE_SYNC_CREDENTIALS: ${ISSUE_SYNC_CREDENTIALS:-}
     depends_on:
       postgres:
         condition: service_healthy

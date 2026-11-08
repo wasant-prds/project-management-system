@@ -257,7 +257,7 @@ model IssueSyncConfig {
   mappingId         BigInt @unique @map("mapping_id")
   sourceProjectPath String @map("source_project_path")
   assignees         String[]
-  credentialRef     String @map("credential_ref")
+  tokenEnvVar       String? @map("token_env_var")
   enabled           Boolean @default(true)
   revision          Int @default(0)
   leaseUntil        DateTime? @map("lease_until") @db.Timestamp(3)

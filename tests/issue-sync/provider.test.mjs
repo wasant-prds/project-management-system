@@ -1,14 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { loader, fixture, rawIssue, plain } from './support.mjs'
 import { issueSyncSecretValues } from '../../scripts/runtime-config.mjs'
 import { redact } from '../../scripts/runtime-launch.mjs'
 
-const { IssueSourceClient, IssueSyncError, syncCredentials, parseAssignees, matchesAssignees } = loader()('lib/issue-sync-provider.ts')
-const credential = (provider = 'gitlab') => ({ ref: 'work', provider, baseUrl: fixture(provider).mapping.canonicalGitLabInstanceUrl, token: 'synthetic-token' })
+const { IssueSourceClient, IssueSyncError, requiredCredential, isTokenEnvVar, parseAssignees, matchesAssignees } = loader()('lib/issue-sync-provider.ts')
+const credential = (provider = 'gitlab') => ({ tokenEnvVar: 'GITLAB_WORK_TOKEN', provider, baseUrl: fixture(provider).mapping.canonicalGitLabInstanceUrl, token: 'synthetic-token' })
 const response = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers })
 
 test('assignees are mandatory, normalized, deduplicated and OR matched without wildcards', () => {
@@ -18,31 +15,38 @@ test('assignees are mandatory, normalized, deduplicated and OR matched without w
   assert.equal(matchesAssignees({ assignees: [] }, ['alice']), false)
 })
 
-test('server registry resolves multiple environment secrets and exposes only registered hosts', () => {
-  const env = { WORK_GL: 'secret-one', WORK_GH: 'secret-two', ISSUE_SYNC_CREDENTIALS: JSON.stringify({ lab: { provider: 'gitlab', baseUrl: 'https://lab.test/base/', tokenEnv: 'WORK_GL' }, hub: { provider: 'github', baseUrl: 'https://github.com', tokenEnv: 'WORK_GH' } }) }
-  const entries = syncCredentials(env)
-  assert.equal(entries.length, 2)
-  assert.equal(entries[0].baseUrl, 'https://lab.test/base')
-  assert.equal(entries[1].token, 'secret-two')
-  for (const bad of [{ provider: 'github', baseUrl: 'https://evil.test', tokenEnv: 'WORK_GL' }, { provider: 'gitlab', baseUrl: 'http://lab.test', tokenEnv: 'WORK_GL' }, { provider: 'gitlab', baseUrl: 'https://lab.test', tokenEnv: 'NEXT_PUBLIC_TOKEN' }]) assert.equal(syncCredentials({ ...env, ISSUE_SYNC_CREDENTIALS: JSON.stringify({ bad }) }).length, 0)
-  assert.equal(syncCredentials({ ISSUE_SYNC_CREDENTIALS: 'broken' }).length, 0)
+test('each row resolves its own token variable for multiple GitLab instances and GitHub repositories', () => {
+  const env = { GITLAB_TEAM_A_TOKEN: 'synthetic-one', GITLAB_TEAM_B_TOKEN: 'synthetic-two', GITHUB_TOKEN_PROJECT_C: 'synthetic-three' }
+  const first = requiredCredential('GITLAB_TEAM_A_TOKEN', 'gitlab', 'https://lab-a.test/base/', env)
+  const second = requiredCredential('GITLAB_TEAM_B_TOKEN', 'gitlab', 'https://lab-b.test', env)
+  const third = requiredCredential('GITHUB_TOKEN_PROJECT_C', 'github', 'https://github.com', env)
+  assert.equal(first.baseUrl, 'https://lab-a.test/base'); assert.equal(first.token, 'synthetic-one')
+  assert.equal(second.token, 'synthetic-two'); assert.equal(third.token, 'synthetic-three')
+  assert.equal(requiredCredential('GITLAB_TEAM_A_TOKEN', 'gitlab', 'https://another-lab.test', env).token, first.token)
+  env.GITLAB_TEAM_A_TOKEN = 'synthetic-rotated'
+  assert.equal(requiredCredential('GITLAB_TEAM_A_TOKEN', 'gitlab', first.baseUrl, env).token, 'synthetic-rotated')
 })
 
-test('registry can reference a mounted Docker secret without storing its value in config', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'pms-sync-secret-'))
-  try {
-    const file = join(directory, 'token'); writeFileSync(file, 'synthetic-file-token\n')
-    const entries = syncCredentials({ WORK_TOKEN_FILE: file, ISSUE_SYNC_CREDENTIALS: JSON.stringify({ work: { provider: 'gitlab', baseUrl: 'https://lab.test', tokenFileEnv: 'WORK_TOKEN_FILE' } }) })
-    assert.equal(entries[0].token, 'synthetic-file-token')
-  } finally { rmSync(directory, { recursive: true }) }
+test('token lookup rejects unrelated secrets, public variables, malformed names, unsafe hosts and unavailable tokens', () => {
+  const env = { GITLAB_WORK_TOKEN: 'synthetic-value' }
+  for (const name of [null, '', 'work', 'OWNER_GATE_PASSWORD', 'DATABASE_URL', 'CF_API_TOKEN', 'NEXT_PUBLIC_GITLAB_TOKEN', 'GITLAB_TOKEN\nX', 'GITLAB_TOKEN;X', 'GITLAB_' + 'A'.repeat(125) + '_TOKEN']) {
+    assert.equal(isTokenEnvVar(name), false)
+    assert.throws(() => requiredCredential(name, 'gitlab', 'https://lab.test', env), (error) => error.code === 'VALIDATION_ERROR')
+  }
+  for (const [provider, url] of [['github', 'https://evil.test'], ['gitlab', 'http://lab.test'], ['gitlab', 'https://user:pass@lab.test'], ['other', 'https://lab.test']]) {
+    assert.throws(() => requiredCredential('GITLAB_WORK_TOKEN', provider, url, env), (error) => error.code === 'VALIDATION_ERROR')
+  }
+  for (const token of [undefined, '', 'bad\nheader', '<paste-token>', 'PASTE_TOKEN_HERE']) {
+    assert.throws(() => requiredCredential('GITLAB_WORK_TOKEN', 'gitlab', 'https://lab.test', { GITLAB_WORK_TOKEN: token }), (error) => error.code === 'CREDENTIAL_UNAVAILABLE' && !error.message.includes('bad'))
+  }
 })
 
-test('launcher validates and redacts custom registry secrets without printing their values', () => {
-  const env = { CUSTOM_SYNC_TOKEN: 'synthetic-custom-value', ISSUE_SYNC_CREDENTIALS: JSON.stringify({ work: { provider: 'github', baseUrl: 'https://github.com', tokenEnv: 'CUSTOM_SYNC_TOKEN' } }) }
-  assert.deepEqual(issueSyncSecretValues(env), ['synthetic-custom-value'])
-  assert.equal(redact('error synthetic-custom-value', env), 'error [redacted]')
-  assert.throws(() => issueSyncSecretValues({ ...env, CUSTOM_SYNC_TOKEN: 'bad\nheader' }), (error) => !error.message.includes('bad'))
-  assert.throws(() => issueSyncSecretValues({ ISSUE_SYNC_CREDENTIALS: '{invalid' }), /Invalid issue sync/)
+test('launcher redacts all dedicated token variables without a credential registry or database access', () => {
+  const env = { GITLAB_WORK_TOKEN: 'synthetic-short', ISSUE_SYNC_TOKEN_TEAM_B: 'synthetic-short-long', GITHUB_TEAM_TOKEN: 'synthetic-github-value' }
+  assert.deepEqual(new Set(issueSyncSecretValues(env)), new Set(Object.values(env)))
+  assert.equal(redact(Object.values(env).join(' '), env), '[redacted] [redacted] [redacted]')
+  for (const name of Object.keys(env)) assert.equal(isTokenEnvVar(name), true)
+  assert.deepEqual(issueSyncSecretValues({ GITLAB_EMPTY_TOKEN: '', OWNER_GATE_PASSWORD: 'separate-redaction' }), [])
 })
 
 for (const provider of ['gitlab', 'github']) {

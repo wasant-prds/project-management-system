@@ -16,11 +16,18 @@
       "kind": "sql",
       "script": "database/migrations/0002_issue_sync.sql",
       "checksum": "94eff464a0cdf87971ddaf3416765595b319a6c2c9d34bb9a59766e8c663dc32"
+    },
+    {
+      "version": "0003",
+      "name": "issue_sync_token_env",
+      "kind": "sql",
+      "script": "database/migrations/0003_issue_sync_token_env.sql",
+      "checksum": "572f20e9eaaa2306c990dfe40d888d87c8d352b9ec61b25f745bc61724c35ab8"
     }
   ],
   "schema": {
     "script": "database/schema.sql",
-    "checksum": "8dff28edc4b87b4b9b30b5be996caf8a63f5bcf3a1662522914af51e7fd00ba4",
-    "throughVersion": "0002"
+    "checksum": "a33f5ff14b5ae3068fb82b6a19a87b4063d38dfc980a894d2f8ebf0f96f35e55",
+    "throughVersion": "0003"
   }
 }

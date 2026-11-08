@@ -1,6 +1,6 @@
 # ENGINEERING SPEC (EV)
 
-> **Project Issue Sync — current contract:** Issue Sync ต้องตรวจ owner + Project/config boundary, mandatory assignee OR filter, stable provider identity, lease/revision, per-issue transaction พร้อม history checkpoint และรักษา Work Item UUID/Daily Work เมื่อ reassigned. Token/key ไม่อยู่ในตาราง config. รายละเอียดและข้อกำหนดล่าสุดอยู่ใน [Project Issue Sync](./ISSUE_SYNC.md); เนื้อหา GitLab-only เดิมด้านล่างให้อ่านเป็นประวัติเมื่อขัดกับ contract นี้.
+> **Project Issue Sync — current contract:** Issue Sync ต้องตรวจ owner + Project/config boundary, mandatory assignee OR filter, stable provider identity, lease/revision, per-issue transaction พร้อม history checkpoint และรักษา Work Item UUID/Daily Work เมื่อ reassigned. Token/key ไม่อยู่ในตาราง config. Config เก็บ token_env_var เป็นชื่อตัวแปร token ใน .env; แต่ละ row ใช้ token ร่วมกันหรือแยกกันได้. รายละเอียดและข้อกำหนดล่าสุดอยู่ใน [Project Issue Sync](./ISSUE_SYNC.md); เนื้อหา GitLab-only เดิมด้านล่างให้อ่านเป็นประวัติเมื่อขัดกับ contract นี้.
 
 > **Owner decision 2026-09-29:** Company หลายรายแทน Customer registry; Projects เดิมทุกตัวผูก `companyId` กับ Dhas และ Projects ใหม่เลือก Company. ข้อกำหนด Customer เดิมในเอกสารนี้ถูกแทนที่โดย [Company → Project decision](./COMPANY_PROJECT_DECISION.md).
 

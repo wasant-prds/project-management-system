@@ -15,7 +15,7 @@ test('GitLab and GitHub sync persist correctly through real Prisma transactions 
   try {
     docker(['run', '--rm', '-d', '--name', name, '--network', 'none', '-e', 'POSTGRES_HOST_AUTH_METHOD=trust', 'postgres:16-alpine', '-c', 'timezone=Asia/Bangkok'])
     for (let attempt = 0; ; attempt++) {
-      try { docker(['exec', name, 'psql', '-U', 'postgres', '-Atc', 'SELECT 1']); break } catch (error) { if (attempt >= 60) throw error; await new Promise((resolve) => setTimeout(resolve, 200)) }
+      try { docker(['exec', name, 'pg_isready', '-h', '127.0.0.1', '-U', 'postgres', '-d', 'postgres']); break } catch (error) { if (attempt >= 60) throw error; await new Promise((resolve) => setTimeout(resolve, 200)) }
     }
     const args = ['run', '--rm', '--network', `container:${name}`, '--entrypoint', 'node', '-e', 'DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres?options=--timezone%3DAsia%2FBangkok']
     for (const path of ['lib', 'tests/issue-sync', 'scripts']) args.push('--mount', `type=bind,source=${resolve(ROOT, path)},target=/app/${path},readonly`)

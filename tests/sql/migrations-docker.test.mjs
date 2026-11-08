@@ -31,7 +31,7 @@ async function startPostgres(name) {
   docker(['run', '--rm', '-d', '--name', name, '--network', 'none', '-e', 'POSTGRES_HOST_AUTH_METHOD=trust', '-e', 'POSTGRES_USER=postgres', '-e', 'POSTGRES_DB=postgres', 'postgres:16-alpine', '-c', 'timezone=Asia/Bangkok']);
   const query = createQuery(`docker:${name}`, spawnSync, {});
   for (let attempt = 0; attempt < 60; attempt += 1) {
-    try { query('SELECT 1'); return query; } catch { await sleep(250); }
+    try { docker(['exec', name, 'pg_isready', '-h', '127.0.0.1', '-U', 'postgres', '-d', 'postgres']); return query; } catch { await sleep(250); }
   }
   throw new Error('PostgreSQL fixture did not become ready');
 }
@@ -87,7 +87,7 @@ if (!enabled) {
   test.before(async () => {
     query = await startPostgres(name);
     const bootstrapped = emptyBootstrap({ root: repoRoot, target: `docker:${name}`, targetLabel: 'issue-31', query, env: {} });
-    assert.deepEqual(bootstrapped.applied, ['0001', '0002']);
+    assert.deepEqual(bootstrapped.applied, ['0001', '0002', '0003']);
   });
   test.after(() => { removeContainer(name); });
 
@@ -290,7 +290,7 @@ if (!enabled) {
     const before = query(`SELECT count(*)::text || ' ' || checksum FROM "schema_migrations" GROUP BY checksum`);
     const skipped = upgrade({ root: repoRoot, target: `docker:${name}`, targetLabel: 'issue-31', query, env: {} });
     assert.deepEqual(skipped.applied, []);
-    assert.deepEqual(skipped.skipped, ['0001', '0002']);
+    assert.deepEqual(skipped.skipped, ['0001', '0002', '0003']);
     assert.throws(() => emptyBootstrap({ root: repoRoot, target: `docker:${name}`, targetLabel: 'issue-31', query, env: {} }), /not empty/);
     assert.equal(query(`SELECT count(*)::text || ' ' || checksum FROM "schema_migrations" GROUP BY checksum`), before);
     const copy = await artifactCopy((schema) => Buffer.concat([schema, Buffer.from('\n-- checksum drift\n')]));
@@ -305,8 +305,11 @@ if (!enabled) {
   test('TC-31-12 a second runner fails on the migration lock without writing history', async () => {
     const copy = await artifactCopy();
     const extra = 'CREATE TABLE "upgrade_marker" (id integer);\n';
-    await writeFile(join(copy.directory, 'database', 'migrations', '0003_marker.sql'), extra);
-    copy.migrations.push({ version: '0003', name: 'marker', kind: 'sql', script: 'database/migrations/0003_marker.sql', checksum: sha256(extra) });
+    const previousCount = copy.migrations.length;
+    const version = String(Number(copy.migrations.at(-1).version) + 1).padStart(4, '0');
+    const script = `database/migrations/${version}_marker.sql`;
+    await writeFile(join(copy.directory, script), extra);
+    copy.migrations.push({ version, name: 'marker', kind: 'sql', script, checksum: sha256(extra) });
     await writeFile(join(copy.directory, 'database', 'migrations', 'manifest.json'), JSON.stringify({
       revision: '31.0.0', lockTimeoutMs: 5000, statementTimeoutMs: 120000, migrations: copy.migrations,
     }));
@@ -320,7 +323,7 @@ if (!enabled) {
       assert.equal(locked, true);
       assert.throws(() => upgrade({ root: copy.directory, target: `docker:${name}`, targetLabel: 'issue-31', query, env: {} }), /lock timeout/i);
       assert.equal(query(`SELECT to_regclass('public.upgrade_marker') IS NULL`), 't');
-      assert.equal(query(`SELECT count(*) FROM "schema_migrations"`), '2');
+      assert.equal(query(`SELECT count(*) FROM "schema_migrations"`), String(previousCount));
     } finally {
       if (process.platform === 'win32') spawnSync('taskkill', ['/PID', String(holder.child.pid), '/T', '/F'], { windowsHide: true });
       else holder.child.kill('SIGKILL');
@@ -388,9 +391,11 @@ if (!enabled) {
       emptyBootstrap({ root: replayRoot.directory, target: `docker:${replayName}`, targetLabel: 'issue-31-replay', query: replayQuery, env: {} });
       upgrade({ root: snapshotRoot.directory, target: `docker:${snapshotName}`, targetLabel: 'issue-31-snapshot', query: snapshotQuery, env: {} });
       upgrade({ root: replayRoot.directory, target: `docker:${replayName}`, targetLabel: 'issue-31-replay', query: replayQuery, env: {} });
-      await writeFile(join(replayRoot.directory, 'database', 'migrations', '0003_company_name_idx.sql'), addition);
+      const version = String(Number(replayRoot.migrations.at(-1).version) + 1).padStart(4, '0');
+      const script = `database/migrations/${version}_company_name_idx.sql`;
+      await writeFile(join(replayRoot.directory, script), addition);
       replayRoot.migrations.push({
-        version: '0003', name: 'company_name_idx', kind: 'sql', script: 'database/migrations/0003_company_name_idx.sql', checksum: sha256(addition),
+        version, name: 'company_name_idx', kind: 'sql', script, checksum: sha256(addition),
       });
       await writeFile(join(replayRoot.directory, 'database', 'migrations', 'manifest.json'), JSON.stringify({
         revision: '31.0.0', lockTimeoutMs: 5000, statementTimeoutMs: 120000, migrations: replayRoot.migrations,

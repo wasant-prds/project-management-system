@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertExecutableSql, sha256 } from '../../scripts/sql-artifacts.mjs';
+import { assertExecutableSql, loadArtifacts, sha256 } from '../../scripts/sql-artifacts.mjs';
 import {
   assertTargetAllowed,
   buildBootstrapScript,
@@ -51,11 +51,11 @@ async function tempArtifacts(schemaSql, extra = []) {
 test('TC-31-11 inspect reports the baseline checksum and a rerun plan skips it before SQL writes', () => {
   const info = inspect({ root });
   assert.equal(info.revision, '31.0.0');
-  assert.equal(info.migrations.length, 2);
+  assert.equal(info.migrations.length, 3);
   const state = scripted(['t', info.migrations.map((entry) => `${entry.version} ${entry.checksum}`).join('\n')]);
   const planned = plan({ root, target, targetLabel: label, query: state.query, env: {} });
   assert.deepEqual(planned.pending, []);
-  assert.deepEqual(planned.skipped, ['0001', '0002']);
+  assert.deepEqual(planned.skipped, ['0001', '0002', '0003']);
   assert.equal(state.calls.length, 2);
   assert.equal(state.calls.some((sql) => sql.includes('INSERT INTO')), false);
 });
@@ -161,11 +161,11 @@ test('TC-31-13 a failed migration script does not continue into another write', 
 test('fresh bootstrap includes later migrations and records every version in one transaction', () => {
   const state = scripted(['0', '']);
   const result = emptyBootstrap({ root, target, targetLabel: label, query: state.query, env: {} });
-  assert.deepEqual(result.applied, ['0001', '0002']);
+  assert.deepEqual(result.applied, ['0001', '0002', '0003']);
   const sql = state.calls[1];
   assert.match(sql, /CREATE TABLE "issue_sync_configs"/);
   assert.match(sql, /CREATE TABLE "issue_sync_runs"/);
-  assert.equal((sql.match(/INSERT INTO "schema_migrations"/g) ?? []).length, 2);
+  assert.equal((sql.match(/INSERT INTO "schema_migrations"/g) ?? []).length, loadArtifacts(root).migrations.length);
   assert.equal(sql.indexOf('CREATE TABLE "projects"') < sql.indexOf('CREATE TABLE "issue_sync_configs"'), true);
   assert.equal((sql.match(/(?:^|\n)BEGIN;/g) ?? []).length, 1);
   assert.equal((sql.match(/(?:^|\n)COMMIT;/g) ?? []).length, 1);

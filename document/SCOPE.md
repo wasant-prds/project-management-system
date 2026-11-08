@@ -1,6 +1,6 @@
 # SCOPE
 
-> **Project Issue Sync — current contract:** ขอบเขต Issue Sync ปัจจุบันรวม GitHub.com, GitLab.com และ GitLab Self-Managed, manual one-way ต่อ Project, mandatory assignee OR filter, หลาย credential references และ run history. ไม่รวม GitHub Projects board, Enterprise Server, schedule หรือ write-back. รายละเอียดและข้อกำหนดล่าสุดอยู่ใน [Project Issue Sync](./ISSUE_SYNC.md); เนื้อหา GitLab-only เดิมด้านล่างให้อ่านเป็นประวัติเมื่อขัดกับ contract นี้.
+> **Project Issue Sync — current contract:** ขอบเขต Issue Sync ปัจจุบันรวม GitHub.com, GitLab.com และ GitLab Self-Managed, manual one-way ต่อ Project, mandatory assignee OR filter, หลาย token ผ่านชื่อตัวแปร .env ที่กำหนดต่อ row และ run history. ไม่รวม GitHub Projects board, Enterprise Server, schedule หรือ write-back. Config เก็บ token_env_var เป็นชื่อตัวแปร token ใน .env; แต่ละ row ใช้ token ร่วมกันหรือแยกกันได้. รายละเอียดและข้อกำหนดล่าสุดอยู่ใน [Project Issue Sync](./ISSUE_SYNC.md); เนื้อหา GitLab-only เดิมด้านล่างให้อ่านเป็นประวัติเมื่อขัดกับ contract นี้.
 
 > **Owner decision 2026-09-29:** ขอบเขตที่ใช้ต่อจากนี้ไม่มี Customer; ใช้ Company Dhas → Projects ตาม [Company → Project decision](./COMPANY_PROJECT_DECISION.md). ข้อความ Customer ที่เหลือเป็นประวัติข้อเสนอเดิม.
 

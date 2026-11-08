@@ -4,7 +4,7 @@ import { loader, rawIssue } from './support.mjs'
 import { runRuntime } from '../../scripts/sql-runtime.mjs'
 
 const load = loader()
-const { IssueSourceClient } = load('lib/issue-sync-provider.ts')
+const { IssueSourceClient, requiredCredential } = load('lib/issue-sync-provider.ts')
 const { startIssueSync, executeIssueSync } = load('lib/issue-sync.ts')
 const prisma = new PrismaClient({ log: [] })
 try {
@@ -15,10 +15,13 @@ try {
   for (const provider of ['gitlab', 'github']) {
     const baseUrl = provider === 'github' ? 'https://github.com' : 'https://gitlab.example.test/base'
     const mapping = await prisma.gitLabProjectMapping.create({ data: { provider, canonicalGitLabInstanceUrl: baseUrl, gitLabProjectId: '42', projectId: project.id, approvedLabelMap: { bug: 'bug' } } })
-    const config = await prisma.issueSyncConfig.create({ data: { mappingId: mapping.id, sourceProjectPath: provider === 'github' ? 'acme/repo' : 'group/project', assignees: ['alice', 'bob'], credentialRef: `synthetic-${provider}` } })
+    const config = await prisma.issueSyncConfig.create({ data: { mappingId: mapping.id, sourceProjectPath: provider === 'github' ? 'acme/repo' : 'group/project', assignees: ['alice', 'bob'], tokenEnvVar: `${provider.toUpperCase()}_TEST_TOKEN` } })
+    const token = `synthetic-${provider}-never-sent-to-network`
+    process.env[config.tokenEnvVar] = token
     let rows = [rawIssue(provider)]
     let absent = rows[0]
-    const client = new IssueSourceClient({ ref: config.credentialRef, provider, baseUrl, token: 'synthetic-never-sent-to-network' }, async (url) => {
+    const client = new IssueSourceClient(requiredCredential(config.tokenEnvVar, provider, baseUrl), async (url, options) => {
+      assert.equal(options.headers[provider === 'github' ? 'Authorization' : 'PRIVATE-TOKEN'], provider === 'github' ? `Bearer ${token}` : token)
       const path = new URL(url).pathname
       if ((path.includes('/projects/') && !path.includes('/issues')) || path.endsWith('/acme/repo')) return new Response(JSON.stringify({ id: 42, path_with_namespace: 'group/project', full_name: 'acme/repo' }))
       if (path.endsWith('/issues/17')) return new Response(JSON.stringify(absent))

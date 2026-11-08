@@ -1,6 +1,6 @@
 # BUSINESS REQUIREMENT
 
-> **Project Issue Sync — current contract:** Project Issue Sync: เจ้าของตั้งค่าและกด sync จากหน้า PMS Project เพื่อรับ GitLab Project/GitHub Repository หลายต้นทาง โดยนำเข้าเฉพาะ assignee usernames ที่กำหนดแบบ OR รวม Open/Closed และเก็บงานเดิมเมื่อหลุด filter. รายละเอียดและข้อกำหนดล่าสุดอยู่ใน [Project Issue Sync](./ISSUE_SYNC.md); เนื้อหา GitLab-only เดิมด้านล่างให้อ่านเป็นประวัติเมื่อขัดกับ contract นี้.
+> **Project Issue Sync — current contract:** Project Issue Sync: เจ้าของตั้งค่าและกด sync จากหน้า PMS Project เพื่อรับ GitLab Project/GitHub Repository หลายต้นทาง โดยนำเข้าเฉพาะ assignee usernames ที่กำหนดแบบ OR รวม Open/Closed และเก็บงานเดิมเมื่อหลุด filter. Config เก็บ token_env_var เป็นชื่อตัวแปร token ใน .env; แต่ละ row ใช้ token ร่วมกันหรือแยกกันได้. รายละเอียดและข้อกำหนดล่าสุดอยู่ใน [Project Issue Sync](./ISSUE_SYNC.md); เนื้อหา GitLab-only เดิมด้านล่างให้อ่านเป็นประวัติเมื่อขัดกับ contract นี้.
 
 > **Owner decision 2026-09-29:** Customer registry ถูกยกเลิก; Company Dhas เป็น parent ของ Projects. ข้อความ Customer เดิมด้านล่างถูกแทนที่โดย [Company → Project decision](./COMPANY_PROJECT_DECISION.md).
 

@@ -32,3 +32,5 @@
 
 ดู [Migration workflow](migrations/README.md), [Database Rollout](../document/DATABASE_ROLLOUT.md), [SQL runtime](../document/handbook/database/issue-33-sql-runtime.md) และ [Project Issue Sync](../document/ISSUE_SYNC.md).
 
+
+Issue sync config ใช้ `issue_sync_configs.token_env_var` ระบุชื่อตัวแปร token ใน root `.env` โดยตรง. Migration `0003_issue_sync_token_env.sql` หยุด configs เดิมจนตั้งชื่อตัวแปรใหม่ โดยรักษา public IDs และ run history. ตัวอย่าง GitLab/GitHub อยู่ใน `database/seeds/sql-master/120_issue_sync_configs.sql`; ยังไม่ลงทะเบียนใน checksummed seed manifest.

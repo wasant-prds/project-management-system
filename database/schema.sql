@@ -576,7 +576,7 @@ CREATE TABLE "issue_sync_configs" (
     "mapping_id" BIGINT NOT NULL UNIQUE REFERENCES external_project_mappings(id) ON DELETE RESTRICT,
     "source_project_path" TEXT NOT NULL,
     "assignees" TEXT[] NOT NULL,
-    "credential_ref" TEXT NOT NULL,
+    "token_env_var" TEXT,
     "enabled" BOOLEAN NOT NULL DEFAULT true,
     "revision" INTEGER NOT NULL DEFAULT 0,
     "lease_until" TIMESTAMP(3) WITHOUT TIME ZONE,
@@ -584,17 +584,19 @@ CREATE TABLE "issue_sync_configs" (
     "created_at" TIMESTAMP(3) WITHOUT TIME ZONE NOT NULL DEFAULT public.pms_bangkok_now(),
     "updated_at" TIMESTAMP(3) WITHOUT TIME ZONE NOT NULL DEFAULT public.pms_bangkok_now(),
     CONSTRAINT issue_sync_configs_assignees_check CHECK (cardinality(assignees) BETWEEN 1 AND 50 AND array_position(assignees, NULL) IS NULL AND array_to_string(assignees, ',') !~ '(^|,)($|,)'),
+    CONSTRAINT issue_sync_configs_token_env_var_check CHECK (token_env_var IS NULL OR (length(token_env_var) <= 128 AND token_env_var ~ '^(GITLAB|GITHUB|ISSUE_SYNC)_[A-Z0-9_]*TOKEN(_[A-Z0-9]+)*$')),
+    CONSTRAINT issue_sync_configs_enabled_token_check CHECK (NOT enabled OR token_env_var IS NOT NULL),
     CONSTRAINT "issue_sync_configs_pkey" PRIMARY KEY ("id"),
     CONSTRAINT "issue_sync_configs_public_id_key" UNIQUE ("public_id")
 );
 CREATE TRIGGER "pms_stamp_issue_sync_configs" BEFORE INSERT OR UPDATE ON "issue_sync_configs" FOR EACH ROW EXECUTE FUNCTION pms_stamp_timestamps();
-COMMENT ON TABLE "issue_sync_configs" IS 'Owner-managed per-project issue sync settings; credentials are server-side references only.';
+COMMENT ON TABLE "issue_sync_configs" IS 'Owner-managed per-project issue sync settings; each row names its server token environment variable.';
 COMMENT ON COLUMN "issue_sync_configs"."id" IS 'Internal numeric identity; never exposed through public APIs.';
 COMMENT ON COLUMN "issue_sync_configs"."public_id" IS 'Immutable database-generated UUIDv4 for public references.';
 COMMENT ON COLUMN "issue_sync_configs"."mapping_id" IS 'Internal source mapping; one filtered config per provider project.';
 COMMENT ON COLUMN "issue_sync_configs"."source_project_path" IS 'Canonical GitLab project path or GitHub owner/repository; stable identity remains in mapping.';
 COMMENT ON COLUMN "issue_sync_configs"."assignees" IS 'Required source usernames; any matching assignee qualifies an issue.';
-COMMENT ON COLUMN "issue_sync_configs"."credential_ref" IS 'Name in the server credential registry; never a token or secret value.';
+COMMENT ON COLUMN "issue_sync_configs"."token_env_var" IS 'Server environment variable holding this source token; null only for disabled configs awaiting operator setup. Never a token value.';
 COMMENT ON COLUMN "issue_sync_configs"."enabled" IS 'Whether the owner permits manual sync.';
 COMMENT ON COLUMN "issue_sync_configs"."revision" IS 'Configuration revision used to reject writes after concurrent edits.';
 COMMENT ON COLUMN "issue_sync_configs"."lease_until" IS 'Expiry of the running sync lease in Bangkok wall-clock time.';
@@ -627,7 +629,7 @@ COMMENT ON COLUMN "issue_sync_runs"."id" IS 'Internal numeric identity; never ex
 COMMENT ON COLUMN "issue_sync_runs"."public_id" IS 'Immutable database-generated UUIDv4 for public references.';
 COMMENT ON COLUMN "issue_sync_runs"."config_id" IS 'Internal config identity; history prevents deletion of the config.';
 COMMENT ON COLUMN "issue_sync_runs"."status" IS 'Run lifecycle: running, success, partial, or failed.';
-COMMENT ON COLUMN "issue_sync_runs"."config_snapshot" IS 'Non-secret source, assignees, label mapping and credential reference at start.';
+COMMENT ON COLUMN "issue_sync_runs"."config_snapshot" IS 'Non-secret source, assignees, label mapping and token environment variable name at start; historical credential references are retained.';
 COMMENT ON COLUMN "issue_sync_runs"."created_count" IS 'Number of work items created during this run.';
 COMMENT ON COLUMN "issue_sync_runs"."updated_count" IS 'Number of work items updated during this run.';
 COMMENT ON COLUMN "issue_sync_runs"."skipped_count" IS 'Number of unchanged, out-of-scope or excluded issues.';

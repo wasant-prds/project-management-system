@@ -1,6 +1,6 @@
 # ARCHITECTURE (EV)
 
-> **Project Issue Sync — current contract:** Project Issue Sync ใช้ Next.js backend เดิมผ่าน lib/issue-sync-provider.ts และ lib/issue-sync.ts. เพิ่ม issue_sync_configs และ issue_sync_runs เชื่อม numeric FKs กับ external_project_mappings; credentials มาจาก server registry. ไม่เพิ่ม external service สำหรับขอบเขต 1,000 issues. รายละเอียดและข้อกำหนดล่าสุดอยู่ใน [Project Issue Sync](./ISSUE_SYNC.md); เนื้อหา GitLab-only เดิมด้านล่างให้อ่านเป็นประวัติเมื่อขัดกับ contract นี้.
+> **Project Issue Sync — current contract:** Project Issue Sync ใช้ Next.js backend เดิมผ่าน lib/issue-sync-provider.ts และ lib/issue-sync.ts. เพิ่ม issue_sync_configs และ issue_sync_runs เชื่อม numeric FKs กับ external_project_mappings; แต่ละ config ระบุ token_env_var เพื่ออ่าน token จาก .env โดยตรง. ไม่เพิ่ม external service สำหรับขอบเขต 1,000 issues. รายละเอียดและข้อกำหนดล่าสุดอยู่ใน [Project Issue Sync](./ISSUE_SYNC.md); เนื้อหา GitLab-only เดิมด้านล่างให้อ่านเป็นประวัติเมื่อขัดกับ contract นี้.
 
 > **Owner decision 2026-09-29:** canonical path เปลี่ยนเป็น `Company → Project → WorkItem → TimeEntry`; ไม่มี Customer registry. ดู [Company → Project decision](./COMPANY_PROJECT_DECISION.md) ก่อนใช้ target เก่าในเอกสารนี้.
 

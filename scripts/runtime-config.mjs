@@ -1,31 +1,17 @@
-import { readFileSync } from 'node:fs';
 export const TIMEZONE = 'Asia/Bangkok';
 const sensitive = ['OWNER_GATE_USERNAME', 'OWNER_GATE_PASSWORD', 'GITLAB_TOKEN', 'NEXTAUTH_SECRET', 'DATABASE_URL'];
 const invalid = (value) => !value || /^(\?+|<.*>|replace.*|change.*|dev-secret.*)$/i.test(value);
 
 export function issueSyncSecretValues(env) {
-  try {
-    const registry = JSON.parse(env.ISSUE_SYNC_CREDENTIALS || '{}');
-    if (!registry || typeof registry !== 'object' || Array.isArray(registry)) throw new Error();
-    return Object.entries(registry).map(([ref, entry]) => {
-      if (!/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(ref) || !entry || typeof entry !== 'object') throw new Error();
-      const { provider, baseUrl, tokenEnv, tokenFileEnv } = entry;
-      const url = new URL(baseUrl);
-      if (!['gitlab', 'github'].includes(provider) || url.protocol !== 'https:' || url.username || url.password || url.search || url.hash
-        || (provider === 'github' && url.href !== 'https://github.com/')) throw new Error();
-      const variable = tokenEnv ?? tokenFileEnv;
-      if (typeof variable !== 'string' || !/^[A-Z][A-Z0-9_]*$/.test(variable) || variable.startsWith('NEXT_PUBLIC_') || Boolean(tokenEnv) === Boolean(tokenFileEnv)) throw new Error();
-      const token = (tokenEnv ? env[tokenEnv] : readFileSync(env[tokenFileEnv] || '', 'utf8'))?.trim();
-      if (invalid(token) || /[\r\n]/.test(token)) throw new Error();
-      return token;
-    });
-  } catch { throw new Error('Invalid issue sync server credential registry'); }
+  return Object.entries(env)
+    .filter(([name, value]) => name.length <= 128 && /^(?:GITLAB|GITHUB|ISSUE_SYNC)_[A-Z0-9_]*TOKEN(?:_[A-Z0-9]+)*$/.test(name) && typeof value === 'string' && value.trim())
+    .flatMap(([, value]) => [...new Set([value, value.trim()])])
+    .sort((left, right) => right.length - left.length);
 }
 
 // Only the launcher imports this module. It must never be imported by React.
 export function loadRuntimeConfig(source = process.env) {
   const env = { ...source };
-  issueSyncSecretValues(env);
   for (const key of Object.keys(env)) {
     if (/^NEXT_PUBLIC_.*(TOKEN|SECRET|PASSWORD|DATABASE|GITLAB|GITHUB|ISSUE_SYNC|OWNER_GATE)/i.test(key)) {
       throw new Error('Public credential configuration is forbidden');
@@ -46,11 +32,11 @@ export function loadRuntimeConfig(source = process.env) {
     throw new Error('APP_ORIGIN requires HTTPS or loopback HTTP');
   }
   env.APP_ORIGIN = origin.origin;
-  if (Boolean(env.GITLAB_BASE_URL) !== Boolean(env.GITLAB_TOKEN)) throw new Error('GitLab URL and token must be configured together');
+  if (env.GITLAB_TOKEN && (invalid(env.GITLAB_TOKEN) || /[\r\n]/.test(env.GITLAB_TOKEN))) throw new Error('Invalid GitLab server token');
   if (env.GITLAB_BASE_URL) {
     let url;
     try { url = new URL(env.GITLAB_BASE_URL); } catch { throw new Error('Invalid GitLab base URL'); }
-    if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || invalid(env.GITLAB_TOKEN) || /[\r\n]/.test(env.GITLAB_TOKEN)) throw new Error('Invalid GitLab server configuration');
+    if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) throw new Error('Invalid GitLab server configuration');
     env.GITLAB_BASE_URL = url.href.replace(/\/$/, '');
   }
   // libpq (operations) and Prisma (application) must both set session timezone.

@@ -9,18 +9,15 @@ const context = (id = projectId, configId = config.publicId) => ({ params: Promi
 const request = (body) => ({ json: async () => body })
 function setup({ authorized = true, db = {}, helper = {} } = {}) {
   let credentialReads = 0
-  const credential = { ref: 'work', provider: 'gitlab', baseUrl: config.mapping.canonicalGitLabInstanceUrl, token: 'synthetic-secret' }
   const prisma = { project: { findUnique: async () => ({ id: 20n, publicId: projectId }) }, ...db }
   const load = loader({
     '@/lib/db': { prisma },
     'next/server': { NextResponse: { json: (body, options = {}) => ({ body: plain(body), status: options.status ?? 200, headers: options.headers }) } },
     '@/lib/owner': { getOwner: async () => { if (!authorized) throw Object.assign(new Error('denied'), { status: 401 }); return { internalId: 10n, id: uuid(10) } }, ownerErrorResponse: (error) => error.status === 401 ? { status: 401 } : null },
     '@/lib/issue-sync-provider': { ...provider,
-      syncCredentials: () => { credentialReads++; return [credential] },
-      requiredCredential: (ref, sourceProvider, baseUrl) => {
+      requiredCredential: (name, sourceProvider, baseUrl) => {
         credentialReads++
-        if (ref !== 'work' || sourceProvider !== 'gitlab' || baseUrl !== credential.baseUrl) throw new provider.IssueSyncError('CREDENTIAL_UNAVAILABLE', 'Credential ไม่พร้อม', 503)
-        return credential
+        return provider.requiredCredential(name, sourceProvider, baseUrl, { GITLAB_WORK_TOKEN: 'synthetic-secret', GITLAB_OTHER_TOKEN: 'synthetic-other-secret' })
       },
       IssueSourceClient: class { async resolveProject() { return { id: '42', path: 'group/project' } } },
     },
@@ -57,17 +54,18 @@ test('config listing returns explicit public DTOs and credential names without s
   assert.equal(result.status, 200); assert.equal(result.body.configs[0].id, config.publicId)
   assert.equal(result.body.legacyMappings[0].id, uuid(99)); assert.equal(result.headers['Cache-Control'], 'no-store')
   assert.equal(JSON.stringify(result.body).includes('synthetic-secret'), false)
-  assert.deepEqual(Object.keys(result.body.credentials[0]), ['ref', 'provider', 'instanceUrl'])
+  assert.equal(result.body.configs[0].tokenEnvVar, 'GITLAB_WORK_TOKEN')
+  assert.equal('credentials' in result.body, false); assert.equal(app.credentialReads(), 0)
   assert.equal('mappingId' in result.body.configs[0], false)
 })
 
-test('config create rejects empty assignees, client IDs, tokens, foreign hosts, and unknown body fields', async () => {
+test('config create rejects empty assignees, client IDs, tokens, invalid environment variable names, and unknown body fields', async () => {
   const app = setup()
-  const valid = { provider: 'gitlab', instanceUrl: config.mapping.canonicalGitLabInstanceUrl, sourceProject: '42', credentialRef: 'work', assignees: ['alice'], approvedLabelMap: {} }
-  for (const invalid of [{ ...valid, assignees: [] }, { ...valid, token: 'do-not-store' }, { ...valid, id: uuid(999) }, { ...valid, projectId: '20' }, { ...valid, approvedLabelMap: { bug: 'admin' } }]) {
+  const valid = { provider: 'gitlab', instanceUrl: config.mapping.canonicalGitLabInstanceUrl, sourceProject: '42', tokenEnvVar: 'GITLAB_WORK_TOKEN', assignees: ['alice'], approvedLabelMap: {} }
+  for (const invalid of [{ ...valid, assignees: [] }, { ...valid, token: 'do-not-store' }, { ...valid, id: uuid(999) }, { ...valid, projectId: '20' }, { ...valid, approvedLabelMap: { bug: 'admin' } }, { ...valid, tokenEnvVar: 'OWNER_GATE_PASSWORD' }, { ...valid, tokenEnvVar: 'NEXT_PUBLIC_GITHUB_TOKEN' }, { ...valid, tokenEnvVar: 'github_token' }, { ...valid, credentialRef: 'old-registry-ref' }]) {
     assert.equal((await app.load(collection).POST(request(invalid), context())).status, 400)
   }
-  assert.equal((await app.load(collection).POST(request({ ...valid, instanceUrl: 'https://evil.test' }), context())).status, 503)
+  assert.equal((await app.load(collection).POST(request({ ...valid, tokenEnvVar: 'GITLAB_MISSING_TOKEN' }), context())).status, 503)
 })
 
 test('config create resolves a stable source ID and adopts only an existing same-project mapping', async () => {
@@ -78,11 +76,11 @@ test('config create resolves a stable source ID and adopts only an existing same
     issueSyncConfig: { create: async ({ data }) => { saved = data; return { ...config, ...data } } },
   }
   const app = setup({ db: { $transaction: async (callback) => callback(tx) } })
-  const result = await app.load(collection).POST(request({ provider: 'gitlab', instanceUrl: config.mapping.canonicalGitLabInstanceUrl, sourceProject: 'group/project', credentialRef: 'work', assignees: ['Alice', 'bob'] }), context())
+  const result = await app.load(collection).POST(request({ provider: 'gitlab', instanceUrl: config.mapping.canonicalGitLabInstanceUrl, sourceProject: 'group/project', tokenEnvVar: 'GITLAB_WORK_TOKEN', assignees: ['Alice', 'bob'] }), context())
   assert.equal(result.status, 201); assert.equal(saved.mappingId, 40n); assert.deepEqual(plain(saved.assignees), ['alice', 'bob'])
   assert.equal('publicId' in saved, false); assert.equal('id' in saved, false); assert.equal('token' in saved, false)
   tx.gitLabProjectMapping.findUnique = async () => ({ ...config.mapping, projectId: 999n })
-  const conflict = await app.load(collection).POST(request({ provider: 'gitlab', instanceUrl: config.mapping.canonicalGitLabInstanceUrl, sourceProject: '42', credentialRef: 'work', assignees: ['alice'] }), context())
+  const conflict = await app.load(collection).POST(request({ provider: 'gitlab', instanceUrl: config.mapping.canonicalGitLabInstanceUrl, sourceProject: '42', tokenEnvVar: 'GITLAB_WORK_TOKEN', assignees: ['alice'] }), context())
   assert.equal(conflict.status, 409)
 })
 
@@ -97,8 +95,29 @@ test('editing assignees resets approval, increments revision, and cannot change 
   assert.equal(result.status, 200); assert.equal(approvalReset, true); assert.equal(saved.revision.increment, 1)
   assert.equal((await app.load(mutation).PATCH(request({ sourceProject: 'other' }), context())).status, 400)
   assert.equal((await app.load(mutation).PATCH(request({ projectId: uuid(99) }), context())).status, 400)
+  const changedToken = await app.load(mutation).PATCH(request({ tokenEnvVar: 'GITLAB_OTHER_TOKEN' }), context())
+  assert.equal(changedToken.status, 200); assert.equal(saved.tokenEnvVar, 'GITLAB_OTHER_TOKEN'); assert.equal(approvalReset, true)
+  assert.equal((await app.load(mutation).PATCH(request({ tokenEnvVar: 'GITLAB_MISSING_TOKEN' }), context())).status, 503)
   tx.issueSyncConfig.findUniqueOrThrow = async () => ({ ...config, leaseUntil: new Date(Date.now() + 8 * 3600_000) })
   assert.equal((await app.load(mutation).PATCH(request({ enabled: false }), context())).status, 409)
+})
+
+test('disabled configs can be configured before their token exists and cannot be enabled until it is available', async () => {
+  const paused = { ...config, enabled: false, tokenEnvVar: null }
+  let saved
+  const tx = {
+    issueSyncConfig: { findUniqueOrThrow: async () => paused, update: async ({ data }) => { saved = data; return { ...paused, ...data } } },
+    gitLabProjectMapping: { update: async () => paused.mapping },
+  }
+  const app = setup({ db: { issueSyncConfig: { findFirst: async () => paused }, $transaction: async (callback) => callback(tx) } })
+  const handler = app.load(mutation).PATCH
+  const response = await handler(request({ tokenEnvVar: 'GITLAB_NOT_YET_PROVISIONED_TOKEN' }), context())
+  assert.equal(response.status, 200); assert.equal(saved.enabled, false); assert.equal(app.credentialReads(), 0)
+  assert.equal((await handler(request({ enabled: true }), context())).status, 400)
+  paused.tokenEnvVar = 'GITLAB_MISSING_TOKEN'
+  assert.equal((await handler(request({ enabled: true }), context())).status, 503)
+  assert.equal((await handler(request({ enabled: false }), context())).status, 200)
+  assert.equal((await handler(request({ enabled: false, tokenEnvVar: 'OWNER_GATE_PASSWORD' }), context())).status, 400)
 })
 
 test('run history pagination scopes public cursors to the config without exposing internal row IDs', async () => {

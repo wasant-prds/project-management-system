@@ -1,6 +1,6 @@
 # DATABASE MAPPING
 
-> **Project Issue Sync — current contract:** หน้า Project → Integrations อ่าน/เขียน issue_sync_configs + external_project_mappings และเรียก provider GET APIs. Sync เขียน WorkItem/external_work_item_references พร้อม issue_sync_runs แบบ transaction. Assignee ต้นทางเป็นตัวกรอง ไม่ใช่ PMS owner FK; Daily Work ไม่ถูกสร้าง/แก้โดย sync. รายละเอียดและข้อกำหนดล่าสุดอยู่ใน [Project Issue Sync](./ISSUE_SYNC.md); เนื้อหา GitLab-only เดิมด้านล่างให้อ่านเป็นประวัติเมื่อขัดกับ contract นี้.
+> **Project Issue Sync — current contract:** หน้า Project → Integrations อ่าน/เขียน issue_sync_configs + external_project_mappings และเรียก provider GET APIs. Sync เขียน WorkItem/external_work_item_references พร้อม issue_sync_runs แบบ transaction. Assignee ต้นทางเป็นตัวกรอง ไม่ใช่ PMS owner FK; Daily Work ไม่ถูกสร้าง/แก้โดย sync. Config เก็บ token_env_var เป็นชื่อตัวแปร token ใน .env; แต่ละ row ใช้ token ร่วมกันหรือแยกกันได้. รายละเอียดและข้อกำหนดล่าสุดอยู่ใน [Project Issue Sync](./ISSUE_SYNC.md); เนื้อหา GitLab-only เดิมด้านล่างให้อ่านเป็นประวัติเมื่อขัดกับ contract นี้.
 
 > **Owner decision 2026-09-29:** Mapping ที่ใช้ต่อจากนี้คือ `Company → Project → WorkItem → TimeEntry`; ไม่มี Customer. รายการ Customer ด้านล่างเป็นประวัติข้อเสนอเดิม ดู [Company → Project decision](./COMPANY_PROJECT_DECISION.md).
 

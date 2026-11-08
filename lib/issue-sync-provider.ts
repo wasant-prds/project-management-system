@@ -1,8 +1,7 @@
-import { readFileSync } from 'node:fs'
 import { canonicalGitLabBaseUrl, parseGitLabTimestamp } from '@/lib/gitlab-issue-import'
 
 export type IssueProvider = 'gitlab' | 'github'
-export type SyncCredential = { ref: string; provider: IssueProvider; baseUrl: string; token: string }
+export type SyncCredential = { tokenEnvVar: string; provider: IssueProvider; baseUrl: string; token: string }
 export type SourceProject = { id: string; path: string }
 export type SourceIssue = {
   id: string; number: string; title: string; description: string | null
@@ -14,30 +13,23 @@ export class IssueSyncError extends Error {
   constructor(readonly code: string, message: string, readonly status = 503, readonly retryable = false) { super(message) }
 }
 
-// Registry values are provisioned by the server operator, never accepted from API callers.
-export function syncCredentials(env: NodeJS.ProcessEnv = process.env): SyncCredential[] {
-  try {
-    const registry: unknown = JSON.parse(env.ISSUE_SYNC_CREDENTIALS || '{}')
-    if (!registry || typeof registry !== 'object' || Array.isArray(registry)) return []
-    return Object.entries(registry).flatMap(([ref, entry]) => {
-      if (!/^[a-zA-Z][a-zA-Z0-9_-]{0,63}$/.test(ref) || !entry || typeof entry !== 'object') return []
-      const { provider, baseUrl: rawUrl, tokenEnv, tokenFileEnv } = entry
-      const baseUrl = canonicalGitLabBaseUrl(rawUrl)
-      if (!baseUrl || !['gitlab', 'github'].includes(provider) || (provider === 'github' && baseUrl !== 'https://github.com')) return []
-      const variable = tokenEnv ?? tokenFileEnv
-      if (typeof variable !== 'string' || !/^[A-Z][A-Z0-9_]*$/.test(variable) || variable.startsWith('NEXT_PUBLIC_') || Boolean(tokenEnv) === Boolean(tokenFileEnv)) return []
-      let token: string | undefined
-      try { token = tokenEnv ? env[tokenEnv] : readFileSync(env[tokenFileEnv] || '', 'utf8') } catch { return [] }
-      token = token?.trim()
-      return token && !/[\r\n]/.test(token) ? [{ ref, provider, baseUrl, token }] : []
-    })
-  } catch { return [] }
+// Dedicated token names prevent configs from reading unrelated application secrets.
+export function isTokenEnvVar(value: unknown): value is string {
+  return typeof value === 'string' && value.length <= 128
+    && /^(?:GITLAB|GITHUB|ISSUE_SYNC)_[A-Z0-9_]*TOKEN(?:_[A-Z0-9]+)*$/.test(value)
 }
 
-export function requiredCredential(ref: string, provider: string, baseUrl: string) {
-  const credential = syncCredentials().find((item) => item.ref === ref && item.provider === provider && item.baseUrl === baseUrl)
-  if (!credential) throw new IssueSyncError('CREDENTIAL_UNAVAILABLE', 'ไม่พบ credential ที่ตรงกับ provider และ instance กรุณาตรวจ server configuration')
-  return credential
+export function requiredCredential(tokenEnvVar: unknown, provider: string, instanceUrl: string, env: NodeJS.ProcessEnv = process.env): SyncCredential {
+  if (!isTokenEnvVar(tokenEnvVar)) throw new IssueSyncError('VALIDATION_ERROR', 'ระบุชื่อตัวแปร token เช่น GITLAB_TEAM_TOKEN, GITHUB_TOKEN หรือ ISSUE_SYNC_TOKEN_TEAM', 400)
+  const baseUrl = canonicalGitLabBaseUrl(instanceUrl)
+  if (!baseUrl || !['gitlab', 'github'].includes(provider) || (provider === 'github' && baseUrl !== 'https://github.com')) {
+    throw new IssueSyncError('VALIDATION_ERROR', 'Provider หรือ HTTPS instance URL ไม่ถูกต้อง', 400)
+  }
+  const token = env[tokenEnvVar]?.trim()
+  if (!token || /[\r\n]/.test(token) || /^(?:<.*>|replace.*|paste.*|change.*)$/i.test(token)) {
+    throw new IssueSyncError('CREDENTIAL_UNAVAILABLE', 'ไม่พบ token ที่พร้อมใช้ตามชื่อตัวแปรใน config กรุณาตรวจ .env ของ app')
+  }
+  return { tokenEnvVar, provider: provider as IssueProvider, baseUrl, token }
 }
 
 export function parseAssignees(value: unknown): string[] | null {
