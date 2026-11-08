@@ -35,7 +35,8 @@ yarn-error.log*
 !/infra/certbot/logs/.gitkeep
 
 # database
-/database/seeds/*
+# Local seed datasets, including all sql-master files, stay outside version control.
+/database/seeds/
 /database/postgres/data/*
 !/database/postgres/data/.gitkeep
 /database/backups/

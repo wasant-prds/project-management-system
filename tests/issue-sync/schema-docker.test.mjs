@@ -80,9 +80,11 @@ test('issue-sync additive migration preserves history and enforces identifiers o
       INSERT INTO external_project_mappings(provider,instance_url,external_project_id,project_id)
       VALUES ('gitlab','https://lab.test','42',1),('github','https://github.com','43',1);`)
     const mappings = JSON.parse(freshQuery('SELECT json_object_agg(provider,public_id) FROM external_project_mappings'))
-    const seed = readFileSync(resolve(ROOT, 'database/seeds/sql-master/120_issue_sync_configs.sql'), 'utf8')
-      .replaceAll('REPLACE_WITH_GITLAB_MAPPING_PUBLIC_UUID', mappings.gitlab)
-      .replaceAll('REPLACE_WITH_GITHUB_MAPPING_PUBLIC_UUID', mappings.github)
+    // Keep CI independent of operator-owned, gitignored seed datasets.
+    const seed = `INSERT INTO issue_sync_configs(mapping_id,source_project_path,assignees,token_env_var,enabled) VALUES
+      ((SELECT id FROM external_project_mappings WHERE public_id='${mappings.gitlab}'::uuid),'group/project',ARRAY['alice'],'GITLAB_PROJECT_A_TOKEN',false),
+      ((SELECT id FROM external_project_mappings WHERE public_id='${mappings.github}'::uuid),'acme/repo',ARRAY['bob'],'GITHUB_PROJECT_B_TOKEN',false)
+      ON CONFLICT (mapping_id) DO NOTHING;`
     freshQuery(seed)
     const seeded = freshQuery("SELECT json_agg(json_build_array(public_id,token_env_var,enabled) ORDER BY token_env_var) FROM issue_sync_configs")
     const rows = JSON.parse(seeded)
