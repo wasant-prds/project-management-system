@@ -129,6 +129,29 @@ test('config lists expose public UUIDs and token variable names without secret v
   assert.equal(app.calls.credentials, 0)
   assert.doesNotMatch(JSON.stringify(response.body), /synthetic-secret|mappingId|leaseToken/)
 })
+
+test('provider authentication failures retain upstream diagnostics without triggering owner authentication', async () => {
+  const failure = { provider: 'gitlab', operation: 'resolve_project', httpStatus: 401 }
+  const app = setup({
+    repos: {
+      syncConfigs: {
+        list: async () => {
+          throw new provider.IssueSyncError(
+            'PROVIDER_UNAUTHORIZED',
+            'GitLab HTTP 401: ตรวจตัวแปร token',
+            503,
+            false,
+            failure,
+          )
+        },
+      },
+    },
+  })
+  const result = await app.load(collection).GET({}, context())
+  assert.equal(result.status, 503)
+  assert.equal(result.body.error.code, 'PROVIDER_UNAUTHORIZED')
+  assert.deepEqual(result.body.error.providerFailure, failure)
+})
 const valid = {
   provider: 'gitlab',
   instanceUrl: 'https://gitlab.example.test/base',

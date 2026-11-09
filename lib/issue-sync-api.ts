@@ -51,7 +51,16 @@ export function syncApiError(error: unknown) {
   const owner = ownerErrorResponse(error)
   if (owner) return owner
   if (error instanceof IssueSyncError)
-    return syncJson({ error: { code: error.code, message: error.message } }, error.status)
+    return syncJson(
+      {
+        error: {
+          code: error.code,
+          message: error.message,
+          ...(error.providerFailure ? { providerFailure: error.providerFailure } : {}),
+        },
+      },
+      error.status,
+    )
   const code = typeof error === 'object' && error && 'code' in error ? error.code : null
   if (code === '23505' || code === '40001' || code === '40P01' || code === '23503')
     return syncJson(

@@ -3,6 +3,8 @@ import { canonicalSourceBaseUrl, parseSourceTimestamp } from '@/lib/integrations
 export type IssueProvider = 'gitlab' | 'github'
 export type SyncCredential = { tokenEnvVar: string; provider: IssueProvider; baseUrl: string; token: string }
 export type SourceProject = { id: string; path: string }
+export type ProviderOperation = 'request' | 'resolve_project' | 'list_issues' | 'read_issue'
+export type ProviderFailure = { provider: IssueProvider; operation: ProviderOperation; httpStatus?: number }
 export type SourceIssue = {
   id: string
   number: string
@@ -23,6 +25,7 @@ export class IssueSyncError extends Error {
     message: string,
     readonly status = 503,
     readonly retryable = false,
+    readonly providerFailure?: ProviderFailure,
   ) {
     super(message)
   }
@@ -119,7 +122,60 @@ export class IssueSourceClient {
       : `${this.credential.baseUrl}/api/v4${path}`
   }
 
-  async request(url: string): Promise<{ data: unknown; headers: Headers }> {
+  private providerError(operation: ProviderOperation, httpStatus?: number, limited = false) {
+    const provider = this.credential.provider
+    const name = provider === 'gitlab' ? 'GitLab' : 'GitHub'
+    const action = {
+      request: 'เรียก API',
+      resolve_project: 'ตรวจสอบ Project',
+      list_issues: 'อ่านรายการ Issues',
+      read_issue: 'อ่าน Issue เดิม',
+    }[operation]
+    const prefix = `${name}${httpStatus === undefined ? '' : ` HTTP ${httpStatus}`} · ${action}: `
+    const failure: ProviderFailure = {
+      provider,
+      operation,
+      ...(httpStatus === undefined ? {} : { httpStatus }),
+    }
+    let code = 'PROVIDER_UNAVAILABLE'
+    let message = 'ติดต่อระบบต้นทางไม่สำเร็จ กรุณาตรวจการเชื่อมต่อแล้วลองใหม่'
+    if (limited) {
+      code = 'RATE_LIMITED'
+      message = 'Provider จำกัดจำนวนคำขอ กรุณาลองใหม่ภายหลัง'
+    } else if (httpStatus === 400 || httpStatus === 422) {
+      code = 'PROVIDER_BAD_REQUEST'
+      message = 'Provider ไม่ยอมรับพารามิเตอร์ของคำขอ API กรุณาตรวจรูปแบบคำขอ'
+    } else if (httpStatus === 401) {
+      code = 'PROVIDER_UNAUTHORIZED'
+      message = `ตรวจ token ในตัวแปร ${this.credential.tokenEnvVar} ว่าถูกต้อง ยังไม่หมดอายุและไม่ถูกเพิกถอน และใช้กับ instance นี้ได้`
+    } else if (httpStatus === 403) {
+      code = 'PROVIDER_FORBIDDEN'
+      message = `ตรวจ scope และสิทธิ์เข้าถึง Project ของ token ใน ${this.credential.tokenEnvVar}`
+      if (provider === 'gitlab' && operation !== 'resolve_project')
+        message += ' รวมถึงตรวจว่า Project เปิดใช้งาน Issues และ token มี read_api'
+    } else if (httpStatus === 404) {
+      code = 'SOURCE_NOT_FOUND'
+      message = 'ไม่พบ Project/Issue หรือ token ไม่มีสิทธิ์เข้าถึง กรุณาตรวจต้นทางและสิทธิ์ของ token'
+    } else if (httpStatus !== undefined && httpStatus >= 300 && httpStatus < 400) {
+      code = 'PROVIDER_REDIRECT'
+      message =
+        'ต้นทางตอบ redirect กรุณาตรวจ instance URL และการย้าย/เปลี่ยนชื่อ Project; ระบบไม่ส่ง token ตาม redirect'
+    } else if (httpStatus !== undefined) {
+      message = httpStatus >= 500 ? 'ระบบต้นทางขัดข้อง กรุณาลองใหม่ภายหลัง' : 'Provider ปฏิเสธคำขอ API'
+    }
+    return new IssueSyncError(
+      code,
+      prefix + message,
+      503,
+      limited || httpStatus === undefined || httpStatus >= 500,
+      failure,
+    )
+  }
+
+  async request(
+    url: string,
+    operation: ProviderOperation = 'request',
+  ): Promise<{ data: unknown; headers: Headers }> {
     const target = new URL(url)
     const api = new URL(this.endpoint('/'))
     if (
@@ -165,7 +221,7 @@ export class IssueSourceClient {
           await this.wait(150 * 2 ** attempt)
           continue
         }
-        throw new IssueSyncError('PROVIDER_UNAVAILABLE', 'ติดต่อ provider ไม่สำเร็จ', 503, true)
+        throw this.providerError(operation)
       } finally {
         clearTimeout(timer)
       }
@@ -193,14 +249,7 @@ export class IssueSourceClient {
           continue
         }
       }
-      throw new IssueSyncError(
-        limited ? 'RATE_LIMITED' : 'PROVIDER_UNAVAILABLE',
-        limited
-          ? 'Provider จำกัดจำนวนคำขอ กรุณาลองใหม่ภายหลัง'
-          : 'Provider ปฏิเสธคำขอ กรุณาตรวจสิทธิ์และ project',
-        503,
-        limited || response.status >= 500,
-      )
+      throw this.providerError(operation, response.status, limited)
     }
     throw new IssueSyncError('PROVIDER_UNAVAILABLE', 'ติดต่อ provider ไม่สำเร็จ', 503, true)
   }
@@ -212,6 +261,7 @@ export class IssueSourceClient {
     }
     const { data } = await this.request(
       this.endpoint(github ? `/repos/${input}` : `/projects/${encodeURIComponent(input)}`),
+      'resolve_project',
     )
     const project = data as Record<string, unknown> | null
     const id = positiveId(project?.id)
@@ -251,9 +301,9 @@ export class IssueSourceClient {
         } else {
           url.searchParams.set('assignee_username[]', assignee)
           url.searchParams.set('scope', 'all')
-          url.searchParams.set('order_by', 'id')
+          url.searchParams.set('order_by', 'created_at')
         }
-        const { data } = await this.request(url.href)
+        const { data } = await this.request(url.href, 'list_issues')
         if (!Array.isArray(data))
           throw new IssueSyncError('INVALID_SOURCE', 'Provider ส่งหน้า issues ไม่ถูกต้อง')
         for (const raw of data) {
@@ -271,7 +321,7 @@ export class IssueSourceClient {
 
   async issue(project: SourceProject, number: string) {
     if (!positiveId(number)) throw new IssueSyncError('INVALID_SOURCE', 'Issue number ไม่ถูกต้อง')
-    return (await this.request(`${this.issuesEndpoint(project)}/${number}`)).data
+    return (await this.request(`${this.issuesEndpoint(project)}/${number}`, 'read_issue')).data
   }
 
   parseIssue(raw: unknown, project: SourceProject): SourceIssue | null {

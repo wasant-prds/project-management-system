@@ -77,7 +77,12 @@ function referenceScope(mapping: SourceMapping) {
 
 function safeError(error: unknown) {
   return error instanceof IssueSyncError
-    ? { code: error.code, message: error.message, retryable: error.retryable }
+    ? {
+        code: error.code,
+        message: error.message,
+        retryable: error.retryable,
+        ...(error.providerFailure ? { providerFailure: error.providerFailure } : {}),
+      }
     : { code: 'SYNC_FAILED', message: 'บันทึกผล sync ไม่สำเร็จ กรุณาลองอีกครั้ง', retryable: true }
 }
 

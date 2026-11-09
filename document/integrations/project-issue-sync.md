@@ -65,4 +65,20 @@ Source writes และ per-issue history checkpoint commit ใน Serializable 
 
 ## Verification
 
-`pnpm test:issue-sync` หรือ `node tests/run.mjs issue-sync` ใช้ synthetic fixtures ไม่เรียก providers จริง. SQL integration opt-in: PowerShell `$env:PMS_RUN_ISSUE_SYNC_DOCKER_TESTS='1'` แล้ว `node tests/run.mjs issue-sync` ใช้ PostgreSQL container สุ่มชื่อ, network none, ไม่มี host ports หรือ volumes และลบเฉพาะ container นั้นหลังทดสอบ.
+`pnpm test:issue-sync` หรือ `node tests/run.mjs issue-sync` ใช้ synthetic fixtures ไม่เรียก providers จริง. `pnpm test:database-docker` ตรวจ persistence/API ด้วย PostgreSQL container สุ่มชื่อ ไม่มี host ports หรือ production volumes และลบเฉพาะ containers ของชุดทดสอบหลังเสร็จ.
+
+## Provider ปฏิเสธคำขอ
+
+GitLab project Issues API ใช้ `order_by=created_at&sort=asc` ตาม [Issues API](https://docs.gitlab.com/api/issues/#list-all-project-issues). ไม่ใช้ `order_by=id` ซึ่งไม่อยู่ในค่าที่ API ระบุว่ารองรับ. ยังคง query ทีละ `assignee_username[]` แล้วรวมผลและตรวจ assignees ซ้ำ
+
+ข้อความ error ของ run ใหม่ระบุ provider, HTTP status และขั้นตอนที่ล้มเหลว: ตรวจสอบ Project, อ่านรายการ Issues หรืออ่าน Issue เดิม. `runError.providerFailure` และ request error มี metadata `{ provider, operation, httpStatus? }` โดยไม่คืน response body, request URL, redirect destination หรือ token จริง. Network failure ไม่มี HTTP status. ประวัติเดิมยังเก็บไว้ตามเดิม; ไม่สามารถเดา HTTP status ย้อนหลังจาก `PROVIDER_UNAVAILABLE` เดิมได้
+
+- `PROVIDER_BAD_REQUEST` (400/422): provider ไม่ยอมรับพารามิเตอร์/รูปแบบคำขอ
+- `PROVIDER_UNAUTHORIZED` (401): ตรวจค่าของตัวแปร token ที่ระบุในข้อความว่าเป็น token ของ instance ที่ถูกต้อง ยังไม่หมดอายุหรือถูกเพิกถอน
+- `PROVIDER_FORBIDDEN` (403): ตรวจ token scope, project membership/permissions และสำหรับ GitLab ตรวจว่าเปิด Issues. Token สำหรับ GET API ควรมี `read_api`
+- `SOURCE_NOT_FOUND` (404): ไม่พบ Project/Issue หรือ token ไม่มีสิทธิ์มองเห็น resource นั้น; ไม่สรุปว่า resource ถูกลบ
+- `PROVIDER_REDIRECT` (3xx): ตรวจ instance URL/การย้ายหรือเปลี่ยนชื่อต้นทาง. ระบบไม่ส่ง token ตาม redirect
+- `RATE_LIMITED` (429 หรือ rate-limit 403): รอตามนโยบาย Retry-After ก่อนลองใหม่
+- `PROVIDER_UNAVAILABLE`: network/5xx หรือ status อื่น; ข้อความแยก HTTP failure ออกจากปัญหาการเชื่อมต่อ
+
+Provider authentication failures ใช้ HTTP 503 ของ PMS พร้อม provider-specific code เพื่อไม่ปะปนกับ HTTP 401 ของ owner gate. เมื่อแก้ `.env` ต้อง recreate app จึงโหลดค่าใหม่; ไม่เก็บ token ใน table. คำแนะนำสถานะอ้างอิง [GitLab authentication](https://docs.gitlab.com/api/rest/authentication/) และ [REST troubleshooting](https://docs.gitlab.com/api/rest/troubleshooting/)

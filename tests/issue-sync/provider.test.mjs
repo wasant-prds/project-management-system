@@ -156,6 +156,12 @@ for (const provider of ['gitlab', 'github']) {
       assert.equal(options.redirect, 'manual')
       assert.equal(options.method, 'GET')
       assert.equal(options.cache, 'no-store')
+      if (provider === 'gitlab') {
+        assert.equal(url.searchParams.get('order_by'), 'created_at')
+        assert.equal(url.searchParams.get('sort'), 'asc')
+        assert.equal(url.searchParams.get('scope'), 'all')
+        assert.equal(url.searchParams.getAll('assignee_username[]').length, 1)
+      }
     }
     assert.equal(
       calls[0].options.headers[provider === 'github' ? 'Authorization' : 'PRIVATE-TOKEN'],
@@ -182,6 +188,86 @@ test('pagination is generated locally, ignores malicious Link headers, and dedup
   assert.equal(issues.length, 101)
   assert.equal(calls.length, 2)
   assert.ok(calls.every((url) => url.origin === 'https://gitlab.example.test'))
+})
+
+for (const provider of ['gitlab', 'github']) {
+  for (const [status, code, retryable] of [
+    [400, 'PROVIDER_BAD_REQUEST', false],
+    [401, 'PROVIDER_UNAUTHORIZED', false],
+    [403, 'PROVIDER_FORBIDDEN', false],
+    [404, 'SOURCE_NOT_FOUND', false],
+    [422, 'PROVIDER_BAD_REQUEST', false],
+    [301, 'PROVIDER_REDIRECT', false],
+    [429, 'RATE_LIMITED', true],
+    [500, 'PROVIDER_UNAVAILABLE', true],
+  ])
+    test(`${provider}: HTTP ${status} preserves a safe actionable error and request phase`, async () => {
+      let calls = 0
+      const client = new IssueSourceClient(
+        credential(provider),
+        async () => {
+          calls++
+          return response({ message: 'secret-provider-body synthetic-token' }, status)
+        },
+        async () => {},
+      )
+      await assert.rejects(client.request(client.endpoint('/projects/42/issues'), 'list_issues'), (error) => {
+        assert.equal(error.code, code)
+        assert.equal(error.retryable, retryable)
+        assert.equal(error.status, 503) // Upstream 401/403 must not become owner-auth failures.
+        assert.deepEqual(plain(error.providerFailure), {
+          provider,
+          operation: 'list_issues',
+          httpStatus: status,
+        })
+        assert.ok(error.message.includes(`HTTP ${status}`))
+        assert.doesNotMatch(JSON.stringify(error), /secret-provider-body|synthetic-token/)
+          assert.doesNotMatch(error.message, /secret-provider-body|synthetic-token/)
+        if (status === 401 || status === 403) assert.ok(error.message.includes('GITLAB_WORK_TOKEN'))
+        return true
+      })
+      assert.equal(calls, retryable ? 3 : 1)
+    })
+}
+
+test('provider errors distinguish project lookup, issue listing and known-issue lookup', async () => {
+  const client = new IssueSourceClient(credential(), async () => response({}, 404))
+  const project = { id: '42', path: 'group/project' }
+  await assert.rejects(
+    client.resolveProject(project.path),
+    (error) => error.providerFailure.operation === 'resolve_project',
+  )
+  await assert.rejects(
+    async () => {
+      for await (const row of client.issues(project, ['alice'])) void row
+    },
+    (error) => error.providerFailure.operation === 'list_issues',
+  )
+  await assert.rejects(
+    client.issue(project, '17'),
+    (error) => error.providerFailure.operation === 'read_issue',
+  )
+})
+
+test('network errors do not invent an HTTP status or expose fetch diagnostics', async () => {
+  let calls = 0
+  const client = new IssueSourceClient(
+    credential(),
+    async () => {
+      calls++
+      throw new Error('synthetic-token private connection diagnostics')
+    },
+    async () => {},
+  )
+  await assert.rejects(client.resolveProject('group/project'), (error) => {
+    assert.equal(error.code, 'PROVIDER_UNAVAILABLE')
+    assert.equal(error.retryable, true)
+    assert.deepEqual(plain(error.providerFailure), { provider: 'gitlab', operation: 'resolve_project' })
+    assert.doesNotMatch(JSON.stringify(error), /synthetic-token|private connection/)
+    assert.doesNotMatch(error.message, /synthetic-token|private connection/)
+    return true
+  })
+  assert.equal(calls, 3)
 })
 
 test('rate-limit Retry-After is honored without retrying early and errors never echo provider bodies', async () => {

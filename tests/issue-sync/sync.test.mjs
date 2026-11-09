@@ -7,6 +7,78 @@ const { IssueSourceClient, IssueSyncError } = load('lib/issue-sync-provider.ts')
 const { executeIssueSync, startIssueSync, syncConfigDto, syncRunDto } = load('lib/issue-sync.ts')
 const owner = 10n
 
+test('GitLab project sync uses a supported Issues API sort and keeps username filtering', async () => {
+  const fx = database()
+  const config = structuredClone(fx.state.config)
+  const requests = []
+  const client = new IssueSourceClient(
+    {
+      tokenEnvVar: config.tokenEnvVar,
+      provider: 'gitlab',
+      baseUrl: config.mapping.instanceUrl,
+      token: 'synthetic-secret',
+    },
+    async (url) => {
+      const target = new URL(url)
+      requests.push(target)
+      if (!target.pathname.endsWith('/issues'))
+        return new Response(JSON.stringify({ id: 42, path_with_namespace: config.sourceProjectPath }))
+      if (target.searchParams.get('order_by') !== 'created_at')
+        return new Response('{"message":"order_by is invalid"}', { status: 400 })
+      assert.equal(target.searchParams.get('scope'), 'all')
+      assert.ok(config.assignees.includes(target.searchParams.get('assignee_username[]')))
+      return new Response(JSON.stringify([rawIssue()]))
+    },
+  )
+  const result = await executeIssueSync(
+    fx.db,
+    config,
+    await startIssueSync(fx.db, config, false),
+    owner,
+    client,
+  )
+  assert.equal(result.status, 'success')
+  assert.equal(result.createdCount, 1)
+  assert.equal(fx.state.items.length, 1)
+  assert.equal(requests.length, 3)
+})
+
+test('run history persists provider HTTP status and phase without response bodies, URLs or tokens', async () => {
+  const fx = database()
+  const config = structuredClone(fx.state.config)
+  const client = new IssueSourceClient(
+    {
+      tokenEnvVar: config.tokenEnvVar,
+      provider: 'gitlab',
+      baseUrl: config.mapping.instanceUrl,
+      token: 'synthetic-secret',
+    },
+    async (url) =>
+      new URL(url).pathname.endsWith('/issues')
+        ? new Response('sensitive response body synthetic-secret', { status: 403 })
+        : new Response(JSON.stringify({ id: 42, path_with_namespace: config.sourceProjectPath })),
+  )
+  const result = await executeIssueSync(
+    fx.db,
+    config,
+    await startIssueSync(fx.db, config, false),
+    owner,
+    client,
+  )
+  assert.equal(result.status, 'failed')
+  assert.equal(result.runError.code, 'PROVIDER_FORBIDDEN')
+  assert.deepEqual(result.runError.providerFailure, {
+    provider: 'gitlab',
+    operation: 'list_issues',
+    httpStatus: 403,
+  })
+  assert.ok(result.runError.message.includes('read_api'))
+  assert.ok(result.runError.message.includes(config.tokenEnvVar))
+  assert.doesNotMatch(JSON.stringify(syncRunDto(result)), /synthetic-secret|sensitive response|\/api\/v4/)
+  assert.equal(fx.state.items.length, 0)
+  assert.equal(fx.state.config.leaseToken, null)
+})
+
 function sourceClient(config, rows, { absent = [], error, resolvedId = '42' } = {}) {
   const client = new IssueSourceClient({
     tokenEnvVar: config.tokenEnvVar,
