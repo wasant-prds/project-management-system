@@ -12,7 +12,7 @@
 4. วาง SQL seeds ส่วนตัวใน `database/seeds/sql-master` และรัน `pnpm db:seed` เฉพาะฐานที่ยังไม่มีข้อมูล
 5. ตั้ง `OWNER_USER_ID` เป็น users.public_id ของ owner แล้วรัน `pnpm dev`
 
-Docker development ใช้ `docker compose up -d --build`. UAT/production ใช้ compose file ของ environment นั้น. `database-init` อ่าน `database/schema.sql` ก่อน app เริ่ม; ฐานที่ schema ไม่ตรงจะถูกปฏิเสธ. การติดตั้งใหม่ไม่ลบหรืออัปเกรดฐานเดิมอัตโนมัติ. ดู [ขั้นตอนฐานข้อมูล](database/README.md) ก่อนใช้กับฐานที่มีข้อมูล
+Docker development ใช้ `docker compose up -d --build`. UAT/production ใช้ compose file ของ environment นั้น. `database-init` อ่าน `database/schema.sql` ก่อน app เริ่ม; ฐานที่ schema ไม่ตรงจะถูกปฏิเสธ. การติดตั้งใหม่ไม่ลบหรืออัปเกรดฐานเดิมอัตโนมัติ. ดู [ขั้นตอนฐานข้อมูล](./database/README.md) ก่อนใช้กับฐานที่มีข้อมูล
 
 ## โครงสร้าง
 
@@ -43,18 +43,19 @@ pnpm test:database-docker
 python -B -m unittest discover -s scripts/tests -p "test_github_*.py" -v
 ```
 
-Unit suite รวม provider tests แบบจำลองและ UI regressions. Database suite ไม่อ่าน private seeds หรือ token จริง. ดู [testing](document/process/testing.md)
+Unit suite รวม provider tests แบบจำลองและ UI regressions. Database suite ไม่อ่าน private seeds หรือ token จริง. ดู [testing](./document/development/testing.md)
 
 ## คู่มือ
 
-- [Database workflow](database/README.md)
-- [Project Issue Sync และ token variables](document/ISSUE_SYNC.md)
-- [API contracts](document/API.md)
-- [Database commands](document/process/db.md)
-- [Docker commands](document/process/docker.md)
-- [Runtime security](document/RUNTIME_SECURITY.md)
-- [Public identifiers](document/database/PUBLIC_IDENTIFIERS.md)
-- [Engineering spec](document/ENGINEERING_SPEC.md)
-- [GitHub issue script](document/github-create-tasks.md)
+- [สารบัญเอกสารทั้งหมด](./document/README.md)
+- [Database workflow](./database/README.md)
+- [Project Issue Sync และ token variables](./document/integrations/project-issue-sync.md)
+- [API contracts](./document/api/overview.md)
+- [Database commands](./document/development/database.md)
+- [Docker commands](./document/development/docker.md)
+- [Runtime security](./document/operations/runtime-security.md)
+- [Public identifiers](./document/database/public-identifiers.md)
+- [Engineering spec](./document/architecture/engineering-spec.md)
+- [GitHub issue script](./document/development/github-create-tasks.md)
 
-ไฟล์รายงาน issue เก่าเป็นหลักฐานของเวอร์ชันในเวลานั้น. สำหรับ database tooling ปัจจุบันให้ใช้ schema.sql และ scripts/database ตามคู่มือนี้
+เอกสารประวัติเก็บใน [Archive](./document/archive/README.md); รายงานผลทดสอบใหม่เก็บใน `artifacts/`. สำหรับ database tooling ปัจจุบันให้ใช้ schema.sql และ scripts/database ตามคู่มือนี้

@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
-import { writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
+
+const reportDirectory = 'artifacts/frontend-performance'
+await mkdir(reportDirectory, { recursive: true })
 
 // E2E against the isolated synthetic preview; never a unit test or field-CWV assertion.
 const require = createRequire(import.meta.url)
@@ -123,7 +126,7 @@ try {
           const after = await shell.boundingBox()
           assert.ok(before && after)
           assert.ok(Math.abs(before.height - after.height) <= 1, `chart footprint moved: ${before.height} -> ${after.height}`)
-          if ((theme === 'light' && width === 1440) || (theme === 'dark' && width === 375)) await chartPage.screenshot({ path: `document/issue-30-analysis-${theme}-${width}.png` })
+          if ((theme === 'light' && width === 1440) || (theme === 'dark' && width === 375)) await chartPage.screenshot({ path: `${reportDirectory}/analysis-${theme}-${width}.png` })
         } finally { await isolated.close() }
       })
     }
@@ -170,7 +173,7 @@ try {
   await context.close()
 } finally { await browser.close() }
 const report = { scope: 'Isolated browser E2E; synthetic data; no production CWV claim', total: results.length, pass: results.filter((row) => row.pass).length, fail: results.filter((row) => !row.pass).length, results }
-await writeFile(targeted ? 'document/issue-30-browser-targeted-results.json' : 'document/issue-30-browser-results.json', JSON.stringify(report, null, 2) + '\n')
+await writeFile(`${reportDirectory}/${targeted ? 'browser-targeted-results' : 'browser-results'}.json`, JSON.stringify(report, null, 2) + '\n')
 for (const row of results.filter((row) => !row.pass)) console.error(row)
 console.log(`Browser: ${report.total} total / ${report.pass} PASS / ${report.fail} FAIL`)
 process.exitCode = failed ? 1 : 0

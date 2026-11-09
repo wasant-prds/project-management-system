@@ -1,6 +1,6 @@
 ---
 description: SQL initialization, private seeds, verified backups and APP_ENV targeting
-globs: scripts/database/**,scripts/db-*.{sh,ps1},database/**,document/process/db.md
+globs: scripts/database/**,scripts/db-*.{sh,ps1},database/**,document/development/database.md
 alwaysApply: false
 ---
 

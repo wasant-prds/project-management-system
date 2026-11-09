@@ -678,7 +678,7 @@ test('TC-28-09 dashboard hierarchy gives recent work the focal grid and keeps ri
 test('TC-28-10 motion unit cases have a reusable isolated suite command and tree reporter name', () => {
   const packageJson = JSON.parse(source('../../package.json'))
   const runner = source('../../tests/run.mjs')
-  const testingGuide = source('../../document/process/testing.md')
+  const testingGuide = source('../../document/development/testing.md')
   assert.equal(packageJson.scripts['test:frontend-motion'], 'node tests/run.mjs frontend-motion')
   assert.match(runner, /"frontend-motion": \{ files: \[join\(testRoot, "frontend-ui", "motion-system\.test\.mjs"\)\] \}/)
   assert.match(testingGuide, /pnpm test:frontend-motion[\s\S]*bash scripts\/test-unit\.sh frontend-motion/)

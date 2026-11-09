@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
-import { writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
+
+const reportDirectory = 'artifacts/frontend-performance'
+await mkdir(reportDirectory, { recursive: true })
 
 // Review regressions: real production TSX and Webpack chunk retry; synthetic API only.
 const require = createRequire(import.meta.url)
@@ -188,6 +191,6 @@ try {
   }
 } finally { await browser.close() }
 const report = { scope: 'Review regressions; isolated browser E2E with Webpack chunk runtime; no production hydration or field CWV claim', total: results.length, pass: results.filter((row) => row.pass).length, fail: results.filter((row) => !row.pass).length, results }
-await writeFile('document/issue-30-review-browser-results.json', JSON.stringify(report, null, 2) + '\n')
+await writeFile(`${reportDirectory}/review-browser-results.json`, JSON.stringify(report, null, 2) + '\n')
 console.log(`Review browser: ${report.total} total / ${report.pass} PASS / ${report.fail} FAIL`)
 process.exitCode = report.fail ? 1 : 0

@@ -10,7 +10,7 @@ alwaysApply: false
 - One root `.env`. Helpers: `bash scripts/docker-dev.sh|docker-uat.sh|docker-prod.sh <command>`. No `.env.uat` / `.env.production`. Copy `.env.example` placeholders only.
 - Set `TZ=Asia/Bangkok` for application containers and PostgreSQL session/database defaults in every environment. Persist dates and timestamps using Bangkok calendar/wall-clock semantics; do not convert stored values to UTC. Keep explicit application conversions so browser/device timezone cannot change persisted values.
 - Compose: `docker-compose.yml` (dev), `docker-compose.uat.yml`, `docker-compose.prod.yml` + shared DB compose. Secrets come from root .env — never commit values.
-- Verify effective ports in Compose. DEPLOYMENT.md: dev host 3777→3000, UAT 3001, prod 3002, Postgres often 5437. `document/process/docker.md` may list 3000/5432 — do not assume; read the running mapping.
+- Verify effective ports in Compose. `document/operations/deployment.md`: dev host 3777→3000, UAT 3001, prod 3002, Postgres often 5437. `document/development/docker.md` may list 3000/5432 — do not assume; read the running mapping.
 - Health: container `GET /api/health` every 30s after 40s start. Success 200 `database: connected`; failure 503.
 - `NEXT_PUBLIC_ENV` is baked at build; rebuild to change. `RUN_SEED` / `SEED_PATH` control SQL seed.
 - Persist volume `pms-postgres-data-${APP_ENV}` via `POSTGRES_DATA_DIR` (default `./database/postgres/data`). Do not commit data files.

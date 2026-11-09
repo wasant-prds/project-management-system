@@ -7,7 +7,7 @@ const source = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 const css = source('../../app/globals.css')
 const packageJson = JSON.parse(source('../../package.json'))
 const runner = source('../../tests/run.mjs')
-const testingGuide = source('../../document/process/testing.md')
+const testingGuide = source('../../document/development/testing.md')
 const load = createComponentLoader({ 'next/link': { default: Link } })
 const identity = load('components/ui/product-identity.ts')
 

@@ -344,7 +344,7 @@ test('TC-34-17 shared element names and blur stay behind desktop and reduced-mot
 test('TC-34-18 cinematic unit cases have a reusable suite command and tree reporter', () => {
   const packageJson = JSON.parse(source('../../package.json'))
   const runner = source('../../tests/run.mjs')
-  const testingGuide = source('../../document/process/testing.md')
+  const testingGuide = source('../../document/development/testing.md')
   assert.equal(packageJson.scripts['test:frontend-cinematic'], 'node tests/run.mjs frontend-cinematic')
   assert.match(runner, /"frontend-cinematic": \{ files: \[join\(testRoot, "frontend-ui", "cinematic-experience\.test\.mjs"\)\] \}/)
   assert.match(testingGuide, /pnpm test:frontend-cinematic[\s\S]*bash scripts\/test-unit\.sh frontend-cinematic/)

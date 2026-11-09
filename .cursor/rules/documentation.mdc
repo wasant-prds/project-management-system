@@ -6,11 +6,12 @@ alwaysApply: false
 
 # Documentation
 
-- EV files in `document/` are the product source of truth. When behavior changes, update BR, Scope, Engineering Spec, Architecture, API, Database, Mapping, and Deployment together.
+- Start from `document/README.md` and follow its topic folders and lowercase kebab-case filenames. Keep category indexes current; generated test reports and browser captures belong in root `artifacts/`, not `document/`.
+- EV files in `document/` are the product source of truth. When behavior changes, update BR, Scope, Engineering Spec, Architecture, API, Database, Mapping, and Deployment together. `document/archive/` preserves historical context only.
 - State `Asia/Bangkok` as the system, application, and database default consistently wherever dates, timestamps, periods, filters, metrics, settings, storage, or deployment are specified. Clarify that persisted timestamps use Bangkok local wall-clock semantics and are not converted to UTC.
-- Thai-first prose. Keep English model, field, and route names. `document/feature/*` is UI reference only when it matches EV.
+- Thai-first prose. Keep English model, field, and route names. `document/requirements/features/*` is UI reference only when it matches EV.
 - Do not mark a menu done unless EV data, API, and acceptance are met. Separate UI-complete from data-complete.
 - Never paste real secrets, tokens, or connection strings. `.env.example` stays placeholders.
-- Process commands live in `document/process/db.md` and `docker.md`. Do not revive `package.json` `db:*` or `docker:*` scripts.
+- Process commands live in `document/development/database.md` and `document/development/docker.md`. Do not revive `package.json` `db:*` or `docker:*` scripts.
 - API handbook responses: every JSON field gets a concise Thai comment (what it is and where it comes from).
 - New work-item reports under `design/work_items/after_implementation` use Thai-first language with English system terms.

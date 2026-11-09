@@ -29,7 +29,7 @@ const pageLayout = source('../../components/layout/page-layout.ts')
 const responsiveDialog = source('../../components/ui/responsive-dialog.ts')
 const packageJson = JSON.parse(source('../../package.json'))
 const runner = source('../../tests/run.mjs')
-const testingDocs = source('../../document/process/testing.md')
+const testingDocs = source('../../document/development/testing.md')
 const motionHook = source('../../hooks/use-prefers-reduced-motion.ts')
 const appLayout = source('../../app/layout.tsx')
 

@@ -7,7 +7,7 @@ import { previewData } from './preview-fixtures.mjs'
 const source = (path) => readFileSync(new URL(path, import.meta.url), 'utf8')
 const packageJson = JSON.parse(source('../../package.json'))
 const runner = source('../../tests/run.mjs')
-const testingGuide = source('../../document/process/testing.md')
+const testingGuide = source('../../document/development/testing.md')
 const load = createComponentLoader()
 
 const showcaseSources = [

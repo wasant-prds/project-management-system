@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
-import { writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { previewResponse } from '../tests/frontend-ui/preview-fixtures.mjs'
+
+const reportDirectory = 'artifacts/frontend-performance'
+await mkdir(reportDirectory, { recursive: true })
 
 // Production Next SSR/hydration/chunks with browser-intercepted synthetic APIs.
 // Run only against an isolated standalone test container on loopback, never a live deployment.
@@ -94,6 +97,6 @@ try {
   }
 } finally { await browser.close() }
 const report = { scope: 'Production Next standalone SSR/hydration/Webpack with intercepted synthetic APIs; no real auth/database or field CWV claim', total: results.length, pass: results.filter((row) => row.pass).length, fail: results.filter((row) => !row.pass).length, results }
-await writeFile('document/issue-30-production-browser-results.json', JSON.stringify(report, null, 2) + '\n')
+await writeFile(`${reportDirectory}/production-browser-results.json`, JSON.stringify(report, null, 2) + '\n')
 console.log(`Production browser: ${report.total} total / ${report.pass} PASS / ${report.fail} FAIL`)
 process.exitCode = report.fail ? 1 : 0

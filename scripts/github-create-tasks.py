@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Preview, create, or upsert selected Markdown work items as GitHub issues.
 
-Python 3.10+, standard library only. See document/github-create-tasks.md.
+Python 3.10+, standard library only. See document/development/github-create-tasks.md.
 """
 
 from __future__ import annotations

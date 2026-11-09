@@ -2,7 +2,7 @@
 """Preview or upsert GitHub labels from the # labels section of a Markdown catalog.
 
 Python 3.10+, standard library only. Labels that share the text before "::"
-use one color. See document/github-create-labels.md.
+use one color. See document/development/github-create-labels.md.
 """
 
 from __future__ import annotations

@@ -6,7 +6,7 @@ import test from "node:test";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (path) => readFile(join(root, path), "utf8");
-const api = await read("document/API.md");
+const api = await read("document/api/overview.md");
 
 test("API handbook separates the actual Route Handler inventory from target proposals", async () => {
   const handlers = [
@@ -53,7 +53,7 @@ test("API handbook separates the actual Route Handler inventory from target prop
 
 test("Dashboard summary route and handbook expose shared filters and metric definitions", async () => {
   const route = await read("app/api/dashboard/summary/route.ts");
-  const handbook = await read("document/handbook/api/dashboard/summary.md");
+  const handbook = await read("document/api/dashboard/summary.md");
   assert.match(route, /getOwner\(\)/);
   assert.match(route, /getDashboardSummary\(owner\.internalId/);
   assert.match(route, /Cache-Control.*no-store/);
@@ -67,7 +67,7 @@ test("Dashboard summary route and handbook expose shared filters and metric defi
 test("Analysis summary route and handbook expose owner-only shared aggregates and source rows", async () => {
   const route = await read("app/api/analysis/summary/route.ts");
   const service = await read("lib/analysis.ts");
-  const handbook = await read("document/handbook/api/analysis/summary.md");
+  const handbook = await read("document/api/analysis/summary.md");
   assert.match(route, /getOwner\(\)/);
   assert.match(route, /getAnalysisSummary\(owner\.internalId/);
   assert.match(route, /Cache-Control.*no-store/);
@@ -90,7 +90,7 @@ test("Analysis summary route and handbook expose owner-only shared aggregates an
 test("Analysis unit suite has reusable pnpm, Node, reporter, and documentation commands", async () => {
   const packageJson = JSON.parse(await read("package.json"));
   const runner = await read("tests/run.mjs");
-  const guide = await read("document/process/testing.md");
+  const guide = await read("document/development/testing.md");
   assert.equal(packageJson.scripts["test:analysis"], "node tests/run.mjs analysis");
   assert.match(runner, /analysis: \{ directory: join\(testRoot, "analysis"\) \}/);
   assert.match(guide, /pnpm test:analysis/);
@@ -196,7 +196,7 @@ test("resource contracts cover create/update guards and shared aggregate filters
 test("focused API contract runner is reusable and documented", async () => {
   const packageJson = JSON.parse(await read("package.json"));
   const runner = await read("tests/run.mjs");
-  const guide = await read("document/process/testing.md");
+  const guide = await read("document/development/testing.md");
   const checklist = await read("design/projects/project-management-system/work_items/00_checklist.md");
   assert.equal(packageJson.scripts["test:api-contracts"], "node tests/run.mjs api-contracts");
   assert.match(runner, /"api-contracts": \{ files:/);
@@ -212,10 +212,10 @@ test("Owner Settings route persists only supported profile/preferences and has a
   const route = await read("app/api/settings/me/route.ts");
   const service = await read("lib/settings.ts");
   const schema = await read("database/schema.sql");
-  const handbook = await read("document/handbook/api/settings/me.md");
+  const handbook = await read("document/api/settings/me.md");
   const runner = await read("tests/run.mjs");
   const packageJson = JSON.parse(await read("package.json"));
-  const guide = await read("document/process/testing.md");
+  const guide = await read("document/development/testing.md");
 
   assert.match(route, /getOwner\(\)/);
   assert.match(route, /parseOwnerSettingsPatch/);
