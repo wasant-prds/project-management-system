@@ -605,9 +605,19 @@ for (const provider of ['gitlab', 'github'])
     }
     const adopted = await replay()
     assert.equal(adopted.createdCount, 0)
-    assert.equal(adopted.updatedCount, 1)
-    assert.equal(adopted.results[1].workItemId, legacy.publicId)
-    assert.equal(adopted.results[1].reason, 'linked_existing_work_item')
+    assert.equal(adopted.results[1].outcome, 'pending')
+    const confirm = (runId, decisions) =>
+      load('app/api/projects/[id]/issue-sync/[configId]/confirm/route.ts').POST(
+        request({ runId, decisions }),
+        context(project.publicId, { configId: config.publicId }),
+      )
+    const response = await confirm(adopted.publicId, [{ issueId: '702', workItemId: legacy.publicId }])
+    const confirmed = (await response.json()).run
+    assert.equal(response.status, 200)
+    assert.equal(confirmed.counts.updated, 1)
+    assert.equal(confirmed.results[1].workItemId, legacy.publicId)
+    assert.equal(confirmed.results[1].reason, 'linked_existing_work_item')
+    assert.doesNotMatch(JSON.stringify(confirmed), /reviewSnapshot|versions/)
     remote.title = 'Renamed source issue'
     remote.updated_at = '2026-11-03T01:00:00Z'
     assert.equal((await replay()).results[1].workItemId, legacy.publicId)
@@ -635,8 +645,28 @@ for (const provider of ['gitlab', 'github'])
       yield ambiguous
     }
     const conflicted = await replay()
-    assert.equal(conflicted.results[2].reason, 'LOCAL_ISSUE_CONFLICT')
+    assert.equal(conflicted.results[2].reason, 'confirmation_required')
     assert.equal(conflicted.createdCount, 0)
+    const candidate = await workItems.byPublicId(conflicted.results[2].candidates[0].id)
+    await workItems.update(candidate.id, { description: 'Changed after preview' })
+    assert.equal((await confirm(conflicted.publicId, [{ issueId: '703', workItemId: null }])).status, 409)
+    const refreshed = await replay()
+    const concurrent = await Promise.all([
+      confirm(refreshed.publicId, [{ issueId: '703', workItemId: null }]),
+      confirm(refreshed.publicId, [{ issueId: '703', workItemId: null }]),
+    ])
+    assert.ok(concurrent.some((result) => result.status === 200))
+    assert.ok(concurrent.every((result) => [200, 409].includes(result.status)))
+    assert.equal((await replay()).results[2].outcome, 'skipped')
+    assert.equal(
+      (
+        await database.one(
+          sql`SELECT count(*)::int AS count FROM external_work_item_references WHERE provider=${provider} AND external_project_id='42' AND external_issue_id='703'`,
+        )
+      ).count,
+      1,
+    )
+    client.issue = async (_source, number) => (number === '19' ? ambiguous : remote)
     client.issues = async function* () {
       yield payload
       yield remote

@@ -137,6 +137,8 @@ export function database(config = fixture()) {
           },
         },
         syncRuns: {
+          byPublicId: async (id, configId) =>
+            copy(draft.runs.find((run) => run.publicId === id && run.configId === configId) ?? null),
           byId: async (id) => copy(draft.runs.find((run) => run.id === id) ?? null),
           create: async (data) => {
             const run = newRow(draft, {

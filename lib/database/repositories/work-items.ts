@@ -1,5 +1,5 @@
 import { database } from '../client'
-import { sql, syntax, and, literalContains, type Sql } from '../sql'
+import { sql, syntax, and, type Sql } from '../sql'
 import { workItemColumns } from '../projections'
 import { insertRecord, insertImportedRecord, updateRecord } from '../records'
 import type { WorkItem, WorkItemView } from '../types'
@@ -65,17 +65,9 @@ export const workItems = {
   async lock(id: bigint, ownerId: bigint, connection = database) {
     await connection.rows(sql`SELECT id FROM work_items WHERE id=${id} AND assignee_id=${ownerId} FOR UPDATE`)
   },
-  syncCandidates: (
-    projectId: bigint,
-    ownerId: bigint,
-    titleStem: string,
-    sourceUrl: string,
-    connection = database,
-  ) =>
-    connection.rows<WorkItemView>(sql`SELECT ${workItemColumns},${relations} FROM work_items w ${workItemJoins}
+  syncCandidates: (projectId: bigint, ownerId: bigint, connection = database) =>
+    connection.rows<WorkItem>(sql`SELECT ${workItemColumns} FROM work_items w LEFT JOIN external_work_item_references r ON r.work_item_id=w.id
       WHERE w.project_id=${projectId} AND w.assignee_id=${ownerId} AND r.id IS NULL
-        AND (regexp_replace(normalize(w.title,NFC),'[[:space:]]+',' ','g') ILIKE ${literalContains(titleStem)}
-          OR strpos(COALESCE(w.description,''),${sourceUrl})>0)
       ORDER BY w.id`),
   years: async (ownerId: bigint, connection = database) =>
     (

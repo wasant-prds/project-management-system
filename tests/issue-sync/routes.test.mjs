@@ -9,6 +9,7 @@ const collection = 'app/api/projects/[id]/issue-sync/route.ts'
 const mutation = 'app/api/projects/[id]/issue-sync/[configId]/route.ts'
 const syncRoute = 'app/api/projects/[id]/issue-sync/[configId]/sync/route.ts'
 const historyRoute = 'app/api/projects/[id]/issue-sync/[configId]/runs/route.ts'
+const confirmRoute = 'app/api/projects/[id]/issue-sync/[configId]/confirm/route.ts'
 function setup({ authorized = true, found = true, config = fixture(), repos = {}, helper = {} } = {}) {
   const calls = { credentials: 0, project: 0, config: 0, updates: [], mappingUpdates: [] }
   const storage = {
@@ -98,6 +99,7 @@ test('project sync endpoints authenticate before input parsing, credentials and 
     [mutation, 'PATCH'],
     [syncRoute, 'POST'],
     [historyRoute, 'GET'],
+    [confirmRoute, 'POST'],
   ]) {
     const app = setup({ authorized: false })
     assert.equal(
@@ -281,4 +283,35 @@ test('manual sync passes only the server-resolved config and owner after validat
   assert.equal(result.status, 200)
   assert.equal(result.body.run.id, uuid(99))
   assert.equal(ownerSent, 10n)
+})
+
+test('confirmation validates public UUIDs and exact body fields before resolving server-owned snapshots', async () => {
+  let captured
+  const app = setup({
+    helper: {
+      '@/lib/issue-sync': {
+        confirmIssueSync: async (_db, config, runId, owner, decisions) => {
+          captured = { config, runId, owner, decisions }
+          return { publicId: uuid(101) }
+        },
+        syncRunDto: (run) => ({ id: run.publicId }),
+      },
+    },
+  })
+  const handler = app.load(confirmRoute).POST
+  const valid = { runId: uuid(101), decisions: [{ issueId: '701', workItemId: uuid(200) }] }
+  for (const body of [
+    { ...valid, runId: '101' },
+    { ...valid, decisions: [] },
+    { ...valid, token: 'forbidden' },
+    { ...valid, decisions: [{ issueId: '701', workItemId: '200' }] },
+    { ...valid, decisions: [{ issueId: '701', workItemId: null, source: {} }] },
+  ])
+    assert.equal((await handler(request(body), context())).status, 400)
+  const response = await handler(request(valid), context())
+  assert.equal(response.status, 200)
+  assert.equal(captured.owner, 10n)
+  assert.equal(captured.config.publicId, uuid(50))
+  assert.deepEqual(plain(captured.decisions), valid.decisions)
+  assert.equal(app.calls.credentials, 0)
 })

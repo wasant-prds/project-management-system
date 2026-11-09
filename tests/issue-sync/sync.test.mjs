@@ -4,7 +4,8 @@ import { loader, fixture, rawIssue, database, uuid, repositoryMocks } from './su
 
 const load = loader(repositoryMocks)
 const { IssueSourceClient, IssueSyncError } = load('lib/issue-sync-provider.ts')
-const { executeIssueSync, startIssueSync, syncConfigDto, syncRunDto } = load('lib/issue-sync.ts')
+const { executeIssueSync, startIssueSync, confirmIssueSync, syncConfigDto, syncRunDto } =
+  load('lib/issue-sync.ts')
 const owner = 10n
 
 test('GitLab project sync uses a supported Issues API sort and keeps username filtering', async () => {
@@ -134,9 +135,17 @@ for (const provider of ['gitlab', 'github']) {
     fx.mutate((state) => legacyItem(state))
     const id = fx.state.items[0].publicId
     const linked = await sync(fx, [rawIssue(provider)])
-    assert.equal(linked.updatedCount, 1)
+    assert.equal(linked.results[0].outcome, 'pending')
     assert.equal(linked.createdCount, 0)
-    assert.equal(linked.results[0].reason, 'linked_existing_work_item')
+    const confirmed = await confirmIssueSync(
+      fx.db,
+      structuredClone(fx.state.config),
+      linked.publicId,
+      owner,
+      [{ issueId: '701', workItemId: id }],
+    )
+    assert.equal(confirmed.updatedCount, 1)
+    assert.equal(confirmed.results[0].reason, 'linked_existing_work_item')
     assert.equal(fx.state.items[0].title, '[#17] [SA] Fix login')
     assert.equal(fx.state.items[0].description, 'Details')
     const unchanged = await sync(fx, [rawIssue(provider)])
@@ -189,16 +198,137 @@ for (const provider of ['gitlab', 'github']) {
   })
 }
 
-test('ambiguous local content fails without creating or linking a third work item', async () => {
+test('ambiguous local content waits for confirmation without creating or linking a third work item', async () => {
   const fx = database()
   fx.mutate((state) => {
     legacyItem(state)
     legacyItem(state)
   })
   const run = await sync(fx, [rawIssue()])
-  assert.equal(run.results[0].reason, 'LOCAL_ISSUE_CONFLICT')
+  assert.equal(run.results[0].reason, 'confirmation_required')
+  assert.equal(run.results[0].candidates.length, 2)
   assert.equal(fx.state.items.length, 2)
   assert.equal(fx.state.references.length, 0)
+})
+
+for (const provider of ['gitlab', 'github']) {
+  test(`${provider}: titles over 60% wait without writes, different choice creates once and never asks again`, async () => {
+    const fx = database(fixture(provider))
+    fx.mutate((state) => legacyItem(state, { title: 'Fix login page' }))
+    const run = await sync(fx, [rawIssue(provider)])
+    assert.equal(run.status, 'partial')
+    assert.equal(run.results[0].outcome, 'pending')
+    assert.ok(run.results[0].candidates[0].similarity > 0.6)
+    assert.equal(fx.state.items.length, 1)
+    assert.equal(fx.state.references.length, 0)
+    const dto = syncRunDto(run)
+    assert.equal(dto.counts.pending, 1)
+    assert.doesNotMatch(JSON.stringify(dto), /reviewSnapshot|versions|remoteUpdatedAt|projectId|assigneeId/)
+    const answers = [{ issueId: '701', workItemId: null }]
+    const done = await confirmIssueSync(fx.db, structuredClone(fx.state.config), run.publicId, owner, answers)
+    assert.equal(done.createdCount, 1)
+    assert.equal(fx.state.items.length, 2)
+    await confirmIssueSync(fx.db, structuredClone(fx.state.config), run.publicId, owner, answers)
+    assert.equal(fx.state.items.length, 2)
+    assert.equal((await sync(fx, [rawIssue(provider)])).skippedCount, 1)
+  })
+}
+
+test('exactly 60% does not prompt; same issue numbers and explicit URLs can identify legacy rows', async () => {
+  const low = database()
+  low.mutate((state) => legacyItem(state, { title: 'abcdxy' }))
+  assert.equal((await sync(low, [rawIssue('gitlab', { title: 'abcdef' })])).createdCount, 1)
+  for (const changes of [
+    { title: '[#17] Fix login' },
+    { title: 'Old name', description: 'Source: https://gitlab.example.test/base/group/project/-/issues/17' },
+  ]) {
+    const fx = database()
+    fx.mutate((state) => legacyItem(state, changes))
+    const result = await sync(fx, [rawIssue()])
+    assert.equal(result.updatedCount, 1)
+    assert.equal(result.results[0].outcome, 'updated')
+    assert.equal(fx.state.items.length, 1)
+  }
+})
+
+test('a different explicit source URL skips the title alert even with identical titles', async () => {
+  const fx = database()
+  fx.mutate((state) =>
+    legacyItem(state, { description: 'Source: https://gitlab.example.test/base/group/project/-/issues/18' }),
+  )
+  assert.equal((await sync(fx, [rawIssue()])).createdCount, 1)
+  for (const description of ['**Issue:** #&#8203;18', '**Issue:** #18', 'Issue: #18']) {
+    const other = database()
+    other.mutate((state) => legacyItem(state, { description }))
+    assert.equal((await sync(other, [rawIssue()])).createdCount, 1)
+  }
+})
+
+test('confirmation rejects stale edits, foreign UUIDs, missing answers and config changes without writes', async () => {
+  for (const change of [
+    'edit',
+    'new-candidate',
+    'owner',
+    'config',
+    'foreign-choice',
+    'missing-choice',
+    'foreign-run',
+  ]) {
+    const fx = database()
+    fx.mutate((state) => legacyItem(state))
+    const run = await sync(fx, [rawIssue()])
+    const target = fx.state.items[0].publicId
+    fx.mutate((state) => {
+      if (change === 'edit') state.items[0].description = 'Changed while reviewing'
+      if (change === 'new-candidate') legacyItem(state)
+      if (change === 'owner') state.items[0].assigneeId = 99n
+      if (change === 'config') state.config.revision++
+    })
+    await assert.rejects(
+      confirmIssueSync(
+        fx.db,
+        structuredClone(fx.state.config),
+        change === 'foreign-run' ? uuid(999) : run.publicId,
+        owner,
+        change === 'missing-choice'
+          ? []
+          : [{ issueId: '701', workItemId: change === 'foreign-choice' ? uuid(999) : target }],
+      ),
+      (error) => ['REVIEW_STALE', 'VALIDATION_ERROR', 'NOT_FOUND'].includes(error.code),
+    )
+    assert.equal(fx.state.references.length, 0)
+    assert.equal(fx.state.config.leaseToken, null)
+    assert.equal(fx.state.runs[0].results[0].outcome, 'pending')
+  }
+})
+
+test('one batch can link a shared candidate for one source and create a separate item for another', async () => {
+  const fx = database()
+  fx.mutate((state) => legacyItem(state))
+  const first = rawIssue(),
+    second = rawIssue('gitlab', {
+      id: 702,
+      iid: 18,
+      web_url: 'https://gitlab.example.test/base/group/project/-/issues/18',
+    })
+  const run = await sync(fx, [first, second])
+  const target = fx.state.items[0].publicId
+  assert.equal(syncRunDto(run).counts.pending, 2)
+  await assert.rejects(
+    confirmIssueSync(fx.db, structuredClone(fx.state.config), run.publicId, owner, [
+      { issueId: '701', workItemId: target },
+      { issueId: '702', workItemId: target },
+    ]),
+    (error) => error.code === 'VALIDATION_ERROR',
+  )
+  const done = await confirmIssueSync(fx.db, structuredClone(fx.state.config), run.publicId, owner, [
+    { issueId: '701', workItemId: target },
+    { issueId: '702', workItemId: null },
+  ])
+  assert.equal(done.updatedCount, 1)
+  assert.equal(done.createdCount, 1)
+  assert.equal(fx.state.references.length, 2)
+  assert.equal(fx.state.items.length, 2)
 })
 
 test('matching never adopts another owner, project, explicit issue number or already linked source', async () => {

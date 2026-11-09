@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { loader, plain } from './support.mjs'
 
 const { syncedIssueFields, matchesUnlinkedIssue } = loader()('lib/integrations/issue-content.ts')
+const { issueTitleSimilarity } = loader()('lib/integrations/issue-review.ts')
 const source = (overrides = {}) => ({
   number: '5',
   title: '[SA] DHAS Grand Rally',
@@ -133,4 +134,14 @@ test('legacy matching requires an exact normalized title or explicit canonical s
     ),
     false,
   )
+})
+
+test('Unicode bigram similarity has a strict 60% boundary and ignores title prefixes', () => {
+  assert.equal(issueTitleSimilarity('abcdef', 'abcdxy'), 0.6)
+  assert.ok(issueTitleSimilarity('Fix login', 'Fix login page') > 0.6)
+  assert.equal(issueTitleSimilarity('## [#5] [SA] งาน cafe\u0301', '[Developer] งาน café'), 1)
+  assert.equal(issueTitleSimilarity('', ''), 0)
+  assert.equal(issueTitleSimilarity('ก', 'ก'), 1)
+  assert.equal(issueTitleSimilarity('a', 'b'), 0)
+  assert.ok(issueTitleSimilarity('aaaa', 'aaab') < 1)
 })

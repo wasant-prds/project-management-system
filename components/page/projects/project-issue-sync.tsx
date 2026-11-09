@@ -8,9 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { WORK_ITEM_TYPES } from '@/lib/work-items'
+import { IssueSyncReviewDialog } from './issue-sync-review-dialog'
+import type { IssueReviewCandidate, IssueReviewDecision, IssueReviewGroup } from '@/lib/integrations/issue-review'
 
 type Config = { id: string; provider: 'gitlab' | 'github'; instanceUrl: string; sourceProject: string; externalProjectId: string; assignees: string[]; tokenEnvVar: string | null; enabled: boolean; approvedLabelMap: Record<string, string>; firstSyncApproved: boolean }
-type Run = { id: string; status: string; startedAt: string; finishedAt: string | null; configSnapshot: { sourceProject: string; assignees: string[] }; counts: { created: number; updated: number; skipped: number; failed: number }; runError: { code: string; message: string } | null; results: Array<{ outcome: string; title: string; sourceUrl: string | null; reason: string; warnings: string[] }> }
+type Run = { id: string; status: string; startedAt: string; finishedAt: string | null; configSnapshot: { sourceProject: string; assignees: string[] }; counts: { created: number; updated: number; skipped: number; failed: number; pending?: number }; runError: { code: string; message: string } | null; results: Array<{ issueId: string | null; candidates?: IssueReviewCandidate[]; outcome: string; title: string; sourceUrl: string | null; reason: string; warnings: string[] }> }
 type LegacyMapping = { id: string; provider: string; externalProjectId: string; instanceUrl: string }
 
 async function api<T>(url: string, options?: RequestInit): Promise<T> {
@@ -21,7 +23,7 @@ async function api<T>(url: string, options?: RequestInit): Promise<T> {
 }
 const json = (method: string, body: unknown) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 const providerName = (provider: string) => provider === 'github' ? 'GitHub' : 'GitLab'
-const reasonLabel: Record<string, string> = { linked_existing_work_item: 'จับคู่และเติมข้อมูลใน Work Item เดิม', out_of_scope: 'อยู่นอก assignee filter — เก็บข้อมูลเดิมและหยุดอัปเดต', assignee_not_matched: 'Assignee ไม่ตรง filter', no_changes: 'ข้อมูลไม่เปลี่ยน', stale_source: 'ข้อมูลต้นทางเก่ากว่าที่บันทึก', pull_request_excluded: 'ข้าม Pull Request', created_from_source: 'สร้างจากต้นทาง', source_fields_changed: 'อัปเดตจากต้นทาง' }
+const reasonLabel: Record<string, string> = { confirmation_required: 'รอยืนยันว่าเป็น Issue เดียวกันหรือคนละ Issue', linked_existing_work_item: 'จับคู่และเติมข้อมูลใน Work Item เดิม', out_of_scope: 'อยู่นอก assignee filter — เก็บข้อมูลเดิมและหยุดอัปเดต', assignee_not_matched: 'Assignee ไม่ตรง filter', no_changes: 'ข้อมูลไม่เปลี่ยน', stale_source: 'ข้อมูลต้นทางเก่ากว่าที่บันทึก', pull_request_excluded: 'ข้าม Pull Request', created_from_source: 'สร้างจากต้นทาง', source_fields_changed: 'อัปเดตจากต้นทาง' }
 
 export function ProjectIssueSync({ projectId, onSynced }: Readonly<{ projectId: string; onSynced: () => void }>) {
   const base = `/api/projects/${projectId}/issue-sync`
@@ -40,6 +42,8 @@ export function ProjectIssueSync({ projectId, onSynced }: Readonly<{ projectId: 
   const [sourceProject, setSourceProject] = useState('')
   const [assignees, setAssignees] = useState('')
   const [labels, setLabels] = useState<Array<{ label: string; type: string }>>([])
+  const [reviewGroups, setReviewGroups] = useState<IssueReviewGroup[]>([])
+  const [reviewError, setReviewError] = useState('')
   const [approval, setApproval] = useState<Config[] | null>(null)
   const [historyConfig, setHistoryConfig] = useState<string | null>(null)
   const [runs, setRuns] = useState<Run[]>([])
@@ -51,7 +55,7 @@ export function ProjectIssueSync({ projectId, onSynced }: Readonly<{ projectId: 
     const payload = await api<{ configs: Config[]; legacyMappings: LegacyMapping[] }>(base)
     setConfigs(payload.configs); setLegacy(payload.legacyMappings)
   }, [base])
-  useEffect(() => { let active = true; const requests = historyRequest; setLoading(true); setError('')
+  useEffect(() => { let active = true; const requests = historyRequest; setLoading(true); setError(''); setReviewGroups([]); setReviewError('')
     load().catch((failure) => { if (active) setError(failure.message) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false; requests.current++ }
   }, [load])
@@ -92,20 +96,53 @@ export function ProjectIssueSync({ projectId, onSynced }: Readonly<{ projectId: 
     finally { if (requestId === historyRequest.current) setHistoryLoading(false) }
   }
 
+  function pendingGroup(configId: string, sourceProject: string, run: Run): IssueReviewGroup | null {
+    const issues = run.results.flatMap((result) => result.outcome === 'pending' && result.issueId && result.sourceUrl && result.candidates?.length
+      ? [{ issueId: result.issueId, title: result.title, sourceUrl: result.sourceUrl, candidates: result.candidates }] : [])
+    return issues.length ? { configId, sourceProject, runId: run.id, issues } : null
+  }
+
   async function sync(selected: Config[], approve = false) {
     if (selected.some((config) => !config.firstSyncApproved) && !approve) { setApproval(selected); return }
-    setBusy(true); setError(''); setNotice('')
+    setBusy(true); setError(''); setNotice(''); setReviewError('')
+    const pending: IssueReviewGroup[] = []
     try {
       const messages: string[] = []
       for (const config of selected) {
         const { run } = await api<{ run: Run }>(`${base}/${config.id}/sync`, json('POST', { approveFirstSync: approve }))
-        messages.push(`${config.sourceProject}: เพิ่ม ${run.counts.created} · อัปเดต ${run.counts.updated} · ข้าม ${run.counts.skipped} · ผิดพลาด ${run.counts.failed}${run.runError ? ` · ${run.runError.message}` : ''}`)
+        const group = pendingGroup(config.id, config.sourceProject, run)
+        if (group) pending.push(group)
+        messages.push(`${config.sourceProject}: เพิ่ม ${run.counts.created} · อัปเดต ${run.counts.updated} · ข้าม ${run.counts.skipped} · ผิดพลาด ${run.counts.failed} · รอยืนยัน ${run.counts.pending ?? 0}${run.runError ? ` · ${run.runError.message}` : ''}`)
         setNotice(messages.join('\n'))
         await history(config.id)
         onSynced()
       }
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Sync ไม่สำเร็จ') }
-    finally { await load().catch(() => setError('โหลด config ล่าสุดไม่สำเร็จ กรุณาลองโหลดอีกครั้ง')); setBusy(false) }
+    finally {
+      if (pending.length) setReviewGroups(pending)
+      await load().catch(() => setError('โหลด config ล่าสุดไม่สำเร็จ กรุณาลองโหลดอีกครั้ง'))
+      setBusy(false)
+    }
+  }
+
+  async function confirmReviews(answers: Array<{ runId: string; decisions: IssueReviewDecision[] }>) {
+    setBusy(true); setReviewError('')
+    const completed = new Set<string>()
+    try {
+      for (const group of reviewGroups) {
+        const answer = answers.find((entry) => entry.runId === group.runId)
+        if (!answer) throw new Error('กรุณาเลือกคำตอบให้ครบทุกแหล่ง')
+        await api(`${base}/${group.configId}/confirm`, json('POST', { runId: group.runId, decisions: answer.decisions }))
+        completed.add(group.runId)
+        onSynced()
+        await history(group.configId)
+      }
+      setNotice('บันทึกคำยืนยันครบแล้ว: อัปเดตรายการเดิมหรือสร้างใหม่ตามที่เลือก')
+    } catch (failure) { setReviewError(failure instanceof Error ? failure.message : 'ยืนยันไม่สำเร็จ') }
+    finally {
+      setReviewGroups((previous) => previous.filter((group) => !completed.has(group.runId)))
+      setBusy(false)
+    }
   }
 
   async function toggle(config: Config) {
@@ -130,10 +167,11 @@ export function ProjectIssueSync({ projectId, onSynced }: Readonly<{ projectId: 
           <div className="space-y-2"><label htmlFor={`${fieldId}-source`} className="text-sm">{provider === 'github' ? 'GitHub owner/repository' : 'GitLab Project ID หรือ group/project'}</label><Input id={`${fieldId}-source`} required maxLength={500} value={sourceProject} onChange={(event) => setSourceProject(event.target.value)} disabled={busy || Boolean(editing)} placeholder="group/project" /></div>
           <div className="space-y-2"><label htmlFor={`${fieldId}-token-env`} className="text-sm">ชื่อตัวแปร token ใน .env *</label><Input id={`${fieldId}-token-env`} required maxLength={128} pattern="(?:GITLAB|GITHUB|ISSUE_SYNC)_[A-Z0-9_]*TOKEN(?:_[A-Z0-9]+)*" value={tokenEnvVar} onChange={(event) => setTokenEnvVar(event.target.value)} disabled={busy} placeholder="GITLAB_PROJECT_A_TOKEN" /><p className="text-xs text-muted-foreground">ใช้ชื่อขึ้นต้น GITLAB_, GITHUB_ หรือ ISSUE_SYNC_ และมี TOKEN เช่น GITHUB_TEAM_TOKEN · ใส่เฉพาะชื่อ ส่วน token จริงตั้งใน .env ของ app</p></div>
         </div><div className="space-y-2"><label htmlFor={`${fieldId}-assignees`} className="text-sm">Assignee usernames ที่อนุญาต *</label><Input id={`${fieldId}-assignees`} required maxLength={13000} value={assignees} onChange={(event) => setAssignees(event.target.value)} disabled={busy} placeholder="username1, username2" /><p className="text-xs text-muted-foreground">คั่นด้วย comma หรือช่องว่าง ไม่ใช้ display name · ไม่รับ issues ที่ไม่มี assignee</p></div>
-        <div className="space-y-2"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-medium">Label → Work Item type</p><Button type="button" size="sm" variant="outline" disabled={busy || labels.length >= 100} onClick={() => setLabels([...labels, { label: '', type: 'bug' }])}>เพิ่ม label mapping</Button></div>{labels.map((row, index) => <div key={index} className="flex flex-wrap gap-2"><Input className="min-w-0 flex-1 basis-40" aria-label={`Source label ${index + 1}`} value={row.label} maxLength={255} disabled={busy} onChange={(event) => setLabels(labels.map((entry, i) => i === index ? { ...entry, label: event.target.value } : entry))} /><Select value={row.type} disabled={busy} onValueChange={(type) => setLabels(labels.map((entry, i) => i === index ? { ...entry, type } : entry))}><SelectTrigger aria-label={`Work Item type ${index + 1}`} className="w-40"><SelectValue /></SelectTrigger><SelectContent>{WORK_ITEM_TYPES.map((type) => <SelectItem value={type} key={type}>{type}</SelectItem>)}</SelectContent></Select><Button type="button" variant="ghost" disabled={busy} aria-label={`ลบ label mapping ${index + 1}`} onClick={() => setLabels(labels.filter((_, i) => i !== index))}>ลบ</Button></div>)}</div><p className="text-xs text-muted-foreground">ต้นทางอัปเดต title, description, status, mapped types และ due date ที่รองรับ ส่วน priority, role, work date และ Daily Work จัดการใน PMS</p>{error && <p role="alert" className="rounded-lg border border-destructive/40 p-3 text-sm">{error}</p>}<div className="flex gap-2"><Button type="submit" disabled={busy || !tokenEnvVar.trim()}>{busy ? 'กำลังบันทึก…' : 'บันทึก config'}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => setFormOpen(false)}>ยกเลิก</Button></div></form>}
+        <div className="space-y-2"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-medium">Label → Work Item type</p><Button type="button" size="sm" variant="outline" disabled={busy || labels.length >= 100} onClick={() => setLabels([...labels, { label: '', type: 'bug' }])}>เพิ่ม label mapping</Button></div>{labels.map((row, index) => <div key={index} className="flex flex-wrap gap-2"><Input className="min-w-0 flex-1 basis-40" aria-label={`Source label ${index + 1}`} value={row.label} maxLength={255} disabled={busy} onChange={(event) => setLabels(labels.map((entry, i) => i === index ? { ...entry, label: event.target.value } : entry))} /><Select value={row.type} disabled={busy} onValueChange={(type) => setLabels(labels.map((entry, i) => i === index ? { ...entry, type } : entry))}><SelectTrigger aria-label={`Work Item type ${index + 1}`} className="w-40"><SelectValue /></SelectTrigger><SelectContent>{WORK_ITEM_TYPES.map((type) => <SelectItem value={type} key={type}>{type}</SelectItem>)}</SelectContent></Select><Button type="button" variant="ghost" disabled={busy} aria-label={`ลบ label mapping ${index + 1}`} onClick={() => setLabels(labels.filter((_, i) => i !== index))}>ลบ</Button></div>)}</div><p className="text-xs text-muted-foreground">ต้นทางอัปเดตชื่อ รายละเอียด สถานะ labels และ due date ที่รองรับ รวม priority/role เมื่อมี label กำหนด ส่วน work date และ Daily Work คงข้อมูลใน PMS</p>{error && <p role="alert" className="rounded-lg border border-destructive/40 p-3 text-sm">{error}</p>}<div className="flex gap-2"><Button type="submit" disabled={busy || !tokenEnvVar.trim()}>{busy ? 'กำลังบันทึก…' : 'บันทึก config'}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => setFormOpen(false)}>ยกเลิก</Button></div></form>}
 
-      {historyConfig && <section className="space-y-3" aria-label="ประวัติ Issue Sync"><h3 className="font-semibold">ประวัติ Sync · {configs.find((config) => config.id === historyConfig)?.sourceProject}</h3>{historyLoading && <p role="status" className="text-sm">กำลังโหลดประวัติ…</p>}{!historyLoading && runs.length === 0 && <p className="text-sm text-muted-foreground">ยังไม่มีประวัติ sync</p>}{runs.map((run) => <details key={run.id} className="min-w-0 rounded-lg border p-3"><summary className="cursor-pointer break-words text-sm">{run.startedAt.replace('T', ' ')} · {run.status} · เพิ่ม {run.counts.created} / อัปเดต {run.counts.updated} / ข้าม {run.counts.skipped} / ผิดพลาด {run.counts.failed}</summary><div className="mt-3 space-y-3 text-sm"><p className="break-words text-xs text-muted-foreground">Assignee ในรอบนี้: {run.configSnapshot.assignees.join(', ')}</p>{run.runError && <p role="alert">{run.runError.code}: {run.runError.message}</p>}<ul className="max-h-96 space-y-2 overflow-y-auto">{run.results.map((result, index) => <li key={index} className="min-w-0 border-t pt-2"><p className="break-words">{result.outcome} · {result.title || 'Issue'}</p><p className="break-words text-muted-foreground">{reasonLabel[result.reason] ?? result.reason}</p>{result.sourceUrl && <a className="text-link underline" href={result.sourceUrl} target="_blank" rel="noopener noreferrer">เปิด Issue ต้นทาง</a>}{result.warnings.map((warning, i) => <p key={i} className="break-words text-xs text-muted-foreground">{warning}</p>)}</li>)}</ul></div></details>)}{nextBefore && <Button type="button" variant="outline" disabled={busy || historyLoading} onClick={() => history(historyConfig, nextBefore)}>โหลดประวัติเพิ่ม</Button>}</section>}
+      {historyConfig && <section className="space-y-3" aria-label="ประวัติ Issue Sync"><h3 className="font-semibold">ประวัติ Sync · {configs.find((config) => config.id === historyConfig)?.sourceProject}</h3>{historyLoading && <p role="status" className="text-sm">กำลังโหลดประวัติ…</p>}{!historyLoading && runs.length === 0 && <p className="text-sm text-muted-foreground">ยังไม่มีประวัติ sync</p>}{runs.map((run) => <details key={run.id} className="min-w-0 rounded-lg border p-3"><summary className="cursor-pointer break-words text-sm">{run.startedAt.replace('T', ' ')} · {run.status} · เพิ่ม {run.counts.created} / อัปเดต {run.counts.updated} / ข้าม {run.counts.skipped} / ผิดพลาด {run.counts.failed} · รอยืนยัน {run.counts.pending ?? 0}</summary><div className="mt-3 space-y-3 text-sm">{run.results.some((result) => result.outcome === 'pending') && <Button type="button" variant="outline" disabled={busy} onClick={() => { const group = pendingGroup(historyConfig, configs.find((config) => config.id === historyConfig)?.sourceProject ?? '', run); if (group) { setReviewGroups([group]); setReviewError('') } }}>ตรวจสอบรายการรอยืนยัน</Button>}<p className="break-words text-xs text-muted-foreground">Assignee ในรอบนี้: {run.configSnapshot.assignees.join(', ')}</p>{run.runError && <p role="alert">{run.runError.code}: {run.runError.message}</p>}<ul className="max-h-96 space-y-2 overflow-y-auto">{run.results.map((result, index) => <li key={index} className="min-w-0 border-t pt-2"><p className="break-words">{result.outcome} · {result.title || 'Issue'}</p><p className="break-words text-muted-foreground">{reasonLabel[result.reason] ?? result.reason}</p>{result.sourceUrl && <a className="text-link underline" href={result.sourceUrl} target="_blank" rel="noopener noreferrer">เปิด Issue ต้นทาง</a>}{result.warnings.map((warning, i) => <p key={i} className="break-words text-xs text-muted-foreground">{warning}</p>)}</li>)}</ul></div></details>)}{nextBefore && <Button type="button" variant="outline" disabled={busy || historyLoading} onClick={() => history(historyConfig, nextBefore)}>โหลดประวัติเพิ่ม</Button>}</section>}
     </CardContent>
     <AlertDialog open={Boolean(approval)} onOpenChange={(open) => { if (!open) setApproval(null) }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>ยืนยันการ sync ครั้งแรก</AlertDialogTitle><AlertDialogDescription>นำเข้า Issues เฉพาะ assignee ที่ตั้งไว้จาก {approval?.map((config) => config.sourceProject).join(', ')} และอัปเดต fields ที่ต้นทางควบคุม รายการที่ไม่ตรง assignee ภายหลังจะเก็บประวัติเดิมและหยุดอัปเดต</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>ยกเลิก</AlertDialogCancel><AlertDialogAction onClick={() => { const selected = approval; setApproval(null); if (selected) void sync(selected, true) }}>ยืนยัน Sync</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
+    {reviewGroups.length > 0 && <IssueSyncReviewDialog groups={reviewGroups} busy={busy} error={reviewError} onClose={() => setReviewGroups([])} onConfirm={(answers) => void confirmReviews(answers)} />}
   </Card>
 }

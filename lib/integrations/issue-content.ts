@@ -165,3 +165,37 @@ export function matchesUnlinkedIssue(item: Pick<WorkItem, 'title' | 'description
     local.displayRole === source.displayRole
   )
 }
+
+const metadataField =
+  /^\s*(?:\*\*)?(?:source(?: url)?|ต้นทาง|(?:gitlab|github) issue|issue)(?:\*\*)?\s*:\s*(?:\*\*)?/i
+function identityMetadata(item: Pick<WorkItem, 'title' | 'description'>) {
+  const numbers = [issueTitleParts(item.title).number].filter((value): value is string => Boolean(value))
+  const urls: string[] = []
+  for (const line of (item.description ?? '').split(/\r?\n/)) {
+    const prefix = metadataField.exec(line)
+    if (!prefix) continue
+    const value = line.slice(prefix[0].length).trimStart()
+    const number = /^#(?:\u200b|&#8203;|&#x200b;)*(\d+)/i.exec(value)?.[1]
+    if (number && /issue/i.test(prefix[0])) numbers.push(number)
+    urls.push(
+      ...(value.match(/https:\/\/[^\s<>"')\]]+/g) ?? []).filter((url) => /\/(?:-\/)?issues\/\d+$/.test(url)),
+    )
+  }
+  return { numbers, urls }
+}
+
+export function hasDifferentIssueIdentity(item: Pick<WorkItem, 'title' | 'description'>, issue: SourceIssue) {
+  const { numbers, urls } = identityMetadata(item)
+  if (urls.includes(issue.url)) return false
+  return numbers.some((number) => number !== issue.number) || urls.some((url) => url !== issue.url)
+}
+
+export function hasMatchingIssueIdentity(item: Pick<WorkItem, 'title' | 'description'>, issue: SourceIssue) {
+  const { numbers, urls } = identityMetadata(item)
+  if (urls.includes(issue.url)) return true
+  return (
+    !hasDifferentIssueIdentity(item, issue) &&
+    numbers.includes(issue.number) &&
+    matchesUnlinkedIssue(item, issue)
+  )
+}
