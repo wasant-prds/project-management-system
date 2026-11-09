@@ -64,13 +64,16 @@ export function shouldStampSubmittedAt(status: WorkItemStatus): boolean {
   return SUBMITTED_AT_STATUSES.includes(serialized)
 }
 
-export function parseWorkItemTypes(value: unknown): string[] | null {
+export function parseWorkItemTypes(value: unknown, existingLabels: readonly string[] = []): string[] | null {
   if (value === undefined || value === null) return []
   if (!Array.isArray(value)) return null
 
   const types: string[] = []
   for (const item of value) {
-    if (typeof item !== 'string' || !WORK_ITEM_TYPES.includes(item as WorkItemTypeValue)) {
+    if (
+      typeof item !== 'string' ||
+      (!WORK_ITEM_TYPES.includes(item as WorkItemTypeValue) && !existingLabels.includes(item))
+    ) {
       return null
     }
     if (!types.includes(item)) {

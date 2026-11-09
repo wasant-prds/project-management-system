@@ -4,6 +4,7 @@ import { syncConfigs, syncRuns, mappings, sourceReferences } from '@/lib/databas
 import { workItems } from '@/lib/database/repositories/work-items'
 import { currentBangkokWallClockDate, serializeBangkokTimestamp } from '@/lib/bangkok-datetime'
 import { shouldStampSubmittedAt } from '@/lib/work-items'
+import { issueTitleParts, matchesUnlinkedIssue, syncedIssueFields } from '@/lib/integrations/issue-content'
 import { validateApprovedLabelMap } from '@/lib/integrations/source-validation'
 import {
   IssueSourceClient,
@@ -114,27 +115,25 @@ async function saveIssue(
   const mapping = config.mapping
   const identity = { ...referenceScope(mapping), externalIssueId: issue.id }
   const reference = await sourceReferences.byIdentity(referenceScope(mapping), issue.id, tx)
+  let item = reference?.workItem ?? null
   const base = {
     issueId: issue.id,
     number: issue.number,
     title: issue.title,
     sourceUrl: issue.url,
     warnings: [] as string[],
-    workItemId: reference?.workItem.publicId ?? null,
+    workItemId: item?.publicId ?? null,
   }
   if (
     reference &&
     (reference.projectId !== mapping.projectId ||
-      reference.workItem.projectId !== mapping.projectId ||
-      reference.workItem.assigneeId !== ownerId)
-  ) {
+      (item && (item.projectId !== mapping.projectId || item.assigneeId !== ownerId)))
+  )
     throw new IssueSyncError(
       'SOURCE_IDENTITY_CONFLICT',
       'Issue เชื่อมกับ Work Item นอก Project หรือ owner ที่กำหนด',
       409,
     )
-  }
-  // Never apply an older payload, including an older assignee membership.
   if (reference && issue.updatedAt < reference.remoteUpdatedAt)
     return { ...base, outcome: 'skipped', reason: 'stale_source' }
   if (!matchesAssignees(issue, config.assignees)) {
@@ -146,19 +145,34 @@ async function saveIssue(
       )
     return { ...base, outcome: 'skipped', reason: reference ? 'out_of_scope' : 'assignee_not_matched' }
   }
-  const types = [
-    ...new Set(issue.labels.flatMap((label) => (Object.hasOwn(labelMap, label) ? [labelMap[label]] : []))),
-  ].sort()
-  base.warnings = issue.labels
-    .filter((label) => !Object.hasOwn(labelMap, label))
-    .map((label) => `Unmapped label: ${label}`)
-  const fields = {
-    title: issue.title,
-    description: issue.description,
-    status: issue.status,
-    types,
-    ...(issue.dueDate !== undefined ? { dueDate: issue.dueDate } : {}),
+  if (!reference && (await sourceReferences.byLocator(referenceScope(mapping), issue.number, issue.url, tx)))
+    throw new IssueSyncError(
+      'SOURCE_IDENTITY_CONFLICT',
+      'เลข Issue หรือ URL ต้นทางผูกกับ source ID อื่นแล้ว กรุณาตรวจประวัติก่อน sync',
+      409,
+    )
+  let adopted = false
+  if (!item) {
+    const stem = issueTitleParts(issue.title).stem
+    if (!stem) throw new IssueSyncError('INVALID_SOURCE', 'Issue ไม่มีชื่อเรื่อง')
+    const candidates = (
+      await workItems.syncCandidates(mapping.projectId, ownerId, stem, issue.url, tx)
+    ).filter((candidate) => matchesUnlinkedIssue(candidate, issue))
+    if (candidates.length > 1)
+      throw new IssueSyncError(
+        'LOCAL_ISSUE_CONFLICT',
+        'พบ Work Item เดิมที่ตรงกันหลายรายการ กรุณาตรวจรายการซ้ำก่อน sync',
+        409,
+      )
+    item = candidates[0] ?? null
+    if (item) {
+      await workItems.lock(item.id, ownerId, tx)
+      adopted = true
+    }
   }
+  const { fields, warnings } = syncedIssueFields(issue, labelMap, item)
+  base.title = fields.title
+  base.warnings = warnings
   const timestamp = currentBangkokWallClockDate()
   const external = {
     externalIssueNumber: issue.number,
@@ -168,53 +182,68 @@ async function saveIssue(
     lastSyncedAt: timestamp,
     inScope: true,
   }
-  if (!reference) {
-    const item = await workItems.create(
+  if (!item) {
+    item = await workItems.create(
       {
         ...fields,
-        kind: 'Issue',
-        priority: 'none',
-        role: null,
         workDate: null,
         projectId: mapping.projectId,
         assigneeId: ownerId,
-        ...(shouldStampSubmittedAt(issue.status) ? { submittedAt: timestamp } : {}),
+        submittedAt: shouldStampSubmittedAt(fields.status) ? timestamp : null,
       },
       tx,
     )
+    if (reference) await sourceReferences.update(reference.id, { ...external, workItemId: item.id }, tx)
+    else
+      await sourceReferences.create(
+        { ...identity, ...external, projectId: mapping.projectId, workItemId: item.id },
+        tx,
+      )
+    return { ...base, workItemId: item.publicId, outcome: 'created', reason: 'created_from_source' }
+  }
+  base.workItemId = item.publicId
+  const stampSubmitted = shouldStampSubmittedAt(fields.status) && !item.submittedAt
+  const changed =
+    item.title !== fields.title ||
+    item.description !== fields.description ||
+    item.status !== fields.status ||
+    item.kind !== fields.kind ||
+    item.priority !== fields.priority ||
+    item.role !== fields.role ||
+    !Array.isArray(item.types) ||
+    JSON.stringify([...item.types].sort()) !== JSON.stringify(fields.types) ||
+    (issue.dueDate !== undefined &&
+      (item.dueDate?.getTime() ?? null) !== (issue.dueDate?.getTime() ?? null)) ||
+    stampSubmitted
+  if (changed)
+    await workItems.update(item.id, { ...fields, ...(stampSubmitted ? { submittedAt: timestamp } : {}) }, tx)
+  if (!reference) {
     await sourceReferences.create(
       { ...identity, ...external, projectId: mapping.projectId, workItemId: item.id },
       tx,
     )
-    return { ...base, workItemId: item.publicId, outcome: 'created', reason: 'created_from_source' }
+    return { ...base, outcome: 'updated', reason: 'linked_existing_work_item' }
   }
-  const item = reference.workItem
-  const changed =
-    item.title !== issue.title ||
-    item.description !== issue.description ||
-    item.status !== issue.status ||
-    JSON.stringify([...item.types].sort()) !== JSON.stringify(types) ||
-    (issue.dueDate !== undefined && (item.dueDate?.getTime() ?? null) !== (issue.dueDate?.getTime() ?? null))
   const referenceChanged =
     !reference.inScope ||
+    !reference.workItem ||
     reference.remoteUpdatedAt.getTime() !== issue.updatedAt.getTime() ||
     reference.remoteCreatedAt.getTime() !== issue.createdAt.getTime() ||
     reference.externalUrl !== issue.url ||
     reference.externalIssueNumber !== issue.number
-  if (changed)
-    await workItems.update(
-      item.id,
-      {
-        ...fields,
-        ...(shouldStampSubmittedAt(issue.status) && !item.submittedAt ? { submittedAt: timestamp } : {}),
-      },
-      tx,
-    )
-  await sourceReferences.update(reference.id, external, tx)
+  await sourceReferences.update(
+    reference.id,
+    { ...external, ...(adopted ? { workItemId: item.id } : {}) },
+    tx,
+  )
   return {
     ...base,
     outcome: changed || referenceChanged ? 'updated' : 'skipped',
-    reason: changed || referenceChanged ? 'source_fields_changed' : 'no_changes',
+    reason: adopted
+      ? 'linked_existing_work_item'
+      : changed || referenceChanged
+        ? 'source_fields_changed'
+        : 'no_changes',
   }
 }
 

@@ -541,6 +541,106 @@ for (const provider of ['gitlab', 'github'])
     )
     assert.equal(repeated.skippedCount, 1)
     assert.equal(repeated.results[0].workItemId, publicId)
+    const replay = async () => {
+      const latest = await syncConfigs.byId(config.id)
+      return executeIssueSync(
+        database,
+        latest,
+        await startIssueSync(database, latest, false),
+        owner.internalId,
+        client,
+      )
+    }
+    const stored = await workItems.byPublicId(publicId, owner.internalId)
+    await workItems.update(stored.id, { title: 'Synced', description: null, types: null })
+    const labels = [
+      'type::task',
+      'type::documentation',
+      'priority::high',
+      'role::SA',
+      'status::completed',
+      'team::sales',
+    ]
+    payload.labels = provider === 'github' ? labels.map((name) => ({ name })) : labels
+    if (provider === 'github') payload.body = 'Full source description'
+    else payload.description = 'Full source description'
+    assert.equal((await replay()).updatedCount, 1)
+    const detail = (await call('work-items/[id]', 'GET', undefined, publicId)).body.workItem
+    assert.equal(detail.title, '[#17] [SA] Synced')
+    assert.equal(detail.kind, 'Task')
+    assert.equal(detail.role, 'SA')
+    assert.equal(detail.priority, 'high')
+    assert.equal(detail.status, 'completed')
+    assert.deepEqual(detail.types, ['documentation', 'team::sales'])
+    assert.ok(detail.submittedAt)
+    assert.equal((await call('work-items/[id]', 'PATCH', { types: detail.types }, publicId)).status, 200)
+    assert.equal(
+      (await call('work-items/[id]', 'PATCH', { types: ['team::injected'] }, publicId)).status,
+      400,
+    )
+    assert.equal((await replay()).skippedCount, 1)
+
+    // An old import without a reference is completed in place, including literal SQL wildcard characters.
+    const stem = `Legacy ${provider} งาน 100%_literal cafe\u0301`
+    const legacy = await workItems.create({
+      title: `[SA] ${stem}`,
+      kind: 'Task',
+      priority: 'high',
+      role: 'SA',
+      status: 'todo',
+      projectId: project.id,
+      assigneeId: owner.internalId,
+    })
+    const remote = {
+      ...payload,
+      id: 702,
+      title: `[SA] ${stem.normalize('NFC')}`,
+      ...(provider === 'github'
+        ? { number: 18, html_url: 'https://github.com/acme/repo/issues/18' }
+        : { iid: 18, web_url: 'https://gitlab.example.test/group/project/-/issues/18' }),
+    }
+    client.issues = async function* () {
+      yield payload
+      yield remote
+    }
+    const adopted = await replay()
+    assert.equal(adopted.createdCount, 0)
+    assert.equal(adopted.updatedCount, 1)
+    assert.equal(adopted.results[1].workItemId, legacy.publicId)
+    assert.equal(adopted.results[1].reason, 'linked_existing_work_item')
+    remote.title = 'Renamed source issue'
+    remote.updated_at = '2026-11-03T01:00:00Z'
+    assert.equal((await replay()).results[1].workItemId, legacy.publicId)
+    assert.equal((await workItems.byPublicId(legacy.publicId)).title, '[#18] [SA] Renamed source issue')
+    const ambiguousTitle = `Ambiguous ${provider}`
+    for (let index = 0; index < 2; index++)
+      await workItems.create({
+        title: ambiguousTitle,
+        kind: 'Issue',
+        status: 'todo',
+        projectId: project.id,
+        assigneeId: owner.internalId,
+      })
+    const ambiguous = {
+      ...remote,
+      id: 703,
+      title: ambiguousTitle,
+      ...(provider === 'github'
+        ? { number: 19, html_url: 'https://github.com/acme/repo/issues/19' }
+        : { iid: 19, web_url: 'https://gitlab.example.test/group/project/-/issues/19' }),
+    }
+    client.issues = async function* () {
+      yield payload
+      yield remote
+      yield ambiguous
+    }
+    const conflicted = await replay()
+    assert.equal(conflicted.results[2].reason, 'LOCAL_ISSUE_CONFLICT')
+    assert.equal(conflicted.createdCount, 0)
+    client.issues = async function* () {
+      yield payload
+      yield remote
+    }
     assert.equal((await call('work-items/[id]', 'DELETE', undefined, publicId)).status, 409)
     assert.equal(
       (await call('work-items/[id]', 'PATCH', { projectId: secondProject.publicId }, publicId)).status,

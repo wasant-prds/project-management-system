@@ -57,3 +57,12 @@ test('shared input validation rejects malformed bodies, missing fields, foreign 
   assert.match(system.parser.parseWorkItemInput(validInput({ assigneeId: 'foreign-owner' }), owner.id).error, /authenticated owner/)
   assert.match(system.parser.parseWorkItemPatch({ id: 'replacement-id' }, owner.id).error, /cannot be updated/)
 })
+
+test('patch preserves existing imported labels without allowing new arbitrary labels or changing create validation', () => {
+  const parser = loadTs('../../lib/work-item-input.ts')
+  const patched = parser.parseWorkItemPatch({ title: 'Edited', types: ['documentation', 'team::sales'] }, owner.id, ['team::sales'])
+  assert.equal('error' in patched, false)
+  assert.deepEqual([...patched.data.types], ['documentation', 'team::sales'])
+  assert.match(parser.parseWorkItemPatch({ types: ['team::other'] }, owner.id, ['team::sales']).error, /types/)
+  assert.match(parser.parseWorkItemInput(validInput({ types: ['team::sales'] }), owner.id).error, /types/)
+})

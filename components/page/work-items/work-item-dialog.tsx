@@ -37,7 +37,6 @@ import {
   type WorkItemPriorityValue,
   type WorkItemRoleValue,
   type WorkItemStatusValue,
-  type WorkItemTypeValue,
 } from '@/lib/work-items'
 
 type ProjectOption = { id: string; name: string }
@@ -50,7 +49,7 @@ export type WorkItemFormValues = {
   priority: WorkItemPriorityValue
   role: WorkItemRoleValue | ''
   status: WorkItemStatusValue
-  types: WorkItemTypeValue[]
+  types: string[]
   workDate: string
   dueDate: string
   projectId: string
@@ -95,7 +94,7 @@ export function WorkItemDialog({
     }
   }, [open, initialValues])
 
-  const toggleType = (type: WorkItemTypeValue) => {
+  const toggleType = (type: string) => {
     setForm((current) => ({
       ...current,
       types: current.types.includes(type)
@@ -320,7 +319,7 @@ export function WorkItemDialog({
             <div className="space-y-2 sm:col-span-2">
               <Label>Types</Label>
               <div className="flex flex-wrap gap-2">
-                {WORK_ITEM_TYPES.map((type) => {
+                {[...new Set([...WORK_ITEM_TYPES, ...initialValues.types, ...form.types])].map((type) => {
                   const selected = form.types.includes(type)
                   return (
                     <Button

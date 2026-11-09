@@ -104,6 +104,145 @@ async function sync(fx, rows, options = {}) {
   return executeIssueSync(fx.db, config, run, owner, sourceClient(config, rows, options))
 }
 
+function legacyItem(state, overrides = {}) {
+  const id = state.next++
+  const item = {
+    id,
+    publicId: uuid(id),
+    title: 'Fix login',
+    description: null,
+    kind: 'Task',
+    priority: 'high',
+    role: 'SA',
+    status: 'todo',
+    types: null,
+    workDate: null,
+    dueDate: null,
+    submittedAt: null,
+    projectId: 20n,
+    assigneeId: owner,
+    dailyWork: [{ hours: '2.00' }],
+    ...overrides,
+  }
+  state.items.push(item)
+  return item
+}
+
+for (const provider of ['gitlab', 'github']) {
+  test(`${provider}: repair and link an incomplete unlinked item, then update the same UUID after source rename`, async () => {
+    const fx = database(fixture(provider))
+    fx.mutate((state) => legacyItem(state))
+    const id = fx.state.items[0].publicId
+    const linked = await sync(fx, [rawIssue(provider)])
+    assert.equal(linked.updatedCount, 1)
+    assert.equal(linked.createdCount, 0)
+    assert.equal(linked.results[0].reason, 'linked_existing_work_item')
+    assert.equal(fx.state.items[0].title, '[#17] [SA] Fix login')
+    assert.equal(fx.state.items[0].description, 'Details')
+    const unchanged = await sync(fx, [rawIssue(provider)])
+    assert.equal(unchanged.skippedCount, 1)
+    await sync(fx, [rawIssue(provider, { title: 'Renamed', updated_at: '2026-10-04T01:00:00Z' })])
+    assert.equal(fx.state.items.length, 1)
+    assert.equal(fx.state.references.length, 1)
+    assert.equal(fx.state.items[0].publicId, id)
+    assert.equal(fx.state.items[0].title, '[#17] [SA] Renamed')
+    assert.deepEqual(fx.state.items[0].dailyWork, [{ hours: '2.00' }])
+  })
+
+  test(`${provider}: repair existing mapping at equal source timestamp and refresh all source label fields`, async () => {
+    const fx = database(fixture(provider))
+    await sync(fx, [rawIssue(provider)])
+    const id = fx.state.items[0].publicId
+    fx.mutate((state) =>
+      Object.assign(state.items[0], { title: 'Fix login', description: null, types: null }),
+    )
+    const labels = [
+      'type::task',
+      'type::documentation',
+      'priority::high',
+      'role::SA',
+      'status::completed',
+      'team::sales',
+    ]
+    const row = rawIssue(provider, {
+      labels: provider === 'github' ? labels.map((name) => ({ name })) : labels,
+    })
+    assert.equal((await sync(fx, [row])).updatedCount, 1)
+    const item = fx.state.items[0]
+    assert.equal(item.publicId, id)
+    assert.equal(item.title, '[#17] [SA] Fix login')
+    assert.equal(item.kind, 'Task')
+    assert.equal(item.priority, 'high')
+    assert.equal(item.role, 'SA')
+    assert.equal(item.status, 'completed')
+    assert.ok(item.submittedAt)
+    assert.deepEqual(item.types, ['documentation', 'team::sales'])
+    assert.equal((await sync(fx, [row])).skippedCount, 1)
+    fx.mutate((state) => {
+      state.items[0].submittedAt = null
+    })
+    assert.equal((await sync(fx, [row])).updatedCount, 1)
+    assert.ok(fx.state.items[0].submittedAt)
+    await sync(fx, [rawIssue(provider, { labels: [] })])
+    assert.deepEqual(fx.state.items[0].types, [])
+    assert.equal(fx.state.items.length, 1)
+  })
+}
+
+test('ambiguous local content fails without creating or linking a third work item', async () => {
+  const fx = database()
+  fx.mutate((state) => {
+    legacyItem(state)
+    legacyItem(state)
+  })
+  const run = await sync(fx, [rawIssue()])
+  assert.equal(run.results[0].reason, 'LOCAL_ISSUE_CONFLICT')
+  assert.equal(fx.state.items.length, 2)
+  assert.equal(fx.state.references.length, 0)
+})
+
+test('matching never adopts another owner, project, explicit issue number or already linked source', async () => {
+  for (const overrides of [{ assigneeId: 99n }, { projectId: 99n }, { title: '[#18] Fix login' }]) {
+    const fx = database()
+    fx.mutate((state) => legacyItem(state, overrides))
+    assert.equal((await sync(fx, [rawIssue()])).createdCount, 1)
+    assert.equal(fx.state.items.length, 2)
+  }
+  const fx = database()
+  await sync(fx, [rawIssue()])
+  const run = await sync(fx, [
+    rawIssue(),
+    rawIssue('gitlab', {
+      id: 702,
+      iid: 18,
+      web_url: 'https://gitlab.example.test/base/group/project/-/issues/18',
+    }),
+  ])
+  assert.equal(run.createdCount, 1)
+  assert.equal(fx.state.items.length, 2)
+})
+
+test('a different source ID claiming an existing issue number fails without duplication', async () => {
+  const fx = database()
+  await sync(fx, [rawIssue()])
+  const run = await sync(fx, [rawIssue('gitlab', { id: 702 })], { absent: [rawIssue()] })
+  assert.equal(run.results[0].reason, 'SOURCE_IDENTITY_CONFLICT')
+  assert.equal(fx.state.items.length, 1)
+})
+
+test('a truly missing mapped destination is recreated using the existing source reference', async () => {
+  const fx = database()
+  await sync(fx, [rawIssue()])
+  const referenceId = fx.state.references[0].publicId
+  fx.mutate((state) => {
+    state.items = []
+  })
+  assert.equal((await sync(fx, [rawIssue()])).createdCount, 1)
+  assert.equal(fx.state.references.length, 1)
+  assert.equal(fx.state.references[0].publicId, referenceId)
+  assert.equal((await sync(fx, [rawIssue()])).skippedCount, 1)
+})
+
 for (const provider of ['gitlab', 'github']) {
   test(`${provider}: repeat sync preserves public IDs, owner, PMS fields, and creates durable run history`, async () => {
     const fx = database(fixture(provider))
@@ -122,7 +261,7 @@ for (const provider of ['gitlab', 'github']) {
       }),
     )
     const repeated = await sync(fx, [rawIssue(provider)])
-    assert.equal(repeated.skippedCount, 1)
+    assert.equal(repeated.updatedCount, 1) // the locally added role is reflected in the formatted title
     assert.equal(fx.state.items.length, 1)
     const updated = await sync(fx, [
       rawIssue(provider, { title: 'Changed title', state: 'closed', updated_at: '2026-10-03T02:00:00Z' }),
@@ -175,13 +314,13 @@ for (const provider of ['gitlab', 'github']) {
     const run = await sync(fx, [], { absent: [reassigned] })
     assert.equal(run.results[0].reason, 'out_of_scope')
     assert.equal(fx.state.references[0].inScope, false)
-    assert.equal(fx.state.items[0].title, 'Fix login')
+    assert.equal(fx.state.items[0].title, '[#17] Fix login')
     assert.equal(fx.state.items[0].publicId, id)
     await sync(fx, [rawIssue(provider)]) // old matching snapshot cannot undo reassignment
     assert.equal(fx.state.references[0].inScope, false)
     await sync(fx, [rawIssue(provider, { title: 'Reassigned back', updated_at: '2026-10-05T02:00:00Z' })])
     assert.equal(fx.state.references[0].inScope, true)
-    assert.equal(fx.state.items[0].title, 'Reassigned back')
+    assert.equal(fx.state.items[0].title, '[#17] Reassigned back')
     assert.equal(fx.state.items[0].publicId, id)
   })
 }
@@ -289,7 +428,7 @@ test('foreign owner and destination conflicts cannot modify existing work items'
     const result = await sync(fx, [rawIssue('gitlab', { title: 'Unauthorized change' })])
     assert.equal(result.failedCount, 1)
     assert.equal(result.results[0].reason, 'SOURCE_IDENTITY_CONFLICT')
-    assert.equal(fx.state.items[0].title, 'Fix login')
+    assert.equal(fx.state.items[0].title, '[#17] Fix login')
   }
 })
 

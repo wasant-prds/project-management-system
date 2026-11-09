@@ -161,7 +161,9 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       return validationError('Request body must be valid JSON')
     }
 
-    const parsed = parseWorkItemPatch(body, owner.id)
+    const owned = await workItems.byPublicId(publicId, owner.internalId)
+    if (!owned) return notFound('Work item not found')
+    const parsed = parseWorkItemPatch(body, owner.id, owned.externalReference ? (owned.types ?? []) : [])
     if ('error' in parsed) return validationError(parsed.error)
     if (parsed.data.projectId && !parsePublicId(parsed.data.projectId))
       return validationError('ต้องเป็น public UUID', 'projectId')

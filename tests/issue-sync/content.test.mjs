@@ -1,0 +1,136 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { loader, plain } from './support.mjs'
+
+const { syncedIssueFields, matchesUnlinkedIssue } = loader()('lib/integrations/issue-content.ts')
+const source = (overrides = {}) => ({
+  number: '5',
+  title: '[SA] DHAS Grand Rally',
+  description: 'Details',
+  status: 'todo',
+  labels: [],
+  url: 'https://github.com/acme/repo/issues/5',
+  ...overrides,
+})
+
+test('source labels populate the displayed kind, priority, role, status and type badges', () => {
+  const result = syncedIssueFields(
+    source({
+      labels: [
+        'type::task',
+        'type::documentation',
+        'priority::high',
+        'role::SA',
+        'status::completed',
+        'release:2026',
+      ],
+    }),
+    {},
+  )
+  assert.deepEqual(plain(result.fields), {
+    title: '[#5] [SA] DHAS Grand Rally',
+    description: 'Details',
+    kind: 'Task',
+    priority: 'high',
+    role: 'SA',
+    status: 'completed',
+    types: ['documentation', 'release:2026'],
+  })
+  assert.deepEqual(plain(result.warnings), ['Unmapped label: release:2026'])
+})
+
+test('formatting removes duplicate issue prefixes and Markdown headings without inventing roles', () => {
+  for (const title of [
+    '[SA] DHAS Grand Rally',
+    '## [#5] [SA] DHAS Grand Rally',
+    '[#5] [#5] [SA] DHAS Grand Rally',
+    '[#&#8203;5] [SA] DHAS Grand Rally',
+  ])
+    assert.equal(syncedIssueFields(source({ title }), {}).fields.title, '[#5] [SA] DHAS Grand Rally')
+  assert.equal(
+    syncedIssueFields(source({ title: '[DEV] Fix login' }), {}).fields.title,
+    '[#5] [Developer] Fix login',
+  )
+  assert.equal(
+    syncedIssueFields(source({ title: '[Developer / Infra] Deploy' }), {}).fields.title,
+    '[#5] [Developer / Infra] Deploy',
+  )
+  assert.equal(
+    syncedIssueFields(source({ title: '[Campaign] Launch' }), {}).fields.title,
+    '[#5] [Campaign] Launch',
+  )
+  assert.equal(syncedIssueFields(source({ title: 'Launch' }), {}).fields.title, '[#5] Launch')
+})
+
+test('explicit labels override title roles and local fields; absent metadata retains local fields', () => {
+  const local = { kind: 'Task', role: 'infra', priority: 'urgent' }
+  const mapped = syncedIssueFields(
+    source({ labels: ['role::Developer', 'priority::low', 'kind::Incident', 'legacy-doc'] }),
+    { 'legacy-doc': 'documentation' },
+    local,
+  )
+  assert.equal(mapped.fields.title, '[#5] [Developer] DHAS Grand Rally')
+  assert.equal(mapped.fields.role, 'Developer')
+  assert.equal(mapped.fields.kind, 'Incident')
+  assert.equal(mapped.fields.priority, 'low')
+  assert.deepEqual(plain(mapped.fields.types), ['documentation'])
+  const fallback = syncedIssueFields(source({ title: 'Deploy' }), {}, local).fields
+  assert.equal(fallback.title, '[#5] [Infra] Deploy')
+  assert.equal(fallback.priority, 'urgent')
+  assert.equal(fallback.kind, 'Task')
+  assert.deepEqual(plain(fallback.types), [])
+  assert.equal(syncedIssueFields(source({ labels: ['role::none'] }), {}, local).fields.role, null)
+})
+
+test('contradictory standard labels fail instead of silently selecting one', () => {
+  for (const labels of [
+    ['priority::high', 'priority::low'],
+    ['role::SA', 'role::infra'],
+    ['status::todo', 'status::completed'],
+    ['kind::Issue', 'type::task'],
+  ])
+    assert.throws(
+      () => syncedIssueFields(source({ labels }), {}),
+      (error) => error.code === 'SOURCE_LABEL_CONFLICT',
+    )
+  assert.doesNotThrow(() => syncedIssueFields(source({ labels: ['role::SA', 'role::System Analyst'] }), {}))
+})
+
+test('legacy matching requires an exact normalized title or explicit canonical source URL', () => {
+  assert.equal(
+    matchesUnlinkedIssue({ title: '## [#5] [SA] DHAS   Grand Rally', description: null }, source()),
+    true,
+  )
+  assert.equal(
+    matchesUnlinkedIssue({ title: '[#6] [SA] DHAS Grand Rally', description: null }, source()),
+    false,
+  )
+  assert.equal(
+    matchesUnlinkedIssue({ title: '[Developer] DHAS Grand Rally', description: null }, source()),
+    false,
+  )
+  assert.equal(
+    matchesUnlinkedIssue(
+      { title: 'Different title', description: 'Source: https://github.com/acme/repo/issues/5' },
+      source(),
+    ),
+    true,
+  )
+  assert.equal(
+    matchesUnlinkedIssue(
+      { title: 'Different title', description: 'Source: https://github.com/acme/repo/issues/50' },
+      source(),
+    ),
+    false,
+  )
+  assert.equal(
+    matchesUnlinkedIssue(
+      {
+        title: 'Different title',
+        description: 'Source: https://evil.test/https://github.com/acme/repo/issues/5',
+      },
+      source(),
+    ),
+    false,
+  )
+})

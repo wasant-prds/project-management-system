@@ -172,9 +172,20 @@ export function database(config = fixture()) {
                 Object.entries(scope).every(([key, value]) => ref[key] === value),
             )
             return ref
-              ? { ...copy(ref), workItem: copy(draft.items.find((item) => item.id === ref.workItemId)) }
+              ? {
+                  ...copy(ref),
+                  workItem: copy(draft.items.find((item) => item.id === ref.workItemId) ?? null),
+                }
               : null
           },
+          byLocator: async (scope, number, url) =>
+            copy(
+              draft.references.find(
+                (ref) =>
+                  Object.entries(scope).every(([key, value]) => ref[key] === value) &&
+                  (ref.externalIssueNumber === number || ref.externalUrl === url),
+              ) ?? null,
+            ),
           list: async () => copy(draft.references),
           create: async (data) => {
             const row = newRow(draft, data)
@@ -188,6 +199,16 @@ export function database(config = fixture()) {
           },
         },
         workItems: {
+          lock: async () => {},
+          syncCandidates: async (projectId, ownerId) =>
+            copy(
+              draft.items.filter(
+                (item) =>
+                  item.projectId === projectId &&
+                  item.assigneeId === ownerId &&
+                  !draft.references.some((ref) => ref.workItemId === item.id),
+              ),
+            ),
           create: async (data) => {
             const item = newRow(draft, { submittedAt: null, dueDate: null, ...data })
             draft.items.push(item)

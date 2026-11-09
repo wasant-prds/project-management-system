@@ -151,8 +151,12 @@ export const sourceReferences = {
     )
     if (!row) return null
     const workItem = await workItems.byId(row.workItemId, connection)
-    return workItem ? { ...row, workItem } : null
+    return { ...row, workItem }
   },
+  byLocator: (scope: SourceScope, number: string, url: string, connection = database) =>
+    connection.one<ExternalWorkItemReference>(sql`SELECT ${referenceColumns} FROM external_work_item_references r
+      WHERE r.provider=${scope.provider} AND r.instance_url=${scope.instanceUrl} AND r.external_project_id=${scope.externalProjectId}
+        AND (r.external_issue_number=${number} OR r.external_url=${url}) ORDER BY r.id LIMIT 1`),
   list: (scope: SourceScope, connection = database) =>
     connection.rows<ExternalWorkItemReference>(
       sql`SELECT ${referenceColumns} FROM external_work_item_references r WHERE r.provider=${scope.provider} AND r.instance_url=${scope.instanceUrl} AND r.external_project_id=${scope.externalProjectId} ORDER BY r.id LIMIT 1001`,

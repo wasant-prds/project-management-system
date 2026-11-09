@@ -173,20 +173,23 @@ function parsePatchRole(body: Record<string, unknown>): PatchParseResult {
   return { data: { role } }
 }
 
-function parsePatchTypes(body: Record<string, unknown>): PatchParseResult {
+function parsePatchTypes(body: Record<string, unknown>, existingLabels: readonly string[]): PatchParseResult {
   if (body.types === undefined) return { data: {} }
-  const types = parseWorkItemTypes(body.types)
+  const types = parseWorkItemTypes(body.types, existingLabels)
   if (!types) return { error: 'Invalid types' }
   return { data: { types } }
 }
 
-function parsePatchClassification(body: Record<string, unknown>): PatchParseResult {
+function parsePatchClassification(
+  body: Record<string, unknown>,
+  existingLabels: readonly string[],
+): PatchParseResult {
   return mergePatchResults([
     parsePatchKind(body),
     parsePatchStatus(body),
     parsePatchPriority(body),
     parsePatchRole(body),
-    parsePatchTypes(body),
+    parsePatchTypes(body, existingLabels),
   ])
 }
 
@@ -216,7 +219,11 @@ function parsePatchRelations(body: Record<string, unknown>, ownerId: string): Pa
   return { data }
 }
 
-export function parseWorkItemPatch(value: unknown, ownerId: string): PatchParseResult {
+export function parseWorkItemPatch(
+  value: unknown,
+  ownerId: string,
+  existingLabels: readonly string[] = [],
+): PatchParseResult {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     return { error: 'Work item must be an object' }
   }
@@ -226,7 +233,7 @@ export function parseWorkItemPatch(value: unknown, ownerId: string): PatchParseR
 
   const results = [
     parsePatchBasics(body),
-    parsePatchClassification(body),
+    parsePatchClassification(body, existingLabels),
     parsePatchDates(body),
     parsePatchRelations(body, ownerId),
   ]

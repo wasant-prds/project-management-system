@@ -21,7 +21,7 @@ async function api<T>(url: string, options?: RequestInit): Promise<T> {
 }
 const json = (method: string, body: unknown) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 const providerName = (provider: string) => provider === 'github' ? 'GitHub' : 'GitLab'
-const reasonLabel: Record<string, string> = { out_of_scope: 'อยู่นอก assignee filter — เก็บข้อมูลเดิมและหยุดอัปเดต', assignee_not_matched: 'Assignee ไม่ตรง filter', no_changes: 'ข้อมูลไม่เปลี่ยน', stale_source: 'ข้อมูลต้นทางเก่ากว่าที่บันทึก', pull_request_excluded: 'ข้าม Pull Request', created_from_source: 'สร้างจากต้นทาง', source_fields_changed: 'อัปเดตจากต้นทาง' }
+const reasonLabel: Record<string, string> = { linked_existing_work_item: 'จับคู่และเติมข้อมูลใน Work Item เดิม', out_of_scope: 'อยู่นอก assignee filter — เก็บข้อมูลเดิมและหยุดอัปเดต', assignee_not_matched: 'Assignee ไม่ตรง filter', no_changes: 'ข้อมูลไม่เปลี่ยน', stale_source: 'ข้อมูลต้นทางเก่ากว่าที่บันทึก', pull_request_excluded: 'ข้าม Pull Request', created_from_source: 'สร้างจากต้นทาง', source_fields_changed: 'อัปเดตจากต้นทาง' }
 
 export function ProjectIssueSync({ projectId, onSynced }: Readonly<{ projectId: string; onSynced: () => void }>) {
   const base = `/api/projects/${projectId}/issue-sync`
