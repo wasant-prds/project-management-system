@@ -7,7 +7,13 @@ import type {
 } from '@/lib/database/types'
 import type { SourceIssue } from '@/lib/issue-sync-provider'
 import { IssueSyncError } from '@/lib/issue-sync-provider'
-import { WORK_ITEM_KINDS, WORK_ITEM_PRIORITIES, WORK_ITEM_STATUSES, WORK_ITEM_TYPES } from '@/lib/work-items'
+import {
+  WORK_ITEM_KINDS,
+  WORK_ITEM_PRIORITIES,
+  WORK_ITEM_ROLES,
+  WORK_ITEM_STATUSES,
+  WORK_ITEM_TYPES,
+} from '@/lib/work-items'
 
 const roleNames: Record<string, string> = {
   sa: 'SA',
@@ -22,6 +28,23 @@ const roleNames: Record<string, string> = {
 const roleValues: Record<string, WorkItemRole> = { SA: 'SA', Developer: 'Developer', Infra: 'infra' }
 const compact = (value: string) => value.normalize('NFC').replace(/\s+/g, ' ').trim()
 const folded = (value: string) => compact(value).toLowerCase()
+const roleName = (role: WorkItemRole) => roleNames[role.toLowerCase()]
+function parseRolePrefix(value: string) {
+  const lookup = (part: string) =>
+    Object.hasOwn(roleNames, folded(part)) ? roleNames[folded(part)] : undefined
+  const direct = lookup(value)
+  const parts = compact(value)
+    .split(/\s*\/\s*/)
+    .map(lookup)
+  const displayRole =
+    direct ?? (parts.every((part) => part && roleValues[part]) ? [...new Set(parts)].join(' / ') : undefined)
+  const roles = [
+    ...new Set(
+      (displayRole?.split(' / ') ?? []).flatMap((part) => (roleValues[part] ? [roleValues[part]] : [])),
+    ),
+  ]
+  return { displayRole, roles, role: roles[0] }
+}
 
 export function issueTitleParts(value: string) {
   let stem = compact(value).replace(/^#{1,6}\s+/, '')
@@ -32,9 +55,11 @@ export function issueTitleParts(value: string) {
     stem = stem.slice(prefix[0].length)
   }
   const rolePrefix = /^\[([^\]]+)\]\s*/.exec(stem)
-  const displayRole = rolePrefix ? roleNames[folded(rolePrefix[1])] : undefined
+  const { displayRole, roles, role } = rolePrefix
+    ? parseRolePrefix(rolePrefix[1])
+    : { displayRole: undefined, roles: [], role: undefined }
   if (displayRole) stem = stem.slice(rolePrefix![0].length).trim()
-  return { stem, number, displayRole, role: displayRole ? roleValues[displayRole] : undefined }
+  return { stem, number, displayRole, role, roles }
 }
 
 function single<T>(name: string, values: T[]): T | undefined {
@@ -79,9 +104,9 @@ export function issueLabels(labels: string[], labelMap: Record<string, string>) 
       recognized = true
     }
     if (category === 'role') {
-      const role = lower === 'none' ? null : roleValues[roleNames[folded(value)]]
-      if (role !== undefined) {
-        roles.push(role)
+      const parsed = parseRolePrefix(value)
+      if (lower === 'none' || parsed.roles.length) {
+        roles.push(...(lower === 'none' ? [null] : parsed.roles))
         recognized = true
       }
     }
@@ -102,10 +127,13 @@ export function issueLabels(labels: string[], labelMap: Record<string, string>) 
       warnings.push(`Unmapped label: ${label}`)
     }
   }
+  const sourceRoles = WORK_ITEM_ROLES.filter((role) => roles.includes(role))
+  if (roles.includes(null) && sourceRoles.length) single('role', [null, sourceRoles[0]])
   return {
     kind: single('kind', kinds),
     priority: single('priority', priorities),
-    role: single('role', roles),
+    role: sourceRoles[0] ?? (roles.includes(null) ? null : undefined),
+    roles: sourceRoles,
     status: single('status', statuses),
     types: [...types].sort(),
     warnings,
@@ -120,13 +148,37 @@ export function syncedIssueFields(
   const parts = issueTitleParts(issue.title)
   if (!parts.stem) throw new IssueSyncError('INVALID_SOURCE', 'Issue ไม่มีชื่อเรื่องหลังนำ prefix ออก')
   const labels = issueLabels(issue.labels, labelMap)
-  const role = labels.role !== undefined ? labels.role : (parts.role ?? existing?.role ?? null)
+  const sourceRoles = labels.roles.length ? labels.roles : labels.role === null ? [] : parts.roles
+  const role =
+    labels.role === null
+      ? null
+      : sourceRoles.length
+        ? parts.role && sourceRoles.includes(parts.role)
+          ? parts.role
+          : existing?.role && sourceRoles.includes(existing.role)
+            ? existing.role
+            : sourceRoles[0]
+        : (existing?.role ?? null)
+  const samePrefixRoles =
+    sourceRoles.length > 0 &&
+    parts.roles.length === sourceRoles.length &&
+    parts.roles.every((value) => sourceRoles.includes(value))
   const displayRole =
-    labels.role !== undefined
-      ? labels.role === null
-        ? undefined
-        : roleNames[labels.role.toLowerCase()]
-      : (parts.displayRole ?? (role ? roleNames[role.toLowerCase()] : undefined))
+    labels.role === null
+      ? undefined
+      : samePrefixRoles
+        ? parts.displayRole
+        : sourceRoles.length
+          ? sourceRoles.map(roleName).join(' / ')
+          : role
+            ? roleName(role)
+            : undefined
+  const types = [
+    ...new Set([
+      ...labels.types,
+      ...sourceRoles.filter((value) => value !== role).map((value) => `role::${value}`),
+    ]),
+  ].sort()
   return {
     fields: {
       title: `[#${issue.number}] ${displayRole ? `[${displayRole}] ` : ''}${parts.stem}`,
@@ -135,7 +187,7 @@ export function syncedIssueFields(
       kind: labels.kind ?? existing?.kind ?? 'Issue',
       priority: labels.priority ?? existing?.priority ?? 'none',
       role,
-      types: labels.types,
+      types,
       ...(issue.dueDate !== undefined ? { dueDate: issue.dueDate } : {}),
     },
     warnings: labels.warnings,

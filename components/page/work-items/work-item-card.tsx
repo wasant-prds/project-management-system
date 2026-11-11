@@ -16,6 +16,7 @@ import { Calendar, Flag, MoreVertical } from 'lucide-react'
 import {
   WORK_ITEM_PRIORITY_LABELS,
   WORK_ITEM_ROLE_LABELS,
+  workItemTypeLabel,
 } from '@/lib/work-items'
 import { cn } from '@/lib/utils'
 import type { WorkItem } from './types'
@@ -108,7 +109,7 @@ export function WorkItemCard({
                 <Badge variant="outline">{WORK_ITEM_ROLE_LABELS[item.role]}</Badge>
               )}
               {item.types.map((type) => (
-                <Badge key={type} variant="secondary">{type}</Badge>
+                <Badge key={type} variant="secondary">{workItemTypeLabel(type)}</Badge>
               ))}
               <span className="hidden h-3 w-px bg-border sm:block" />
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

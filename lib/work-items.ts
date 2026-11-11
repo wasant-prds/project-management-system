@@ -97,6 +97,11 @@ export const WORK_ITEM_ROLE_LABELS: Record<WorkItemRoleValue, string> = {
   SA: 'System Analyst',
 }
 
+export function workItemTypeLabel(value: string): string {
+  const role = value.startsWith('role::') ? value.slice('role::'.length) : null
+  return isWorkItemRole(role) ? WORK_ITEM_ROLE_LABELS[role] : value
+}
+
 export const WORK_ITEM_STATUS_LABELS: Record<WorkItemStatusValue, string> = {
   backlog: 'Backlog',
   todo: 'To Do',

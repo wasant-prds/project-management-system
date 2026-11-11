@@ -8,6 +8,36 @@ const { executeIssueSync, startIssueSync, confirmIssueSync, syncConfigDto, syncR
   load('lib/issue-sync.ts')
 const owner = 10n
 
+for (const provider of ['gitlab', 'github'])
+  test(`${provider}: multi-role issues create and update the same identity without role conflicts`, async () => {
+    const fx = database(fixture(provider))
+    const names = ['role::Developer', 'role::Infra', 'type::feature']
+    const raw = rawIssue(provider, {
+      title: '[Developer / Infra] Implement sync',
+      labels: provider === 'github' ? names.map((name) => ({ name })) : names,
+    })
+    const first = await sync(fx, [raw])
+    assert.equal(first.failedCount, 0)
+    assert.equal(first.createdCount, 1)
+    const id = fx.state.items[0].publicId
+    assert.equal(fx.state.items[0].role, 'Developer')
+    assert.deepEqual(fx.state.items[0].types, ['feature', 'role::infra'])
+    assert.equal((await sync(fx, [raw])).skippedCount, 1)
+    const remaining = ['role::Developer', 'type::feature']
+    const changed = await sync(fx, [
+      {
+        ...raw,
+        title: '[Developer] Implement sync',
+        labels: provider === 'github' ? remaining.map((name) => ({ name })) : remaining,
+        updated_at: '2026-10-05T01:00:00Z',
+      },
+    ])
+    assert.equal(changed.updatedCount, 1)
+    assert.equal(fx.state.items[0].publicId, id)
+    assert.deepEqual(fx.state.items[0].types, ['feature'])
+    assert.equal(fx.state.items.length, 1)
+  })
+
 test('GitLab switches issue URL formats without changing local identity or re-prompting legacy source links', async () => {
   const fx = database()
   await sync(fx, [rawIssue()])

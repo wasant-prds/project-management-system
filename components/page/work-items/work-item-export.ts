@@ -1,6 +1,7 @@
 import {
   WORK_ITEM_PRIORITY_LABELS,
   WORK_ITEM_ROLE_LABELS,
+  workItemTypeLabel,
   WORK_ITEM_STATUS_LABELS,
 } from '@/lib/work-items'
 import { currentBangkokCalendarDate } from '@/lib/bangkok-datetime'
@@ -291,7 +292,7 @@ function roleLabel(item: WorkItem) {
 }
 
 function typesLabel(item: WorkItem) {
-  return item.types.length > 0 ? item.types.join(', ') : EMPTY
+  return item.types.length > 0 ? item.types.map(workItemTypeLabel).join(', ') : EMPTY
 }
 
 function descriptionText(item: WorkItem) {

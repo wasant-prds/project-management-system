@@ -30,6 +30,7 @@ import {
   WORK_ITEM_PRIORITY_LABELS,
   WORK_ITEM_ROLES,
   WORK_ITEM_ROLE_LABELS,
+  workItemTypeLabel,
   WORK_ITEM_STATUSES,
   WORK_ITEM_STATUS_LABELS,
   WORK_ITEM_TYPES,
@@ -330,7 +331,7 @@ export function WorkItemDialog({
                       onClick={() => toggleType(type)}
                       disabled={isLoading}
                     >
-                      {type}
+                      {workItemTypeLabel(type)}
                     </Button>
                   )
                 })}

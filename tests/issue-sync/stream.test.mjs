@@ -121,7 +121,7 @@ test('progress panel shows themed stages, real counters and source completion wi
   assert.match(html, /aria-valuenow="12.5"/)
   assert.match(html, /aria-current="step"/)
   assert.match(html, /motion-safe:animate-pulse/)
-  assert.match(html, /grid-cols-2.*sm:grid-cols-4/)
+  assert.match(html, /grid-cols-2.*lg:grid-cols-4/)
   state.progress.phase = 'complete'
   state.completedSources = 1
   state.status = 'failed'

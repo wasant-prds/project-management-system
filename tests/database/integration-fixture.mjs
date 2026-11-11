@@ -583,6 +583,24 @@ for (const provider of ['gitlab', 'github'])
     )
     assert.equal((await replay()).skippedCount, 1)
 
+    const baselineTitle = payload.title,
+      baselineLabels = payload.labels
+    payload.title = '[Developer / Infra] Synced'
+    const combined = ['role::Developer', 'role::Infra', 'type::feature']
+    payload.labels = provider === 'github' ? combined.map((name) => ({ name })) : combined
+    assert.equal((await replay()).updatedCount, 1)
+    const multi = (await call('work-items/[id]', 'GET', undefined, publicId)).body.workItem
+    assert.equal(multi.id, publicId)
+    assert.equal(multi.title, '[#17] [Developer / Infra] Synced')
+    assert.equal(multi.role, 'Developer')
+    assert.deepEqual(multi.types, ['feature', 'role::infra'])
+    assert.equal((await call('work-items/[id]', 'PATCH', { types: multi.types }, publicId)).status, 200)
+    assert.equal((await replay()).skippedCount, 1)
+    payload.title = baselineTitle
+    payload.labels = baselineLabels
+    assert.equal((await replay()).updatedCount, 1)
+    assert.deepEqual((await workItems.byPublicId(publicId)).types, ['documentation', 'team::sales'])
+
     // An old import without a reference is completed in place, including literal SQL wildcard characters.
     const stem = `Legacy ${provider} งาน 100%_literal cafe\u0301`
     const legacy = await workItems.create({

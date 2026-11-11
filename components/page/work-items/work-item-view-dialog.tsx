@@ -16,6 +16,7 @@ import { Calendar, ExternalLink, FileText, Flag } from 'lucide-react'
 import {
   WORK_ITEM_PRIORITY_LABELS,
   WORK_ITEM_ROLE_LABELS,
+  workItemTypeLabel,
 } from '@/lib/work-items'
 import { WorkItemDescription } from './work-item-description'
 import { ProjectIdentity } from './project-identity'
@@ -130,7 +131,7 @@ export function WorkItemViewDialog({
               <Badge variant="outline">{WORK_ITEM_ROLE_LABELS[item.role]}</Badge>
             )}
             {item.types.map((type) => (
-              <Badge key={type} variant="secondary">{type}</Badge>
+              <Badge key={type} variant="secondary">{workItemTypeLabel(type)}</Badge>
             ))}
           </div>
           {item.source && (

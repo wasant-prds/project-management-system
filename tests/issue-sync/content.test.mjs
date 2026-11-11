@@ -86,7 +86,7 @@ test('explicit labels override title roles and local fields; absent metadata ret
 test('contradictory standard labels fail instead of silently selecting one', () => {
   for (const labels of [
     ['priority::high', 'priority::low'],
-    ['role::SA', 'role::infra'],
+    ['role::none', 'role::Developer'],
     ['status::todo', 'status::completed'],
     ['kind::Issue', 'type::task'],
   ])
@@ -95,6 +95,60 @@ test('contradictory standard labels fail instead of silently selecting one', () 
       (error) => error.code === 'SOURCE_LABEL_CONFLICT',
     )
   assert.doesNotThrow(() => syncedIssueFields(source({ labels: ['role::SA', 'role::System Analyst'] }), {}))
+})
+
+test('multiple role labels sync as a combined title and preserve additional role badges deterministically', () => {
+  const original = source({
+    title: '[Developer / Infra] Implement issue sync',
+    labels: ['role::infra', 'role::Developer', 'type::feature'],
+  })
+  const first = syncedIssueFields(original, {}).fields
+  assert.equal(first.title, '[#5] [Developer / Infra] Implement issue sync')
+  assert.equal(first.role, 'Developer')
+  assert.deepEqual(plain(first.types), ['feature', 'role::infra'])
+  assert.deepEqual(
+    plain(syncedIssueFields({ ...original, labels: [...original.labels].reverse() }, {}, first).fields),
+    plain(first),
+  )
+  const reversed = syncedIssueFields(
+    source({ title: '[Infra / Developer] Deploy', labels: ['role::Developer', 'role::infra'] }),
+    {},
+  ).fields
+  assert.equal(reversed.title, '[#5] [Infra / Developer] Deploy')
+  assert.equal(reversed.role, 'infra')
+  assert.deepEqual(plain(reversed.types), ['role::Developer'])
+})
+
+test('combined prefixes, compound role labels and source role removals keep all roles without repeated prefixes', () => {
+  const title = '[SA / Developer / Infra] Review'
+  const first = syncedIssueFields(
+    source({ title, labels: ['role::SA', 'role::Developer', 'role::infra'] }),
+    {},
+  ).fields
+  assert.equal(first.role, 'SA')
+  assert.equal(first.title, '[#5] [SA / Developer / Infra] Review')
+  assert.deepEqual(plain(first.types), ['role::Developer', 'role::infra'])
+  const removed = syncedIssueFields(
+    source({ title: '[Developer] Review', labels: ['role::Developer'] }),
+    {},
+    first,
+  ).fields
+  assert.equal(removed.title, '[#5] [Developer] Review')
+  assert.deepEqual(plain(removed.types), [])
+  const compound = syncedIssueFields(
+    source({ title: 'Deploy', labels: ['role::Developer / Infra'] }),
+    {},
+  ).fields
+  assert.equal(compound.title, '[#5] [Developer / Infra] Deploy')
+  assert.deepEqual(plain(compound.types), ['role::infra'])
+  const qualifier = syncedIssueFields(
+    source({ title: '[Developer / Data Migration] Import', labels: ['role::Developer'] }),
+    {},
+  ).fields
+  assert.equal(qualifier.title, '[#5] [Developer / Data Migration] Import')
+  assert.equal(qualifier.role, 'Developer')
+  const unknown = syncedIssueFields(source({ labels: ['role::constructor'] }), {}).fields
+  assert.ok(unknown.types.includes('role::constructor'))
 })
 
 test('legacy matching requires an exact normalized title or explicit canonical source URL', () => {

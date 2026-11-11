@@ -113,3 +113,63 @@ test('editing imported custom labels permits deselection and reselection in the 
   customLabel().props.onClick()
   assert.deepEqual([...form.types], ['team::sales'])
 })
+
+test('secondary role labels display the normal role names in detail and remain editable labels', () => {
+  const pass = (tag) =>
+    function Element({ children }) {
+      return React.createElement(tag, null, children)
+    }
+  const load = createComponentLoader({
+    '@/components/ui/dialog': {
+      Dialog: pass('div'),
+      DialogContent: pass('section'),
+      DialogHeader: pass('header'),
+      DialogTitle: pass('h2'),
+      DialogDescription: pass('p'),
+      DialogFooter: pass('footer'),
+    },
+    '@/components/page/work-items/work-item-description': {
+      WorkItemDescription: ({ text }) => React.createElement('p', null, text),
+    },
+  })
+  const { syncedIssueFields } = loader()('lib/integrations/issue-content.ts')
+  const { WorkItemViewDialog } = load('components/page/work-items/work-item-view-dialog.tsx')
+  const { fields } = syncedIssueFields(
+    {
+      number: '41',
+      title: '[Developer / Infra] Implement issue sync',
+      description: 'Details',
+      status: 'todo',
+      labels: ['role::Developer', 'role::infra', 'type::feature'],
+    },
+    {},
+  )
+  const html = renderToStaticMarkup(
+    React.createElement(WorkItemViewDialog, {
+      open: true,
+      item: {
+        ...fields,
+        id: '10000000-0000-4000-8000-000000000041',
+        project: { name: 'PMS', company: { name: 'Example' } },
+        assignee: { name: 'Owner' },
+        timeEntries: [],
+      },
+      onOpenChange() {},
+      onEdit() {},
+    }),
+  )
+  for (const label of [
+    '[#41] [Developer / Infra] Implement issue sync',
+    '>Developer<',
+    '>Infrastructure<',
+    '>feature<',
+  ])
+    assert.ok(html.includes(label), label)
+  assert.doesNotMatch(html, /role::/)
+  const { parseWorkItemPatch } = loader()('lib/work-item-input.ts')
+  assert.equal(
+    'error' in
+      parseWorkItemPatch({ types: fields.types }, '10000000-0000-4000-8000-000000000001', fields.types),
+    false,
+  )
+})

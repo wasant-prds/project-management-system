@@ -40,11 +40,15 @@ export function IssueSyncProgressPanel({ state }: Readonly<{ state: IssueSyncPro
     <section
       aria-label="ความคืบหน้า Issue Sync"
       aria-busy={state.status === 'running'}
-      className="min-w-0 space-y-4 rounded-xl border border-primary/20 bg-card p-4 shadow-sm"
+      className="w-full min-w-0 max-w-full space-y-4 rounded-xl border border-primary/20 bg-card p-4 shadow-sm"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 space-y-1">
-          <p role="status" aria-live="polite" className="flex items-center gap-2 text-sm font-semibold">
+          <p
+            role="status"
+            aria-live="polite"
+            className="flex min-w-0 items-start gap-2 text-sm font-semibold"
+          >
             {state.status === 'running' ? (
               <Loader2 aria-hidden className="h-4 w-4 shrink-0 motion-safe:animate-spin" />
             ) : state.status === 'failed' || state.status === 'partial' ? (
@@ -52,7 +56,7 @@ export function IssueSyncProgressPanel({ state }: Readonly<{ state: IssueSyncPro
             ) : (
               <Check aria-hidden className="h-4 w-4 shrink-0 text-primary" />
             )}
-            {labels[state.status]}
+            <span className="min-w-0 break-words">{labels[state.status]}</span>
           </p>
           <p className="break-words text-xs text-muted-foreground">
             {state.sourceProject} · แหล่งที่ {state.sourceIndex} / {state.totalSources}
@@ -63,10 +67,14 @@ export function IssueSyncProgressPanel({ state }: Readonly<{ state: IssueSyncPro
         </span>
       </div>
       <Progress
+        className="min-w-0 max-w-full"
         aria-label="ความคืบหน้าตามขั้นตอนของ Project"
         value={Math.min(100, (100 * completed) / Math.max(1, state.totalSources))}
       />
-      <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="ขั้นตอน Sync ของแหล่งปัจจุบัน">
+      <ol
+        className="grid min-w-0 grid-cols-2 gap-2 lg:grid-cols-4"
+        aria-label="ขั้นตอน Sync ของแหล่งปัจจุบัน"
+      >
         {stages.map((entry, index) => (
           <li
             key={entry.phase}
@@ -77,13 +85,13 @@ export function IssueSyncProgressPanel({ state }: Readonly<{ state: IssueSyncPro
               aria-hidden
               className={`mb-2 h-1 rounded-full ${index <= stage ? 'bg-primary' : 'bg-muted'} ${index === stage && state.status === 'running' ? 'motion-safe:animate-pulse' : ''}`}
             />
-            <span className="flex items-center gap-1.5">
+            <span className="flex min-w-0 items-start gap-1.5">
               {index < stage ? (
                 <Check aria-hidden className="h-3 w-3 shrink-0" />
               ) : (
                 <span className="tabular-nums">{index + 1}.</span>
               )}
-              {entry.label}
+              <span className="min-w-0 break-words">{entry.label}</span>
             </span>
           </li>
         ))}
