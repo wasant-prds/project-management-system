@@ -6,7 +6,6 @@ import {
   DialogContent,
   DialogDescription,
   DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -20,7 +19,6 @@ import {
 } from '@/lib/work-items'
 import { WorkItemDescription } from './work-item-description'
 import { ProjectIdentity } from './project-identity'
-import { ScrollablePanel } from '@/components/ui/scrollable-panel'
 import { WORK_ITEM_DIALOG_SHELL_CLASS } from './work-item-dialog-shell'
 import type { WorkItem, WorkItemTimeEntry } from './types'
 import { formatHours, sumDecimalHours } from '@/lib/decimal-hours'
@@ -41,7 +39,7 @@ type WorkItemViewDialogProps = {
 
 function Detail({ label, children }: Readonly<{ label: string; children: ReactNode }>) {
   return (
-    <div className="min-w-0 flex-1 space-y-1 sm:min-w-[8rem]">
+    <div className="min-w-0 space-y-1">
       <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
       <div className="min-w-0 text-sm font-medium text-foreground">{children}</div>
     </div>
@@ -72,7 +70,7 @@ function DailyWorkEntries({ isLoading, entries }: Readonly<{
             <span className="font-medium tabular-nums">{formatHours(entry.hours)} h</span>
           </div>
           {(entry.description || entry.remarks) && (
-            <p className="mt-1 whitespace-pre-wrap text-muted-foreground">
+            <p className="content-wrap mt-1 whitespace-pre-wrap text-muted-foreground">
               {[entry.description, entry.remarks].filter(Boolean).join(' · ')}
             </p>
           )}
@@ -98,105 +96,106 @@ export function WorkItemViewDialog({
           <ProjectIdentity
             name={item.project.name}
             color={item.project.colorProject}
-            size="md"
-            className="px-4 py-3 pr-12 sm:px-6 sm:py-3.5"
+            size="sm"
+            className="px-4 py-2 pr-12 sm:px-6 sm:pr-12"
           />
-          {item.project.company && (
-            <p className="px-4 pb-2 text-xs text-muted-foreground sm:px-6">
-              Company: {item.project.company.displayName
-                ? `${item.project.company.displayName} — ${item.project.company.name}`
-                : item.project.company.name}
-            </p>
-          )}
         </div>
 
-        <div className="shrink-0 space-y-3 px-4 pt-4 sm:px-6 sm:pt-5">
-          <DialogHeader className="space-y-2">
-            <div className="flex min-w-0 flex-wrap items-start gap-2">
-              <DialogTitle className="min-w-0 text-left text-lg leading-snug tracking-tight sm:text-xl">
-                {item.title}
-              </DialogTitle>
-              <Badge variant="outline" className={kindClass(item.kind)}>{item.kind}</Badge>
-            </div>
-            <DialogDescription className="sr-only">Work item details</DialogDescription>
-          </DialogHeader>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <WorkItemStatusBadge status={item.status} />
-            <Badge variant="outline" className={priorityClass(item.priority)}>
-              <Flag className="mr-1 h-3 w-3" />
-              {WORK_ITEM_PRIORITY_LABELS[item.priority]}
-            </Badge>
-            {item.role && (
-              <Badge variant="outline">{WORK_ITEM_ROLE_LABELS[item.role]}</Badge>
-            )}
-            {item.types.map((type) => (
-              <Badge key={type} variant="secondary">{workItemTypeLabel(type)}</Badge>
-            ))}
-          </div>
-          {item.source && (
-            <a
-              href={item.source.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex max-w-full items-center gap-1.5 text-sm text-link underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label={`Open ${item.source.provider === 'github' ? 'GitHub' : 'GitLab'} Issue ${item.source.issueIid}`}
-            >
-              <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{item.source.provider === 'github' ? 'GitHub' : 'GitLab'} Issue #{item.source.issueIid}</span>
-            </a>
-          )}
-          {item.source?.inScope === false && <p className="text-sm text-muted-foreground">อยู่นอก assignee filter — เก็บข้อมูลเดิมและหยุดอัปเดตจากต้นทาง</p>}
-        </div>
-
-        <section className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-3 sm:px-6 sm:py-4">
-          <div className="mb-2 flex shrink-0 items-center gap-2 text-muted-foreground">
-            <FileText className="h-3.5 w-3.5" />
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em]">Details</p>
-          </div>
-          <ScrollablePanel className="min-h-[8rem] min-w-0 flex-1 rounded-xl border border-border/70 bg-muted/30 shadow-inner">
-            <div className="divide-y divide-border/60">
-              {item.description ? (
-                <WorkItemDescription
-                  text={item.description}
-                  className="rounded-none border-0 bg-transparent px-4 py-3 break-words"
-                />
-              ) : (
-                <p className="px-4 py-6 text-sm italic text-muted-foreground">No description</p>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+          <div className="flex min-h-full min-w-0 flex-col gap-4">
+            <div className="space-y-2">
+              {item.project.company && (
+                <p className="content-wrap text-xs text-muted-foreground">
+                  Company: {item.project.company.displayName
+                    ? `${item.project.company.displayName} — ${item.project.company.name}`
+                    : item.project.company.name}
+                </p>
               )}
-              <section className="space-y-2 px-4 py-3" aria-label="Daily Work">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="type-card-title">Daily Work</h2>
-                  {!isLoading && <span className="text-xs text-muted-foreground">{item.timeEntries?.length ?? 0} entries</span>}
-                </div>
-                <DailyWorkEntries isLoading={isLoading} entries={item.timeEntries} />
-              </section>
-            </div>
-          </ScrollablePanel>
-        </section>
+              <div className="flex min-w-0 flex-wrap items-start gap-2">
+                <DialogTitle className="min-w-0 text-left text-lg leading-snug tracking-tight sm:text-xl">
+                  {item.title}
+                </DialogTitle>
+                <Badge variant="outline" className={kindClass(item.kind)}>{item.kind}</Badge>
+              </div>
+              <DialogDescription className="sr-only">Work item details</DialogDescription>
 
-        <div className="grid shrink-0 grid-cols-2 gap-x-4 gap-y-3 border-t border-border/60 bg-muted/20 px-4 py-3 sm:flex sm:flex-wrap sm:gap-x-6 sm:px-6">
-          <Detail label="Assignee">
-            <div className="flex min-w-0 items-center gap-2">
-              <Avatar className="h-6 w-6 shrink-0 border border-primary/20">
-                <AvatarFallback className="bg-primary/10 text-xs text-link">
-                  {(item.assignee.avatar || item.assignee.name).slice(0, 2)}
-                </AvatarFallback>
-              </Avatar>
-              <span className="min-w-0 truncate">{item.assignee.name}</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <WorkItemStatusBadge status={item.status} />
+                <Badge variant="outline" className={priorityClass(item.priority)}>
+                  <Flag className="mr-1 h-3 w-3" />
+                  {WORK_ITEM_PRIORITY_LABELS[item.priority]}
+                </Badge>
+                {item.role && (
+                  <Badge variant="outline">{WORK_ITEM_ROLE_LABELS[item.role]}</Badge>
+                )}
+                {item.types.map((type) => (
+                  <Badge key={type} variant="secondary">{workItemTypeLabel(type)}</Badge>
+                ))}
+              </div>
+              {item.source && (
+                <a
+                  href={item.source.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex max-w-full items-center gap-1.5 text-sm text-link underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label={`Open ${item.source.provider === 'github' ? 'GitHub' : 'GitLab'} Issue ${item.source.issueIid}`}
+                >
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{item.source.provider === 'github' ? 'GitHub' : 'GitLab'} Issue #{item.source.issueIid}</span>
+                </a>
+              )}
+              {item.source?.inScope === false && <p className="text-sm text-muted-foreground">อยู่นอก assignee filter — เก็บข้อมูลเดิมและหยุดอัปเดตจากต้นทาง</p>}
             </div>
-          </Detail>
-          <Detail label="Work date">{formatDisplayDate(item.workDate)}</Detail>
-          <Detail label="Due date">
-            <span className="inline-flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-              {formatDisplayDate(item.dueDate)}
-            </span>
-          </Detail>
-          <Detail label="Submitted">{formatDisplayDate(item.submittedAt)}</Detail>
+
+            <section aria-labelledby="work-item-details-heading" className="flex min-w-0 flex-1 flex-col">
+              <div className="mb-2 flex shrink-0 items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                <h2 id="work-item-details-heading" className="text-base font-semibold text-foreground">Details</h2>
+              </div>
+              <div className="min-h-64 min-w-0 flex-1 rounded-xl border border-primary/25 bg-muted/20">
+                {item.description ? (
+                  <WorkItemDescription
+                    text={item.description}
+                    className="content-wrap rounded-none border-0 bg-transparent px-4 py-3 text-base leading-relaxed text-foreground [&_h4]:text-base [&_h4]:normal-case [&_h4]:tracking-normal [&_table]:w-full [&_table]:min-w-[32rem] [&_table]:[overflow-wrap:normal] [&_th]:whitespace-nowrap [&_code]:text-sm"
+                  />
+                ) : (
+                  <p className="px-4 py-6 text-sm italic text-muted-foreground">No description</p>
+                )}
+              </div>
+            </section>
+
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 sm:grid-cols-4">
+              <Detail label="Assignee">
+                <div className="flex min-w-0 items-center gap-2">
+                  <Avatar className="h-6 w-6 shrink-0 border border-primary/20">
+                    <AvatarFallback className="bg-primary/10 text-xs text-link">
+                      {(item.assignee.avatar || item.assignee.name).slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="content-wrap min-w-0">{item.assignee.name}</span>
+                </div>
+              </Detail>
+              <Detail label="Work date">{formatDisplayDate(item.workDate)}</Detail>
+              <Detail label="Due date">
+                <span className="inline-flex flex-wrap items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  {formatDisplayDate(item.dueDate)}
+                </span>
+              </Detail>
+              <Detail label="Submitted">{formatDisplayDate(item.submittedAt)}</Detail>
+            </div>
+
+            <section className="space-y-2 border-t border-border/60 pt-3" aria-label="Daily Work">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="type-card-title">Daily Work</h2>
+                {!isLoading && <span className="text-xs text-muted-foreground">{item.timeEntries?.length ?? 0} entries</span>}
+              </div>
+              <DailyWorkEntries isLoading={isLoading} entries={item.timeEntries} />
+            </section>
+          </div>
         </div>
 
-        <DialogFooter className="shrink-0 flex-row justify-end border-t border-border/60 px-4 py-3 sm:px-6 sm:py-4">
+        <DialogFooter className="shrink-0 flex-row justify-end border-t border-border/60 px-4 py-3 data-[slot=dialog-footer]:pt-3 sm:px-6">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
           <Button onClick={() => onEdit(item)}>Edit</Button>
         </DialogFooter>

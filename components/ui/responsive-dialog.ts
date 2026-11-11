@@ -1,7 +1,7 @@
 const PHONE_SHELL =
   'flex min-w-0 h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] max-w-[calc(100%-1rem)] flex-col gap-0 overflow-hidden p-0'
 const TABLET_SHELL =
-  'sm:h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100%-2rem)] sm:max-w-[calc(100%-2rem)]'
+  'sm:h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-2rem)] sm:w-[calc(100%-2rem)] sm:max-w-[calc(100%-2rem)] sm:p-0'
 
 /** Near-full-screen on phone/tablet; viewport-capped centered dialog on desktop. */
 export const DIALOG_SHELL_CLASS = `${PHONE_SHELL} ${TABLET_SHELL} lg:h-[90dvh] lg:max-h-[90dvh] lg:w-full lg:max-w-[54.6rem]`

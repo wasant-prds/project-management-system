@@ -64,7 +64,7 @@ export function SearchSelect({
           disabled={disabled}
           className="h-auto min-h-10 w-full justify-between border border-border-strong bg-input px-3 py-2 text-left font-normal shadow-input hover:bg-input active:bg-input"
         >
-          <span className={cn('min-w-0 flex-1 truncate', !selected && 'text-muted-foreground')}>
+          <span className={cn('content-wrap min-w-0 flex-1 whitespace-normal leading-snug', !selected && 'text-muted-foreground')}>
             {triggerLabel}
           </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -105,7 +105,7 @@ export function SearchSelect({
               >
                 <Check className={cn('mt-0.5 h-4 w-4 shrink-0', value === option.id ? 'opacity-100' : 'opacity-0')} />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{option.label}</span>
+                  <span className="content-wrap block font-medium">{option.label}</span>
                   {option.hint && (
                     <span className="block text-xs text-muted-foreground">{option.hint}</span>
                   )}

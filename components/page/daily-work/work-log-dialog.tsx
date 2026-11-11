@@ -25,7 +25,6 @@ import { ProjectIdentity } from "@/components/page/work-items/project-identity"
 import { WorkItemDescription } from "@/components/page/work-items/work-item-description"
 import { Project, WorkLogFormData, WorkLog, WorkLogWorkItem, workLogStatuses } from "./types"
 import { SearchSelect } from "./work-log-search-select"
-import { ScrollablePanel } from "@/components/ui/scrollable-panel"
 import { fetchCollection } from "@/lib/fetch-collection"
 import { formatHours } from '@/lib/decimal-hours'
 
@@ -107,10 +106,8 @@ function DialogActions({
   )
 }
 
-const BODY_PANEL_CLASS =
-  "min-h-0 min-w-0 flex-1 rounded-xl border"
 const BODY_COPY_CLASS =
-  "rounded-none border-0 bg-transparent px-4 py-3 text-sm font-normal leading-relaxed text-foreground break-words"
+  "content-wrap rounded-none border-0 bg-transparent px-4 py-3 text-base font-normal leading-relaxed text-foreground [&_h4]:text-base [&_h4]:normal-case [&_h4]:tracking-normal [&_table]:w-full [&_table]:min-w-[32rem] [&_table]:[overflow-wrap:normal] [&_th]:whitespace-nowrap [&_code]:text-sm"
 
 function BodyCopy({
   id,
@@ -121,6 +118,7 @@ function BodyCopy({
   placeholder,
   onChange,
   disabled,
+  primary,
 }: Readonly<{
   id: string
   isView: boolean
@@ -130,9 +128,10 @@ function BodyCopy({
   placeholder: string
   onChange?: (value: string) => void
   disabled?: boolean
+  primary: boolean
 }>) {
   if (isView && viewText?.trim()) {
-    return <WorkItemDescription text={viewText} className={BODY_COPY_CLASS} />
+    return <WorkItemDescription text={viewText} className={`${BODY_COPY_CLASS} ${primary ? '' : 'font-medium'}`} />
   }
   if (isView) {
     return <p className="px-4 py-6 text-sm italic text-muted-foreground">{emptyLabel}</p>
@@ -143,7 +142,8 @@ function BodyCopy({
       placeholder={placeholder}
       value={value || ""}
       onChange={(event) => onChange?.(event.target.value)}
-      className={`${BODY_COPY_CLASS} bg-input shadow-none h-full min-h-0 resize-none`}
+      rows={primary ? 10 : 2}
+      className={`${BODY_COPY_CLASS} flex-1 resize-y bg-input shadow-none sm:text-base ${primary ? 'min-h-60 field-sizing-fixed' : 'min-h-[4.5rem] field-sizing-content font-medium'}`}
       disabled={disabled}
     />
   )
@@ -161,7 +161,7 @@ function BodySection({
   placeholder,
   onChange,
   disabled,
-  growClass,
+  primary = false,
 }: Readonly<{
   id: string
   label: string
@@ -174,18 +174,18 @@ function BodySection({
   placeholder: string
   onChange?: (value: string) => void
   disabled?: boolean
-  growClass: string
+  primary?: boolean
 }>) {
   return (
-    <div className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${growClass}`}>
-      <div className="mb-2 flex shrink-0 items-center gap-2 text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
-        <Label htmlFor={id} className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+    <section aria-labelledby={`${id}-label`} className={`flex min-w-0 flex-col ${primary ? 'flex-1' : 'shrink-0'}`}>
+      <div className="mb-2 flex shrink-0 items-center gap-2">
+        <Icon className={`h-4 w-4 ${primary ? 'text-primary' : 'text-muted-foreground'}`} />
+        <Label id={`${id}-label`} htmlFor={isView ? undefined : id} className={primary ? 'text-base font-semibold text-foreground' : 'text-sm font-medium text-muted-foreground'}>
           {label}
           {required && !isView && <span className="text-danger"> *</span>}
         </Label>
       </div>
-      <ScrollablePanel className={`${BODY_PANEL_CLASS} ${isView ? 'border-border/70 bg-muted/30 shadow-inner' : 'border-border-strong bg-input shadow-input has-[textarea:disabled]:border-border has-[textarea:disabled]:bg-disabled has-[textarea:disabled]:shadow-none has-[textarea:focus-visible]:border-ring'}`}>
+      <div className={`min-w-0 overflow-hidden rounded-xl border ${primary ? 'flex min-h-60 flex-1 flex-col border-primary/25' : 'border-border/70'} ${isView ? 'bg-muted/20' : 'bg-input shadow-input has-[textarea:disabled]:border-border has-[textarea:disabled]:bg-disabled has-[textarea:disabled]:shadow-none has-[textarea:focus-visible]:border-ring'}`}>
         <BodyCopy
           id={id}
           isView={isView}
@@ -195,9 +195,10 @@ function BodySection({
           placeholder={placeholder}
           onChange={onChange}
           disabled={disabled}
+          primary={primary}
         />
-      </ScrollablePanel>
-    </div>
+      </div>
+    </section>
   )
 }
 
@@ -215,18 +216,17 @@ function DetailsAndRemarks({
   onFormDataChange?: (data: WorkLogFormData) => void
 }>) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
+    <div className="flex min-w-0 flex-1 flex-col gap-4">
       <BodySection
         id="description"
         label="Details"
         icon={FileText}
         required
-        growClass="flex-[3]"
         isView={isView}
         viewText={workLog?.description}
         emptyLabel="No description"
         value={formData?.description}
-        placeholder="Describe the work you completed..."
+        placeholder="Title or short summary of this daily work..."
         onChange={(description) => onFormDataChange?.({ ...formData!, description })}
         disabled={isLoading}
       />
@@ -234,12 +234,12 @@ function DetailsAndRemarks({
         id="remarks"
         label="Remarks"
         icon={MessageSquareText}
-        growClass="flex-[7]"
+        primary
         isView={isView}
         viewText={workLog?.remarks}
         emptyLabel="No remarks"
         value={formData?.remarks}
-        placeholder="Any additional notes or observations..."
+        placeholder="Describe the work completed, progress, results, or follow-up..."
         onChange={(remarks) => onFormDataChange?.({ ...formData!, remarks })}
         disabled={isLoading}
       />
@@ -348,22 +348,23 @@ export function WorkLogDialogBody({
 
   return (
     <>
-        {isViewMode && workLog?.project ? (
-          <div className="shrink-0">
-            <ProjectIdentity name={workLog.project.name} color={workLog.project.colorProject} size="md" />
-          </div>
-        ) : (
-          <DialogHeader className="shrink-0 space-y-1 px-6 pt-6 pr-12">
-            <DialogTitle>{dialogTitle}</DialogTitle>
-            <DialogDescription>
-              {isViewMode
-                ? "Review this work log"
-                : "Link hours to a project work item"}
-            </DialogDescription>
-          </DialogHeader>
-        )}
+      {isViewMode && workLog?.project ? (
+        <div className="shrink-0">
+          <ProjectIdentity name={workLog.project.name} color={workLog.project.colorProject} size="sm" className="pr-12" />
+        </div>
+      ) : (
+        <DialogHeader className="shrink-0 gap-1 px-4 pt-4 pr-12 text-left data-[slot=dialog-header]:pb-3 sm:px-6 sm:pr-12">
+          <DialogTitle className="text-xl leading-snug">{dialogTitle}</DialogTitle>
+          <DialogDescription>
+            {isViewMode
+              ? "Review this work log"
+              : "Link hours to a project work item"}
+          </DialogDescription>
+        </DialogHeader>
+      )}
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden px-4 py-4 sm:px-6 sm:py-5">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+        <div className="flex min-h-full min-w-0 flex-col gap-4">
           {isViewMode && workLog ? (
             <>
               <div className="flex shrink-0 flex-wrap items-start justify-between gap-3 border-b border-border/60 pb-3">
@@ -380,13 +381,13 @@ export function WorkLogDialogBody({
                     {workLog.status && <Badge variant="secondary">{workLog.status}</Badge>}
                     <span className="text-sm text-muted-foreground">{workLog.user.name}</span>
                     <span className="text-xs text-muted-foreground">{formatDate(workLog.date)}</span>
+                    <Badge variant="outline" className="shrink-0 gap-1">
+                      <Clock className="h-3 w-3" />
+                      {formatHours(workLog.hours)}h
+                    </Badge>
                   </div>
                   <DialogDescription className="sr-only">Work log details</DialogDescription>
                 </div>
-                <Badge variant="outline" className="shrink-0 gap-1">
-                  <Clock className="h-3 w-3" />
-                  {formatHours(workLog.hours)}h
-                </Badge>
               </div>
               <DetailsAndRemarks
                 isView
@@ -397,10 +398,10 @@ export function WorkLogDialogBody({
               />
             </>
           ) : (
-            <div className="grid min-h-0 flex-1 grid-rows-1 gap-6 md:grid-cols-2">
-              <div className="min-h-0 space-y-4 overflow-y-auto pr-1">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
+            <div className="grid flex-1 gap-5 md:grid-cols-[minmax(16rem,1fr)_minmax(0,2fr)]">
+              <div className="grid min-w-0 content-start grid-cols-2 gap-3 md:gap-4">
+                <div className="col-span-2 grid grid-cols-[minmax(0,1fr)_5.5rem] gap-3">
+                  <div className="min-w-0 space-y-1.5">
                     <Label htmlFor="date">Date <span className="text-danger">*</span></Label>
                     <DatePicker
                       id="date"
@@ -410,7 +411,7 @@ export function WorkLogDialogBody({
                       disabled={isLoading}
                     />
                   </div>
-                  <div className="space-y-2">
+                  <div className="min-w-0 space-y-1.5">
                     <Label htmlFor="hours">Hours <span className="text-danger">*</span></Label>
                     <Input
                       id="hours"
@@ -424,7 +425,7 @@ export function WorkLogDialogBody({
                   </div>
                 </div>
 
-                <div className="space-y-2">
+                <div className="col-span-2 min-w-0 space-y-1.5">
                   <Label>Project <span className="text-danger">*</span></Label>
                   <SearchSelect
                     value={formData?.projectId || ""}
@@ -437,8 +438,15 @@ export function WorkLogDialogBody({
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Work item <span className="text-danger">*</span></Label>
+                <div className="col-span-2 min-w-0 space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Label>Work item <span className="text-danger">*</span></Label>
+                    {selectedWorkItem && (
+                      <Badge variant="outline" className={kindClass(selectedWorkItem.kind as WorkItemKindValue)}>
+                        {selectedWorkItem.kind}
+                      </Badge>
+                    )}
+                  </div>
                   <SearchSelect
                     value={formData?.workItemId || ""}
                     options={workItemOptions}
@@ -449,14 +457,9 @@ export function WorkLogDialogBody({
                     disabled={isLoading || !formData?.projectId || loadingWorkItems}
                     disabledHint="Select a project first"
                   />
-                  {selectedWorkItem && (
-                    <Badge variant="outline" className={kindClass(selectedWorkItem.kind as WorkItemKindValue)}>
-                      {selectedWorkItem.kind}
-                    </Badge>
-                  )}
                 </div>
 
-                <div className="space-y-2">
+                <div className="col-span-2 min-w-0 space-y-1.5">
                   <Label htmlFor="status">Status <span className="text-danger">*</span></Label>
                   <Select
                     value={formData?.status || ""}
@@ -485,20 +488,21 @@ export function WorkLogDialogBody({
             </div>
           )}
         </div>
+      </div>
 
-        <DialogFooter className="shrink-0 gap-2 border-t border-border/60 px-6 py-4">
-          <DialogActions
-            isViewMode={isViewMode}
-            isEditMode={isEditMode}
-            isLoading={isLoading}
-            workLog={workLog}
-            onOpenChange={onOpenChange}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            onViewDetails={onViewDetails}
-            onSubmit={onSubmit}
-          />
-        </DialogFooter>
+      <DialogFooter className="shrink-0 flex-row flex-wrap justify-end gap-2 border-t border-border/60 px-4 py-3 data-[slot=dialog-footer]:pt-3 max-sm:[&>button]:flex-1 sm:px-6">
+        <DialogActions
+          isViewMode={isViewMode}
+          isEditMode={isEditMode}
+          isLoading={isLoading}
+          workLog={workLog}
+          onOpenChange={onOpenChange}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onViewDetails={onViewDetails}
+          onSubmit={onSubmit}
+        />
+      </DialogFooter>
     </>
   )
 }
