@@ -3,8 +3,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Plus, Search, Download, Eye, FileText } from "lucide-react"
+import { Plus, Eye, FileText } from "lucide-react"
 import { WorkLog } from "./types"
 import { WorkLogCard } from "./work-log-card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -15,6 +14,7 @@ import { DIALOG_SHELL_WIDE_CLASS } from "@/components/ui/responsive-dialog"
 import { WorkItemDescription } from "@/components/page/work-items/work-item-description"
 import { formatBangkokDateLabel } from "@/lib/bangkok-datetime"
 import { PageState } from '@/components/layout/page-state'
+import { DataTransferMenu } from '@/components/layout/data-transfer-menu'
 import { formatHours } from '@/lib/decimal-hours'
 
 // Constants
@@ -137,30 +137,17 @@ const generateMarkdownDocument = (
 type WorkLogListProps = {
   workLogs: WorkLog[]
   searchQuery: string
-  onSearchChange: (query: string) => void
   onWorkLogClick: (workLog: WorkLog) => void
   onAddClick: () => void
   buttonLabel: string
 }
 
-export function WorkLogList({
-  workLogs,
-  searchQuery,
-  onSearchChange,
-  onWorkLogClick,
-  onAddClick,
-  buttonLabel,
-}: Readonly<WorkLogListProps>) {
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
-
+function useWorkLogExports(workLogs: WorkLog[], buttonLabel: string) {
   // Memoize grouped work logs to avoid recalculating on every render
   const groupedByProject = useMemo(
     () => groupWorkLogsByProject(workLogs),
     [workLogs]
   )
-
-  // Memoize handlers
-  const handleOpenModal = useCallback(() => setIsViewModalOpen(true), [])
 
   // Memoize CSV export function
   const exportToCSV = useCallback(() => {
@@ -206,10 +193,33 @@ export function WorkLogList({
     URL.revokeObjectURL(url)
   }, [groupedByProject, buttonLabel])
 
+  return { groupedByProject, exportToCSV, exportToMarkdown }
+}
+
+export function WorkLogExportMenu({ workLogs, buttonLabel, disabled = false }: Readonly<{ workLogs: WorkLog[]; buttonLabel: string; disabled?: boolean }>) {
+  const { exportToCSV, exportToMarkdown } = useWorkLogExports(workLogs, buttonLabel)
+  return <DataTransferMenu exports={[
+    { format: 'CSV', label: 'Export CSV', onSelect: exportToCSV, disabled: disabled || workLogs.length === 0 },
+    { format: 'Markdown', label: 'Export Markdown', onSelect: exportToMarkdown, disabled: disabled || workLogs.length === 0 },
+  ]} />
+}
+
+export function WorkLogList({
+  workLogs,
+  searchQuery,
+  onWorkLogClick,
+  onAddClick,
+  buttonLabel,
+}: Readonly<WorkLogListProps>) {
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
+
+  const { groupedByProject, exportToMarkdown } = useWorkLogExports(workLogs, buttonLabel)
+  const handleOpenModal = useCallback(() => setIsViewModalOpen(true), [])
+
   return (
     <div className="motion-data-enter space-y-3">
       <Card className="card-shadow">
-        <CardHeader className="pb-0">
+        <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-base">
               Work Logs for : <span className="font-bold text-link">{buttonLabel}</span>
@@ -225,36 +235,8 @@ export function WorkLogList({
                   <Eye className="h-4 w-4" />
                   <span className={ACTION_LABEL_CLASS}>View</span>
                 </Button>
-                <Button
-                  onClick={exportToCSV}
-                  variant="info"
-                  size="sm"
-                  aria-label="Export CSV"
-                >
-                  <Download className="h-4 w-4" />
-                  <span className={ACTION_LABEL_CLASS}>Export CSV</span>
-                </Button>
-                <Button
-                  onClick={exportToMarkdown}
-                  variant="success"
-                  size="sm"
-                  aria-label="Export Markdown"
-                >
-                  <FileText className="h-4 w-4" />
-                  <span className={ACTION_LABEL_CLASS}>Export Markdown</span>
-                </Button>
               </div>
             )}
-          </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search work logs..."
-              className="pl-10"
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-            />
           </div>
         </CardHeader>
       </Card>

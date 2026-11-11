@@ -449,7 +449,7 @@ test('TC-40-22 Daily Work date stays required, not clearable, and locked while s
   assert.doesNotMatch(field, /clearable/)
 })
 
-test('TC-40-23 Daily Work board calendar and Work Items year/month filters stay unchanged', () => {
+test('TC-40-23 Daily Work retains its board calendar alongside header date search and Work Items year/month filters', () => {
   const calendar = source('components/ui/calendar.tsx')
   assert.match(calendar, /DateCalendar/)
   assert.doesNotMatch(calendar, /components\/ui\/date-picker|DatePicker/)
@@ -458,7 +458,7 @@ test('TC-40-23 Daily Work board calendar and Work Items year/month filters stay 
   assert.match(deferredCalendar, /import\('@\/components\/ui\/calendar'\)/)
   assert.match(dailyWork, /DeferredCalendar as Calendar/)
   assert.match(dailyWork, /<Calendar/)
-  assert.doesNotMatch(dailyWork, /DatePicker/)
+  assert.match(dailyWork, /<DatePicker id="daily-work-filter-date"/)
   const workItems = source('app/work-items/page.tsx')
   assert.match(workItems, /<Select value=\{yearFilter\}/)
   assert.match(workItems, /<Select value=\{monthFilter\}/)

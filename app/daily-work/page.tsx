@@ -16,6 +16,9 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
+import { SearchFilterPanel, FilterField } from "@/components/layout/search-filter-panel"
+import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/lazy-date-picker"
 import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { toast } from "@/hooks/use-toast"
@@ -26,7 +29,7 @@ import { readWorkLogsResponse } from "@/lib/work-log-response"
 import { fetchCollection } from "@/lib/fetch-collection"
 import { dailyWorkHrefWithoutDashboardFilters } from "@/lib/dashboard-links"
 import { WorkLog, Project, WorkLogFormData, emptyWorkLogForm } from "@/components/page/daily-work/types"
-import { WorkLogList } from "@/components/page/daily-work/work-log-list"
+import { WorkLogList, WorkLogExportMenu } from "@/components/page/daily-work/work-log-list"
 import { DeferredCalendar as Calendar, DeferredWorkLogDialog as WorkLogDialog } from '@/components/page/daily-work/deferred-widgets'
 import { StatsCard } from "@/components/page/daily-work/stats-card"
 
@@ -336,6 +339,37 @@ export default function DailyWorkPage() {
                 <h1 className={PAGE_HEADING}>Daily Work</h1>
                 <p className={PAGE_LEAD}>บันทึกเวลาทำงานและติดตามกิจกรรมในแต่ละวัน</p>
               </div>
+
+              <div className="page-header-actions">
+                <SearchFilterPanel activeCount={[searchQuery.trim() !== '', viewPeriod !== 'day', Boolean(date && formatDate(date) !== currentBangkokCalendarDate()), Boolean(dashboardFilters)].filter(Boolean).length}
+                  onReset={() => { setSearchQuery(''); setViewPeriod('day'); clearDashboardFilters(currentBangkokCalendarDate()); setDate(dateOnlyToPickerDate(currentBangkokCalendarDate()) ?? undefined) }}>
+                  <div className="search-filter-fields">
+                    <FilterField label="คำค้นหา" className="sm:col-span-2"><Input type="search" aria-label="ค้นหา Daily Work" placeholder="ค้นหาบันทึก งาน หรือ Project…" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} /></FilterField>
+                    <FilterField label="วันที่"><DatePicker id="daily-work-filter-date" value={date ? formatDate(date) : ''} onValueChange={(value) => { clearDashboardFilters(value || null); setDate(dateOnlyToPickerDate(value) ?? undefined) }} /></FilterField>
+                    <FilterField label="ช่วงเวลา">
+                      <ToggleGroup type="single" value={viewPeriod} onValueChange={(value) => {
+                        if (!value) return
+                        clearDashboardFilters(date ? formatDate(date) : null)
+                        setViewPeriod(value as ViewPeriod)
+                      }} className="w-full justify-start overflow-x-auto">
+                        <ToggleGroupItem value="day" aria-label="Day view">Day</ToggleGroupItem>
+                        <ToggleGroupItem value="week" aria-label="Week view">Week</ToggleGroupItem>
+                        <ToggleGroupItem value="month" aria-label="Month view">Month</ToggleGroupItem>
+                        <ToggleGroupItem value="year" aria-label="Year view">Year</ToggleGroupItem>
+                      </ToggleGroup>
+                    </FilterField>
+                  </div>
+                </SearchFilterPanel>
+                <WorkLogExportMenu workLogs={filteredWorkLogs} buttonLabel={buttonLabel} disabled={listLoading || Boolean(listError)} />
+                <Button magnetic onClick={() => handleOpenDialog()}>
+                  <Plus className="h-4 w-4" />
+                  <span className="truncate">
+                    <span className="sm:hidden">Add</span>
+                    <span className="hidden sm:inline">Add Work Log : {date ? formatDate(date) : buttonLabel}</span>
+                  </span>
+                </Button>
+              </div>
+            </div>
             {dashboardFilters && (
               <Card className="card-shadow">
                 <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
@@ -350,29 +384,6 @@ export default function DailyWorkPage() {
                 </div>
               </Card>
             )}
-              <ToggleGroup
-                type="single"
-                value={viewPeriod}
-              onValueChange={(value) => {
-                if (!value) return
-                clearDashboardFilters(date ? formatDate(date) : null)
-                setViewPeriod(value as ViewPeriod)
-              }}
-                className="w-full justify-start overflow-x-auto sm:w-auto"
-              >
-                <ToggleGroupItem value="day" aria-label="Day view">Day</ToggleGroupItem>
-                <ToggleGroupItem value="week" aria-label="Week view">Week</ToggleGroupItem>
-                <ToggleGroupItem value="month" aria-label="Month view">Month</ToggleGroupItem>
-                <ToggleGroupItem value="year" aria-label="Year view">Year</ToggleGroupItem>
-              </ToggleGroup>
-              <Button magnetic className="w-full sm:w-auto" onClick={() => handleOpenDialog()}>
-                <Plus className="h-4 w-4" />
-                <span className="truncate">
-                  <span className="sm:hidden">Add</span>
-                  <span className="hidden sm:inline">Add Work Log : {date ? formatDate(date) : buttonLabel}</span>
-                </span>
-              </Button>
-            </div>
 
             <div className="cinematic-beat-data grid gap-6 lg:grid-cols-3">
               {/* Calendar and Stats */}
@@ -404,7 +415,6 @@ export default function DailyWorkPage() {
                 ) : <WorkLogList
                   workLogs={filteredWorkLogs}
                   searchQuery={searchQuery}
-                  onSearchChange={setSearchQuery}
                   onWorkLogClick={handleViewDetails}
                   onAddClick={() => handleOpenDialog()}
                   buttonLabel={buttonLabel}

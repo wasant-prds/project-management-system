@@ -11,6 +11,7 @@ import { PAGE_HEADING, PAGE_INNER, PAGE_LEAD, PAGE_MAIN, PAGE_TOOLBAR, STAT_GRID
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { FilterSelect } from '@/components/ui/filter-select'
+import { SearchFilterPanel } from '@/components/layout/search-filter-panel'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { SummaryStatCard } from '@/components/layout/summary-stat-card'
@@ -41,48 +42,44 @@ function toSearchParams(values: SearchParameters) {
 function DashboardFiltersForm({ data }: Readonly<{ data: DashboardResult }>) {
   const filters = data.meta.filters
   return (
-    <Card className="cinematic-beat-support min-w-0 gap-3 py-4 card-shadow">
-      <CardHeader className="flex flex-row flex-wrap items-baseline gap-x-3 gap-y-1">
-        <CardTitle className="text-base">ตัวกรองรายงาน</CardTitle>
-        <CardDescription className="text-xs">ช่วงวันใช้ปฏิทิน Asia/Bangkok รวมวันเริ่มต้นและวันสิ้นสุด</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form action="/" method="get" className="grid min-w-0 items-end gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 2xl:grid-cols-[repeat(6,minmax(0,1fr))_auto]">
-          <label className="grid min-w-0 gap-1" htmlFor="dashboard-start-date">
-            <span className="type-label">วันเริ่มต้น</span>
-            <DatePicker id="dashboard-start-date" name="startDate" required defaultValue={data.meta.period.startDate} className="h-9" />
-          </label>
-          <label className="grid min-w-0 gap-1" htmlFor="dashboard-end-date">
-            <span className="type-label">วันสิ้นสุด</span>
-            <DatePicker id="dashboard-end-date" name="endDate" required defaultValue={data.meta.period.endDate} className="h-9" />
-          </label>
-          <label className="grid min-w-0 gap-1" htmlFor="dashboard-company">
-            <span className="type-label">Company</span>
-            <FilterSelect key={filters.companyId ?? ''} id="dashboard-company" name="companyId" defaultValue={filters.companyId ?? ''}
-              options={[{ value: '', label: 'ทุก Company' }, ...data.filterOptions.companies.map((company) => ({ value: company.id, label: company.displayName ?? company.name }))]} />
-          </label>
-          <label className="grid min-w-0 gap-1" htmlFor="dashboard-project">
-            <span className="type-label">Project</span>
-            <FilterSelect key={filters.projectId ?? ''} id="dashboard-project" name="projectId" defaultValue={filters.projectId ?? ''}
-              options={[{ value: '', label: 'ทุก Project' }, ...data.filterOptions.projects.map((project) => ({ value: project.id, label: project.name }))]} />
-          </label>
-          <label className="grid min-w-0 gap-1" htmlFor="dashboard-role">
-            <span className="type-label">Functional role</span>
-            <FilterSelect key={filters.role ?? ''} id="dashboard-role" name="role" defaultValue={filters.role ?? ''}
-              options={[{ value: '', label: 'ทุก role' }, { value: 'none', label: 'ไม่ระบุ role' }, { value: 'Developer', label: 'Developer' }, { value: 'infra', label: 'Infrastructure' }, { value: 'SA', label: 'System Analyst' }]} />
-          </label>
-          <label className="grid min-w-0 gap-1" htmlFor="dashboard-kind">
-            <span className="type-label">Work Item kind</span>
-            <FilterSelect key={filters.kind ?? ''} id="dashboard-kind" name="kind" defaultValue={filters.kind ?? ''}
-              options={[{ value: '', label: 'ทุกชนิด' }, { value: 'Incident', label: 'Incident' }, { value: 'Issue', label: 'Issue' }, { value: 'Task', label: 'Task' }]} />
-          </label>
-          <div className="flex flex-wrap items-end gap-2 sm:col-span-2 lg:col-span-3 xl:col-span-6 2xl:col-span-1">
-            <Button type="submit" magnetic>ใช้ตัวกรอง</Button>
-            <Link href="/" className="inline-flex h-9 items-center rounded-md px-3 text-sm text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">คืนค่าเริ่มต้น</Link>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+    <SearchFilterPanel showActions={false} activeCount={Object.values(filters).filter(Boolean).length}
+      summary={`${data.meta.period.startDate} – ${data.meta.period.endDate}`}
+      description="เลือกช่วงวันและตัวกรอง แล้วกดใช้ตัวกรอง · ปฏิทิน Asia/Bangkok">
+      <form action="/" method="get" className="search-filter-fields">
+        <label className="grid min-w-0 gap-1" htmlFor="dashboard-start-date">
+          <span className="type-label">วันเริ่มต้น</span>
+          <DatePicker id="dashboard-start-date" name="startDate" required defaultValue={data.meta.period.startDate} className="h-9" />
+        </label>
+        <label className="grid min-w-0 gap-1" htmlFor="dashboard-end-date">
+          <span className="type-label">วันสิ้นสุด</span>
+          <DatePicker id="dashboard-end-date" name="endDate" required defaultValue={data.meta.period.endDate} className="h-9" />
+        </label>
+        <label className="grid min-w-0 gap-1" htmlFor="dashboard-company">
+          <span className="type-label">Company</span>
+          <FilterSelect key={filters.companyId ?? ''} id="dashboard-company" name="companyId" defaultValue={filters.companyId ?? ''}
+            options={[{ value: '', label: 'ทุก Company' }, ...data.filterOptions.companies.map((company) => ({ value: company.id, label: company.displayName ?? company.name }))]} />
+        </label>
+        <label className="grid min-w-0 gap-1" htmlFor="dashboard-project">
+          <span className="type-label">Project</span>
+          <FilterSelect key={filters.projectId ?? ''} id="dashboard-project" name="projectId" defaultValue={filters.projectId ?? ''}
+            options={[{ value: '', label: 'ทุก Project' }, ...data.filterOptions.projects.map((project) => ({ value: project.id, label: project.name }))]} />
+        </label>
+        <label className="grid min-w-0 gap-1" htmlFor="dashboard-role">
+          <span className="type-label">Functional role</span>
+          <FilterSelect key={filters.role ?? ''} id="dashboard-role" name="role" defaultValue={filters.role ?? ''}
+            options={[{ value: '', label: 'ทุก role' }, { value: 'none', label: 'ไม่ระบุ role' }, { value: 'Developer', label: 'Developer' }, { value: 'infra', label: 'Infrastructure' }, { value: 'SA', label: 'System Analyst' }]} />
+        </label>
+        <label className="grid min-w-0 gap-1" htmlFor="dashboard-kind">
+          <span className="type-label">Work Item kind</span>
+          <FilterSelect key={filters.kind ?? ''} id="dashboard-kind" name="kind" defaultValue={filters.kind ?? ''}
+            options={[{ value: '', label: 'ทุกชนิด' }, { value: 'Incident', label: 'Incident' }, { value: 'Issue', label: 'Issue' }, { value: 'Task', label: 'Task' }]} />
+        </label>
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-4 sm:col-span-2">
+          <Button type="submit" magnetic>ใช้ตัวกรอง</Button>
+          <Link href="/" className="inline-flex h-9 items-center rounded-md px-3 text-sm text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">คืนค่าเริ่มต้น</Link>
+        </div>
+      </form>
+    </SearchFilterPanel>
   )
 }
 
@@ -218,9 +215,12 @@ async function DashboardContent({ searchParams }: DashboardPageProps) {
                 <h1 className={PAGE_HEADING}>Dashboard</h1>
                 <p className={PAGE_LEAD}>ภาพรวม Work Items, Projects และ Daily Work จากข้อมูลจริง</p>
               </div>
-              <div className="min-w-0 space-y-1 text-xs text-muted-foreground sm:text-right">
-                <p>ช่วง {formatBangkokDateLabel(data.meta.period.startDate)} – {formatBangkokDateLabel(data.meta.period.endDate)} · {data.meta.timezone}</p>
-                <p>ข้อมูลตามช่วงวันและตัวกรองที่เลือก</p>
+              <div className="page-header-actions">
+                <div className="min-w-0 text-xs text-muted-foreground sm:text-right">
+                  <p>ช่วง {formatBangkokDateLabel(data.meta.period.startDate)} – {formatBangkokDateLabel(data.meta.period.endDate)}</p>
+                  <p className="mt-1">{data.meta.timezone}</p>
+                </div>
+                <DashboardFiltersForm data={data} />
               </div>
             </div>
 
@@ -248,7 +248,6 @@ async function DashboardContent({ searchParams }: DashboardPageProps) {
               <InlineState visual="search" title="ไม่พบ Work Items, Daily Work หรือ Projects ในช่วงและตัวกรองนี้" description="ปรับช่วงวันหรือตัวกรองเพื่อดูข้อมูลจริง ไม่ใช่ตัวเลขตัวอย่าง" />
             )}
 
-            <DashboardFiltersForm data={data} />
 
             <div className="cinematic-beat-actions grid min-w-0 items-start gap-4 xl:grid-cols-12">
               <div className="min-w-0 xl:col-span-7 2xl:col-span-6"><WorkItemList title="Work Items ล่าสุด" description="เรียงตามเวลาที่แก้ไขล่าสุด" items={summary.recentWorkItems} href={dashboardWorkItemsHref(filters)} /></div>

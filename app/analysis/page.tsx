@@ -5,13 +5,13 @@ import { formatHours } from '@/lib/decimal-hours'
 import { AnalysisChartsDeferred } from '@/components/page/analysis/analysis-charts-deferred'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 
-import { Download, RefreshCw } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
+import { SearchFilterPanel } from '@/components/layout/search-filter-panel'
+import { DataTransferMenu } from '@/components/layout/data-transfer-menu'
 import { AppHeader } from '@/components/layout/app-header'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { SummaryStatCard } from '@/components/layout/summary-stat-card'
 import {
-  ACTION_LABEL_CLASS,
-  FILTER_ROW,
   PAGE_HEADING,
   PAGE_INNER,
   PAGE_LEAD,
@@ -136,6 +136,7 @@ export default function AnalysisPage() {
   const [dateError, setDateError] = useState<string | null>(null)
   const [exportMessage, setExportMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false)
   const loadedQuery = useRef<string | null>(null)
   const requestQuery = useMemo(() => analysisQuery(appliedFilters), [appliedFilters])
   const filtersDirty = useMemo(
@@ -189,6 +190,7 @@ export default function AnalysisPage() {
     setDateError(null)
     if (analysisQuery(draftFilters) === requestQuery) setReloadKey((current) => current + 1)
     setAppliedFilters({ ...draftFilters })
+    setFilterPanelOpen(false)
   }
 
   const resetFilters = () => {
@@ -231,11 +233,71 @@ export default function AnalysisPage() {
                 <h1 className={PAGE_HEADING}>วิเคราะห์รายงาน</h1>
                 <p className={PAGE_LEAD}>สรุป Work Item และชั่วโมงจากข้อมูลจริงตามช่วงเวลาและตัวกรอง</p>
               </div>
-              <Button type="button" magnetic onClick={exportReport} disabled={!report || isLoading || filtersDirty} className="w-full text-primary-foreground sm:w-auto">
-                <Download className="h-4 w-4" />
-                <span className={ACTION_LABEL_CLASS}>ส่งออก CSV</span>
-                <span className="sm:hidden">ส่งออก CSV</span>
-              </Button>
+              <div className="page-header-actions">
+                <SearchFilterPanel open={filterPanelOpen} onOpenChange={setFilterPanelOpen} showActions={false}
+                  activeCount={[appliedFilters.companyId !== 'all', appliedFilters.projectId !== 'all', appliedFilters.role !== 'all', appliedFilters.kind !== 'all', appliedFilters.startDate !== defaultDateRange().startDate || appliedFilters.endDate !== defaultDateRange().endDate].filter(Boolean).length}
+                  description="เลือกช่วงวันและตัวกรอง แล้วกดใช้ตัวกรอง · ปฏิทิน Asia/Bangkok">
+                  <form onSubmit={applyFilters} className="space-y-4">
+                    <div className="search-filter-fields">
+                      <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
+                        ตั้งแต่
+                        <DatePicker id="analysis-start-date" required value={draftFilters.startDate} onValueChange={(startDate) => setDraftFilters((current) => ({ ...current, startDate }))} />
+                      </label>
+                      <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
+                        ถึง
+                        <DatePicker id="analysis-end-date" required value={draftFilters.endDate} onValueChange={(endDate) => setDraftFilters((current) => ({ ...current, endDate }))} />
+                      </label>
+                      <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
+                        Company
+                        <Select value={draftFilters.companyId} onValueChange={(companyId) => setDraftFilters((current) => ({ ...current, companyId, projectId: 'all' }))}>
+                          <SelectTrigger className="w-full" aria-label="กรองตาม Company"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">ทุก Company</SelectItem>
+                            {filterOptions.companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.displayName ?? company.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </label>
+                      <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
+                        Project
+                        <Select value={draftFilters.projectId} onValueChange={(projectId) => setDraftFilters((current) => ({ ...current, projectId }))}>
+                          <SelectTrigger className="w-full" aria-label="กรองตาม Project"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">ทุก Project</SelectItem>
+                            {projectOptions.map((project) => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </label>
+                      <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
+                        Functional role
+                        <Select value={draftFilters.role} onValueChange={(role) => setDraftFilters((current) => ({ ...current, role }))}>
+                          <SelectTrigger className="w-full" aria-label="กรองตาม Functional role"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">ทุก role</SelectItem>
+                            <SelectItem value="none">ไม่ระบุ role</SelectItem>
+                            {WORK_ITEM_ROLES.map((role) => <SelectItem key={role} value={role}>{WORK_ITEM_ROLE_LABELS[role]}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </label>
+                      <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
+                        ชนิดงาน
+                        <Select value={draftFilters.kind} onValueChange={(kind) => setDraftFilters((current) => ({ ...current, kind }))}>
+                          <SelectTrigger className="w-full" aria-label="กรองตามชนิดงาน"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">ทุกชนิด</SelectItem>
+                            {WORK_ITEM_KINDS.map((kind) => <SelectItem key={kind} value={kind}>{kind}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </label>
+                    </div>
+                    {dateError && <p className="text-sm text-danger" role="alert">{dateError}</p>}
+                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                      <Button type="button" variant="outline" onClick={resetFilters}>คืนค่าเริ่มต้น</Button>
+                      <Button type="submit" magnetic disabled={isLoading} className="text-primary-foreground">ใช้ตัวกรอง</Button>
+                    </div>
+                  </form>
+                </SearchFilterPanel>
+                <DataTransferMenu exports={[{ format: 'CSV', label: 'ส่งออก CSV', onSelect: exportReport, disabled: !report || isLoading || filtersDirty }]} />
+              </div>
             </div>
             {exportMessage && (
               exportMessage.kind === 'error'
@@ -243,72 +305,6 @@ export default function AnalysisPage() {
                 : <output className="block text-sm text-muted-foreground" aria-live="polite">{exportMessage.text}</output>
             )}
 
-            <Card className="cinematic-beat-support surface-inset bg-muted/30">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">ตัวกรองรายงาน</CardTitle>
-                <CardDescription>ช่วงวันที่รวมวันเริ่มต้นและวันสิ้นสุด โดยใช้ปฏิทิน Asia/Bangkok</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={applyFilters} className="space-y-4">
-                  <div className={`${FILTER_ROW} min-w-0`}>
-                    <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
-                      ตั้งแต่
-                      <DatePicker id="analysis-start-date" required value={draftFilters.startDate} onValueChange={(startDate) => setDraftFilters((current) => ({ ...current, startDate }))} />
-                    </label>
-                    <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
-                      ถึง
-                      <DatePicker id="analysis-end-date" required value={draftFilters.endDate} onValueChange={(endDate) => setDraftFilters((current) => ({ ...current, endDate }))} />
-                    </label>
-                    <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
-                      Company
-                      <Select value={draftFilters.companyId} onValueChange={(companyId) => setDraftFilters((current) => ({ ...current, companyId, projectId: 'all' }))}>
-                        <SelectTrigger className="w-full" aria-label="กรองตาม Company"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">ทุก Company</SelectItem>
-                          {filterOptions.companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.displayName ?? company.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </label>
-                    <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
-                      Project
-                      <Select value={draftFilters.projectId} onValueChange={(projectId) => setDraftFilters((current) => ({ ...current, projectId }))}>
-                        <SelectTrigger className="w-full" aria-label="กรองตาม Project"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">ทุก Project</SelectItem>
-                          {projectOptions.map((project) => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </label>
-                    <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
-                      Functional role
-                      <Select value={draftFilters.role} onValueChange={(role) => setDraftFilters((current) => ({ ...current, role }))}>
-                        <SelectTrigger className="w-full" aria-label="กรองตาม Functional role"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">ทุก role</SelectItem>
-                          <SelectItem value="none">ไม่ระบุ role</SelectItem>
-                          {WORK_ITEM_ROLES.map((role) => <SelectItem key={role} value={role}>{WORK_ITEM_ROLE_LABELS[role]}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </label>
-                    <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
-                      ชนิดงาน
-                      <Select value={draftFilters.kind} onValueChange={(kind) => setDraftFilters((current) => ({ ...current, kind }))}>
-                        <SelectTrigger className="w-full" aria-label="กรองตามชนิดงาน"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">ทุกชนิด</SelectItem>
-                          {WORK_ITEM_KINDS.map((kind) => <SelectItem key={kind} value={kind}>{kind}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </label>
-                  </div>
-                  {dateError && <p className="text-sm text-danger" role="alert">{dateError}</p>}
-                  <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                    <Button type="button" variant="outline" onClick={resetFilters}>คืนค่าเริ่มต้น</Button>
-                    <Button type="submit" magnetic disabled={isLoading} className="text-primary-foreground">ใช้ตัวกรอง</Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
 
             {report && (
               <>

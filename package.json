@@ -24,6 +24,7 @@
     "test:frontend-motion": "node tests/run.mjs frontend-motion",
     "test:frontend-motion-browser": "node scripts/frontend-motion-browser.mjs",
     "test:frontend-modal-browser": "node scripts/frontend-modal-browser.mjs",
+    "test:header-tools-browser": "node scripts/header-tools-browser.mjs",
     "test:frontend-cinematic": "node tests/run.mjs frontend-cinematic",
     "test:frontend-identity": "node tests/run.mjs frontend-identity",
     "test:frontend-competition": "node tests/run.mjs frontend-competition",

@@ -16,6 +16,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { SearchFilterPanel } from '@/components/layout/search-filter-panel'
 import { FilterSelect, type FilterSelectOption } from '@/components/ui/filter-select'
 import {
   DropdownMenu,
@@ -349,43 +350,46 @@ export default function BoardPage() {
                 <h1 className={PAGE_HEADING}>Kanban Board</h1>
                 <p className={PAGE_LEAD}>ดูและเปลี่ยนสถานะของ Work Item จากระบบหลัก</p>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full shrink-0 sm:w-auto"
-                disabled={pendingIds.size > 0}
-                onClick={() => setBoardRetry((value) => value + 1)}
-              >
-                โหลด Board ใหม่
-              </Button>
+              <div className="page-header-actions">
+                <SearchFilterPanel activeCount={Object.values(filters).filter((value) => value !== 'all').length} disabled={pendingIds.size > 0} onReset={() => setFilters(INITIAL_FILTERS)}>
+                  <section aria-label="ตัวกรอง Board" className="search-filter-fields">
+                    <BoardFilter
+                      id="board-company-filter"
+                      label="Company"
+                      value={filters.companyId}
+                      disabled={filtersLoading || Boolean(filtersError) || pendingIds.size > 0}
+                      onChange={(value) => updateFilter('companyId', value)}
+                      options={[{ value: 'all', label: 'ทุก Company' }, ...companies.map((company) => ({ value: company.id, label: filterLabel(company) }))]}
+                    />
+                    <BoardFilter
+                      id="board-project-filter"
+                      label="Project"
+                      value={filters.projectId}
+                      disabled={filtersLoading || Boolean(filtersError) || pendingIds.size > 0}
+                      onChange={(value) => updateFilter('projectId', value)}
+                      options={[{ value: 'all', label: 'ทุก Project' }, ...visibleProjects.map((project) => ({ value: project.id, label: project.name }))]}
+                    />
+                    <BoardFilter
+                      id="board-role-filter"
+                      label="Functional role"
+                      value={filters.role}
+                      disabled={filtersLoading || Boolean(filtersError) || pendingIds.size > 0}
+                      onChange={(value) => updateFilter('role', value)}
+                      options={[{ value: 'all', label: 'ทุกบทบาท' }, ...WORK_ITEM_ROLES.map((role) => ({ value: role, label: WORK_ITEM_ROLE_LABELS[role] })), { value: 'none', label: 'ไม่ระบุบทบาท' }]}
+                    />
+                  </section>
+                </SearchFilterPanel>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0"
+                  disabled={pendingIds.size > 0}
+                  onClick={() => setBoardRetry((value) => value + 1)}
+                >
+                  โหลด Board ใหม่
+                </Button>
+              </div>
             </div>
-
-            <section aria-label="ตัวกรอง Board" className="cinematic-beat-support filter-panel grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-3">
-              <BoardFilter
-                id="board-company-filter"
-                label="Company"
-                value={filters.companyId}
-                disabled={filtersLoading || Boolean(filtersError) || pendingIds.size > 0}
-                onChange={(value) => updateFilter('companyId', value)}
-                options={[{ value: 'all', label: 'ทุก Company' }, ...companies.map((company) => ({ value: company.id, label: filterLabel(company) }))]}
-              />
-              <BoardFilter
-                id="board-project-filter"
-                label="Project"
-                value={filters.projectId}
-                disabled={filtersLoading || Boolean(filtersError) || pendingIds.size > 0}
-                onChange={(value) => updateFilter('projectId', value)}
-                options={[{ value: 'all', label: 'ทุก Project' }, ...visibleProjects.map((project) => ({ value: project.id, label: project.name }))]}
-              />
-              <BoardFilter
-                id="board-role-filter"
-                label="Functional role"
-                value={filters.role}
-                disabled={filtersLoading || Boolean(filtersError) || pendingIds.size > 0}
-                onChange={(value) => updateFilter('role', value)}
-                options={[{ value: 'all', label: 'ทุกบทบาท' }, ...WORK_ITEM_ROLES.map((role) => ({ value: role, label: WORK_ITEM_ROLE_LABELS[role] })), { value: 'none', label: 'ไม่ระบุบทบาท' }]}
-              />
-            </section>
 
             {filtersError && (
               <InlineState className="shrink-0" kind="error" visual={loadFailureVisual(filtersError)} title="โหลดตัวกรองไม่สำเร็จ" description={filtersError} action={<Button type="button" variant="outline" size="sm" onClick={() => setFiltersRetry((value) => value + 1)}>ลองโหลดตัวกรองอีกครั้ง</Button>} />

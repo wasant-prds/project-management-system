@@ -25,7 +25,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { ArrowUpDown, Download, FileText, Plus, Search, Upload } from 'lucide-react'
+import { ArrowUpDown, Plus, Search } from 'lucide-react'
+import { SearchFilterPanel, FilterField } from '@/components/layout/search-filter-panel'
+import { DataTransferMenu } from '@/components/layout/data-transfer-menu'
 import { toast } from '@/hooks/use-toast'
 import {
   WORK_ITEM_PRIORITIES,
@@ -70,8 +72,6 @@ import { SummaryStatCard } from '@/components/layout/summary-stat-card'
 import { PageState } from '@/components/layout/page-state'
 import { loadFailureVisual } from '@/components/ui/product-identity'
 import {
-  ACTION_LABEL_CLASS,
-  FILTER_ROW,
   PAGE_HEADING,
   PAGE_INNER,
   PAGE_LEAD,
@@ -938,7 +938,7 @@ export default function WorkItemsPage() {
                   จัดการ Incident, Issue และ Task ในพื้นที่เดียวกัน
                 </p>
               </div>
-              <div className="flex flex-wrap items-center justify-end gap-2">
+              <div className="page-header-actions">
                 <input
                   ref={importInputRef}
                   type="file"
@@ -946,44 +946,74 @@ export default function WorkItemsPage() {
                   className="hidden"
                   onChange={handleImportFile}
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => importInputRef.current?.click()}
-                  disabled={isImporting}
-                  aria-label="Import work items from JSON"
-                >
-                  <Upload className="h-4 w-4" />
-                  <span className={ACTION_LABEL_CLASS}>{isImporting ? 'Importing…' : 'Import JSON'}</span>
-                </Button>
-                <Button
-                  variant="info"
-                  onClick={exportCsv}
-                  disabled={visibleItems.length === 0}
-                  aria-label="Export CSV"
-                >
-                  <Download className="h-4 w-4" />
-                  <span className={ACTION_LABEL_CLASS}>Export CSV</span>
-                </Button>
-                <Button
-                  variant="success"
-                  onClick={exportMarkdown}
-                  disabled={visibleItems.length === 0}
-                  aria-label="Export Markdown"
-                >
-                  <FileText className="h-4 w-4" />
-                  <span className={ACTION_LABEL_CLASS}>Export Markdown</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={exportJson}
-                  disabled={visibleItems.length === 0}
-                  aria-label="Export importable JSON"
-                >
-                  <Download className="h-4 w-4" />
-                  <span className={ACTION_LABEL_CLASS}>Export JSON</span>
-                </Button>
+                <SearchFilterPanel
+                  activeCount={[searchQuery.trim() !== '', companyFilter !== 'all', yearFilter !== 'all', monthFilter !== 'all', projectFilter !== 'all', statusFilter !== 'all', priorityFilter !== 'all', roleFilter !== 'all', dashboardKindFilter !== 'all', Boolean(dashboardDateRange), dashboardOpenOnly, dashboardOverdueOnly, sortMode !== DEFAULT_WORK_ITEM_SORT_MODE].filter(Boolean).length}
+                  onReset={() => {
+                    setSearchQuery(''); setCompanyFilter('all'); setYearFilter('all'); setMonthFilter('all');
+                    setProjectFilter('all'); setStatusFilter('all'); setPriorityFilter('all'); setRoleFilter('all');
+                    setDashboardDateRange(null); setDashboardOpenOnly(false); setDashboardOverdueOnly(false);
+                    setDashboardKindFilter('all'); setKindTab('all'); setSortMode(DEFAULT_WORK_ITEM_SORT_MODE);
+                    router.replace('/work-items?year=all', { scroll: false })
+                  }}>
+                  <div className="search-filter-fields">
+                    <FilterField label="คำค้นหา" className="sm:col-span-2">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input type="search" placeholder="ค้นหา Work Items…" aria-label="ค้นหา Work Items" className="pl-10" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} />
+                      </div>
+                    </FilterField>
+                    <FilterField label="Company">
+                      <Select value={companyFilter} onValueChange={setCompanyFilter}>
+                        <SelectTrigger aria-label="กรอง Company"><SelectValue /></SelectTrigger>
+                        <SelectContent><SelectItem value="all">ทุก Company</SelectItem>{companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.displayName ?? company.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </FilterField>
+                    <FilterField label="Project">
+                      <Select value={projectFilter} onValueChange={setProjectFilter}>
+                        <SelectTrigger aria-label="กรอง Project"><SelectValue /></SelectTrigger>
+                        <SelectContent><SelectItem value="all">All projects</SelectItem>{projects.map((project) => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </FilterField>
+                    <FilterField label="ปี">
+                      <Select value={yearFilter} onValueChange={(value) => applyCalendarPeriod(value, monthFilter)}>
+                        <SelectTrigger aria-label="กรองปี"><SelectValue /></SelectTrigger>
+                        <SelectContent><SelectItem value="all">All years</SelectItem>{yearOptions.map((year) => <SelectItem key={year} value={year}>{year}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </FilterField>
+                    <FilterField label="เดือน">
+                      <Select value={monthFilter} onValueChange={(value) => applyCalendarPeriod(yearFilter, value)}>
+                        <SelectTrigger aria-label="กรองเดือน"><SelectValue /></SelectTrigger>
+                        <SelectContent><SelectItem value="all">All months</SelectItem>{MONTH_OPTIONS.map((month) => <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </FilterField>
+                    <FilterField label="สถานะ">
+                      <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger aria-label="กรองสถานะ"><SelectValue /></SelectTrigger>
+                        <SelectContent><SelectItem value="all">All statuses</SelectItem>{WORK_ITEM_STATUSES.map((status) => <SelectItem key={status} value={status}>{WORK_ITEM_STATUS_LABELS[status]}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </FilterField>
+                    <FilterField label="ความสำคัญ">
+                      <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                        <SelectTrigger aria-label="กรองความสำคัญ"><SelectValue /></SelectTrigger>
+                        <SelectContent><SelectItem value="all">All priorities</SelectItem>{WORK_ITEM_PRIORITIES.map((priority) => <SelectItem key={priority} value={priority}>{WORK_ITEM_PRIORITY_LABELS[priority]}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </FilterField>
+                    <FilterField label="Functional role">
+                      <Select value={roleFilter} onValueChange={setRoleFilter}>
+                        <SelectTrigger aria-label="กรอง Functional role"><SelectValue /></SelectTrigger>
+                        <SelectContent><SelectItem value="all">All roles</SelectItem><SelectItem value="none">No role</SelectItem>{WORK_ITEM_ROLES.map((role) => <SelectItem key={role} value={role}>{WORK_ITEM_ROLE_LABELS[role]}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </FilterField>
+                    <FilterField label="เรียงลำดับ"><WorkItemSortMenu value={sortMode} onChange={setSortMode} /></FilterField>
+                  </div>
+                </SearchFilterPanel>
+                <DataTransferMenu busy={isImporting}
+                  importAction={{ label: 'Import work items from JSON', onSelect: () => importInputRef.current?.click() }}
+                  exports={[
+                    { format: 'CSV', label: 'Export CSV', onSelect: exportCsv, disabled: visibleItems.length === 0 || isListLoading || Boolean(loadError) },
+                    { format: 'Markdown', label: 'Export Markdown', onSelect: exportMarkdown, disabled: visibleItems.length === 0 || isListLoading || Boolean(loadError) },
+                    { format: 'JSON', label: 'Export importable JSON', onSelect: exportJson, disabled: visibleItems.length === 0 || isListLoading || Boolean(loadError) },
+                  ]} />
                 <Button magnetic onClick={openCreate}>
                   <Plus className="h-4 w-4" />
                   <span className="sm:hidden">New</span>
@@ -1045,102 +1075,6 @@ export default function WorkItemsPage() {
                 isLoading={isListLoading} unavailable={Boolean(loadError)}
                 valueClassName="text-danger"
               />
-            </div>
-
-            <div className={`cinematic-beat-support ${FILTER_ROW} filter-panel`}>
-              <div className="relative w-full max-w-none flex-1 sm:max-w-md">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="ค้นหา Work Items…" aria-label="ค้นหา Work Items"
-                  className="pl-10"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                />
-              </div>
-              <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
-                <Select value={companyFilter} onValueChange={setCompanyFilter}>
-                  <SelectTrigger className="w-full sm:w-[180px]" aria-label="กรอง Company">
-                    <SelectValue placeholder="Company" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">ทุก Company</SelectItem>
-                    {companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.displayName ?? company.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Select value={yearFilter} onValueChange={(value) => applyCalendarPeriod(value, monthFilter)}>
-                  <SelectTrigger className="w-full sm:w-[130px]">
-                    <SelectValue placeholder="Year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All years</SelectItem>
-                    {yearOptions.map((year) => (
-                      <SelectItem key={year} value={year}>{year}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={monthFilter} onValueChange={(value) => applyCalendarPeriod(yearFilter, value)}>
-                  <SelectTrigger className="w-full sm:w-[150px]">
-                    <SelectValue placeholder="Month" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All months</SelectItem>
-                    {MONTH_OPTIONS.map((month) => (
-                      <SelectItem key={month.value} value={month.value}>{month.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <div className="col-span-2 sm:col-auto">
-                  <Select value={projectFilter} onValueChange={setProjectFilter}>
-                    <SelectTrigger className="w-full sm:w-[220px]">
-                      <SelectValue placeholder="Project" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All projects</SelectItem>
-                      {projects.map((project) => (
-                        <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="col-span-2 sm:col-auto">
-                  <WorkItemSortMenu value={sortMode} onChange={setSortMode} />
-                </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full sm:w-[150px]">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All statuses</SelectItem>
-                    {WORK_ITEM_STATUSES.map((status) => (
-                      <SelectItem key={status} value={status}>{WORK_ITEM_STATUS_LABELS[status]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                  <SelectTrigger className="w-full sm:w-[150px]">
-                    <SelectValue placeholder="Priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All priorities</SelectItem>
-                    {WORK_ITEM_PRIORITIES.map((priority) => (
-                      <SelectItem key={priority} value={priority}>{WORK_ITEM_PRIORITY_LABELS[priority]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={roleFilter} onValueChange={setRoleFilter}>
-                  <SelectTrigger className="w-full sm:w-[150px]">
-                    <SelectValue placeholder="Role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All roles</SelectItem>
-                    <SelectItem value="none">No role</SelectItem>
-                    {WORK_ITEM_ROLES.map((role) => (
-                      <SelectItem key={role} value={role}>{WORK_ITEM_ROLE_LABELS[role]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
             <Tabs

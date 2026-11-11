@@ -76,6 +76,7 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
     },
     '@/components/layout/app-sidebar': { AppSidebar: ui.AppSidebar },
     '@/components/layout/app-header': { AppHeader: ui.AppHeader },
+    '@/components/layout/search-filter-panel': { SearchFilterPanel: component('SearchFilterPanel'), FilterField: component('FilterField') },
     '@/components/page/projects/project-issue-sync': { ProjectIssueSync: component('ProjectIssueSync') },
     '@/components/layout/page-layout': {
       PAGE_HEADING: 'PAGE_HEADING', PAGE_INNER: 'PAGE_INNER', PAGE_LEAD: 'PAGE_LEAD', PAGE_MAIN: 'PAGE_MAIN', PAGE_TOOLBAR: 'PAGE_TOOLBAR',

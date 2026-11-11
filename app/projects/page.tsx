@@ -12,6 +12,7 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
 import { DatePicker } from '@/components/ui/lazy-date-picker'
 import { Input } from '@/components/ui/input'
+import { SearchFilterPanel, FilterField } from '@/components/layout/search-filter-panel'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { fetchCollection } from '@/lib/fetch-collection'
@@ -97,7 +98,15 @@ export default function ProjectsPage() {
     projectList = <div className="cinematic-beat-data motion-stagger grid min-w-0 gap-5 md:grid-cols-2 xl:grid-cols-3">{filtered.map((project) => <PortfolioCard key={project.id} project={project} onEdit={editProject} />)}</div>
   }
   return <SidebarProvider><AppSidebar /><SidebarInset><AppHeader /><main className={PAGE_MAIN}><div className={PAGE_INNER}>
-    <div className={PAGE_TOOLBAR}><div><p className="page-eyebrow mb-2">Project portfolio</p><h1 className={PAGE_HEADING}>Projects</h1><p className={PAGE_LEAD}>แต่ละ Project ผูก Company ที่เลือก พร้อมงานจริง</p></div></div>
+    <div className={PAGE_TOOLBAR}><div><p className="page-eyebrow mb-2">Project portfolio</p><h1 className={PAGE_HEADING}>Projects</h1><p className={PAGE_LEAD}>แต่ละ Project ผูก Company ที่เลือก พร้อมงานจริง</p></div>
+      <div className="page-header-actions"><SearchFilterPanel activeCount={[search.trim() !== '', statusFilter !== 'all', companyFilter !== 'all'].filter(Boolean).length} onReset={() => { setSearch(''); setStatusFilter('all'); setCompanyFilter('all') }}>
+        <div className="search-filter-fields">
+          <FilterField label="คำค้นหา" className="sm:col-span-2"><Input type="search" aria-label="ค้นหา Project" placeholder="ค้นหา Project" value={search} onChange={(event) => setSearch(event.target.value)} /></FilterField>
+          <FilterField label="สถานะ"><Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger aria-label="กรองสถานะ"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">ทุกสถานะ</SelectItem>{['Planning', 'In Progress', 'Review', 'Completed', 'On Hold'].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></FilterField>
+          <FilterField label="Company"><Select value={companyFilter} onValueChange={setCompanyFilter}><SelectTrigger aria-label="กรอง Company"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">ทุก Company</SelectItem>{companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.displayName ?? company.name}</SelectItem>)}</SelectContent></Select></FilterField>
+        </div>
+      </SearchFilterPanel></div>
+    </div>
     {message && <output aria-live="polite" className="surface-inset block rounded-xl border p-4 text-sm">{message}</output>}
     <details id="project-form" open={editing !== null || undefined} className="cinematic-beat-support surface-raised scroll-mt-4 rounded-[var(--radius-panel)] border border-border/60 bg-card py-4"><summary className="type-card-title flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-5"><span>{editing ? 'แก้ไข Project' : 'สร้าง Project'}</span><DisclosureGlyph /></summary><div className="mt-5 px-4 sm:px-5"><form onSubmit={submit} className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3 [&>div]:min-w-0 [&>div]:space-y-2">
       <div><Label htmlFor="project-name">ชื่อ Project *</Label><Input id="project-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></div>
@@ -108,7 +117,6 @@ export default function ProjectsPage() {
       <div><Label htmlFor="project-priority">Priority</Label><Select value={form.priority} onValueChange={(value) => setForm({ ...form, priority: value })}><SelectTrigger id="project-priority"><SelectValue /></SelectTrigger><SelectContent>{['Low', 'Medium', 'High', 'Critical'].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></div>
       <div className="flex items-end gap-2"><Button magnetic disabled={saving || !form.companyId}>{editing ? 'บันทึก' : 'สร้าง Project'}</Button>{editing && <Button type="button" variant="outline" onClick={() => { setEditing(null); setForm(initialForm) }}>ยกเลิก</Button>}</div>
     </form></div></details>
-    <section aria-label="ตัวกรอง Projects" className="filter-panel grid gap-3 sm:grid-cols-3"><Input aria-label="ค้นหา Project" placeholder="ค้นหา Project" value={search} onChange={(event) => setSearch(event.target.value)} /><Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger aria-label="กรองสถานะ"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">ทุกสถานะ</SelectItem>{['Planning', 'In Progress', 'Review', 'Completed', 'On Hold'].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select><Select value={companyFilter} onValueChange={setCompanyFilter}><SelectTrigger aria-label="กรอง Company"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">ทุก Company</SelectItem>{companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.displayName ?? company.name}</SelectItem>)}</SelectContent></Select></section>
     <div className="flex items-center justify-between gap-2"><h2 className="type-section">Projects ของคุณ</h2><span className="type-data text-muted-foreground">{collectionCountLabel(loading, Boolean(loadError), filtered.length, 'รายการ')}</span></div>
     {projectList}
   </div></main></SidebarInset></SidebarProvider>
