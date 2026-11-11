@@ -14,7 +14,7 @@ const loadChart = () => import('./dashboard-charts').then((module) => ({ default
 const plotLoading = <Skeleton className="h-[260px] w-full" />
 
 export function DashboardChartsDeferred(props: React.ComponentProps<typeof Charts>) {
-  return <Card className="motion-content-enter min-w-0 overflow-hidden card-shadow">
+  return <Card className="motion-content-enter min-w-0 gap-3 overflow-hidden py-4 card-shadow">
     <CardHeader className="flex min-w-0 flex-row flex-wrap items-start justify-between gap-3">
       <div className="min-w-0"><CardTitle>ชั่วโมง Daily Work ตามวัน</CardTitle><CardDescription>รวมจาก TimeEntry.date ในช่วงและตัวกรองที่เลือก</CardDescription></div>
       <Link href={dashboardDailyWorkHref(props.filters)} className="shrink-0 text-sm text-link underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">เปิด Daily Work</Link>

@@ -46,7 +46,7 @@ export function SummaryStatCard({
     <Card
       data-cinematic={kpiMarker(emphasis)}
       data-spatial={interactive ? 'pointer' : undefined}
-      className={cn('card-shadow relative h-full gap-3 py-4 sm:py-5', interactive && 'cinematic-pointer motion-card')}
+      className={cn('card-shadow relative h-full gap-2 py-3 sm:py-4', interactive && 'cinematic-pointer motion-card')}
     >
       <CardHeader className="grid-rows-1 flex min-h-10 flex-row items-center justify-between gap-2 space-y-0 px-3 pb-0 sm:px-4">
         <CardTitle className="type-kpi-support content-wrap min-w-0 leading-5 text-muted-foreground">{label}</CardTitle>

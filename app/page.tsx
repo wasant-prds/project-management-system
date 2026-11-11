@@ -41,13 +41,13 @@ function toSearchParams(values: SearchParameters) {
 function DashboardFiltersForm({ data }: Readonly<{ data: DashboardResult }>) {
   const filters = data.meta.filters
   return (
-    <Card className="cinematic-beat-support min-w-0 card-shadow">
-      <CardHeader className="pb-3">
+    <Card className="cinematic-beat-support min-w-0 gap-3 py-4 card-shadow">
+      <CardHeader className="flex flex-row flex-wrap items-baseline gap-x-3 gap-y-1">
         <CardTitle className="text-base">ตัวกรองรายงาน</CardTitle>
-        <CardDescription>ช่วงวันใช้ปฏิทิน Asia/Bangkok รวมวันเริ่มต้นและวันสิ้นสุด</CardDescription>
+        <CardDescription className="text-xs">ช่วงวันใช้ปฏิทิน Asia/Bangkok รวมวันเริ่มต้นและวันสิ้นสุด</CardDescription>
       </CardHeader>
       <CardContent>
-        <form action="/" method="get" className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <form action="/" method="get" className="grid min-w-0 items-end gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 2xl:grid-cols-[repeat(6,minmax(0,1fr))_auto]">
           <label className="grid min-w-0 gap-1" htmlFor="dashboard-start-date">
             <span className="type-label">วันเริ่มต้น</span>
             <DatePicker id="dashboard-start-date" name="startDate" required defaultValue={data.meta.period.startDate} className="h-9" />
@@ -76,7 +76,7 @@ function DashboardFiltersForm({ data }: Readonly<{ data: DashboardResult }>) {
             <FilterSelect key={filters.kind ?? ''} id="dashboard-kind" name="kind" defaultValue={filters.kind ?? ''}
               options={[{ value: '', label: 'ทุกชนิด' }, { value: 'Incident', label: 'Incident' }, { value: 'Issue', label: 'Issue' }, { value: 'Task', label: 'Task' }]} />
           </label>
-          <div className="flex flex-wrap items-end gap-2 sm:col-span-2 lg:col-span-3 xl:col-span-6">
+          <div className="flex flex-wrap items-end gap-2 sm:col-span-2 lg:col-span-3 xl:col-span-6 2xl:col-span-1">
             <Button type="submit" magnetic>ใช้ตัวกรอง</Button>
             <Link href="/" className="inline-flex h-9 items-center rounded-md px-3 text-sm text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">คืนค่าเริ่มต้น</Link>
           </div>
@@ -98,7 +98,7 @@ function WorkItemList({
   href: string
 }>) {
   return (
-    <Card className="min-w-0 card-shadow">
+    <Card className="min-w-0 gap-3 py-4 card-shadow">
       <CardHeader className="flex flex-row items-start justify-between gap-3">
         <div className="min-w-0">
           <CardTitle>{title}</CardTitle>
@@ -110,17 +110,17 @@ function WorkItemList({
         {items.length === 0 ? (
           <InlineState visual="search" title="ไม่มี Work Item ในตัวกรองนี้" description="ลองปรับช่วงวันหรือตัวกรองเพื่อดูรายการจริง" />
         ) : (
-          <ul className="space-y-3">
+          <ul>
             {items.map((item) => (
-              <li key={item.id} className="data-row min-w-0">
+              <li key={item.id} className="data-row min-w-0 first:pt-0 last:pb-0">
                 <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
                   <Link href={href} className="min-w-0 flex-1 break-words font-medium text-link underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{item.title}</Link>
                   <Badge variant={item.priority === 'urgent' ? 'destructive' : 'secondary'}>{item.priority === 'urgent' ? 'เร่งด่วน' : item.kind}</Badge>
                 </div>
-                <p className="mt-2 break-words text-sm text-muted-foreground">
+                <p className="mt-1.5 break-words text-sm text-muted-foreground">
                   Project: {item.project.name} · Company: {item.project.company?.displayName ?? item.project.company?.name ?? '—'}
                 </p>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <Badge variant="outline">{item.role ? WORK_ITEM_ROLE_LABELS[item.role as keyof typeof WORK_ITEM_ROLE_LABELS] : 'ไม่ระบุ role'}</Badge>
                   <WorkItemStatusBadge status={item.status} />
                   <span>กำหนด: {item.dueDate ? formatBangkokDateLabel(item.dueDate) : 'ไม่กำหนด'}</span>
@@ -137,7 +137,7 @@ function WorkItemList({
 function RecentProjects({ data, filters }: Readonly<{ data: DashboardResult; filters: DashboardFilters }>) {
   const projects = data.summary.recentProjects
   return (
-    <Card className="min-w-0 card-shadow">
+    <Card className="min-w-0 gap-3 py-4 card-shadow">
       <CardHeader>
         <CardTitle>Projects ล่าสุด</CardTitle>
         <CardDescription>ความคืบหน้า = completed ÷ (total − cancelled)</CardDescription>
@@ -146,11 +146,11 @@ function RecentProjects({ data, filters }: Readonly<{ data: DashboardResult; fil
         {projects.length === 0 ? (
           <InlineState visual="records" title="ไม่มี Project ในตัวกรองนี้" description="Projects ที่ตรงกับช่วงและตัวกรองจะแสดงที่นี่" />
         ) : (
-          <ul className="space-y-3">
+          <ul>
             {projects.map((project) => (
-              <li key={project.id} className="data-row">
+              <li key={project.id} className="data-row min-w-0 first:pt-0 last:pb-0">
                 <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <Link href={`/projects/${encodeURIComponent(project.id)}`} className="break-words font-medium text-link underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{project.name}</Link>
                     <p className="mt-1 break-words text-sm text-muted-foreground">Company: {project.company?.displayName ?? project.company?.name ?? '—'}</p>
                   </div>
@@ -214,34 +214,32 @@ async function DashboardContent({ searchParams }: DashboardPageProps) {
           <div className={`${PAGE_INNER} min-w-0`}>
             <div className={PAGE_TOOLBAR}>
               <div className="min-w-0">
-                <p className="page-eyebrow mb-2">Workspace overview</p>
+                <p className="page-eyebrow mb-1">Workspace overview</p>
                 <h1 className={PAGE_HEADING}>Dashboard</h1>
                 <p className={PAGE_LEAD}>ภาพรวม Work Items, Projects และ Daily Work จากข้อมูลจริง</p>
               </div>
+              <div className="min-w-0 space-y-1 text-xs text-muted-foreground sm:text-right">
+                <p>ช่วง {formatBangkokDateLabel(data.meta.period.startDate)} – {formatBangkokDateLabel(data.meta.period.endDate)} · {data.meta.timezone}</p>
+                <p>ข้อมูลตามช่วงวันและตัวกรองที่เลือก</p>
+              </div>
             </div>
 
-
-
-            <section aria-label="สรุป Dashboard" className="space-y-2">
-              <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-                <p>ช่วง {formatBangkokDateLabel(data.meta.period.startDate)} – {formatBangkokDateLabel(data.meta.period.endDate)} · {data.meta.timezone}</p>
-                <p>Completed นับเฉพาะ completed; Open ตัด completed และ cancelled</p>
-              </div>
+            <section aria-label="สรุป Dashboard">
               <div className={`${STAT_GRID} motion-stagger lg:grid-cols-5`}>
                 <Link href={dashboardWorkItemsHref(filters)} className="min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <SummaryStatCard interactive emphasis="primary" label="Work Items ทั้งหมด" value={summary.total} icon={<ListTodo strokeWidth={ICON_STROKE} className="h-4 w-4 text-info" />} hint={<span className="text-sm text-muted-foreground">ตามช่วงและตัวกรองที่เลือก</span>} />
+                  <SummaryStatCard interactive emphasis="primary" label="Work Items ทั้งหมด" value={summary.total} icon={<ListTodo strokeWidth={ICON_STROKE} className="h-4 w-4 text-info" />} hint="ตามตัวกรองที่เลือก" />
                 </Link>
                 <Link href={dashboardWorkItemsHref(filters, { openOnly: true })} className="min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <SummaryStatCard interactive label="Open Work Items" value={summary.open} icon={<AlertCircle strokeWidth={ICON_STROKE} className="h-4 w-4 text-warning" />} hint={<span className="text-sm text-muted-foreground">ไม่นับ completed และ cancelled</span>} />
+                  <SummaryStatCard interactive label="Open Work Items" value={summary.open} icon={<AlertCircle strokeWidth={ICON_STROKE} className="h-4 w-4 text-warning" />} hint="งานที่ยังเปิดอยู่" />
                 </Link>
                 <Link href={dashboardWorkItemsHref(filters, { status: 'completed' })} className="min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <SummaryStatCard interactive label="Completed" value={summary.completed} icon={<CheckSquare strokeWidth={ICON_STROKE} className="h-4 w-4 text-success" />} hint={<span className="text-sm text-muted-foreground">status = completed เท่านั้น</span>} />
+                  <SummaryStatCard interactive label="Completed" value={summary.completed} icon={<CheckSquare strokeWidth={ICON_STROKE} className="h-4 w-4 text-success" />} hint="งานที่เสร็จสมบูรณ์" />
                 </Link>
                 <Link href={dashboardWorkItemsHref(filters, { overdue: true })} className="min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <SummaryStatCard interactive label="Overdue" value={summary.overdue} valueClassName="text-danger" icon={<ArrowDownRight strokeWidth={ICON_STROKE} className="h-4 w-4 text-danger" />} hint={<span className="text-sm text-muted-foreground">ก่อนวันปัจจุบัน Bangkok</span>} />
+                  <SummaryStatCard interactive label="Overdue" value={summary.overdue} valueClassName="text-danger" icon={<ArrowDownRight strokeWidth={ICON_STROKE} className="h-4 w-4 text-danger" />} hint="งานที่เลยกำหนดส่ง" />
                 </Link>
                 <Link href={dashboardDailyWorkHref(filters)} className="min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <SummaryStatCard interactive label="Logged hours" value={<output aria-label={`Logged hours: ${formatHours(summary.loggedHours)}`}>{formatHours(summary.loggedHours)}</output>} icon={<Clock3 strokeWidth={ICON_STROKE} className="h-4 w-4 text-info" />} hint={<span className="text-sm text-muted-foreground">ผลรวม TimeEntry แบบ Decimal</span>} />
+                  <SummaryStatCard interactive label="Logged hours" value={<output aria-label={`Logged hours: ${formatHours(summary.loggedHours)}`}>{formatHours(summary.loggedHours)}</output>} icon={<Clock3 strokeWidth={ICON_STROKE} className="h-4 w-4 text-info" />} hint="ชั่วโมงที่บันทึก" />
                 </Link>
               </div>
             </section>
@@ -252,11 +250,10 @@ async function DashboardContent({ searchParams }: DashboardPageProps) {
 
             <DashboardFiltersForm data={data} />
 
-            <DashboardCharts data={summary.loggedHoursByDate} filters={filters} />
-
-            <div className="cinematic-beat-actions grid min-w-0 gap-4 xl:grid-cols-12">
-              <div className="min-w-0 xl:col-span-7"><WorkItemList title="Work Items ล่าสุด" description="เรียงตามเวลาที่แก้ไขล่าสุด" items={summary.recentWorkItems} href={dashboardWorkItemsHref(filters)} /></div>
-              <div className="min-w-0 xl:col-span-5"><RecentProjects data={data} filters={filters} /></div>
+            <div className="cinematic-beat-actions grid min-w-0 items-start gap-4 xl:grid-cols-12">
+              <div className="min-w-0 xl:col-span-7 2xl:col-span-6"><WorkItemList title="Work Items ล่าสุด" description="เรียงตามเวลาที่แก้ไขล่าสุด" items={summary.recentWorkItems} href={dashboardWorkItemsHref(filters)} /></div>
+              <div className="min-w-0 xl:col-span-5 2xl:col-span-3"><RecentProjects data={data} filters={filters} /></div>
+              <div className="min-w-0 xl:col-span-12 2xl:col-span-3"><DashboardCharts data={summary.loggedHoursByDate} filters={filters} /></div>
               <div className="min-w-0 xl:col-span-6"><WorkItemList title="Work Items เร่งด่วน" description="priority urgent ที่ยังเปิดอยู่" items={summary.urgentWorkItems} href={dashboardWorkItemsHref(filters, { priority: 'urgent', openOnly: true })} /></div>
               <div className="min-w-0 xl:col-span-6"><WorkItemList title="Work Items เกินกำหนด" description="dueDate ก่อนวันปัจจุบันและยังไม่ปิด" items={summary.overdueWorkItems} href={dashboardWorkItemsHref(filters, { overdue: true })} /></div>
             </div>

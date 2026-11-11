@@ -14,15 +14,19 @@ export function DashboardLoading() {
         <main className={PAGE_MAIN} aria-busy="true" aria-label="กำลังโหลด Dashboard">
           <div className={PAGE_INNER}>
             <Skeleton className="h-10 w-56" />
-            <Card>
+            <div className={`${STAT_GRID} lg:grid-cols-5`}>{Array.from({ length: 5 }, (_, index) => <Skeleton key={index} className="h-32" />)}</div>
+            <Card className="gap-3 py-4">
               <CardHeader><Skeleton className="h-5 w-40" /></CardHeader>
               <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
                 {Array.from({ length: 6 }, (_, index) => <Skeleton key={index} className="h-10" />)}
               </CardContent>
             </Card>
-            <div className={STAT_GRID}>{Array.from({ length: 5 }, (_, index) => <Skeleton key={index} className="h-28" />)}</div>
-            <Skeleton className="h-80 w-full" />
-            <div className="grid gap-4 xl:grid-cols-2">{Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-64" />)}</div>
+            <div className="grid min-w-0 items-start gap-4 xl:grid-cols-12">
+              <Skeleton className="h-80 xl:col-span-7 2xl:col-span-6" />
+              <Skeleton className="h-80 xl:col-span-5 2xl:col-span-3" />
+              <Skeleton className="h-80 xl:col-span-12 2xl:col-span-3" />
+              {Array.from({ length: 2 }, (_, index) => <Skeleton key={index} className="h-64 xl:col-span-6" />)}
+            </div>
           </div>
         </main>
       </SidebarInset>

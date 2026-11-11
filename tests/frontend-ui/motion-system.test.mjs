@@ -668,9 +668,10 @@ test('TC-28-21 closing the mobile drawer restores keyboard focus to its register
 
 test('TC-28-09 dashboard hierarchy gives recent work the focal grid and keeps risk queues paired', () => {
   const dashboard = source('../../app/page.tsx')
-  assert.match(dashboard, /grid min-w-0 gap-4 xl:grid-cols-12/)
-  assert.match(dashboard, /xl:col-span-7"><WorkItemList title="Work Items ล่าสุด"/)
+  assert.match(dashboard, /grid min-w-0 items-start gap-4 xl:grid-cols-12/)
+  assert.match(dashboard, /xl:col-span-7 2xl:col-span-6"><WorkItemList title="Work Items ล่าสุด"/)
   assert.match(dashboard, /RecentProjects[\s\S]*?xl:col-span-5/)
+  assert.match(dashboard, /xl:col-span-12 2xl:col-span-3"><DashboardCharts/)
   assert.equal((dashboard.match(/min-w-0 xl:col-span-6"><WorkItemList/g) ?? []).length, 2)
   assert.match(source('../../components/ui/tabs.tsx'), /motion-tab-content/)
 })
