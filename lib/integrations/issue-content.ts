@@ -168,6 +168,7 @@ export function matchesUnlinkedIssue(item: Pick<WorkItem, 'title' | 'description
 
 const metadataField =
   /^\s*(?:\*\*)?(?:source(?: url)?|ต้นทาง|(?:gitlab|github) issue|issue)(?:\*\*)?\s*:\s*(?:\*\*)?/i
+const issueUrlIdentity = (url: string) => url.replace(/\/-\/work_items\/([1-9]\d*)$/, '/-/issues/$1')
 function identityMetadata(item: Pick<WorkItem, 'title' | 'description'>) {
   const numbers = [issueTitleParts(item.title).number].filter((value): value is string => Boolean(value))
   const urls: string[] = []
@@ -178,7 +179,9 @@ function identityMetadata(item: Pick<WorkItem, 'title' | 'description'>) {
     const number = /^#(?:\u200b|&#8203;|&#x200b;)*(\d+)/i.exec(value)?.[1]
     if (number && /issue/i.test(prefix[0])) numbers.push(number)
     urls.push(
-      ...(value.match(/https:\/\/[^\s<>"')\]]+/g) ?? []).filter((url) => /\/(?:-\/)?issues\/\d+$/.test(url)),
+      ...(value.match(/https:\/\/[^\s<>"')\]]+/g) ?? [])
+        .filter((url) => /\/(?:-\/)?(?:issues|work_items)\/\d+$/.test(url))
+        .map(issueUrlIdentity),
     )
   }
   return { numbers, urls }
@@ -186,13 +189,14 @@ function identityMetadata(item: Pick<WorkItem, 'title' | 'description'>) {
 
 export function hasDifferentIssueIdentity(item: Pick<WorkItem, 'title' | 'description'>, issue: SourceIssue) {
   const { numbers, urls } = identityMetadata(item)
-  if (urls.includes(issue.url)) return false
-  return numbers.some((number) => number !== issue.number) || urls.some((url) => url !== issue.url)
+  const sourceUrl = issueUrlIdentity(issue.url)
+  if (urls.includes(sourceUrl)) return false
+  return numbers.some((number) => number !== issue.number) || urls.some((url) => url !== sourceUrl)
 }
 
 export function hasMatchingIssueIdentity(item: Pick<WorkItem, 'title' | 'description'>, issue: SourceIssue) {
   const { numbers, urls } = identityMetadata(item)
-  if (urls.includes(issue.url)) return true
+  if (urls.includes(issueUrlIdentity(issue.url))) return true
   return (
     !hasDifferentIssueIdentity(item, issue) &&
     numbers.includes(issue.number) &&

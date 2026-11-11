@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { WORK_ITEM_TYPES } from '@/lib/work-items'
+import { IssueSyncProgressPanel, type IssueSyncProgressState } from './issue-sync-progress'
+import { streamIssueSync } from '@/lib/integrations/issue-sync-stream'
 import { IssueSyncReviewDialog } from './issue-sync-review-dialog'
 import type { IssueReviewCandidate, IssueReviewDecision, IssueReviewGroup } from '@/lib/integrations/issue-review'
 
@@ -28,6 +30,9 @@ const reasonLabel: Record<string, string> = { confirmation_required: 'รอย�
 export function ProjectIssueSync({ projectId, onSynced }: Readonly<{ projectId: string; onSynced: () => void }>) {
   const base = `/api/projects/${projectId}/issue-sync`
   const fieldId = useId()
+  const [syncProgress, setSyncProgress] = useState<IssueSyncProgressState | null>(null)
+  const syncGeneration = useRef(0)
+  const syncAbort = useRef<AbortController | null>(null)
   const [configs, setConfigs] = useState<Config[]>([])
   const [legacy, setLegacy] = useState<LegacyMapping[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,13 +56,13 @@ export function ProjectIssueSync({ projectId, onSynced }: Readonly<{ projectId: 
   const [historyLoading, setHistoryLoading] = useState(false)
   const historyRequest = useRef(0)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (isCurrent: () => boolean = () => true) => {
     const payload = await api<{ configs: Config[]; legacyMappings: LegacyMapping[] }>(base)
-    setConfigs(payload.configs); setLegacy(payload.legacyMappings)
+    if (isCurrent()) { setConfigs(payload.configs); setLegacy(payload.legacyMappings) }
   }, [base])
-  useEffect(() => { let active = true; const requests = historyRequest; setLoading(true); setError(''); setReviewGroups([]); setReviewError('')
-    load().catch((failure) => { if (active) setError(failure.message) }).finally(() => { if (active) setLoading(false) })
-    return () => { active = false; requests.current++ }
+  useEffect(() => { let active = true; const requests = historyRequest; const generation = syncGeneration; const abort = syncAbort; setLoading(true); setError(''); setReviewGroups([]); setReviewError(''); setSyncProgress(null); setBusy(false)
+    load(() => active).catch((failure) => { if (active) setError(failure.message) }).finally(() => { if (active) setLoading(false) })
+    return () => { active = false; requests.current++; generation.current++; abort.current?.abort() }
   }, [load])
 
   function openForm(config: Config | null) {
@@ -103,25 +108,50 @@ export function ProjectIssueSync({ projectId, onSynced }: Readonly<{ projectId: 
   }
 
   async function sync(selected: Config[], approve = false) {
+    if (!selected.length) return
     if (selected.some((config) => !config.firstSyncApproved) && !approve) { setApproval(selected); return }
+    const generation = ++syncGeneration.current
+    const controller = new AbortController()
+    syncAbort.current = controller
     setBusy(true); setError(''); setNotice(''); setReviewError('')
     const pending: IssueReviewGroup[] = []
+    let hadFailures = false, hadPending = false, allFailed = true
     try {
       const messages: string[] = []
-      for (const config of selected) {
-        const { run } = await api<{ run: Run }>(`${base}/${config.id}/sync`, json('POST', { approveFirstSync: approve }))
+      for (const [index, config] of selected.entries()) {
+        setSyncProgress({ sourceProject: config.sourceProject, sourceIndex: index + 1, totalSources: selected.length,
+          completedSources: index, status: 'running', progress: { phase: 'connecting', processed: 0,
+            counts: { created: 0, updated: 0, skipped: 0, failed: 0, pending: 0 } } })
+        const run = await streamIssueSync<Run>(`${base}/${config.id}/sync`, approve, (progress) => {
+          if (syncGeneration.current === generation) setSyncProgress((current) => current ? { ...current, progress } : current)
+        }, controller.signal)
+        if (syncGeneration.current !== generation) return
         const group = pendingGroup(config.id, config.sourceProject, run)
         if (group) pending.push(group)
+        hadFailures ||= run.status === 'failed' || run.counts.failed > 0 || Boolean(run.runError)
+        allFailed &&= run.status === 'failed'
+        hadPending ||= Boolean(group)
+        setSyncProgress((current) => current ? { ...current, completedSources: index + 1,
+          status: index + 1 < selected.length ? 'running' : hadFailures ? allFailed ? 'failed' : 'partial' : hadPending ? 'review' : 'success',
+          progress: { phase: 'complete', processed: run.results.length, counts: { ...run.counts, pending: run.counts.pending ?? 0 } } } : current)
         messages.push(`${config.sourceProject}: เพิ่ม ${run.counts.created} · อัปเดต ${run.counts.updated} · ข้าม ${run.counts.skipped} · ผิดพลาด ${run.counts.failed} · รอยืนยัน ${run.counts.pending ?? 0}${run.runError ? ` · ${run.runError.message}` : ''}`)
         setNotice(messages.join('\n'))
         await history(config.id)
+        if (syncGeneration.current !== generation) return
         onSynced()
       }
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Sync ไม่สำเร็จ') }
+    } catch (failure) {
+      if (syncGeneration.current === generation) {
+        setError(failure instanceof Error ? failure.message : 'Sync ไม่สำเร็จ')
+        setSyncProgress((current) => current ? { ...current, status: 'failed' } : current)
+      }
+    }
     finally {
-      if (pending.length) setReviewGroups(pending)
-      await load().catch(() => setError('โหลด config ล่าสุดไม่สำเร็จ กรุณาลองโหลดอีกครั้ง'))
-      setBusy(false)
+      if (syncGeneration.current === generation) {
+        if (pending.length) setReviewGroups(pending)
+        await load(() => syncGeneration.current === generation).catch(() => { if (syncGeneration.current === generation) setError('โหลด config ล่าสุดไม่สำเร็จ กรุณาลองโหลดอีกครั้ง') })
+        if (syncGeneration.current === generation) { setBusy(false); syncAbort.current = null }
+      }
     }
   }
 
@@ -154,6 +184,7 @@ export function ProjectIssueSync({ projectId, onSynced }: Readonly<{ projectId: 
 
   return <Card id="integrations" className="min-w-0"><CardHeader className="gap-3"><div className="flex min-w-0 flex-wrap items-center justify-between gap-3"><CardTitle>Integrations · Issue Sync</CardTitle><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" disabled={loading || busy} onClick={() => openForm(null)}>เพิ่มแหล่ง Issues</Button><Button type="button" disabled={loading || busy || !configs.some((config) => config.enabled)} onClick={() => sync(configs.filter((config) => config.enabled))}>{busy ? 'กำลังดำเนินการ…' : 'Sync ทั้ง Project'}</Button></div></div><p className="text-sm text-muted-foreground">ดึง GitHub / GitLab Issues เข้า Project นี้ เฉพาะ assignee ที่กำหนดอย่างน้อยหนึ่งคน รวม Open และ Closed</p></CardHeader>
     <CardContent className="min-w-0 space-y-4">
+      {syncProgress && <IssueSyncProgressPanel state={syncProgress} />}
       {loading && <p role="status">กำลังโหลด Integrations…</p>}
       {error && !formOpen && <div role="alert" className="space-y-2 rounded-lg border border-destructive/40 p-3 text-sm"><p>{error}</p><Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => { setError(''); load().catch((failure) => setError(failure.message)) }}>โหลดอีกครั้ง</Button></div>}
       {notice && <p role="status" className="whitespace-pre-line rounded-lg border p-3 text-sm">{notice}</p>}

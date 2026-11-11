@@ -20,6 +20,39 @@ const credential = (provider = 'gitlab') => ({
 })
 const response = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers })
 
+test('GitLab accepts both issue and work item web URLs for the exact verified project and IID', () => {
+  const client = new IssueSourceClient(credential())
+  const project = { id: '42', path: 'group/project' }
+  for (const route of ['issues', 'work_items']) {
+    const url = `https://gitlab.example.test/base/group/project/-/${route}/17`
+    const parsed = client.parseIssue(rawIssue('gitlab', { web_url: url }), project)
+    assert.equal(parsed.url, url)
+    assert.equal(parsed.id, '701')
+    assert.equal(parsed.number, '17')
+  }
+  for (const url of [
+    'https://evil.test/base/group/project/-/work_items/17',
+    'http://gitlab.example.test/base/group/project/-/work_items/17',
+    'https://gitlab.example.test/base/other/project/-/work_items/17',
+    'https://gitlab.example.test/base/group/project/-/work_items/18',
+    'https://gitlab.example.test/group/project/-/work_items/17',
+    'https://gitlab.example.test/base/group/project/-/work_items/17?secret=synthetic-token',
+    'https://user:synthetic-token@gitlab.example.test/base/group/project/-/work_items/17',
+  ])
+    assert.throws(
+      () => client.parseIssue(rawIssue('gitlab', { web_url: url }), project),
+      (error) => error.code === 'INVALID_SOURCE' && !error.message.includes('synthetic-token'),
+    )
+  assert.throws(
+    () =>
+      new IssueSourceClient(credential('github')).parseIssue(
+        rawIssue('github', { html_url: 'https://github.com/acme/repo/-/work_items/17' }),
+        { id: '42', path: 'acme/repo' },
+      ),
+    IssueSyncError,
+  )
+})
+
 test('assignees are mandatory, normalized, deduplicated and OR matched without wildcards', () => {
   for (const value of [undefined, [], ['*'], [''], ['display name'], [123], Array(51).fill('alice')])
     assert.equal(parseAssignees(value), null)
@@ -222,7 +255,7 @@ for (const provider of ['gitlab', 'github']) {
         })
         assert.ok(error.message.includes(`HTTP ${status}`))
         assert.doesNotMatch(JSON.stringify(error), /secret-provider-body|synthetic-token/)
-          assert.doesNotMatch(error.message, /secret-provider-body|synthetic-token/)
+        assert.doesNotMatch(error.message, /secret-provider-body|synthetic-token/)
         if (status === 401 || status === 403) assert.ok(error.message.includes('GITLAB_WORK_TOKEN'))
         return true
       })

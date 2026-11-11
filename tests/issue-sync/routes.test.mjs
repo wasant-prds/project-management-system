@@ -60,6 +60,7 @@ function setup({ authorized = true, found = true, config = fixture(), repos = {}
       NextResponse: {
         json: (body, options = {}) => ({
           body: plain(body),
+          json: async () => plain(body),
           status: options.status ?? 200,
           headers: options.headers,
         }),
@@ -283,6 +284,63 @@ test('manual sync passes only the server-resolved config and owner after validat
   assert.equal(result.status, 200)
   assert.equal(result.body.run.id, uuid(99))
   assert.equal(ownerSent, 10n)
+})
+
+test('streaming sync sends live progress before completion and preserves public, non-buffered final results', async () => {
+  let finish
+  const app = setup({
+    helper: {
+      '@/lib/issue-sync': {
+        startIssueSync: async () => ({ id: 99n }),
+        executeIssueSync: async (_db, _config, _run, owner, _client, report) => {
+          assert.equal(owner, 10n)
+          report({
+            phase: 'connecting',
+            processed: 0,
+            counts: { created: 0, updated: 0, skipped: 0, failed: 0, pending: 0 },
+          })
+          await new Promise((done) => {
+            finish = done
+          })
+          return { publicId: uuid(99) }
+        },
+        syncRunDto: (run) => ({ id: run.publicId }),
+      },
+    },
+  })
+  const response = await app
+    .load(syncRoute)
+    .POST({ ...request({}), headers: new Headers({ Accept: 'application/x-ndjson' }) }, context())
+  assert.equal(response.headers.get('X-Accel-Buffering'), 'no')
+  assert.equal(response.headers.get('Cache-Control'), 'no-store, no-transform')
+  const reader = response.body.getReader(),
+    decoder = new TextDecoder()
+  assert.equal(JSON.parse(decoder.decode((await reader.read()).value)).type, 'progress')
+  finish()
+  const final = JSON.parse(decoder.decode((await reader.read()).value))
+  assert.equal(final.type, 'result')
+  assert.equal(final.run.id, uuid(99))
+  assert.equal((await reader.read()).done, true)
+})
+
+test('streaming sync returns a safe error event if persistence fails after the response starts', async () => {
+  const app = setup({
+    helper: {
+      '@/lib/issue-sync': {
+        startIssueSync: async () => ({ id: 99n }),
+        executeIssueSync: async () => {
+          throw new Error('synthetic-secret SQL diagnostics')
+        },
+        syncRunDto: () => assert.fail('no completed result'),
+      },
+    },
+  })
+  const response = await app
+    .load(syncRoute)
+    .POST({ ...request({}), headers: new Headers({ Accept: 'application/x-ndjson' }) }, context())
+  const body = await response.text()
+  assert.equal(JSON.parse(body).type, 'error')
+  assert.doesNotMatch(body, /synthetic-secret|SQL diagnostics/)
 })
 
 test('confirmation validates public UUIDs and exact body fields before resolving server-owned snapshots', async () => {

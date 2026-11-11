@@ -8,6 +8,69 @@ const { executeIssueSync, startIssueSync, confirmIssueSync, syncConfigDto, syncR
   load('lib/issue-sync.ts')
 const owner = 10n
 
+test('GitLab switches issue URL formats without changing local identity or re-prompting legacy source links', async () => {
+  const fx = database()
+  await sync(fx, [rawIssue()])
+  const original = fx.state.items[0].publicId
+  const modern = rawIssue('gitlab', {
+    web_url: 'https://gitlab.example.test/base/group/project/-/work_items/17',
+  })
+  assert.equal((await sync(fx, [modern])).updatedCount, 1)
+  assert.equal(fx.state.items[0].publicId, original)
+  assert.equal(fx.state.items.length, 1)
+  assert.equal((await sync(fx, [modern])).skippedCount, 1)
+  const legacy = database()
+  legacy.mutate((state) =>
+    legacyItem(state, {
+      title: 'Old title',
+      description: 'Source: https://gitlab.example.test/base/group/project/-/issues/17',
+    }),
+  )
+  assert.equal((await sync(legacy, [modern])).updatedCount, 1)
+  assert.equal(legacy.state.items.length, 1)
+})
+
+test('numeric GitLab project configs validate issue URLs against the resolved namespace path', async () => {
+  const config = fixture()
+  config.sourceProjectPath = '42'
+  const fx = database(config)
+  const result = await sync(fx, [rawIssue()], { resolvedPath: 'group/project' })
+  assert.equal(result.createdCount, 1)
+  assert.equal(result.failedCount, 0)
+})
+
+test('progress reports committed counts and stages without changing sync behavior if the observer disconnects', async () => {
+  for (const disconnected of [false, true]) {
+    const fx = database(),
+      events = [],
+      storedCounts = []
+    const config = structuredClone(fx.state.config)
+    const result = await executeIssueSync(
+      fx.db,
+      config,
+      await startIssueSync(fx.db, config, false),
+      owner,
+      sourceClient(config, [rawIssue()]),
+      (progress) => {
+        if (disconnected) throw new Error('browser disconnected')
+        events.push(progress)
+        storedCounts.push(fx.state.items.length)
+      },
+    )
+    assert.equal(result.status, 'success')
+    if (!disconnected) {
+      events.forEach((event, index) => assert.equal(event.counts.created, storedCounts[index]))
+      assert.deepEqual(
+        [...new Set(events.map((event) => event.phase))],
+        ['connecting', 'syncing', 'checking', 'finalizing', 'complete'],
+      )
+      assert.equal(events.at(-1).processed, 1)
+      assert.equal(events.at(-1).counts.created, 1)
+      assert.doesNotMatch(JSON.stringify(events), /synthetic-secret|workItemId|reviewSnapshot/)
+    }
+  }
+})
+
 test('GitLab project sync uses a supported Issues API sort and keeps username filtering', async () => {
   const fx = database()
   const config = structuredClone(fx.state.config)
@@ -80,14 +143,18 @@ test('run history persists provider HTTP status and phase without response bodie
   assert.equal(fx.state.config.leaseToken, null)
 })
 
-function sourceClient(config, rows, { absent = [], error, resolvedId = '42' } = {}) {
+function sourceClient(
+  config,
+  rows,
+  { absent = [], error, resolvedId = '42', resolvedPath = config.sourceProjectPath } = {},
+) {
   const client = new IssueSourceClient({
     tokenEnvVar: config.tokenEnvVar,
     provider: config.mapping.provider,
     baseUrl: config.mapping.instanceUrl,
     token: 'synthetic-secret',
   })
-  client.resolveProject = async () => ({ id: resolvedId, path: config.sourceProjectPath })
+  client.resolveProject = async () => ({ id: resolvedId, path: resolvedPath })
   client.issues = async function* () {
     for (const row of rows) yield row
     if (error) throw error

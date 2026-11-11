@@ -17,6 +17,7 @@ import {
 import { createHash } from 'node:crypto'
 import type { WorkItem } from '@/lib/database/types'
 import { validateApprovedLabelMap } from '@/lib/integrations/source-validation'
+import type { IssueSyncPhase, IssueSyncProgress } from '@/lib/integrations/issue-sync-stream'
 import {
   IssueSourceClient,
   IssueSyncError,
@@ -349,7 +350,8 @@ export async function confirmIssueSync(
       // A retry after a successful confirmation is read-only and does not create another work item.
       const resolved = results.flatMap((result) => (result.resolution ? [result.resolution] : []))
       if (
-        !resolved.length || decisions.length !== resolved.length ||
+        !resolved.length ||
+        decisions.length !== resolved.length ||
         new Set(decisions.map((decision) => decision.issueId)).size !== decisions.length ||
         decisions.some(
           (decision) =>
@@ -494,6 +496,7 @@ export async function executeIssueSync(
   run: IssueSyncRun,
   ownerId: bigint,
   client?: IssueSourceClient,
+  onProgress?: (progress: IssueSyncProgress) => void,
 ) {
   const results: Outcome[] = []
   let runError: ReturnType<typeof safeError> | undefined
@@ -501,6 +504,26 @@ export async function executeIssueSync(
   const labelMap = validateApprovedLabelMap(config.mapping.approvedLabelMap)
   const seen = new Set<string>()
   let processed = 0
+  let phase: IssueSyncPhase = 'connecting'
+  const report = (nextPhase = phase) => {
+    phase = nextPhase
+    const current = counts(results)
+    try {
+      onProgress?.({
+        phase,
+        processed: results.length,
+        counts: {
+          created: current.createdCount,
+          updated: current.updatedCount,
+          skipped: current.skippedCount,
+          failed: current.failedCount,
+          pending: results.filter((result) => result.outcome === 'pending').length,
+        },
+      })
+    } catch {
+      /* Progress delivery must not undo committed work when the browser disconnects. */
+    }
+  }
   const processIssue = async (raw: unknown, expectedId?: string) => {
     let issue: SourceIssue | null = null
     let result: Outcome
@@ -557,8 +580,10 @@ export async function executeIssueSync(
       results.push(result)
       await syncRuns.update(run.id, { ...counts(results), results }, db)
     }
+    report()
   }
   try {
+    report('connecting')
     if (!labelMap || !parseAssignees(config.assignees))
       throw new IssueSyncError('INVALID_CONFIG', 'Config ไม่ถูกต้อง', 409)
     client ??= new IssueSourceClient(
@@ -572,8 +597,11 @@ export async function executeIssueSync(
         'Source project identity เปลี่ยน กรุณาตรวจ config',
         409,
       )
+    source.path = verified.path
+    report('syncing')
     for await (const raw of client.issues(source, config.assignees)) await processIssue(raw)
     // A filtered list cannot prove reassignment. Fetch absent known issues individually before marking out of scope.
+    report('checking')
     const references = await sourceReferences.list(referenceScope(config.mapping), db)
     if (references.length > 1000)
       throw new IssueSyncError('ISSUE_LIMIT', 'จำนวน issues เดิมเกิน 1,000 กรุณาตรวจขอบเขตการ sync')
@@ -587,7 +615,8 @@ export async function executeIssueSync(
   } catch (error) {
     runError = safeError(error)
   }
-  return db.transaction(async (tx) => {
+  report('finalizing')
+  const finishedRun = await db.transaction(async (tx) => {
     const currentRun = await syncRuns.byId(run.id, tx)
     // A replacement run may already have marked this expired lease interrupted.
     // Keep that durable result and never release the replacement run's lease.
@@ -613,4 +642,6 @@ export async function executeIssueSync(
     await syncConfigs.releaseLease(config.id, run.publicId, tx)
     return finished
   })
+  report('complete')
+  return finishedRun
 }

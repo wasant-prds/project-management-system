@@ -500,7 +500,7 @@ for (const provider of ['gitlab', 'github'])
     })
     const config = await syncConfigs.create({
       mappingId: mapping.id,
-      sourceProjectPath: provider === 'github' ? 'acme/repo' : 'group/project',
+      sourceProjectPath: provider === 'github' ? 'acme/repo' : '42',
       tokenEnvVar: provider === 'github' ? 'GITHUB_WORK_TOKEN' : 'GITLAB_WORK_TOKEN',
       assignees: ['alice'],
     })
@@ -520,9 +520,12 @@ for (const provider of ['gitlab', 'github'])
       labels: provider === 'github' ? [{ name: 'bug' }] : ['bug'],
       ...(provider === 'github'
         ? { number: 17, html_url: 'https://github.com/acme/repo/issues/17' }
-        : { iid: 17, project_id: 42, web_url: 'https://gitlab.example.test/group/project/-/issues/17' }),
+        : { iid: 17, project_id: 42, web_url: 'https://gitlab.example.test/group/project/-/work_items/17' }),
     }
-    client.resolveProject = async () => ({ id: '42', path: config.sourceProjectPath })
+    client.resolveProject = async () => ({
+      id: '42',
+      path: provider === 'github' ? 'acme/repo' : 'group/project',
+    })
     client.issues = async function* () {
       yield payload
     }

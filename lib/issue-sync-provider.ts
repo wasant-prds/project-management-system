@@ -371,9 +371,12 @@ export class IssueSourceClient {
       throw new IssueSyncError('INVALID_SOURCE', 'Source URL ไม่ถูกต้อง')
     }
     const expected = github
-      ? `https://github.com/${project.path}/issues/${number}`
-      : `${this.credential.baseUrl}/${project.path}/-/issues/${number}`
-    if (source.href !== expected) throw new IssueSyncError('INVALID_SOURCE', 'Source URL ไม่ตรงกับ project')
+      ? [`https://github.com/${project.path}/issues/${number}`]
+      : ['issues', 'work_items'].map(
+          (route) => `${this.credential.baseUrl}/${project.path}/-/${route}/${number}`,
+        )
+    if (!expected.includes(source.href))
+      throw new IssueSyncError('INVALID_SOURCE', 'Source URL ไม่ตรงกับ project')
     let dueDate: Date | null | undefined
     if (!github) {
       dueDate =

@@ -14,6 +14,8 @@
 
 Repository fields ใช้ชื่อกลาง instanceUrl, externalProjectId, externalIssueId และ externalIssueNumber สำหรับทั้งสอง provider. Source identity ถูกตรวจใหม่ทุก run; การเปลี่ยนชื่อ/ย้ายต้นทางที่ redirect ต้องตรวจ mapping ก่อน.
 
+GitLab issue links รองรับทั้ง `/-/issues/{iid}` และ `/-/work_items/{iid}` ตาม [GitLab Work items](https://docs.gitlab.com/user/work_items/). ตรวจ URL กับ namespace path ที่ resolve จาก provider หลังยืนยัน stable project ID จึงใช้ config แบบ numeric project ID ได้ด้วย. ยังคงตรวจ HTTPS, instance/base path, project และเลข issue แบบตรงตัว; ไม่ยอมรับ URL ข้าม host/project หรือเลขอื่น. การเปลี่ยนรูปแบบ URL ไม่เปลี่ยน source identity หรือ UUID ปลายทาง และ metadata links เดิมสองรูปแบบถือเป็น issue locator เดียวกัน.
+
 ## Credentials
 
 แต่ละ row ใน `issue_sync_configs.token_env_var` กำหนดชื่อตัวแปรที่เก็บ token จริงใน root `.env` โดยตรง. Provider และ instance URL อยู่ใน mapping ของ row นั้น; ไม่มี JSON credential registry และไม่เก็บ token จริงใน DB, request body, DTO, run snapshot หรือ logs.
@@ -57,12 +59,15 @@ Config ต้องกำหนด `token_env_var` ก่อนเปิด sync
 - `POST /api/projects/{projectId}/issue-sync`: create/adopt source mapping โดยรับ `provider`, `instanceUrl`, `sourceProject`, `assignees`, `tokenEnvVar`, `approvedLabelMap` optional. Resolve stable source identity บน server; คืน 201.
 - `PATCH /api/projects/{projectId}/issue-sync/{configId}`: แก้ `assignees`, `tokenEnvVar`, `approvedLabelMap`, `enabled`. เปลี่ยน filter/labels/token variable จะ reset first-sync approval. ไม่ย้าย source หรือ PMS destination ผ่าน route นี้.
 - `POST /api/projects/{projectId}/issue-sync/{configId}/sync`: รับเฉพาะ `approveFirstSync` boolean optional. ครั้งแรกหรือหลังเปลี่ยน policy ต้องเป็น true. คืน run DTO; ให้ตรวจ status/counts/runError แม้ HTTP 200 เพราะอาจเป็น partial หรือ failed run.
+- หน้า Project ส่ง `Accept: application/x-ndjson` เพื่อรับ progress events ระหว่าง request เดิม: `progress` มี phase และ counts ที่บันทึกแล้ว; `result` มี run DTO สุดท้าย; `error` เป็น safe error หลังเริ่ม response. Client เดิมที่ไม่ระบุ Accept นี้ยังได้ JSON ตามเดิม. ใช้ no-store/no-transform และ X-Accel-Buffering=no เพื่อให้ proxy ส่ง progress ต่อได้. ไม่มี token, source payload หรือ internal IDs ใน progress events.
 - `POST /api/projects/{projectId}/issue-sync/{configId}/confirm`: `{ runId: publicUUID, decisions: [{ issueId: sourceIssueId, workItemId: publicUUID | null }] }`. ต้องเลือกครบ pending issues ของ run นั้น; null หมายถึงเป็นคนละ issue กับทุก candidate. ไม่เรียก provider ใหม่ ใช้ snapshot ที่ owner ได้ตรวจแล้ว. คืน run DTO ล่าสุดพร้อม `counts.pending`; run ที่มี pending ใช้ status partial และไม่นับ pending เป็น failed/skipped.
 - `GET /api/projects/{projectId}/issue-sync/{configId}/runs?limit=10&before={runPublicUuid}`: ประวัติเรียงใหม่ไปเก่า, limit 1–50, nextBefore เป็น public UUID ที่ resolve เฉพาะ config เดียวกัน ไม่ส่ง internal cursor.
 
 Response ใช้ `{ error: { code, message } }` สำหรับ request errors: 400 validation, 401 owner auth, 404 project/config/run missing, 409 source/lease/approval conflict, 503 credential/provider unavailable, 500 generic failure. ทุก response ของ sync API ใช้ no-store.
 
 Source writes และ per-issue history checkpoint commit ใน Serializable transaction เดียวกัน. Unique identity และ retry persistence collision ป้องกันรายการซ้ำ. Lease จำกัดให้ config เดียวมีหนึ่ง run; config edit ระหว่าง run ถูกปฏิเสธ. Revision, mapping timestamp และ lease token ตรวจซ้ำก่อน business writes. Lease หมดอายุ 5 นาที; run ถัดไปบันทึกรอบค้างเป็น interrupted ก่อนเริ่มใหม่.
+
+Progress UI ใช้ Progress component และสีของระบบ แบ่งสี่ขั้นตอน: เชื่อมต่อต้นทาง, อ่านและบันทึก Issues, ตรวจประวัติเดิม, สรุปผล. Bar แสดงสัดส่วนขั้นตอนที่ผ่านกับจำนวนแหล่งที่เลือก พร้อม counts จริงรายแหล่ง; ไม่คาดเดาจำนวน issues ทั้งหมดหรือเวลาเสร็จ. ระหว่างอ่านหลายหน้าแสดง active stage และจำนวนรายการที่ทำแล้ว. จบทั้งที่มี errors หรือรอยืนยันจะแสดงสถานะนั้นอย่างชัดเจน. ถ้า stream ขาดก่อน result ให้ตรวจประวัติ Sync; browser disconnect ไม่ย้อนธุรกรรมที่ commit แล้ว. การเปลี่ยน Project/ออกจากหน้าหยุด reader ใน browser แต่ประวัติฝั่ง server ยังคงเก็บงานที่ทำแล้ว.
 
 ## Legacy และ rollout
 
