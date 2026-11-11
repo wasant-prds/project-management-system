@@ -369,7 +369,7 @@ test('TC-40-15 server markup submits the GET field without importing the calenda
 test('TC-40-16 trigger and popup classes use shared surface tokens and no hard-coded colors', () => {
   const ui = pickerHarness({ id: 'project-due', value: '2026-10-31' })
   const className = ui.button(ui.render()).props.className
-  assert.match(className, /surface-inset/)
+  assert.doesNotMatch(className, /surface-inset/)
   assert.match(className, /bg-input/)
   assert.match(className, /border-border-strong/)
   assert.match(className, /focus-visible:ring-ring/)

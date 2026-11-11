@@ -251,7 +251,7 @@ export function WorkLogList({
             <Input
               type="search"
               placeholder="Search work logs..."
-              className="pl-10 bg-secondary/50 border-border/50"
+              className="pl-10"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
             />

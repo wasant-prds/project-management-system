@@ -262,7 +262,7 @@ export default function AnalysisPage() {
                     <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
                       Company
                       <Select value={draftFilters.companyId} onValueChange={(companyId) => setDraftFilters((current) => ({ ...current, companyId, projectId: 'all' }))}>
-                        <SelectTrigger className="w-full bg-background" aria-label="กรองตาม Company"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="w-full" aria-label="กรองตาม Company"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">ทุก Company</SelectItem>
                           {filterOptions.companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.displayName ?? company.name}</SelectItem>)}
@@ -272,7 +272,7 @@ export default function AnalysisPage() {
                     <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
                       Project
                       <Select value={draftFilters.projectId} onValueChange={(projectId) => setDraftFilters((current) => ({ ...current, projectId }))}>
-                        <SelectTrigger className="w-full bg-background" aria-label="กรองตาม Project"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="w-full" aria-label="กรองตาม Project"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">ทุก Project</SelectItem>
                           {projectOptions.map((project) => <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>)}
@@ -282,7 +282,7 @@ export default function AnalysisPage() {
                     <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
                       Functional role
                       <Select value={draftFilters.role} onValueChange={(role) => setDraftFilters((current) => ({ ...current, role }))}>
-                        <SelectTrigger className="w-full bg-background" aria-label="กรองตาม Functional role"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="w-full" aria-label="กรองตาม Functional role"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">ทุก role</SelectItem>
                           <SelectItem value="none">ไม่ระบุ role</SelectItem>
@@ -293,7 +293,7 @@ export default function AnalysisPage() {
                     <label className="grid min-w-0 flex-1 gap-1.5 text-sm font-medium">
                       ชนิดงาน
                       <Select value={draftFilters.kind} onValueChange={(kind) => setDraftFilters((current) => ({ ...current, kind }))}>
-                        <SelectTrigger className="w-full bg-background" aria-label="กรองตามชนิดงาน"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="w-full" aria-label="กรองตามชนิดงาน"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">ทุกชนิด</SelectItem>
                           {WORK_ITEM_KINDS.map((kind) => <SelectItem key={kind} value={kind}>{kind}</SelectItem>)}

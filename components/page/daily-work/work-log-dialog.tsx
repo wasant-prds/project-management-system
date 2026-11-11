@@ -108,7 +108,7 @@ function DialogActions({
 }
 
 const BODY_PANEL_CLASS =
-  "min-h-0 min-w-0 flex-1 rounded-xl border border-border/70 bg-muted/30 shadow-inner"
+  "min-h-0 min-w-0 flex-1 rounded-xl border"
 const BODY_COPY_CLASS =
   "rounded-none border-0 bg-transparent px-4 py-3 text-sm font-normal leading-relaxed text-foreground break-words"
 
@@ -143,7 +143,7 @@ function BodyCopy({
       placeholder={placeholder}
       value={value || ""}
       onChange={(event) => onChange?.(event.target.value)}
-      className={`${BODY_COPY_CLASS} h-full min-h-0 resize-none`}
+      className={`${BODY_COPY_CLASS} bg-input shadow-none h-full min-h-0 resize-none`}
       disabled={disabled}
     />
   )
@@ -185,7 +185,7 @@ function BodySection({
           {required && !isView && <span className="text-danger"> *</span>}
         </Label>
       </div>
-      <ScrollablePanel className={BODY_PANEL_CLASS}>
+      <ScrollablePanel className={`${BODY_PANEL_CLASS} ${isView ? 'border-border/70 bg-muted/30 shadow-inner' : 'border-border-strong bg-input shadow-input has-[textarea:disabled]:border-border has-[textarea:disabled]:bg-disabled has-[textarea:disabled]:shadow-none has-[textarea:focus-visible]:border-ring'}`}>
         <BodyCopy
           id={id}
           isView={isView}

@@ -55,7 +55,7 @@ export function ProjectsContent({ projects }: Readonly<ProjectsContentProps>) {
           <Input
             type="search"
             placeholder="Search projects..."
-            className="pl-10 bg-secondary/50"
+            className="pl-10"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />

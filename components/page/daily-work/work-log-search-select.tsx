@@ -59,10 +59,10 @@ export function SearchSelect({
       <PopoverTrigger asChild>
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           aria-expanded={open}
           disabled={disabled}
-          className="h-auto min-h-10 w-full justify-between px-3 py-2 text-left font-normal"
+          className="h-auto min-h-10 w-full justify-between border border-border-strong bg-input px-3 py-2 text-left font-normal shadow-input hover:bg-input active:bg-input"
         >
           <span className={cn('min-w-0 flex-1 truncate', !selected && 'text-muted-foreground')}>
             {triggerLabel}

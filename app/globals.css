@@ -90,7 +90,8 @@
   --muted: var(--background-secondary);
   --muted-foreground: var(--text-muted);
   --destructive-foreground: var(--text-inverse);
-  --input: var(--surface-inset);
+  --input: #f1f1f6;
+  --input-shadow: inset 1px 1px 2px color-mix(in srgb, var(--shadow-dark) 22%, transparent), 3px 4px 8px color-mix(in srgb, var(--shadow-dark) 65%, transparent), -2px -2px 5px color-mix(in srgb, var(--shadow-light) 80%, transparent);
   --ring: var(--focus);
   --surface-border: var(--border-subtle);
   --surface-shadow-soft: var(--shadow-soft);
@@ -131,6 +132,7 @@
 
 .dark, .special-dark {
   color-scheme: dark;
+  --input: var(--surface-elevated);
   --background: #141416;
   --background-secondary: #25262e;
   --surface: #202022;
@@ -180,6 +182,7 @@
   --shadow-hover: 9px 9px 22px color-mix(in srgb, var(--shadow-dark) 85%, transparent), -6px -6px 18px color-mix(in srgb, var(--shadow-light) 28%, transparent);
   --shadow-inset: inset 3px 3px 6px color-mix(in srgb, var(--shadow-dark) 75%, transparent), inset -3px -3px 6px color-mix(in srgb, var(--shadow-light) 22%, transparent);
   --shadow-pressed: inset 2px 2px 5px color-mix(in srgb, var(--shadow-dark) 85%, transparent), inset -2px -2px 5px color-mix(in srgb, var(--shadow-light) 18%, transparent);
+  --input-shadow: inset 1px 1px 2px color-mix(in srgb, var(--shadow-dark) 28%, transparent), 3px 4px 8px color-mix(in srgb, var(--shadow-dark) 65%, transparent), -2px -2px 5px color-mix(in srgb, var(--shadow-light) 30%, transparent);
   --shadow-floating: 0 12px 32px rgb(0 0 0 / 0.45), 0 1px 3px rgb(0 0 0 / 0.3);
   --shadow-modal: 0 24px 70px rgb(0 0 0 / 0.6), 0 2px 6px rgb(0 0 0 / 0.35);
   --chart-1: #7fb7ff;
@@ -262,6 +265,7 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
+  --shadow-input: var(--input-shadow);
   --color-ring: var(--ring);
   --color-danger: var(--danger);
   --color-success: var(--success);
@@ -389,7 +393,6 @@
     @apply text-foreground font-medium;
     font-weight: 500;
     line-height: 1.5;
-    box-shadow: var(--surface-shadow-inset);
     transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard);
   }
   

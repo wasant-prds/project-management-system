@@ -24,8 +24,8 @@ function DatePickerShell({
         type="button"
         disabled
         className={cn(
-          'surface-inset border-border-strong flex h-10 w-full min-w-0 items-center rounded-md border bg-input px-3 text-left text-base sm:text-sm',
-          'disabled:cursor-not-allowed disabled:bg-disabled disabled:text-disabled-foreground disabled:opacity-100',
+          'shadow-input border-border-strong flex h-10 w-full min-w-0 items-center rounded-md border bg-input px-3 text-left text-base sm:text-sm',
+          'disabled:cursor-not-allowed disabled:border-border disabled:bg-disabled disabled:text-disabled-foreground disabled:opacity-100 disabled:shadow-none',
           className,
         )}
       >

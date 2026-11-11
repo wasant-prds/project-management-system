@@ -155,10 +155,13 @@ test('shared cards and emphasized surfaces consume shared shadow tokens', () => 
   assert.match(css, /\.card-shadow\s*\{[^}]*var\(--surface-shadow-raised\)/s)
 })
 
-test('form controls use inset surfaces while focus, invalid and selected states remain explicit', () => {
-  assert.match(input, /surface-inset/)
-  assert.match(textarea, /surface-inset/)
-  assert.match(select, /surface-inset/)
+test('editable form controls use clear surfaces while disabled, focus, invalid and selected states remain explicit', () => {
+  for (const control of [input, textarea, select]) {
+    assert.match(control, /bg-input/)
+    assert.doesNotMatch(control, /surface-inset/)
+    assert.match(control, /disabled:bg-disabled/)
+    assert.match(control, /disabled:border-border/)
+  }
   assert.match(button, /focus-visible:ring-ring\/50/)
   assert.match(button, /aria-invalid:border-destructive/)
   assert.match(tabs, /data-\[state=active\]:bg-background/)

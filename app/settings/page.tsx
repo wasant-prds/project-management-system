@@ -236,7 +236,7 @@ export default function SettingsPage() {
                             <Label htmlFor="owner-theme">Theme</Label>
                             <select
                               id="owner-theme"
-                              className="surface-inset flex h-10 w-full rounded-md border border-border-strong bg-input px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              className="motion-control shadow-input flex h-10 w-full rounded-md border border-border-strong bg-input px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:border-border disabled:bg-disabled disabled:text-disabled-foreground disabled:opacity-100 disabled:shadow-none"
                               disabled={isSavingPreferences}
                               value={preferences.theme}
                               onChange={(event) => {
@@ -251,7 +251,7 @@ export default function SettingsPage() {
                             <Label htmlFor="owner-locale">ภาษา</Label>
                             <select
                               id="owner-locale"
-                              className="surface-inset flex h-10 w-full rounded-md border border-border-strong bg-input px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              className="motion-control shadow-input flex h-10 w-full rounded-md border border-border-strong bg-input px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:border-border disabled:bg-disabled disabled:text-disabled-foreground disabled:opacity-100 disabled:shadow-none"
                               disabled={isSavingPreferences}
                               value={preferences.locale}
                               onChange={(event) => {

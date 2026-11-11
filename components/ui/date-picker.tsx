@@ -153,9 +153,9 @@ function DatePicker({
             data-invalid={invalid ? 'true' : undefined}
             onKeyDown={onTriggerKeyDown}
             className={cn(
-              'motion-control surface-inset border-border-strong flex h-10 w-full min-w-0 items-center justify-between gap-2 rounded-md border bg-input px-3 text-left text-base outline-none sm:text-sm',
+              'motion-control shadow-input border-border-strong flex h-10 w-full min-w-0 items-center justify-between gap-2 rounded-md border bg-input px-3 text-left text-base outline-none sm:text-sm',
               'focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]',
-              'disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-disabled disabled:text-disabled-foreground disabled:opacity-100',
+              'disabled:pointer-events-none disabled:cursor-not-allowed disabled:border-border disabled:bg-disabled disabled:text-disabled-foreground disabled:opacity-100 disabled:shadow-none',
               'data-[invalid=true]:border-destructive data-[invalid=true]:ring-destructive/20 dark:data-[invalid=true]:ring-destructive/40',
               className,
             )}

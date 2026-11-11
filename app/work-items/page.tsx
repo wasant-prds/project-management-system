@@ -1053,14 +1053,14 @@ export default function WorkItemsPage() {
                 <Input
                   type="search"
                   placeholder="ค้นหา Work Items…" aria-label="ค้นหา Work Items"
-                  className="bg-secondary/50 pl-10"
+                  className="pl-10"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
                 />
               </div>
               <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
                 <Select value={companyFilter} onValueChange={setCompanyFilter}>
-                  <SelectTrigger className="w-full bg-secondary/50 sm:w-[180px]" aria-label="กรอง Company">
+                  <SelectTrigger className="w-full sm:w-[180px]" aria-label="กรอง Company">
                     <SelectValue placeholder="Company" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1069,7 +1069,7 @@ export default function WorkItemsPage() {
                   </SelectContent>
                 </Select>
                 <Select value={yearFilter} onValueChange={(value) => applyCalendarPeriod(value, monthFilter)}>
-                  <SelectTrigger className="w-full bg-secondary/50 sm:w-[130px]">
+                  <SelectTrigger className="w-full sm:w-[130px]">
                     <SelectValue placeholder="Year" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1080,7 +1080,7 @@ export default function WorkItemsPage() {
                   </SelectContent>
                 </Select>
                 <Select value={monthFilter} onValueChange={(value) => applyCalendarPeriod(yearFilter, value)}>
-                  <SelectTrigger className="w-full bg-secondary/50 sm:w-[150px]">
+                  <SelectTrigger className="w-full sm:w-[150px]">
                     <SelectValue placeholder="Month" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1092,7 +1092,7 @@ export default function WorkItemsPage() {
                 </Select>
                 <div className="col-span-2 sm:col-auto">
                   <Select value={projectFilter} onValueChange={setProjectFilter}>
-                    <SelectTrigger className="w-full bg-secondary/50 sm:w-[220px]">
+                    <SelectTrigger className="w-full sm:w-[220px]">
                       <SelectValue placeholder="Project" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1107,7 +1107,7 @@ export default function WorkItemsPage() {
                   <WorkItemSortMenu value={sortMode} onChange={setSortMode} />
                 </div>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full bg-secondary/50 sm:w-[150px]">
+                  <SelectTrigger className="w-full sm:w-[150px]">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1118,7 +1118,7 @@ export default function WorkItemsPage() {
                   </SelectContent>
                 </Select>
                 <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                  <SelectTrigger className="w-full bg-secondary/50 sm:w-[150px]">
+                  <SelectTrigger className="w-full sm:w-[150px]">
                     <SelectValue placeholder="Priority" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1129,7 +1129,7 @@ export default function WorkItemsPage() {
                   </SelectContent>
                 </Select>
                 <Select value={roleFilter} onValueChange={setRoleFilter}>
-                  <SelectTrigger className="w-full bg-secondary/50 sm:w-[150px]">
+                  <SelectTrigger className="w-full sm:w-[150px]">
                     <SelectValue placeholder="Role" />
                   </SelectTrigger>
                   <SelectContent>
