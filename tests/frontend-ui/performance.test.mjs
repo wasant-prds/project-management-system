@@ -75,7 +75,7 @@ test('TC-30-05 pagination controls announce range and disable boundary actions',
   assert.equal(ReportPagination({ ...paginateRows([1], 0), onPageChange() {} }), null)
 })
 
-test('TC-30-06 each report table renders at most 50 rows while CSV retains all filtered records and exact Decimal hours', () => {
+test('TC-30-06 each report table renders at most 50 rows while CSV retains all filtered records with two-decimal hours', () => {
   const report = structuredClone(previewData().analysis)
   report.workItems = Array.from({ length: 123 }, (_, index) => ({ ...report.workItems[0], id: `work-${index}`, title: `Title-${index}` }))
   report.timeEntries = Array.from({ length: 123 }, (_, index) => ({ ...report.timeEntries[0], id: `time-${index}`, hours: '0.123456789012345678901234567890' }))
@@ -89,7 +89,8 @@ test('TC-30-06 each report table renders at most 50 rows while CSV retains all f
   const csv = generateAnalysisCsv(report)
   assert.ok(csv.includes('Title-122'))
   assert.ok(csv.includes('time-122'))
-  assert.ok(csv.includes('0.123456789012345678901234567890'))
+  assert.equal((csv.match(/"0\.12"/g) ?? []).length, 123)
+  assert.equal(report.timeEntries[0].hours, '0.123456789012345678901234567890')
 })
 
 function collectionSystem(fetch) {
@@ -422,7 +423,7 @@ test('TC-30-28 deferred dialog stays dormant before first open and retains its c
   assert.ok(closed.props.error(() => {}))
 })
 
-test('TC-30-29 Analysis keeps its exact hours table outside lazy plot boundaries through errors', () => {
+test('TC-30-29 Analysis keeps its formatted hours table outside lazy plot boundaries through errors', () => {
   const { AnalysisChartsDeferred } = load('components/page/analysis/analysis-charts-deferred.tsx')
   const { HoursPeriodTable } = load('components/page/analysis/report-tables.tsx')
   const { RetryableLazy } = load('components/ui/retryable-lazy.tsx')
@@ -436,5 +437,5 @@ test('TC-30-29 Analysis keeps its exact hours table outside lazy plot boundaries
     assert.equal(descendants(plot).some((node) => node.type === HoursPeriodTable), false)
     assert.match(renderToStaticMarkup(plot.props.error(() => {})), /h-\[320px\]/)
   }
-  assert.match(renderToStaticMarkup(React.createElement(HoursPeriodTable, { report })), /0.123456789012345678901234567890/)
+  assert.match(renderToStaticMarkup(React.createElement(HoursPeriodTable, { report })), />0\.12<\/td>/)
 })

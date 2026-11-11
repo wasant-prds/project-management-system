@@ -27,6 +27,7 @@ import { Project, WorkLogFormData, WorkLog, WorkLogWorkItem, workLogStatuses } f
 import { SearchSelect } from "./work-log-search-select"
 import { ScrollablePanel } from "@/components/ui/scrollable-panel"
 import { fetchCollection } from "@/lib/fetch-collection"
+import { formatHours } from '@/lib/decimal-hours'
 
 type WorkLogDialogProps = {
   open: boolean
@@ -384,7 +385,7 @@ export function WorkLogDialog({
                 </div>
                 <Badge variant="outline" className="shrink-0 gap-1">
                   <Clock className="h-3 w-3" />
-                  {workLog.hours}h
+                  {formatHours(workLog.hours)}h
                 </Badge>
               </div>
               <DetailsAndRemarks
@@ -414,8 +415,8 @@ export function WorkLogDialog({
                     <Input
                       id="hours"
                       type="number"
-                      min="0.0000000001"
-                      step="any"
+                      min="0.01"
+                      step="0.01"
                       value={formData?.hours || ""}
                       onChange={(event) => onFormDataChange?.({ ...formData!, hours: event.target.value })}
                       disabled={isLoading}

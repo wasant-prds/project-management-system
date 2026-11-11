@@ -3,6 +3,7 @@
 import { useReportPage, ReportPagination } from '@/components/ui/report-pagination'
 import Link from 'next/link'
 import type { AnalysisReport } from '@/lib/analysis-export'
+import { formatHours } from '@/lib/decimal-hours'
 import { analysisDailyWorkHref, analysisWorkItemsHref } from '@/lib/analysis-links'
 import { WORK_ITEM_PRIORITY_LABELS, WORK_ITEM_ROLE_LABELS, WORK_ITEM_STATUS_LABELS } from '@/lib/work-items'
 import { InlineState } from '@/components/layout/page-state'
@@ -99,7 +100,7 @@ export function DailyWorkTable({ report }: Readonly<{ report: AnalysisReport }>)
                 {entry.remarks && <span className="mt-1 content-wrap block text-xs text-muted-foreground">หมายเหตุ: {entry.remarks}</span>}
                 <span className="content-wrap mt-1 block text-xs text-muted-foreground">TimeEntry {entry.id}</span>
               </TableCell>
-              <TableCell className="px-3 py-3 content-wrap text-right font-medium tabular-nums">{entry.hours}</TableCell>
+              <TableCell className="px-3 py-3 content-wrap text-right font-medium tabular-nums">{formatHours(entry.hours)}</TableCell>
             </TableRow>
           )
         })}
@@ -128,7 +129,7 @@ export function HoursPeriodTable({ report }: Readonly<{ report: AnalysisReport }
         {pagination.rows.map((row) => (
           <TableRow key={row.startDate}>
             <TableCell className="content-wrap px-3 py-3">{row.startDate} – {row.endDate}</TableCell>
-            <TableCell className="px-3 py-3 content-wrap text-right font-medium tabular-nums">{row.hours}</TableCell>
+            <TableCell className="px-3 py-3 content-wrap text-right font-medium tabular-nums">{formatHours(row.hours)}</TableCell>
             <TableCell className="px-3 py-3 text-right">
               <Link
                 href={analysisDailyWorkHref(report.meta.filters, { startDate: row.startDate, endDate: row.endDate })}

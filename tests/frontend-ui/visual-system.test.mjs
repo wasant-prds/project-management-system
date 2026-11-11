@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import test from 'node:test'
 import vm from 'node:vm'
+import { moduleLoader } from '../support/module-loader.mjs'
 
 const require = createRequire(import.meta.url)
 const React = require('react')
@@ -77,6 +78,7 @@ function renderWorkLogCard() {
       if (name === '@/components/ui/label') return { Label: ui.Label }
       if (name === 'lucide-react') return icons
       if (name === '@/lib/utils') return { formatDate: (date) => String(date).slice(0, 10) }
+      if (name === '@/lib/decimal-hours') return moduleLoader()('lib/decimal-hours.ts')
       throw new Error(`Unexpected WorkLogCard import: ${name}`)
     },
   }, { filename: 'components/page/daily-work/work-log-card.tsx' })

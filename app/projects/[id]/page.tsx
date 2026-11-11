@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { formatHours } from '@/lib/decimal-hours'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
 import { PAGE_HEADING, PAGE_INNER, PAGE_MAIN, PAGE_TOOLBAR } from '@/components/layout/page-layout'
@@ -74,7 +75,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       <section aria-label="สรุป Project" className="cinematic-beat-data grid grid-cols-2 gap-4 lg:grid-cols-3">
         <SummaryStatCard emphasis="primary" label="ความคืบหน้า" value={`${project.summary.progress.toFixed(1)}%`} hint={`${project.summary.completed}/${project.summary.total} Work Items`} />
         <SummaryStatCard label="Work Items ทั้งหมด" value={project.summary.total} />
-        <SummaryStatCard label="ชั่วโมงจริง" value={project.summary.hours} />
+        <SummaryStatCard label="ชั่วโมงจริง" value={formatHours(project.summary.hours)} />
       </section>
       <Card className="surface-raised"><CardHeader><CardTitle>ภาพรวม Project</CardTitle></CardHeader><CardContent className="grid min-w-0 gap-5 text-sm sm:grid-cols-2">
         <div><p className="mb-2 text-xs text-muted-foreground">Company</p><p className="font-semibold">{project.company?.displayName ?? project.company?.name ?? 'ยังไม่ผูก Company'}</p></div>
@@ -88,7 +89,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         <Card><CardHeader><CardTitle>Functional roles</CardTitle></CardHeader><CardContent>{Object.entries(project.summary.roles).map(([role, count]) => <div key={role} className="data-row flex items-center justify-between gap-3 text-sm"><span>{workItemRoleLabel(role)}</span><Badge variant="outline" className="tabular-nums">{count}</Badge></div>)}</CardContent></Card>
       </div>
       <Card><CardHeader><CardTitle>Work Items</CardTitle></CardHeader><CardContent className="space-y-4">{project.workItems.length ? project.workItems.map((item) => <div key={item.id} className="data-row flex min-w-0 flex-wrap justify-between gap-2 text-sm"><div className="min-w-0"><p className="break-words font-medium">{item.title}</p><p className="mt-1 text-xs text-muted-foreground">{item.kind} · {workItemRoleLabel(item.role)}</p></div><div className="flex items-center gap-2"><WorkItemStatusBadge status={item.status} /><span className="text-xs text-muted-foreground">{item.dueDate ?? 'ไม่มีกำหนด'}</span></div></div>) : <PageState title="ยังไม่มี Work Items" />}<Button variant="outline" asChild><Link href={`/work-items?projectId=${project.id}`}>เปิด Work Items</Link></Button></CardContent></Card>
-      <Card><CardHeader><CardTitle>Daily Work</CardTitle></CardHeader><CardContent className="space-y-4">{project.timeEntries.length ? project.timeEntries.map((entry) => <div key={entry.id} className="data-row flex flex-wrap items-center justify-between gap-2 text-sm"><div><p className="font-medium">{entry.date}</p><p className="mt-1 break-all text-xs text-muted-foreground">WorkItem {entry.workItemId ?? 'legacy: ไม่ผูกงาน'}</p></div><Badge variant="secondary">{entry.hours} ชั่วโมง</Badge></div>) : <PageState title="ยังไม่มี TimeEntries" />}<Button variant="outline" asChild><Link href="/daily-work">เปิด Daily Work</Link></Button></CardContent></Card>
+      <Card><CardHeader><CardTitle>Daily Work</CardTitle></CardHeader><CardContent className="space-y-4">{project.timeEntries.length ? project.timeEntries.map((entry) => <div key={entry.id} className="data-row flex flex-wrap items-center justify-between gap-2 text-sm"><div><p className="font-medium">{entry.date}</p><p className="mt-1 break-all text-xs text-muted-foreground">WorkItem {entry.workItemId ?? 'legacy: ไม่ผูกงาน'}</p></div><Badge variant="secondary">{formatHours(entry.hours)} ชั่วโมง</Badge></div>) : <PageState title="ยังไม่มี TimeEntries" />}<Button variant="outline" asChild><Link href="/daily-work">เปิด Daily Work</Link></Button></CardContent></Card>
     </div>}
     <AlertDialog open={deleteOpen} onOpenChange={(open) => { if (!deleting) setDeleteOpen(open) }}>
       <AlertDialogContent>

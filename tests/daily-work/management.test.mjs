@@ -31,6 +31,31 @@ test('decimal hour summation is exact and does not round each entry', () => {
   assert.equal(sumDecimalHours([]), '0')
 })
 
+test('hours display always uses two decimals without losing decimal-string precision', () => {
+  const { formatHours } = decimalHours
+  for (const [value, expected] of [
+    ['4.000000000000000000000000000000', '4.00'],
+    ['0', '0.00'], ['1.2', '1.20'], ['1.005', '1.01'], ['1.0049', '1.00'],
+    ['9.999', '10.00'], ['0.005', '0.01'], ['0.0049', '0.00'],
+    ['-0.0049', '0.00'], ['-1.005', '-1.01'],
+    ['9007199254740993.125', '9007199254740993.13'],
+    ['12345678901234567890123456789012345.123456789012345678901234567890', '12345678901234567890123456789012345.12'],
+    ['1.005e1', '10.05'], ['1e-30', '0.00'], [' 4.5000 ', '4.50'],
+    [0.1 + 0.2, '0.30'], [1.005, '1.01'],
+  ]) assert.equal(formatHours(value), expected, String(value))
+
+  for (const value of ['', 'invalid', 'Infinity', '1e1001', Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.equal(formatHours(value), '—')
+  }
+})
+
+test('hour totals round after the exact sum rather than rounding individual entries', () => {
+  const { formatHours, sumDecimalHours } = decimalHours
+  assert.equal(formatHours(sumDecimalHours(['0.004', '0.004'])), '0.01')
+  assert.equal(formatHours(sumDecimalHours(['1.005', '1.005'])), '2.01')
+  assert.equal(sumDecimalHours(['1.005', '1.005']), '2.01')
+})
+
 test('Bangkok rolling ranges use Bangkok today independent of the host timezone', () => {
   const previousTimezone = process.env.TZ
   process.env.TZ = 'America/Los_Angeles'

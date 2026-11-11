@@ -107,9 +107,10 @@ test('TC-27-08 errors remain visible alerts and never substitute fake aggregate 
   assert.doesNotMatch(html, /0 ชั่วโมง|0 Work Items/)
 })
 
-test('TC-27-09 portfolio preserves Company, Bangkok calendar date, progress and exact Decimal hours', () => {
+test('TC-27-09 portfolio preserves Company, Bangkok calendar date, progress and hours formatted to two decimals', () => {
   const html = render(PortfolioCard, { project, onEdit() {} })
-  for (const value of ['Example', '13/27', '14', '48.1%', '2026-10-31', project.summary.hours]) assert.ok(html.includes(value), value)
+  for (const value of ['Example', '13/27', '14', '48.1%', '2026-10-31', '123.00']) assert.ok(html.includes(value), value)
+  assert.ok(!html.includes(project.summary.hours))
   assert.match(html, /href="\/projects\/project-27"/)
   assert.match(html, /aria-valuenow="48.148"/)
 })
@@ -126,7 +127,8 @@ test('TC-27-10 portfolio handles missing Company and preserves the selected edit
 test('TC-27-11 Company card keeps real totals and its filtered Project drill-through', () => {
   const html = render(CompanyCard, { company, onEdit() {}, onDelete() {} })
   assert.match(html, /href="\/projects\?companyId=company-27"/)
-  assert.ok(html.includes(company.summary.hours))
+  assert.ok(html.includes('123.00'))
+  assert.ok(!html.includes(company.summary.hours))
   assert.match(html, /Example Company/)
   assert.doesNotMatch(html, />ลบ<|members|Manage Team/)
 })

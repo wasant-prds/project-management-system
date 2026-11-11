@@ -17,6 +17,7 @@ function renderTree(Component, props) {
 }
 const longText = 'Identifier'.repeat(30)
 const exactHours = '12345678901234567890123456789012345.123456789012345678901234567890'
+const displayedHours = '12345678901234567890123456789012345.12'
 const { SummaryStatCard } = load('components/layout/summary-stat-card.tsx')
 const { CardHeader, CardTitle } = load('components/ui/card.tsx')
 const { CompanyCard } = load('components/page/company/company-card.tsx')
@@ -47,11 +48,11 @@ test('TC-29-02 Company long contact text keeps every field and edit identity wit
   assert.equal(calls[0], company)
 })
 
-test('TC-29-03 Daily Work summary preserves large exact Decimal text beside its fixed label', () => {
+test('TC-29-03 Daily Work summary displays large hours to two decimals beside its fixed label', () => {
   const tree = StatsCard({ totalHours: exactHours, totalLogs: 1 })
-  const value = descendants(tree).find((node) => node.type === 'span' && node.props.children === exactHours)
+  const value = descendants(tree).find((node) => node.type === 'span' && node.props.children === displayedHours)
   assert.match(value.props.className, /content-wrap min-w-0 text-right/)
-  assert.ok(render(StatsCard, { totalHours: exactHours, totalLogs: 1 }).includes(exactHours))
+  assert.ok(render(StatsCard, { totalHours: exactHours, totalLogs: 1 }).includes(displayedHours))
 })
 
 test('TC-29-04 Input and Textarea retain invalid, disabled, label and change contracts after typography polish', () => {
@@ -151,15 +152,15 @@ test('TC-29-10 polished Work Item table retains source identity, filters and Ban
   assert.match(html, /data-slot="table-container"/)
 })
 
-test('TC-29-11 polished Daily Work numeric cell wraps without rounding exact Decimal hours', () => {
+test('TC-29-11 polished Daily Work numeric cell wraps hours formatted to two decimals', () => {
   const report = filteredReport()
   report.timeEntries = [{ ...report.timeEntries[0], hours: exactHours, description: longText, id: longText }]
   const tree = renderTree(DailyWorkTable, { report })
   assert.match(descendants(tree).find((node) => node.type === Table).props.className, /\[&_td\]:align-top/)
-  const numeric = descendants(tree).find((node) => node.type === TableCell && node.props.children === exactHours)
+  const numeric = descendants(tree).find((node) => node.type === TableCell && node.props.children === displayedHours)
   assert.match(numeric.props.className, /content-wrap text-right font-medium tabular-nums/)
   const html = renderToStaticMarkup(tree)
-  assert.ok(html.includes(exactHours))
+  assert.ok(html.includes(displayedHours))
   assert.ok(html.includes(`TimeEntry ${longText}`))
   const params = new URL(descendants(tree).find((node) => node.type === Link).props.href, 'https://unit.test').searchParams
   assert.equal(params.get('startDate'), report.timeEntries[0].date)
@@ -176,7 +177,7 @@ test('TC-29-12 Daily Work missing optional relation and description show a clear
   assert.match(html, /2026-10-03/)
 })
 
-test('TC-29-13 period table keeps exact hours and the same inclusive source interval', () => {
+test('TC-29-13 period table formats hours and keeps the same inclusive source interval', () => {
   const report = filteredReport()
   report.loggedHoursByPeriod = [{ startDate: '2026-10-01', endDate: '2026-10-31', hours: exactHours }]
   const tree = renderTree(HoursPeriodTable, { report })
@@ -184,7 +185,7 @@ test('TC-29-13 period table keeps exact hours and the same inclusive source inte
   const params = new URL(link.props.href, 'https://unit.test').searchParams
   assert.equal(params.get('startDate'), '2026-10-01')
   assert.equal(params.get('endDate'), '2026-10-31')
-  assert.ok(renderToStaticMarkup(tree).includes(exactHours))
+  assert.ok(renderToStaticMarkup(tree).includes(displayedHours))
 })
 
 test('TC-29-14 empty report tables describe missing sources without fabricated rows', () => {
@@ -230,13 +231,13 @@ test('TC-29-17 focused polish suite reuses the existing runner and remains in fu
   assert.match(readFileSync(`${root}/tests/run.mjs`, 'utf8'), /"frontend-polish":.*polish\.test\.mjs/)
 })
 
-test('TC-29-18 Daily Work card retains exact hours, long details and the selected record callback', () => {
+test('TC-29-18 Daily Work card formats hours and retains long details and the selected record callback', () => {
   const { WorkLogCard } = createComponentLoader({ react: { ...React, useState: () => [true, () => {}] } })('components/page/daily-work/work-log-card.tsx')
   const workLog = { ...previewData().workLogs[0], hours: exactHours, description: longText, remarks: longText }
   const calls = []
   const tree = WorkLogCard({ workLog, onClick: (item) => calls.push(item) })
   const values = descendants(tree)
-  const hours = values.find((node) => node.type === 'span' && textContent(node) === `${exactHours}h`)
+  const hours = values.find((node) => node.type === 'span' && textContent(node) === `${displayedHours}h`)
   assert.match(hours.props.className, /content-wrap min-w-0/)
   for (const node of values.filter((node) => node.type === 'p' && textContent(node) === longText)) assert.match(node.props.className, /content-wrap/)
   assert.equal(values.filter((node) => node.type === 'p' && textContent(node) === longText).length, 2)
@@ -334,10 +335,10 @@ test('TC-29-23 dialog respects custom autofocus, detached openers and the normal
 })
 
 test('TC-29-24 browser geometry verdict rejects the reviewed zero-width Project regression and accepts readable cards', () => {
-  const readable = { titleWidth: 616, titleHeight: 72, headerHeight: 152, cardWidth: 708, contentWidth: 708, hours: `${exactHours}h` }
-  assert.equal(checkWorkLogLayout([readable], [exactHours]).status, 'pass')
+  const readable = { titleWidth: 616, titleHeight: 72, headerHeight: 152, cardWidth: 708, contentWidth: 708, hours: `${displayedHours}h` }
+  assert.equal(checkWorkLogLayout([readable], [displayedHours]).status, 'pass')
   const reviewed = { ...readable, titleWidth: 0, titleHeight: 4464, headerHeight: 4512 }
-  const result = checkWorkLogLayout([reviewed], [exactHours])
+  const result = checkWorkLogLayout([reviewed], [displayedHours])
   assert.equal(result.status, 'fail')
   assert.ok(result.failures.includes('Card 1: Project identity collapsed'))
   const card = createComponentLoader({ react: { ...React, useState: () => [false, () => {}] } })('components/page/daily-work/work-log-card.tsx').WorkLogCard({ workLog: previewData('edge').workLogs[0], onClick() {} })

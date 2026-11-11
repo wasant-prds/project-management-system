@@ -569,7 +569,7 @@ test('TC-28-34 Daily Work summary uses skeletons while loading and never reports
   assert.equal((failed.match(/>—<\/span>/g) ?? []).length, 2)
   assert.doesNotMatch(failed, /data-slot="skeleton"|>0<\/span>/)
   const loaded = render({ totalHours: '12.50000000000000000001', totalLogs: 3 })
-  assert.match(loaded, /12\.50000000000000000001/)
+  assert.match(loaded, />12\.50<\/span>/)
 })
 
 test('TC-28-35 Daily Work keeps latest loading feedback rejects stale reads and exposes error with working retry', async () => {

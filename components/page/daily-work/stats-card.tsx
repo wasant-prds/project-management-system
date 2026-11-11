@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatDate } from "@/lib/utils"
 import { Skeleton } from '@/components/ui/skeleton'
+import { formatHours } from '@/lib/decimal-hours'
 
 type StatsCardProps = {
   totalHours: string
@@ -19,7 +20,7 @@ export function StatsCard({ totalHours, totalLogs, date, isLoading = false, unav
       <CardContent className="space-y-3">
         <div className="flex min-w-0 items-start justify-between gap-3">
           <span className="shrink-0 text-sm text-muted-foreground">ชั่วโมงรวม</span>
-          {isLoading ? <Skeleton aria-hidden="true" className="h-7 w-20" /> : <span key={totalHours} className="motion-value-change content-wrap min-w-0 text-right text-xl font-semibold tabular-nums">{unavailable ? '—' : totalHours}</span>}
+          {isLoading ? <Skeleton aria-hidden="true" className="h-7 w-20" /> : <span key={totalHours} className="motion-value-change content-wrap min-w-0 text-right text-xl font-semibold tabular-nums">{unavailable ? '—' : formatHours(totalHours)}</span>}
         </div>
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">รายการบันทึก</span>

@@ -9,6 +9,7 @@ import { PageState } from '@/components/layout/page-state'
 import type { DashboardFilters } from '@/lib/dashboard'
 import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion'
 import { MOTION_DURATION_MS } from '@/components/ui/motion'
+import { formatHours } from '@/lib/decimal-hours'
 
 type LoggedHoursPoint = { date: string; hours: string }
 
@@ -34,9 +35,9 @@ export function DashboardCharts({ data }: Readonly<{ data: LoggedHoursPoint[]; f
           minTickGap={18}
           tickFormatter={(date: string) => date.slice(5)}
         />
-        <YAxis {...CHART_AXIS_PROPS} width={36} />
+        <YAxis {...CHART_AXIS_PROPS} width={56} tickFormatter={formatHours} />
         <Tooltip
-          content={<ChartTooltipContent />}
+          content={<ChartTooltipContent valueFormatter={(_value, point) => formatHours((point as LoggedHoursPoint).hours)} />}
           labelFormatter={(date: string) => `วันที่ ${date}`}
         />
         <Bar

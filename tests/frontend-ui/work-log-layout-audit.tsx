@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { checkWorkLogLayout } from './work-log-layout-check.mjs'
 import { previewData } from './preview-fixtures.mjs'
+import { formatHours } from '@/lib/decimal-hours'
 
 /** Opt-in preview audit. Measures production DOM; never changes app layout or data. */
 export function WorkLogLayoutAudit() {
@@ -9,7 +10,7 @@ export function WorkLogLayoutAudit() {
   useEffect(() => {
     const root = document.getElementById('root')
     if (!root) return
-    const expectedHours = previewData(new URLSearchParams(window.location.search).get('qa')).workLogs.map((log: { hours: string }) => log.hours)
+    const expectedHours = previewData(new URLSearchParams(window.location.search).get('qa')).workLogs.map((log: { hours: string }) => formatHours(log.hours))
     let frame = 0
     const measure = () => {
       frame = 0

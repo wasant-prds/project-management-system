@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Clock } from 'lucide-react'
 import { SummaryStatCard } from '@/components/layout/summary-stat-card'
+import { formatHours } from '@/lib/decimal-hours'
 
 type LoggedHoursStatProps = {
   label: string
@@ -52,7 +53,7 @@ export function LoggedHoursStat({ label, startDate, endDate }: Readonly<LoggedHo
   }, [url])
 
   let value = '—'
-  if (state.status === 'ready') value = state.hours
+  if (state.status === 'ready') value = formatHours(state.hours)
   if (state.status === 'loading') value = '…'
 
   let hint = 'ชั่วโมงรวมทั้งหมด'

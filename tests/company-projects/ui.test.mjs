@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
+import { moduleLoader } from '../support/module-loader.mjs'
 
 const require = createRequire(import.meta.url)
 const ts = require('typescript')
@@ -61,6 +62,7 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
   const ui = Object.fromEntries(names.map((name) => [name, component(name)]))
   const routerCalls = []
   const mocks = {
+    '@/lib/decimal-hours': moduleLoader()('lib/decimal-hours.ts'),
     react: runtime,
     'react/jsx-runtime': {
       jsx: (type, props) => type?.renderInTest ? type(props) : ({ type, props }),

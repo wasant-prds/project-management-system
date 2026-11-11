@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { formatHours } from '@/lib/decimal-hours'
 import { Suspense } from 'react'
 import { AlertCircle, ArrowDownRight, CheckSquare, Clock3, ListTodo } from 'lucide-react'
 import { AppHeader } from '@/components/layout/app-header'
@@ -240,7 +241,7 @@ async function DashboardContent({ searchParams }: DashboardPageProps) {
                   <SummaryStatCard interactive label="Overdue" value={summary.overdue} valueClassName="text-danger" icon={<ArrowDownRight strokeWidth={ICON_STROKE} className="h-4 w-4 text-danger" />} hint={<span className="text-sm text-muted-foreground">ก่อนวันปัจจุบัน Bangkok</span>} />
                 </Link>
                 <Link href={dashboardDailyWorkHref(filters)} className="min-w-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <SummaryStatCard interactive label="Logged hours" value={<output aria-label={`Logged hours: ${summary.loggedHours}`}>{summary.loggedHours}</output>} icon={<Clock3 strokeWidth={ICON_STROKE} className="h-4 w-4 text-info" />} hint={<span className="text-sm text-muted-foreground">ผลรวม TimeEntry แบบ Decimal</span>} />
+                  <SummaryStatCard interactive label="Logged hours" value={<output aria-label={`Logged hours: ${formatHours(summary.loggedHours)}`}>{formatHours(summary.loggedHours)}</output>} icon={<Clock3 strokeWidth={ICON_STROKE} className="h-4 w-4 text-info" />} hint={<span className="text-sm text-muted-foreground">ผลรวม TimeEntry แบบ Decimal</span>} />
                 </Link>
               </div>
             </section>

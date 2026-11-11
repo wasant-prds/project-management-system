@@ -13,6 +13,7 @@ import type { AnalysisReport } from '@/lib/analysis-export'
 import { renderHoursChartDot } from './hours-chart-dot'
 import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion'
 import { MOTION_DURATION_MS } from '@/components/ui/motion'
+import { formatHours } from '@/lib/decimal-hours'
 
 type StatusChartPoint = { href: string; accessibleName: string }
 type StatusBarShapeProps = {
@@ -85,7 +86,7 @@ export function AnalysisHoursChart({ report }: Readonly<{ report: AnalysisReport
     label: shortPeriodLabel(row.startDate, row.endDate, report.meta.loggedHoursGrouping),
     plottedHours: Number(row.hours),
     href: analysisDailyWorkHref(sourceFilters, { startDate: row.startDate, endDate: row.endDate }),
-    accessibleName: `เปิด Daily Work ช่วง ${row.startDate} ถึง ${row.endDate} รวม ${row.hours} ชั่วโมง`,
+    accessibleName: `เปิด Daily Work ช่วง ${row.startDate} ถึง ${row.endDate} รวม ${formatHours(row.hours)} ชั่วโมง`,
   })), [report, sourceFilters])
   const seriesColor = chartColorVariable('secondary')
   const datasetKey = chartDatasetKey('analysis-hours', hoursChartData.length, hoursChartData[0]?.label ?? '', hoursChartData.at(-1)?.label ?? '')
@@ -99,8 +100,8 @@ export function AnalysisHoursChart({ report }: Readonly<{ report: AnalysisReport
       <LineChart data={hoursChartData} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
         <CartesianGrid {...CHART_GRID_PROPS} />
         <XAxis {...CHART_AXIS_PROPS} dataKey="label" minTickGap={16} />
-        <YAxis {...CHART_AXIS_PROPS} width={42} />
-        <Tooltip content={<ChartTooltipContent labelFormatter={(_label, payload) => {
+        <YAxis {...CHART_AXIS_PROPS} width={56} tickFormatter={formatHours} />
+        <Tooltip content={<ChartTooltipContent valueFormatter={(_value, point) => formatHours((point as { hours: string }).hours)} labelFormatter={(_label, payload) => {
           const point = payload?.[0]?.payload as { startDate?: string; endDate?: string } | undefined
           return point ? `${point.startDate} – ${point.endDate}` : ''
         }} />} />

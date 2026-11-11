@@ -15,6 +15,7 @@ import { DIALOG_SHELL_WIDE_CLASS } from "@/components/ui/responsive-dialog"
 import { WorkItemDescription } from "@/components/page/work-items/work-item-description"
 import { formatBangkokDateLabel } from "@/lib/bangkok-datetime"
 import { PageState } from '@/components/layout/page-state'
+import { formatHours } from '@/lib/decimal-hours'
 
 // Constants
 const DEFAULT_PROJECT_COLOR = "var(--project-accent)"
@@ -103,7 +104,7 @@ const generateCSVRow = (log: WorkLog): string => {
     log.workItem?.title || "",
     log.user.name,
     log.user.email,
-    log.hours.toString(),
+    formatHours(log.hours),
     formatBangkokDateLabel(log.date),
     log.description || "",
     log.remarks || "",
@@ -356,7 +357,7 @@ export function WorkLogList({
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-sm text-muted-foreground">Hours:</span>
                                 <Badge variant="secondary" className="font-semibold">
-                                  {log.hours}h
+                                  {formatHours(log.hours)}h
                                 </Badge>
                               </div>
                               <div className="text-xs text-muted-foreground">

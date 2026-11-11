@@ -75,3 +75,20 @@ export function sumDecimalHours(values: readonly string[]): string {
   )
   return formatDecimal({ units, scale })
 }
+
+/** Display hours with two decimal places, rounding only after exact calculations. */
+export function formatHours(value: string | number): string {
+  if (typeof value === 'number' && !Number.isFinite(value)) return '—'
+  const text = String(value).trim()
+  if (text.length > MAX_DECIMAL_INPUT_LENGTH) return '—'
+  const parsed = parseDecimal(text)
+  if (!parsed) return '—'
+
+  const negative = parsed.units < BigInt(0)
+  const magnitude = negative ? -parsed.units : parsed.units
+  const cents = parsed.scale > 2
+    ? (magnitude + powerOfTen(parsed.scale - 2) / BigInt(2)) / powerOfTen(parsed.scale - 2)
+    : magnitude * powerOfTen(2 - parsed.scale)
+  const digits = cents.toString().padStart(3, '0')
+  return `${negative && cents !== BigInt(0) ? '-' : ''}${digits.slice(0, -2)}.${digits.slice(-2)}`
+}

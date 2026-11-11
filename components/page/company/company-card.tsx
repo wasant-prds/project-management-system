@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { formatHours } from '@/lib/decimal-hours'
 import { Building2, MapPin, Phone } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -27,7 +28,7 @@ export function CompanyCard({ company, onEdit, onDelete }: Readonly<{ company: R
         <dl className="grid grid-cols-3 gap-3 border-y border-border/60 py-3">
           <div><dt className="text-xs text-muted-foreground">Projects</dt><dd className="mt-1 text-lg font-semibold tabular-nums">{company.summary.projects}</dd></div>
           <div><dt className="text-xs text-muted-foreground">Work Items</dt><dd className="mt-1 text-lg font-semibold tabular-nums">{company.summary.workItems}</dd></div>
-          <div className="min-w-0"><dt className="text-xs text-muted-foreground">ชั่วโมงจริง</dt><dd className="mt-1 break-all text-lg font-semibold tabular-nums">{company.summary.hours}</dd></div>
+          <div className="min-w-0"><dt className="text-xs text-muted-foreground">ชั่วโมงจริง</dt><dd className="mt-1 break-all text-lg font-semibold tabular-nums">{formatHours(company.summary.hours)}</dd></div>
         </dl>
         <div className="flex flex-wrap items-center justify-between gap-3">
           {company.summary.projects === 0 ? <p className="text-xs text-muted-foreground">ยังไม่มี Project</p> : <Link href={`/projects?companyId=${encodeURIComponent(company.id)}`} className="text-xs font-semibold text-link underline underline-offset-4">เปิด Projects ของ Company นี้ →</Link>}

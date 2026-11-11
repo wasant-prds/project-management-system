@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { CheckSquare, Clock, FileText, MessageSquareText, X } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import { WorkLog } from "./types"
+import { formatHours } from '@/lib/decimal-hours'
 
 type WorkLogCardProps = {
   workLog: WorkLog
@@ -68,7 +69,7 @@ export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
             )}
             <Badge variant="outline" className="min-w-0 max-w-full gap-1 whitespace-normal">
               <Clock className="h-3 w-3 shrink-0" />
-              <span className="content-wrap min-w-0 tabular-nums">{workLog.hours}h</span>
+              <span className="content-wrap min-w-0 tabular-nums">{formatHours(workLog.hours)}h</span>
             </Badge>
           </div>
         </div>

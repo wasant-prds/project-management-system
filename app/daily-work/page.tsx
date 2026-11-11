@@ -21,7 +21,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { toast } from "@/hooks/use-toast"
 import { dateOnlyToPickerDate, formatDate } from "@/lib/utils"
 import { bangkokCalendarPeriodRange, currentBangkokCalendarDate } from "@/lib/bangkok-datetime"
-import { parsePositiveDecimalHours, sumDecimalHours } from "@/lib/decimal-hours"
+import { formatHours, parsePositiveDecimalHours, sumDecimalHours } from "@/lib/decimal-hours"
 import { readWorkLogsResponse } from "@/lib/work-log-response"
 import { fetchCollection } from "@/lib/fetch-collection"
 import { dailyWorkHrefWithoutDashboardFilters } from "@/lib/dashboard-links"
@@ -193,7 +193,7 @@ export default function DailyWorkPage() {
       setFormData({
         description: workLog.description || "",
         remarks: workLog.remarks || "",
-        hours: workLog.hours.toString(),
+        hours: formatHours(workLog.hours),
         date: formatDate(workLog.date),
         projectId: workLog.project?.id || "",
         workItemId: workLog.workItem?.id || "",
@@ -207,7 +207,11 @@ export default function DailyWorkPage() {
   }, [date])
 
   const handleSubmit = useCallback(async () => {
-    const validationError = workLogFormError(formData)
+    // Editing another field must not overwrite precise stored hours with the rounded display.
+    const submission = selectedWorkLog && formData.hours === formatHours(selectedWorkLog.hours)
+      ? { ...formData, hours: selectedWorkLog.hours }
+      : formData
+    const validationError = workLogFormError(submission)
     if (validationError) {
       toast({
         title: "Validation Error",
@@ -220,7 +224,7 @@ export default function DailyWorkPage() {
     setIsLoading(true)
 
     try {
-      await saveWorkLog(formData, selectedWorkLog)
+      await saveWorkLog(submission, selectedWorkLog)
       toast({
         title: "Success",
         description: `Work log ${selectedWorkLog ? "updated" : "created"} successfully`,

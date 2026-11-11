@@ -1,4 +1,5 @@
 import type { getAnalysisSummary } from '@/lib/analysis'
+import { formatHours } from '@/lib/decimal-hours'
 
 export type AnalysisReport = Awaited<ReturnType<typeof getAnalysisSummary>>
 
@@ -28,13 +29,13 @@ export function generateAnalysisCsv(report: AnalysisReport) {
     ['metric', '', '', 'Completed Work Items', '', '', '', '', '', '', summary.completed, ''],
     ['metric', '', '', 'Overdue Work Items', '', '', '', '', '', '', summary.overdue, ''],
     ['metric', '', '', 'Completion rate (%)', '', '', '', '', '', '', summary.completionRate, ''],
-    ['metric', '', '', 'Logged hours', '', '', '', '', '', '', summary.loggedHours, ''],
+    ['metric', '', '', 'Logged hours', '', '', '', '', '', '', formatHours(summary.loggedHours), ''],
   )
   for (const [category, values] of Object.entries(breakdowns)) {
     for (const row of values) rows.push(['breakdown', '', '', row.value, '', '', category, '', '', '', row.count, ''])
   }
   for (const point of loggedHoursByPeriod) {
-    rows.push(['hours-period', point.startDate, '', '', '', '', '', '', '', '', point.hours, point.endDate])
+    rows.push(['hours-period', point.startDate, '', '', '', '', '', '', '', '', formatHours(point.hours), point.endDate])
   }
   for (const item of workItems) {
     rows.push([
@@ -47,7 +48,7 @@ export function generateAnalysisCsv(report: AnalysisReport) {
     rows.push([
       'daily-work', entry.date, entry.id, entry.workItem?.title ?? '',
       entry.workItem?.project.company?.displayName ?? entry.workItem?.project.company?.name ?? '',
-      entry.workItem?.project.name ?? '', '', '', '', '', entry.hours,
+      entry.workItem?.project.name ?? '', '', '', '', '', formatHours(entry.hours),
       [entry.description, entry.remarks].filter(Boolean).join(' · '),
     ])
   }

@@ -15,12 +15,13 @@ function report(titles = ['Review, phase "one"']) {
   }
 }
 
-test('Analysis export retains exact SQL decimals, public UUIDs and quoted Unicode/multiline text', () => {
+test('Analysis export formats hours to two decimals and retains public UUIDs and quoted Unicode/multiline text', () => {
   const csv = generateAnalysisCsv(report())
   assert.ok(csv.startsWith('\uFEFF"recordType","date","id"'))
   assert.ok(csv.includes('Review, phase ""one""'))
   assert.ok(csv.includes('line one\nline two · note'))
-  assert.ok(csv.includes('"0.000000000000000000000000000001"'))
+  assert.equal((csv.match(/"0\.00"/g) ?? []).length, 3)
+  assert.ok(!csv.includes('0.000000000000000000000000000001'))
   assert.ok(csv.includes('"บริษัท"'))
   assert.ok(csv.includes('"11111111-1111-4111-8111-111111111111"'))
 })

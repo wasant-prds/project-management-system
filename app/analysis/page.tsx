@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { formatHours } from '@/lib/decimal-hours'
 import { AnalysisChartsDeferred } from '@/components/page/analysis/analysis-charts-deferred'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 
@@ -316,7 +317,7 @@ export default function AnalysisPage() {
                   <SummaryStatCard label="Open" value={report.summary.open} />
                   <SummaryStatCard label="Completed" value={report.summary.completed} hint={<span className="text-xs text-muted-foreground">ไม่นับ Cancelled</span>} />
                   <SummaryStatCard label="Overdue" value={report.summary.overdue} />
-                  <SummaryStatCard label="Logged hours" value={<span className="break-all">{report.summary.loggedHours}</span>} hint={<span className="text-xs text-muted-foreground">ชั่วโมงจาก Daily Work</span>} />
+                  <SummaryStatCard label="Logged hours" value={<span className="break-all">{formatHours(report.summary.loggedHours)}</span>} hint={<span className="text-xs text-muted-foreground">ชั่วโมงจาก Daily Work</span>} />
                 </div>
 
                 <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
