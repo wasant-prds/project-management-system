@@ -13,6 +13,14 @@ const relations = sql`
     'company',jsonb_build_object('publicId',c.public_id,'name',c.name,'displayName',c.display_name)) AS project,
   CASE WHEN r.id IS NULL THEN NULL ELSE jsonb_build_object('provider',r.provider,'externalUrl',r.external_url,'externalIssueNumber',r.external_issue_number,'inScope',r.in_scope) END AS "externalReference"`
 export type WorkItemChanges = Partial<Omit<WorkItem, 'id' | 'publicId' | 'createdAt' | 'updatedAt'>>
+type WorkItemProjectSummary = {
+  id: bigint
+  publicId: string
+  name: string
+  recentActivity: Date
+  earliestDue: Date | null
+  latestDue: Date | null
+}
 const columns = (data: WorkItemChanges) => ({
   title: data.title,
   description: data.description,
@@ -40,6 +48,13 @@ export const workItems = {
     connection.rows<WorkItemView>(
       sql`SELECT ${workItemColumns},${relations} FROM work_items w ${workItemJoins} WHERE ${where} ORDER BY ${order} ${limit === undefined ? syntax('') : sql`LIMIT ${limit}`}`,
     ),
+  projectSummaries: (where: Sql, connection = database) =>
+    connection.rows<WorkItemProjectSummary>(sql`
+      SELECT p.id,p.public_id AS "publicId",p.name,MAX(w.updated_at) AS "recentActivity",
+        MIN(w.due_date) FILTER (WHERE w.status NOT IN ('completed','cancelled')) AS "earliestDue",
+        MAX(w.due_date) FILTER (WHERE w.status NOT IN ('completed','cancelled')) AS "latestDue"
+      FROM work_items w ${workItemJoins} WHERE ${where}
+      GROUP BY p.id,p.public_id,p.name`),
   count: async (where: Sql, connection = database) =>
     (await connection.one<{ count: number }>(
       sql`SELECT count(*)::int AS count FROM work_items w ${workItemJoins} WHERE ${where}`,

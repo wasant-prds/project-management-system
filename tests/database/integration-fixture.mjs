@@ -247,6 +247,10 @@ for (const query of [
   'openOnly=no',
   'overdue=no',
   'cursor=bad',
+  'groupBy=unknown',
+  'groupBy=project&sort=unknown',
+  'groupBy=project&limit=0',
+  'groupBy=project&limit=201',
   'startDate=2026-11-04',
   'startDate=2026-11-04&endDate=2026-11-03',
 ])
@@ -289,6 +293,97 @@ test('opaque pagination binds owner and filters, with complete counts before the
   publicOnly(first.body)
   publicOnly(second.body)
 })
+test('project pages return complete matching projects in batches of 2 then 5 with scoped opaque cursors', async () => {
+  const pagingCompany = await companies.create({ name: 'Disposable pagination fixture' })
+  const pagingProjects = []
+  try {
+    await admin.query("SELECT set_config('pms.preserve_source_timestamps','on',false)")
+    for (const number of [1, 2, 3, 4, 5, 6, 7, 8, 10]) {
+      const pagingProject = await projects.create({
+        name: `Paging Project ${number}`,
+        companyId: pagingCompany.id,
+        startDate: new Date('2026-01-01Z'),
+        dueDate: new Date('2026-12-31Z'),
+      })
+      pagingProjects.push(pagingProject)
+      await admin.query(`
+        INSERT INTO work_items(title,kind,status,project_id,assignee_id,work_date,due_date,updated_at)
+        SELECT 'Paging item ' || n,'Task',(CASE WHEN n=1 THEN 'completed' ELSE 'todo' END)::work_item_status,
+          $1,$2,'2026-11-04'::date,'2026-12-01'::date + $3::int,
+          '2026-11-20'::timestamp - $3::int * INTERVAL '1 day'
+        FROM generate_series(1,$4::int) n`,
+      [pagingProject.id.toString(), owner.internalId.toString(), number, number === 1 ? 225 : 2])
+      // A foreign owner's newer, earlier-due Issue must not affect either membership or ordering.
+      await admin.query(`
+        INSERT INTO work_items(title,kind,project_id,assignee_id,work_date,due_date,updated_at)
+        VALUES('Foreign paging item','Issue',$1,'9007199254740993','2026-11-04','2026-01-01','2027-01-01')`,
+      [pagingProject.id.toString()])
+    }
+    const base = `year=all&groupBy=project&companyId=${pagingCompany.publicId}`
+    const first = await call('work-items', 'GET', undefined, undefined, `?${base}`)
+    assert.equal(first.status, 200, JSON.stringify(first.body))
+    assert.equal(first.body.page.limit, 2)
+    assert.equal(first.body.workItems.length, 227)
+    assert.equal(first.body.summary.total, 241)
+    assert.ok(first.body.page.nextCursor)
+    assert.equal(first.body.workItems.filter((row) => row.project.id === pagingProjects[0].publicId).length, 225)
+    publicOnly(first.body)
+
+    const second = await call('work-items', 'GET', undefined, undefined,
+      `?${base}&limit=5&cursor=${encodeURIComponent(first.body.page.nextCursor)}`)
+    assert.equal(second.status, 200, JSON.stringify(second.body))
+    assert.equal(new Set(second.body.workItems.map((row) => row.project.id)).size, 5)
+    assert.equal(second.body.summary.total, 241)
+    assert.ok(second.body.page.nextCursor)
+    const third = await call('work-items', 'GET', undefined, undefined,
+      `?${base}&limit=5&cursor=${encodeURIComponent(second.body.page.nextCursor)}`)
+    assert.equal(third.status, 200, JSON.stringify(third.body))
+    assert.equal(new Set(third.body.workItems.map((row) => row.project.id)).size, 2)
+    assert.equal(third.body.page.nextCursor, null)
+    const all = [...first.body.workItems, ...second.body.workItems, ...third.body.workItems]
+    assert.equal(all.length, 241)
+    assert.equal(new Set(all.map((row) => row.id)).size, 241)
+    assert.ok(all.every((row) => row.title.startsWith('Paging item ')))
+    assert.deepEqual([...new Set(first.body.workItems.map((row) => row.project.id))].sort(),
+      pagingProjects.slice(0, 2).map((row) => row.publicId).sort())
+
+    for (const sort of ['recent-activity', 'due-asc', 'due-desc', 'project-title-asc', 'project-title-desc']) {
+      const result = await call('work-items', 'GET', undefined, undefined, `?${base}&sort=${sort}`)
+      assert.equal(result.status, 200, JSON.stringify(result.body))
+      const expected = sort === 'due-desc' || sort === 'project-title-desc'
+        ? pagingProjects.slice(-2) : pagingProjects.slice(0, 2)
+      assert.deepEqual([...new Set(result.body.workItems.map((row) => row.project.id))].sort(),
+        expected.map((row) => row.publicId).sort(), sort)
+    }
+    for (const [key, value] of [['sort', 'due-asc'], ['kind', 'Issue'], ['status', 'todo'], ['year', '2025'], ['companyId', company.publicId]]) {
+      const params = new URLSearchParams(base)
+      params.set(key, value)
+      params.set('cursor', first.body.page.nextCursor)
+      const result = await call('work-items', 'GET', undefined, undefined, `?${params}`)
+      assert.equal(result.status, 400)
+    }
+    const crossMode = await call('work-items', 'GET', undefined, undefined,
+      `?year=all&companyId=${pagingCompany.publicId}&cursor=${encodeURIComponent(first.body.page.nextCursor)}`)
+    assert.equal(crossMode.status, 400)
+    const filtered = await call('work-items', 'GET', undefined, undefined,
+      `?${base}&projectId=${pagingProjects[0].publicId}&status=todo`)
+    assert.equal(filtered.status, 200, JSON.stringify(filtered.body))
+    assert.equal(filtered.body.workItems.length, 224)
+    assert.equal(filtered.body.summary.total, 224)
+    assert.equal(filtered.body.page.nextCursor, null)
+    const empty = await call('work-items', 'GET', undefined, undefined, `?${base}&kind=Issue`)
+    assert.equal(empty.status, 200)
+    assert.equal(empty.body.workItems.length, 0)
+    assert.equal(empty.body.summary.total, 0)
+    assert.equal(empty.body.page.nextCursor, null)
+  } finally {
+    await admin.query("SELECT set_config('pms.preserve_source_timestamps','off',false)")
+    await admin.query('DELETE FROM work_items WHERE project_id IN (SELECT id FROM projects WHERE company_id=$1)', [pagingCompany.id.toString()])
+    await admin.query('DELETE FROM projects WHERE company_id=$1', [pagingCompany.id.toString()])
+    await admin.query('DELETE FROM companies WHERE id=$1', [pagingCompany.id.toString()])
+  }
+})
+
 test('WorkItem create owns server-generated UUIDs and PATCH stamps submittedAt once', async () => {
   const data = { title: 'Created via API', kind: 'Issue', projectId: project.publicId, status: 'sa-testing' }
   assert.equal((await call('work-items', 'POST', { ...data, id: randomUUID() })).status, 400)

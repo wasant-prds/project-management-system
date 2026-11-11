@@ -19,8 +19,16 @@ import { serializeWorkItem } from '@/lib/work-item-response'
 import { createHash } from 'node:crypto'
 import { encodeOpaqueCursor, decodeOpaqueCursor } from '@/lib/opaque-cursor'
 import { parsePublicId } from '@/lib/public-id'
+import {
+  compareWorkItemProjects,
+  DEFAULT_WORK_ITEM_SORT_MODE,
+  isWorkItemSortMode,
+  type WorkItemProjectSortKey,
+  type WorkItemSortMode,
+} from '@/lib/work-item-sort'
 
-type WorkItemCursor = { id: bigint; createdAt: Date }
+type WorkItemProjectCursor = { id: bigint; sortKey: WorkItemProjectSortKey }
+type WorkItemCursor = { id: bigint; createdAt: Date } | WorkItemProjectCursor
 type WorkItemListQuery = {
   ownerId: bigint
   ownerPublicId: string
@@ -32,6 +40,8 @@ type WorkItemListQuery = {
   endDate: string | null
   search: string
   includeYears: boolean
+  groupBy: 'project' | null
+  sort: WorkItemSortMode
   limit: number
   cursor: WorkItemCursor | null
   filterHash: string
@@ -43,6 +53,7 @@ type WorkItemListQueryResult =
   | { success: false; response: NextResponse }
 
 const DEFAULT_PAGE_LIMIT = 50
+const DEFAULT_PROJECT_PAGE_LIMIT = 2
 const MAX_PAGE_LIMIT = 200
 
 async function getAvailableYears(ownerId: bigint) {
@@ -215,8 +226,8 @@ async function periodFilter(yearParam: string, monthParam: string, ownerId: bigi
   return { clause, availableYears }
 }
 
-function parsePageLimit(value: string | null) {
-  if (value === null) return DEFAULT_PAGE_LIMIT
+function parsePageLimit(value: string | null, groupBy: 'project' | null) {
+  if (value === null) return groupBy === 'project' ? DEFAULT_PROJECT_PAGE_LIMIT : DEFAULT_PAGE_LIMIT
   if (!/^\d+$/.test(value)) return null
   const limit = Number(value)
   return limit >= 1 && limit <= MAX_PAGE_LIMIT ? limit : null
@@ -228,6 +239,8 @@ function workItemFilterHash(
   month: string,
   search: string,
   overdueAsOf: string | null,
+  groupBy: 'project' | null,
+  sort: WorkItemSortMode,
 ) {
   const filters = {
     year,
@@ -245,7 +258,7 @@ function workItemFilterHash(
     overdue: searchParams.get('overdue') ?? '',
     overdueAsOf: overdueAsOf ?? '',
     search,
-    order: 'createdAt-desc-id-desc',
+    order: groupBy === 'project' ? `project-${sort}-v1` : 'createdAt-desc-id-desc',
   }
   return createHash('sha256').update(JSON.stringify(filters)).digest('hex')
 }
@@ -263,15 +276,28 @@ function decodeCursor(
   value: string,
   ownerPublicId: string,
   expectedFilterHash: string,
+  groupBy: 'project' | null,
 ): WorkItemCursor | null {
   const decoded = decodeOpaqueCursor(value, { ownerPublicId, filterHash: expectedFilterHash })
   if (!decoded) return null
+  if (groupBy === 'project') {
+    try {
+      const key = JSON.parse(decoded.tieBreaker) as Partial<WorkItemProjectSortKey> | null
+      if (!key || !parsePublicId(key.publicId) || typeof key.name !== 'string') return null
+      if (typeof key.recentActivity !== 'number' || !Number.isFinite(key.recentActivity)) return null
+      const validDue = (value: unknown) => value === null || (typeof value === 'number' && Number.isSafeInteger(value))
+      if (!validDue(key.earliestDue) || !validDue(key.latestDue)) return null
+      return { id: decoded.internalId, sortKey: key as WorkItemProjectSortKey }
+    } catch {
+      return null
+    }
+  }
   const createdAt = new Date(decoded.tieBreaker)
   if (Number.isNaN(createdAt.getTime())) return null
   return { id: decoded.internalId, createdAt }
 }
 
-function cursorClause(cursor: WorkItemCursor): Sql {
+function cursorClause(cursor: { id: bigint; createdAt: Date }): Sql {
   return sql`(w.created_at,w.id)<(${cursor.createdAt},${cursor.id})`
 }
 
@@ -303,7 +329,15 @@ export function parseWorkItemListQuery(
   const monthParam = searchParams.get('month') ?? 'all'
   const search = searchParams.get('search')?.trim() ?? ''
   const includeYears = searchParams.get('includeYears') === 'true'
-  const limit = parsePageLimit(searchParams.get('limit'))
+  const groupBy = searchParams.get('groupBy')
+  if (groupBy !== null && groupBy !== 'project') {
+    return { success: false, response: validationResponse('Invalid groupBy', 'groupBy') }
+  }
+  const sort = searchParams.get('sort') ?? DEFAULT_WORK_ITEM_SORT_MODE
+  if (!isWorkItemSortMode(sort)) {
+    return { success: false, response: validationResponse('Invalid sort', 'sort') }
+  }
+  const limit = parsePageLimit(searchParams.get('limit'), groupBy)
 
   if (limit === null)
     return { success: false, response: validationResponse('limit must be between 1 and 200', 'limit') }
@@ -329,9 +363,9 @@ export function parseWorkItemListQuery(
     return { success: false, response: validationResponse(filters.error) }
   }
 
-  const filterHash = workItemFilterHash(searchParams, yearParam, monthParam, search, filters.overdueAsOf)
+  const filterHash = workItemFilterHash(searchParams, yearParam, monthParam, search, filters.overdueAsOf, groupBy, sort)
   const cursorParam = searchParams.get('cursor')
-  const cursor = cursorParam === null ? null : decodeCursor(cursorParam, ownerPublicId, filterHash)
+  const cursor = cursorParam === null ? null : decodeCursor(cursorParam, ownerPublicId, filterHash, groupBy)
   if (cursorParam !== null && !cursor) {
     return {
       success: false,
@@ -352,6 +386,8 @@ export function parseWorkItemListQuery(
       endDate,
       search,
       includeYears,
+      groupBy,
+      sort,
       limit,
       cursor,
       filterHash,
@@ -361,9 +397,54 @@ export function parseWorkItemListQuery(
   }
 }
 
+function dueSortValue(date: Date | null) {
+  return date ? Number(date.toISOString().slice(0, 10).replaceAll('-', '')) : null
+}
+
+async function queryWorkItemPage(
+  query: Pick<WorkItemListQuery, 'groupBy' | 'sort' | 'limit' | 'cursor' | 'ownerPublicId' | 'filterHash'>,
+  where: Sql,
+) {
+  const { groupBy, sort, limit, cursor, ownerPublicId, filterHash } = query
+  if (groupBy === 'project') {
+    // Rank lightweight summaries first; only load full rows for the selected projects.
+    const projects = (await workItems.projectSummaries(where)).map((project) => ({
+      id: project.id,
+      sortKey: {
+        publicId: project.publicId,
+        name: project.name,
+        recentActivity: project.recentActivity.getTime(),
+        earliestDue: dueSortValue(project.earliestDue),
+        latestDue: dueSortValue(project.latestDue),
+      },
+    }))
+    projects.sort((left, right) => compareWorkItemProjects(left.sortKey, right.sortKey, sort))
+    const remaining = cursor && 'sortKey' in cursor
+      ? projects.filter((project) => compareWorkItemProjects(project.sortKey, cursor.sortKey, sort) > 0)
+      : projects
+    const selected = remaining.slice(0, limit)
+    const last = selected[selected.length - 1]
+    const hasNextPage = remaining.length > limit
+    const nextCursor = hasNextPage && last
+      ? encodeOpaqueCursor({ ownerPublicId, filterHash, internalId: last.id, tieBreaker: JSON.stringify(last.sortKey) })
+      : null
+    if (hasNextPage && !nextCursor) throw new Error('Cursor secret unavailable')
+    const items = selected.length
+      ? await workItems.list(and(where, sql`w.project_id=ANY(${selected.map((project) => project.id)}::bigint[])`))
+      : []
+    return { items, nextCursor }
+  }
+  const pageWhere = and(where, cursor && 'createdAt' in cursor ? cursorClause(cursor) : null)
+  const rows = await workItems.list(pageWhere, undefined, limit + 1)
+  const items = rows.slice(0, limit)
+  const hasNextPage = rows.length > limit
+  const nextCursor = hasNextPage ? encodeCursor(items[items.length - 1], ownerPublicId, filterHash) : null
+  if (hasNextPage && !nextCursor) throw new Error('Cursor secret unavailable')
+  return { items, nextCursor }
+}
+
 export async function queryWorkItemList({
   ownerId,
-  ownerPublicId,
   projectPublicId,
   companyPublicId,
   yearParam,
@@ -373,10 +454,9 @@ export async function queryWorkItemList({
   search,
   includeYears,
   limit,
-  cursor,
-  filterHash,
   overdueAsOf,
   where,
+  ...pagination
 }: WorkItemListQuery) {
   if (projectPublicId) {
     const project = await projects.byPublicId(projectPublicId)
@@ -395,10 +475,9 @@ export async function queryWorkItemList({
       : await periodFilter(yearParam, monthParam, ownerId)
   const { clause, availableYears } = period
   const filteredWhere = and(where, clause, search ? searchClause(search) : null)
-  const pageWhere = and(filteredWhere, cursor ? cursorClause(cursor) : null)
   const todayStart = new Date(`${overdueAsOf ?? currentBangkokCalendarDate()}T00:00:00.000Z`)
-  const [rows, years, total, inProgress, completed, overdue, incident, issue, task] = await Promise.all([
-    workItems.list(pageWhere, undefined, limit + 1),
+  const [page, years, total, inProgress, completed, overdue, incident, issue, task] = await Promise.all([
+    queryWorkItemPage({ ...pagination, limit }, filteredWhere),
     shouldIncludeYears && !availableYears ? getAvailableYears(ownerId) : Promise.resolve(availableYears),
     workItems.count(filteredWhere),
     workItems.count(and(filteredWhere, sql`w.status='in-progress'`)),
@@ -410,16 +489,9 @@ export async function queryWorkItemList({
     workItems.count(and(filteredWhere, sql`w.kind='Issue'`)),
     workItems.count(and(filteredWhere, sql`w.kind='Task'`)),
   ])
-  const hasNextPage = rows.length > limit
-  const pageItems = rows.slice(0, limit)
-  const nextCursor = hasNextPage
-    ? encodeCursor(pageItems[pageItems.length - 1], ownerPublicId, filterHash)
-    : null
-  if (hasNextPage && !nextCursor) throw new Error('Cursor secret unavailable')
-
   return {
-    workItems: pageItems.map(serializeWorkItem),
-    page: { limit, nextCursor },
+    workItems: page.items.map(serializeWorkItem),
+    page: { limit, nextCursor: page.nextCursor },
     summary: {
       total,
       inProgress,

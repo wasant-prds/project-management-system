@@ -151,7 +151,8 @@ type WorkItemQueryOptions = {
   openOnly: boolean
   overdueOnly: boolean
   includeYears: boolean
-  page?: { limit?: number; cursor?: string | null }
+  sort?: WorkItemSortMode
+  page?: { groupBy?: 'project' | 'item'; limit?: number; cursor?: string | null }
 }
 
 function workItemQuery({
@@ -168,13 +169,19 @@ function workItemQuery({
   openOnly,
   overdueOnly,
   includeYears,
+  sort = 'recent-activity',
   page,
 }: WorkItemQueryOptions) {
   const params = new URLSearchParams({
     year: dateRange ? 'all' : year,
     month: dateRange ? 'all' : month,
   })
-  params.set('limit', String(page?.limit ?? 50))
+  const groupByProject = page?.groupBy !== 'item'
+  params.set('limit', String(page?.limit ?? (groupByProject ? 2 : 200)))
+  if (groupByProject) {
+    params.set('groupBy', 'project')
+    params.set('sort', sort)
+  }
   if (project !== 'all') params.set('projectId', project)
   if (company !== 'all') params.set('companyId', company)
   if (dateRange) {
@@ -415,9 +422,10 @@ export default function WorkItemsPage() {
       openOnly: dashboardOpenOnly,
       overdueOnly: dashboardOverdueOnly,
       includeYears: false,
+      sort: sortMode,
     })
     router.replace(`/work-items?${query}`, { scroll: false })
-  }, [router, projectFilter, companyFilter, searchQuery, statusFilter, priorityFilter, roleFilter, dashboardKindFilter, dashboardOpenOnly, dashboardOverdueOnly])
+  }, [router, projectFilter, companyFilter, searchQuery, statusFilter, priorityFilter, roleFilter, dashboardKindFilter, dashboardOpenOnly, dashboardOverdueOnly, sortMode])
 
   useEffect(() => {
     const params = new URLSearchParams(searchParamsValue)
@@ -435,6 +443,8 @@ export default function WorkItemsPage() {
     setDashboardDateRange(hasDateRange ? { startDate: startDate!, endDate: endDate! } : null)
     setDashboardOpenOnly(params.get('openOnly') === 'true')
     setDashboardOverdueOnly(params.get('overdue') === 'true')
+    const sort = params.get('sort')
+    if (sort && isWorkItemSortMode(sort)) setSortMode(sort)
 
     const year = params.get('year')
     const month = params.get('month')
@@ -497,6 +507,7 @@ export default function WorkItemsPage() {
       openOnly: dashboardOpenOnly,
       overdueOnly: dashboardOverdueOnly,
       search: debouncedSearchQuery,
+      sort: sortMode,
     })
     loadControllerRef.current?.abort()
     const controller = new AbortController()
@@ -524,6 +535,7 @@ export default function WorkItemsPage() {
         openOnly: dashboardOpenOnly,
         overdueOnly: dashboardOverdueOnly,
         includeYears: !yearOptionsLoadedRef.current,
+        sort: sortMode,
       })
       const response = await fetch(`/api/work-items?${query}`, { signal: controller.signal })
       const data = await response.json()
@@ -550,7 +562,7 @@ export default function WorkItemsPage() {
     } finally {
       if (generation === loadGenerationRef.current) setLoadingFilterKey(null)
     }
-  }, [yearFilter, monthFilter, projectFilter, companyFilter, dashboardDateRange, statusFilter, priorityFilter, roleFilter, dashboardKindFilter, dashboardOpenOnly, dashboardOverdueOnly, debouncedSearchQuery])
+  }, [yearFilter, monthFilter, projectFilter, companyFilter, dashboardDateRange, statusFilter, priorityFilter, roleFilter, dashboardKindFilter, dashboardOpenOnly, dashboardOverdueOnly, debouncedSearchQuery, sortMode])
 
   const refreshAfterMutation = useCallback(async () => {
     yearOptionsLoadedRef.current = false
@@ -576,7 +588,8 @@ export default function WorkItemsPage() {
         openOnly: dashboardOpenOnly,
         overdueOnly: dashboardOverdueOnly,
         includeYears: false,
-        page: { limit: 50, cursor: nextCursor },
+        sort: sortMode,
+        page: { limit: 5, cursor: nextCursor },
       })
       const response = await fetch(`/api/work-items?${query}`)
       const data = await response.json()
@@ -594,7 +607,7 @@ export default function WorkItemsPage() {
     } finally {
       if (generation === loadGenerationRef.current) setIsLoadingMore(false)
     }
-  }, [nextCursor, isLoadingMore, yearFilter, monthFilter, projectFilter, companyFilter, dashboardDateRange, debouncedSearchQuery, statusFilter, priorityFilter, roleFilter, dashboardKindFilter, dashboardOpenOnly, dashboardOverdueOnly])
+  }, [nextCursor, isLoadingMore, yearFilter, monthFilter, projectFilter, companyFilter, dashboardDateRange, debouncedSearchQuery, statusFilter, priorityFilter, roleFilter, dashboardKindFilter, dashboardOpenOnly, dashboardOverdueOnly, sortMode])
 
   useEffect(() => {
     if (dashboardFiltersReady) void load()
@@ -781,7 +794,7 @@ export default function WorkItemsPage() {
         openOnly: dashboardOpenOnly,
         overdueOnly: dashboardOverdueOnly,
         includeYears: false,
-        page: { limit: 200, cursor },
+        page: { groupBy: 'item', limit: 200, cursor },
       })
       return fetchWorkItemPage(query).then((data) => {
         allItems.push(...(data.workItems ?? []))
@@ -903,6 +916,7 @@ export default function WorkItemsPage() {
     openOnly: dashboardOpenOnly,
     overdueOnly: dashboardOverdueOnly,
     search: debouncedSearchQuery,
+    sort: sortMode,
   })
   const resultsAreCurrent = loadedFilterKey === filterKey
   const isListLoading = isWorkItemListLoading(loadedFilterKey, loadingFilterKey, filterKey, loadError)

@@ -7,17 +7,13 @@ import {
 import { currentBangkokCalendarDate } from '@/lib/bangkok-datetime'
 import { formatDisplayDate } from './work-item-presentation'
 import type { WorkItem } from './types'
-
-export const DEFAULT_WORK_ITEM_SORT_MODE = 'recent-activity' as const
-
-export const WORK_ITEM_SORT_MODES = [
-  'recent-activity',
-  'due-asc',
-  'due-desc',
-  'project-title-asc',
-  'project-title-desc',
-] as const
-export type WorkItemSortMode = (typeof WORK_ITEM_SORT_MODES)[number]
+import { compareWorkItemProjects, type WorkItemSortMode } from '@/lib/work-item-sort'
+export {
+  DEFAULT_WORK_ITEM_SORT_MODE,
+  WORK_ITEM_SORT_MODES,
+  isWorkItemSortMode,
+  type WorkItemSortMode,
+} from '@/lib/work-item-sort'
 
 export const WORK_ITEM_HOVER_SORT_MODES = [
   'due-asc',
@@ -73,13 +69,7 @@ const CSV_HEADER = [
 ].join(',')
 
 const EMPTY = '—'
-const SORT_MODE_SET: ReadonlySet<string> = new Set(WORK_ITEM_SORT_MODES)
-
 type DateParts = { y: number; m: number; d: number }
-
-export function isWorkItemSortMode(value: string): value is WorkItemSortMode {
-  return SORT_MODE_SET.has(value)
-}
 
 function compareText(left: string, right: string) {
   return left.localeCompare(right, undefined, { sensitivity: 'base', numeric: true })
@@ -238,35 +228,22 @@ function projectDueValue(items: WorkItem[], direction: 'asc' | 'desc'): number |
   return best
 }
 
-function compareProjectDue(left: WorkItem[], right: WorkItem[], direction: 'asc' | 'desc') {
-  const leftDue = projectDueValue(left, direction)
-  const rightDue = projectDueValue(right, direction)
-  if (leftDue === null && rightDue === null) return 0
-  if (leftDue === null) return 1
-  if (rightDue === null) return -1
-  return direction === 'asc' ? leftDue - rightDue : rightDue - leftDue
-}
-
 function compareProjectGroups(
   left: WorkItemProjectGroup,
   right: WorkItemProjectGroup,
   mode: WorkItemSortMode,
 ) {
-  if (mode === 'project-title-asc') return compareText(left.projectName, right.projectName)
-  if (mode === 'project-title-desc') return compareText(right.projectName, left.projectName)
-
-  const leftItems = flattenGroupItems(left)
-  const rightItems = flattenGroupItems(right)
-
-  if (mode === 'due-asc' || mode === 'due-desc') {
-    const dueDiff = compareProjectDue(leftItems, rightItems, mode === 'due-asc' ? 'asc' : 'desc')
-    if (dueDiff !== 0) return dueDiff
-    return compareText(left.projectName, right.projectName)
+  const sortKey = (group: WorkItemProjectGroup) => {
+    const items = flattenGroupItems(group)
+    return {
+      publicId: group.projectId,
+      name: group.projectName,
+      recentActivity: projectRecency(items),
+      earliestDue: projectDueValue(items, 'asc'),
+      latestDue: projectDueValue(items, 'desc'),
+    }
   }
-
-  const recency = projectRecency(rightItems) - projectRecency(leftItems)
-  if (recency !== 0) return recency
-  return compareText(left.projectName, right.projectName)
+  return compareWorkItemProjects(sortKey(left), sortKey(right), mode)
 }
 
 export function groupWorkItems(

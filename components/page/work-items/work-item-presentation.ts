@@ -31,6 +31,7 @@ type WorkItemFilterKeyInput = Readonly<{
   openOnly: boolean
   overdueOnly: boolean
   search: string
+  sort?: string
 }>
 
 export function createWorkItemFilterKey(filters: WorkItemFilterKeyInput): string {
@@ -48,6 +49,7 @@ export function createWorkItemFilterKey(filters: WorkItemFilterKeyInput): string
     filters.openOnly,
     filters.overdueOnly,
     filters.search.trim(),
+    filters.sort ?? 'recent-activity',
   ].join('|')
 }
 
