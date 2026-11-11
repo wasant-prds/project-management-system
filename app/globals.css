@@ -110,7 +110,7 @@
   --motion-fast: 160ms;
   --motion-standard: 260ms;
   --motion-slow: 420ms;
-  --motion-page: 180ms;
+  --motion-page: 240ms;
   --motion-overlay: 190ms;
   --motion-data: 340ms;
   --motion-skeleton: 1200ms;
@@ -691,30 +691,13 @@
 /* Page chrome remains outside the Work Items sticky tree. */
 @layer components {
   @keyframes pms-page-enter {
-    from { opacity: 0; }
+    from { opacity: 0.96; }
     to { opacity: 1; }
   }
-  @keyframes pms-content-enter {
-    from { opacity: 0; transform: translate3d(0, 0.7rem, 0) scale(0.982); }
-    to { opacity: 1; transform: none; }
-  }
-  @keyframes pms-cinematic-route {
-    from { opacity: 0; transform: translate3d(0, 0.85rem, 0) scale(0.985); }
-    to { opacity: 1; transform: none; }
-  }
-  @keyframes pms-value-change {
-    from { opacity: 0.45; transform: translate3d(0, 0.2em, 0) scale(0.985); }
-    to { opacity: 1; transform: none; }
-  }
-  @keyframes pms-value-fall {
-    from { opacity: 0.45; transform: translate3d(0, -0.2em, 0) scale(0.985); }
-    to { opacity: 1; transform: none; }
-  }
-  .motion-page-enter { animation: pms-page-enter var(--motion-page) var(--ease-enter) both; }
-  /* Opacity-only reveal keeps sticky headers and native scrolling in their own coordinate space. */
-  .motion-data-enter { animation: pms-page-enter var(--motion-fast) var(--ease-enter) both; }
-  .motion-content-enter { animation: pms-content-enter var(--motion-standard) var(--ease-enter) both; }
-  .motion-value-change { display: inline-block; animation: pms-value-change var(--motion-fast) var(--ease-standard) both; }
+  /* One near-opaque entrance per main. Chrome stays solid; async content never replays it.
+     Opacity only preserves sticky/fixed coordinates and releases the layer when finished. */
+  .motion-page-enter main:not([data-slot='sidebar-inset']) { animation: pms-page-enter var(--motion-page) var(--ease-enter); }
+  .motion-value-change { display: inline-block; }
   .motion-control {
     transition-property: color, background-color, border-color, box-shadow, transform, translate;
     transition-duration: var(--motion-fast);
@@ -739,7 +722,6 @@
     transform: translate3d(0, var(--shared-nav-y, 0), 0);
     transition: transform var(--motion-standard) var(--ease-spring), opacity var(--motion-fast) var(--ease-standard);
   }
-  .motion-active-nav-dot { animation: pms-content-enter var(--motion-fast) var(--ease-enter) both; }
   .motion-card {
     transition-property: translate, border-color, box-shadow;
     transition-duration: var(--motion-fast);
@@ -749,21 +731,9 @@
     transition: transform var(--motion-data) var(--ease-spring);
   }
   .motion-data-row { transition: background-color var(--motion-fast) var(--ease-standard); }
-  .motion-tab-content[data-state='active'] { animation: pms-content-enter var(--motion-fast) var(--ease-enter) both; }
-  .motion-skeleton { animation-duration: var(--motion-skeleton); animation-timing-function: var(--ease-standard); }
-  .motion-stagger > * {
-    animation-name: pms-content-enter;
-    animation-duration: var(--motion-standard);
-    animation-timing-function: var(--ease-enter);
-    animation-fill-mode: both;
-  }
-  .motion-stagger > :nth-child(1) { animation-delay: 0ms; }
-  .motion-stagger > :nth-child(2) { animation-delay: calc(var(--motion-stagger-step) * 1); }
-  .motion-stagger > :nth-child(3) { animation-delay: calc(var(--motion-stagger-step) * 2); }
-  .motion-stagger > :nth-child(4) { animation-delay: calc(var(--motion-stagger-step) * 3); }
-  .motion-stagger > :nth-child(5) { animation-delay: calc(var(--motion-stagger-step) * 4); }
+  .motion-tab-content[data-state='active'] { animation: pms-page-enter var(--motion-fast) var(--ease-enter); }
   @media (prefers-reduced-motion: reduce) {
-    .motion-page-enter,
+    .motion-page-enter main,
     .motion-data-enter,
     .motion-content-enter,
     .motion-value-change,
@@ -867,7 +837,7 @@ input[type='date'] { color-scheme: light; }
   [data-slot='sheet-content'][data-mobile='true'] { animation-duration: var(--motion-fast); }
 }
 
-/* Award-level spatial choreography. Desktop pointer effects stay off until the runtime sets a profile. */
+/* Restrained interaction feedback. Pointer effects stay off until the runtime sets a profile. */
 :root { --spatial-sheen: color-mix(in srgb, white 18%, transparent); }
 .dark, .special-dark { --spatial-sheen: color-mix(in srgb, white 10%, transparent); }
 
@@ -884,7 +854,7 @@ input[type='date'] { color-scheme: light; }
 .cinematic-topbar {
   background-color: color-mix(in srgb, var(--background) 88%, transparent);
   box-shadow: 0 1px 0 color-mix(in srgb, var(--border) 70%, transparent);
-  transition: background-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard), opacity var(--motion-overlay) var(--ease-enter);
+  transition: background-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard);
 }
 html[data-scroll-depth='raised'] .cinematic-topbar {
   background-color: color-mix(in srgb, var(--background) 96%, transparent);
@@ -925,29 +895,6 @@ html[data-scroll-depth='raised'] .cinematic-topbar {
 [data-slot='toast'][data-variant='destructive'] { box-shadow: var(--surface-shadow-floating), inset 3px 0 0 var(--danger); }
 
 @media (prefers-reduced-motion: no-preference) {
-  [data-metric-direction='fall'].motion-value-change { animation-name: pms-value-fall; }
-  .cinematic-settle > .page-toolbar {
-    animation: pms-cinematic-route var(--motion-standard) var(--ease-enter) both;
-    animation-delay: var(--choreography-header, 0ms);
-  }
-  .cinematic-chart,
-  .cinematic-beat-data {
-    animation: pms-content-enter var(--motion-slow) var(--ease-enter) both;
-    animation-delay: var(--choreography-data, 170ms);
-  }
-  .cinematic-modal [data-slot='dialog-header'],
-  .cinematic-modal [data-slot='alert-dialog-header'] {
-    animation: pms-content-enter var(--motion-standard) var(--ease-enter) both;
-    animation-delay: var(--choreography-primary, 40ms);
-  }
-  .cinematic-beat-support {
-    animation: pms-content-enter var(--motion-standard) var(--ease-enter) both;
-    animation-delay: var(--choreography-support, 100ms);
-  }
-  .cinematic-beat-actions {
-    animation: pms-content-enter var(--motion-standard) var(--ease-enter) both;
-    animation-delay: var(--choreography-actions, 230ms);
-  }
   [data-slot='button'].surface-soft {
     transition-timing-function: var(--ease-spring);
   }
@@ -963,62 +910,33 @@ html[data-scroll-depth='raised'] .cinematic-topbar {
     transition-timing-function: var(--ease-spring);
   }
 }
-@media (hover: hover) and (pointer: fine) and (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
-  @supports ((backdrop-filter: blur(8px)) or (-webkit-backdrop-filter: blur(8px))) {
-    .cinematic-overlay {
-      -webkit-backdrop-filter: blur(8px);
-      backdrop-filter: blur(8px);
-    }
-  }
-}
-html[data-motion-profile='touch'] .motion-stagger > :nth-child(n),
-html[data-motion-profile='touch'] .cinematic-settle > .page-toolbar,
-html[data-motion-profile='touch'] .cinematic-chart,
-html[data-motion-profile='touch'] .cinematic-beat-support,
-html[data-motion-profile='touch'] .cinematic-beat-data,
-html[data-motion-profile='touch'] .cinematic-beat-actions {
-  animation-duration: var(--motion-fast);
-  animation-delay: 0ms;
-}
-html[data-motion-profile='tablet'] .motion-stagger > :nth-child(n) {
-  animation-duration: var(--motion-fast);
-}
-html[data-route-transition='view'] .motion-page-enter,
-html[data-route-transition='view'] .motion-stagger > *,
-html[data-route-transition='view'] .cinematic-chart,
-html[data-route-transition='view'] .cinematic-beat-support,
-html[data-route-transition='view'] .cinematic-beat-data,
-html[data-route-transition='view'] .cinematic-beat-actions,
-html[data-route-transition='view'] .cinematic-settle > .page-toolbar {
-  animation: none !important;
-}
-@supports (view-transition-name: none) {
-  @media (prefers-reduced-motion: no-preference) {
-    html[data-motion-profile='desktop'] [data-shared-element='workspace'] { view-transition-name: var(--shared-workspace, pms-workspace); }
-    html[data-motion-profile='desktop'] .motion-shared-nav-indicator { view-transition-name: var(--shared-navigation, pms-nav-indicator); }
-    html[data-motion-profile='desktop'] .page-heading { view-transition-name: var(--shared-heading, pms-page-heading); }
-    html[data-motion-profile='desktop'] [data-shared-active='project'] { view-transition-name: var(--shared-project, pms-project); }
-  }
-}
-@media (prefers-reduced-motion: no-preference) {
-  html:has(.cinematic-overlay[data-state='open']) .cinematic-topbar,
-  html:has(.cinematic-overlay[data-state='open']) [data-slot='sidebar-container'] {
-    opacity: 0.78;
-  }
+/* A static scrim avoids full-screen backdrop repainting while inputs or menus update.
+   Only the scrim fades; the opaque modal surface settles without scaling its text. */
+@keyframes pms-overlay-enter { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pms-overlay-exit { from { opacity: 1; } to { opacity: 0; } }
+@keyframes pms-modal-enter { from { transform: translate3d(0, 4px, 0); } to { transform: none; } }
+@keyframes pms-modal-exit { from { opacity: 1; } to { opacity: 0; } }
+.cinematic-overlay {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 .cinematic-overlay[data-state='open'] {
-  background-color: color-mix(in srgb, var(--background) 22%, rgb(0 0 0 / 55%));
+  animation: pms-overlay-enter var(--motion-overlay) var(--ease-enter) both;
 }
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: var(--motion-page);
-  animation-timing-function: var(--ease-enter);
+.cinematic-overlay[data-state='closed'] {
+  animation: pms-overlay-exit var(--motion-fast) var(--ease-exit) both;
+}
+.cinematic-modal[data-state='open'] {
+  opacity: 1;
+  animation: pms-modal-enter var(--motion-overlay) var(--ease-enter);
+}
+.cinematic-modal[data-state='closed'] {
+  animation: pms-modal-exit var(--motion-fast) var(--ease-exit) both;
 }
 @media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(*),
-  ::view-transition-old(*),
-  ::view-transition-new(*) { animation: none !important; }
-  .cinematic-overlay { -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .cinematic-modal,
+  .cinematic-sheet,
+  .cinematic-overlay { animation: none !important; }
 }
 
 /* Identity rules stay in the components layer so utilities such as text-danger, hover:text-link and surface-inset can override them. */

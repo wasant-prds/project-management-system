@@ -11,7 +11,7 @@ import type { Calendar } from '@/components/ui/calendar'
 import type { WorkLogDialog } from './work-log-dialog'
 
 const loadCalendar = () => import('@/components/ui/calendar').then((module) => ({ default: module.Calendar }))
-const loadWorkLogDialog = () => import('./work-log-dialog').then((module) => ({ default: module.WorkLogDialog }))
+const loadWorkLogDialog = () => import('./work-log-dialog').then((module) => ({ default: module.WorkLogDialogBody }))
 
 export function DeferredCalendar(props: ComponentProps<typeof Calendar>) {
   return <RetryableLazy loader={loadCalendar} componentProps={props}
@@ -22,11 +22,10 @@ export function DeferredCalendar(props: ComponentProps<typeof Calendar>) {
     </div>} />
 }
 
-function DialogFeedback({ open, onOpenChange, retry }: Readonly<{
-  open: boolean; onOpenChange: (open: boolean) => void; retry?: () => void
+function DialogFeedback({ onOpenChange, retry }: Readonly<{
+  onOpenChange: (open: boolean) => void; retry?: () => void
 }>) {
-  return <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className={DIALOG_SHELL_WIDE_CLASS}>
+  return <>
       <DialogHeader className="px-6 pt-6">
         <DialogTitle>{retry ? 'โหลดแบบฟอร์มไม่สำเร็จ' : 'กำลังโหลดแบบฟอร์ม…'}</DialogTitle>
         <DialogDescription>รายการ Daily Work และข้อมูลที่กรอกไว้ยังคงอยู่</DialogDescription>
@@ -38,16 +37,20 @@ function DialogFeedback({ open, onOpenChange, retry }: Readonly<{
         <Button variant="outline" onClick={() => onOpenChange(false)}>ยกเลิก</Button>
         {retry && <Button onClick={retry}>ลองโหลดแบบฟอร์มอีกครั้ง</Button>}
       </DialogFooter>
-    </DialogContent>
-  </Dialog>
+  </>
 }
 
 export function DeferredWorkLogDialog(props: ComponentProps<typeof WorkLogDialog>) {
   const [hasOpened, setHasOpened] = useState(props.open)
   if (props.open && !hasOpened) setHasOpened(true)
-  // Load on first open, then retain the controlled Dialog so Radix can finish its exit animation.
+  // One portal, scrim and focus scope across loading, errors, retries and the form.
   if (!hasOpened && !props.open) return null
-  return <RetryableLazy loader={loadWorkLogDialog} componentProps={props}
-    loading={<DialogFeedback open={props.open} onOpenChange={props.onOpenChange} />}
-    error={(retry) => <DialogFeedback open={props.open} onOpenChange={props.onOpenChange} retry={retry} />} />
+  if (props.mode === 'view' && !props.workLog) return null
+  return <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+    <DialogContent className={DIALOG_SHELL_WIDE_CLASS}>
+      <RetryableLazy loader={loadWorkLogDialog} componentProps={props}
+        loading={<DialogFeedback onOpenChange={props.onOpenChange} />}
+        error={(retry) => <DialogFeedback onOpenChange={props.onOpenChange} retry={retry} />} />
+    </DialogContent>
+  </Dialog>
 }

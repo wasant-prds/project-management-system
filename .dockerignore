@@ -21,6 +21,7 @@ build
 # Testing
 coverage
 .nyc_output
+artifacts
 
 # IDEs
 .vscode

@@ -1,4 +1,4 @@
-/** Award-level spatial motion. Pure decisions stay independent of React and the DOM. */
+/** Shared interaction decisions, independent of React and the DOM. */
 
 export const SPATIAL_LEVEL = Object.freeze({
   background: 0,
@@ -10,36 +10,7 @@ export const SPATIAL_LEVEL = Object.freeze({
   modal: 6,
 })
 
-export const CHOREOGRAPHY_DELAY_MS = Object.freeze({
-  header: 0,
-  primary: 40,
-  support: 100,
-  data: 170,
-  actions: 230,
-})
-
-export const SHARED_ELEMENT = Object.freeze({
-  workspace: 'pms-workspace',
-  navigation: 'pms-nav-indicator',
-  heading: 'pms-page-heading',
-  project: 'pms-project',
-})
-
-/** Backstop so a missed navigation cannot suppress painting. */
-export const ROUTE_TRANSITION_TIMEOUT_MS = 240
-
 export const SCROLL_RAISED_PX = 12
-
-export const ENTRANCE_SELECTOR = [
-  '[data-cinematic="route"]',
-  '.cinematic-settle > .page-toolbar',
-  '.cinematic-chart',
-  '.cinematic-beat-support',
-  '.cinematic-beat-data',
-  '.cinematic-beat-actions',
-].join(', ')
-
-const PUBLIC_PROJECT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const MAGNETIC_MAX_PX = 4
 
@@ -49,26 +20,6 @@ export type EffectBudget = {
   pointer: boolean
   magnetic: boolean
   blur: boolean
-  choreography: boolean
-  routeTransition: boolean
-}
-
-export type RouteClickInput = {
-  button: number
-  metaKey: boolean
-  ctrlKey: boolean
-  shiftKey: boolean
-  altKey: boolean
-  profile: MotionProfile
-  viewTransitionSupported: boolean
-  currentOrigin: string
-  targetOrigin: string | null
-  targetPath: string | null
-  targetSearch: string
-  currentPath: string
-  currentSearch: string
-  linkTarget: string | null
-  hasDownload: boolean
 }
 
 export type SpatialRect = {
@@ -90,10 +41,6 @@ export type PointerSample = {
   clientX: number
   clientY: number
   target: SpatialTarget | null
-}
-
-type RouteTransitionHandle = {
-  finished: Promise<void>
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -120,53 +67,15 @@ export function resolveMotionProfile(input: {
 
 export function effectBudget(profile: MotionProfile): EffectBudget {
   if (profile === 'desktop') {
-    return { pointer: true, magnetic: true, blur: true, choreography: true, routeTransition: true }
+    return { pointer: true, magnetic: true, blur: false }
   }
   if (profile === 'tablet') {
-    return { pointer: false, magnetic: false, blur: false, choreography: true, routeTransition: false }
+    return { pointer: false, magnetic: false, blur: false }
   }
   if (profile === 'touch') {
-    return { pointer: false, magnetic: false, blur: false, choreography: true, routeTransition: false }
+    return { pointer: false, magnetic: false, blur: false }
   }
-  return { pointer: false, magnetic: false, blur: false, choreography: false, routeTransition: false }
-}
-
-export function motionFallback(viewTransitionSupported: boolean, profile: MotionProfile): 'view-transition' | 'css' | 'reduced' {
-  if (profile === 'reduced') return 'reduced'
-  if (viewTransitionSupported && effectBudget(profile).routeTransition) return 'view-transition'
-  return 'css'
-}
-
-export function choreographyDelay(beat: keyof typeof CHOREOGRAPHY_DELAY_MS) {
-  return CHOREOGRAPHY_DELAY_MS[beat]
-}
-
-export function applyCinematicTokens(setProperty: (name: string, value: string) => void) {
-  for (const beat of Object.keys(CHOREOGRAPHY_DELAY_MS) as Array<keyof typeof CHOREOGRAPHY_DELAY_MS>) {
-    setProperty(`--choreography-${beat}`, `${choreographyDelay(beat)}ms`)
-  }
-  for (const [name, level] of Object.entries(SPATIAL_LEVEL)) {
-    setProperty(`--spatial-level-${name}`, String(level))
-  }
-  setProperty('--shared-workspace', SHARED_ELEMENT.workspace)
-  setProperty('--shared-navigation', SHARED_ELEMENT.navigation)
-  setProperty('--shared-heading', SHARED_ELEMENT.heading)
-  setProperty('--shared-project', SHARED_ELEMENT.project)
-}
-
-export function holdEntranceMotion(element: { style: { setProperty: (name: string, value: string) => void } }) {
-  element.style.setProperty('animation', 'none')
-}
-
-export function sharedProjectId(value: string | null | undefined) {
-  if (!value || !PUBLIC_PROJECT_ID.test(value)) return null
-  return value.toLowerCase()
-}
-
-export function activateSharedProjectHeading(sharedId: string | null | undefined, headingId: string | null | undefined) {
-  const expected = sharedProjectId(sharedId)
-  const actual = sharedProjectId(headingId)
-  return Boolean(expected && actual && expected === actual)
+  return { pointer: false, magnetic: false, blur: false }
 }
 
 export function scrollDepth(scrollTop: number): 'raised' | 'rest' {
@@ -232,28 +141,6 @@ export function formatMagneticUnit(value: number) {
   return `${rounded(value)}px`
 }
 
-function isPlainPrimaryClick(input: RouteClickInput) {
-  // Capture-phase listeners run before React marks the click prevented, so defaultPrevented is not a usable signal here.
-  if (input.button !== 0) return false
-  if (input.metaKey || input.ctrlKey || input.shiftKey || input.altKey) return false
-  if (input.hasDownload) return false
-  if (input.linkTarget && input.linkTarget !== '_self') return false
-  return true
-}
-
-function isDifferentSameOriginRoute(input: RouteClickInput) {
-  if (!input.targetOrigin || input.targetOrigin !== input.currentOrigin) return false
-  if (!input.targetPath) return false
-  if (input.targetPath === input.currentPath && input.targetSearch === input.currentSearch) return false
-  return true
-}
-
-export function shouldStartRouteTransition(input: RouteClickInput) {
-  if (motionFallback(input.viewTransitionSupported, input.profile) !== 'view-transition') return false
-  if (!isPlainPrimaryClick(input)) return false
-  return isDifferentSameOriginRoute(input)
-}
-
 export function createPointerController(
   schedule: (flush: () => void) => number,
   cancel: (id: number) => void,
@@ -303,47 +190,6 @@ export function createPointerController(
       }
       if (active) active.clear()
       active = null
-    },
-  }
-}
-
-export function createRouteTransitionSession(
-  start: (update: () => Promise<void>) => RouteTransitionHandle,
-) {
-  let pending = false
-
-  return {
-    begin(arm: (finish: () => void) => () => void, settle: () => void) {
-      if (pending) return false
-      pending = true
-      let stop = () => {}
-      try {
-        const transition = start(() => new Promise<void>((resolve) => {
-          let settled = false
-          const finish = () => {
-            if (settled) return
-            settled = true
-            stop()
-            resolve()
-          }
-          stop = arm(finish)
-        }))
-        transition.finished.then(() => {
-          pending = false
-          settle()
-        }, () => {
-          pending = false
-          settle()
-        })
-        return true
-      } catch {
-        pending = false
-        stop()
-        return false
-      }
-    },
-    isPending() {
-      return pending
     },
   }
 }

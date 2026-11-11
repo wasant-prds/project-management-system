@@ -76,7 +76,7 @@ test('TC-28-03 entrance choreography animates compositor properties and is disab
   styles.walkAtRules('keyframes', (rule) => {
     if (rule.params === 'pms-page-enter' || rule.params === 'pms-content-enter') pageFrames.push(rule)
   })
-  assert.equal(pageFrames.length, 2)
+  assert.equal(pageFrames.length, 1)
   for (const frame of pageFrames) {
     frame.walkDecls((declaration) => assert.ok(['opacity', 'transform'].includes(declaration.prop), declaration.prop))
   }
@@ -328,21 +328,26 @@ test('TC-28-16 route motion preserves viewport positioning and content releases 
   })
 })
 
-test('TC-28-17 compiled stagger preserves bounded delays instead of resetting them with a shorthand', async () => {
+test('TC-28-17 async data, nested cards and modal headers have no secondary entrance', async () => {
   const styles = await compiledStyles
-  const delays = []
-  let hasEntrance = false
+  const legacyEntrances = [
+    '.motion-data-enter', '.motion-content-enter', '.motion-stagger >',
+    '.cinematic-settle > .page-toolbar', '.cinematic-chart', '.cinematic-beat-',
+    ".cinematic-modal [data-slot='dialog-header']",
+  ]
   styles.walkRules((rule) => {
-    if (!rule.selector.startsWith('.motion-stagger >')) return
-    rule.walkDecls((declaration) => {
-      assert.notEqual(declaration.prop, 'animation', 'shorthand would reset per-child delays')
-      if (declaration.prop === 'animation-name') hasEntrance = declaration.value === 'pms-content-enter'
-      if (declaration.prop === 'animation-delay') delays.push(declaration.value)
-    })
+    if (!legacyEntrances.some((selector) => rule.selector.includes(selector))) return
+    for (const name of ['animation', 'animation-name']) {
+      const value = declaration(rule, name)
+      if (value !== undefined) assert.equal(value, 'none', rule.selector)
+    }
   })
-  assert.equal(hasEntrance, true)
-  assert.deepEqual(delays, ['0ms', ...[1, 2, 3, 4].map((step) => `calc(var(--motion-stagger-step) * ${step})`)])
-  assert.ok(MOTION_DURATION_MS.staggerStep * 4 <= 100)
+  const route = matchingRules(styles, ".motion-page-enter main:not([data-slot='sidebar-inset'])").find((rule) => declaration(rule, 'animation')?.startsWith('pms-page-enter'))
+  assert.ok(route)
+  assert.doesNotMatch(declaration(route, 'animation'), /both|forwards/)
+  const frame = styles.nodes.flatMap((node) => node.nodes ?? []).find((node) => node.type === 'atrule' && node.name === 'keyframes' && node.params === 'pms-page-enter')
+  assert.ok(frame)
+  frame.walkDecls('opacity', (decl) => assert.ok(Number(decl.value) >= 0.96, 'content must never fade to blank'))
 })
 
 test('TC-28-18 exact formatted KPI feedback changes keys while integer counters retain their component', async () => {
@@ -375,11 +380,10 @@ test('TC-28-25 Board loading preserves status columns with decorative cards and 
   assert.match(source('../../app/work-items/page.tsx'), /PageState kind="loading" title="กำลังโหลด Work Items…" loadingLayout="rows"/)
 })
 
-test('TC-28-26 data and expanded group reveals preserve sticky positioning and reduced-motion behavior', async () => {
+test('TC-28-26 data and expanded groups stay visible without replaying route motion', async () => {
   const styles = await compiledStyles
-  const entrance = matchingRules(styles, '.motion-data-enter').find((rule) => declaration(rule, 'animation'))
-  assert.match(declaration(entrance, 'animation'), /^pms-page-enter var\(--motion-fast\)/)
-  assert.equal(declaration(entrance, 'transform'), undefined)
+  const entrances = matchingRules(styles, '.motion-data-enter').map((rule) => declaration(rule, 'animation')).filter(Boolean)
+  assert.ok(entrances.every((value) => value.startsWith('none')))
   let disabled = false
   styles.walkAtRules('media', (rule) => {
     if (rule.params.includes('prefers-reduced-motion: reduce') && rule.toString().includes('.motion-data-enter') && rule.toString().includes('animation: none')) disabled = true
@@ -683,4 +687,10 @@ test('TC-28-10 motion unit cases have a reusable isolated suite command and tree
   assert.equal(packageJson.scripts['test:frontend-motion'], 'node tests/run.mjs frontend-motion')
   assert.match(runner, /"frontend-motion": \{ files: \[join\(testRoot, "frontend-ui", "motion-system\.test\.mjs"\)\] \}/)
   assert.match(testingGuide, /pnpm test:frontend-motion[\s\S]*bash scripts\/test-unit\.sh frontend-motion/)
+})
+
+test('TC-28-36 loading placeholders remain static instead of pulsing independently', () => {
+  const { Skeleton } = load('components/ui/skeleton.tsx')
+  const html = renderToStaticMarkup(React.createElement(Skeleton))
+  assert.doesNotMatch(html, /animate-pulse|animate-spin/)
 })

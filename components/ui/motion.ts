@@ -4,7 +4,7 @@ export const MOTION_DURATION_MS = Object.freeze({
   fast: 160,
   standard: 260,
   slow: 420,
-  page: 180,
+  page: 240,
   overlay: 190,
   chart: 340,
   skeleton: 1200,

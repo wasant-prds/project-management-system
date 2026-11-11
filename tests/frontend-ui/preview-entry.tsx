@@ -11,6 +11,7 @@ import ProjectDetail from '@/app/projects/[id]/page'
 import { Toaster } from '@/components/ui/toaster'
 import { ThemeProvider } from 'next-themes'
 import Template from '@/app/template'
+import { CinematicRuntime } from '@/components/layout/cinematic-runtime'
 import NotFoundPage from '@/app/not-found'
 import ErrorPage from '@/app/error'
 import { WorkLogLayoutAudit } from './work-log-layout-audit'
@@ -31,6 +32,7 @@ if (route === '/qa/not-found') {
 }
 if (root) createRoot(root).render(
   <ThemeProvider attribute="class" defaultTheme="light" forcedTheme={new URLSearchParams(window.location.search).get('themeSwitch') === '1' ? undefined : theme} themes={['light', 'dark', 'special-dark']}>
+    <CinematicRuntime />
     <Template>{pageContent}</Template>
     {route === '/daily-work' && new URLSearchParams(window.location.search).get('layoutCheck') === '1' && <WorkLogLayoutAudit />}
     <Toaster />

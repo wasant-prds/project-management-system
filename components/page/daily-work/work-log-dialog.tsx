@@ -282,7 +282,8 @@ function useProjectWorkItems(open: boolean, projectId: string, enabled: boolean)
   return { projectWorkItems, loadingWorkItems }
 }
 
-export function WorkLogDialog({
+/** Lazy form body; the caller keeps the dialog surface mounted while this chunk loads. */
+export function WorkLogDialogBody({
   open,
   onOpenChange,
   mode,
@@ -346,8 +347,7 @@ export function WorkLogDialog({
     : projectWorkItems.find((item) => item.id === formData?.workItemId)
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={DIALOG_SHELL_WIDE_CLASS}>
+    <>
         {isViewMode && workLog?.project ? (
           <div className="shrink-0">
             <ProjectIdentity name={workLog.project.name} color={workLog.project.colorProject} size="md" />
@@ -499,7 +499,15 @@ export function WorkLogDialog({
             onSubmit={onSubmit}
           />
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    </>
   )
+}
+
+export function WorkLogDialog(props: Readonly<WorkLogDialogProps>) {
+  if (props.mode === 'view' && !props.workLog) return null
+  return <Dialog open={props.open} onOpenChange={props.onOpenChange}>
+    <DialogContent className={DIALOG_SHELL_WIDE_CLASS}>
+      <WorkLogDialogBody {...props} />
+    </DialogContent>
+  </Dialog>
 }

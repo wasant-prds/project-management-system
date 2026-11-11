@@ -41,6 +41,10 @@ python -B -m unittest discover -s scripts/tests -p "test_github_*.py" -v
 
 Unit tests ไม่แทน browser review หรือ deployment. การใช้ token จริง/ฐานจริงเป็นงานแยกที่ต้องได้รับอนุญาต
 
+ตรวจ motion ใน browser ด้วย `pnpm performance:preview` แล้วรัน `pnpm test:frontend-motion-browser` ในอีก terminal (ต้องมี Playwright หรือกำหนด `PMS_PLAYWRIGHT_MODULE`). ใช้ synthetic preview บน loopback เท่านั้น; `PMS_PREVIEW_ORIGIN` เปลี่ยน origin ได้. ตรวจทุกเมนู สามธีม มือถือ/desktop, reduced motion, โหลดช้า, refresh/แท็บ และ dialog; รายงานกับภาพอยู่ใน `artifacts/frontend-motion/`. Preview นี้ใช้ components จริง แต่ไม่จำลอง Next.js client navigation หรือเชื่อมฐานข้อมูล
+
+`pnpm test:frontend-modal-browser` ตรวจ modal ต่อเนื่องทีละเฟรม: หน่วง chunk ของ Daily Work, เปรียบเทียบตัวกรอบ/overlay ก่อนและหลังโหลด, พิมพ์ฟอร์ม เปิด Project/Status/ปฏิทิน และเปิดซ้ำ รวมถึง Work Item, Board detail, Company alert และ mobile sidebar. ตรวจว่าไม่มี remount, ช่วงที่กรอบหาย, opacity ตกซ้ำ, backdrop blur หรือกรอบขยับหลังจังหวะเปิดจบ. ใช้ preview และตัวแปร Playwright/origin เดียวกัน; ผลอยู่ใน `artifacts/frontend-modal/`
+
 ## คำสั่งเฉพาะ suite
 
 - `pnpm test:contracts` / `node tests/run.mjs contracts` / `bash scripts/test-unit.sh contracts`

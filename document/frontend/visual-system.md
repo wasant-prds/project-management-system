@@ -28,7 +28,11 @@ Root layout โหลด `GeistSans` และ `GeistMono`; Tailwind `font-sans`
 
 ## Motion และ keyboard
 
-Feedback transitions ของ controls ใช้เวลาสั้น (เช่น button/card 150 ms); active translate ทำงานเฉพาะเมื่อระบบไม่ได้เปิด reduced motion. Global CSS ปิด transition/animation ที่ไม่จำเป็นเมื่อ `prefers-reduced-motion: reduce`. Dashboard และ Analysis อ่าน preference ผ่าน [usePrefersReducedMotion](../../hooks/use-prefers-reduced-motion.ts) แล้วปิด Recharts animation เมื่อผู้ใช้ร้องขอ
+การเปิดหน้าใช้จังหวะเดียวบนเนื้อหา `main` ภายใน shell: opacity 0.96 → 1 ใน 240 ms โดยไม่เลื่อนหรือย่อหน้า ส่วน sidebar และ header คงที่ ไม่มีการจับภาพทั้งหน้าด้วย View Transition API. ส่วนหัว การ์ด รายการข้อมูล และกรอบกราฟไม่เล่น entrance ซ้อนหรือไล่ stagger เมื่อโหลดข้อมูลสำเร็จ; skeleton เป็นพื้นผิวคงที่ ไม่ pulse
+
+Dialog และ AlertDialog ใช้กรอบทึบที่เลื่อนเข้าระยะ 4 px โดยไม่ zoom หรือเฟดข้อความ และปล่อย transform เมื่อจบ ฉากหลังเป็น scrim ที่เฟดครั้งเดียว ไม่มี backdrop blur เต็มจอหรือการหรี่ header/sidebar ซ้ำอีกชั้น. Daily Work คง Dialog, portal, overlay และ focus scope เดิมขณะ lazy-load ฟอร์ม แสดง error และ retry โดยเปลี่ยนเฉพาะเนื้อหาภายใน; ไม่สร้าง modal ใหม่แทนกรอบรอโหลด. Reduced motion ปิด entrance/exit ของ dialog, overlay และ sheet
+
+Feedback transitions ของ controls ใช้เวลา 160 ms; dialog/dropdown ใช้ 190 ms. แท็บเปลี่ยนเนื้อหาด้วย opacity 0.96 → 1 ใน 160 ms และ KPI แสดงค่าจริงตั้งแต่แรก โดยจำนวนเต็ม interpolate เฉพาะเมื่อค่าเปลี่ยน. Active translate ทำงานเฉพาะเมื่อระบบไม่ได้เปิด reduced motion. Global CSS ปิด transition/animation ที่ไม่จำเป็นเมื่อ `prefers-reduced-motion: reduce`. Dashboard และ Analysis อ่าน preference ผ่าน [usePrefersReducedMotion](../../hooks/use-prefers-reduced-motion.ts) แล้วปิด Recharts animation เมื่อผู้ใช้ร้องขอ
 
 Actions บน Daily Work card สำหรับเปิดรายละเอียดและ Remarks ใช้ native `<button>` จึงรองรับ keyboard activation ตาม semantics ของ HTML. ปุ่มและ controls ส่วนกลางยังคง focus ring ที่มองเห็นได้; state ของ validation และ selected tab ยังคงระบุด้วย border/color ร่วมกับพื้นผิว ดู [Daily Work card](../../components/page/daily-work/work-log-card.tsx).
 
