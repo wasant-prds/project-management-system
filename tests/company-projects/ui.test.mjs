@@ -63,6 +63,7 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
   const routerCalls = []
   const mocks = {
     '@/lib/decimal-hours': moduleLoader()('lib/decimal-hours.ts'),
+    '@/lib/display-date': moduleLoader()('lib/display-date.ts'),
     react: runtime,
     'react/jsx-runtime': {
       jsx: (type, props) => type?.renderInTest ? type(props) : ({ type, props }),

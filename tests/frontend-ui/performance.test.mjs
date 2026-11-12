@@ -79,7 +79,10 @@ test('TC-30-06 each report table renders at most 50 rows while CSV retains all f
   const report = structuredClone(previewData().analysis)
   report.workItems = Array.from({ length: 123 }, (_, index) => ({ ...report.workItems[0], id: `work-${index}`, title: `Title-${index}` }))
   report.timeEntries = Array.from({ length: 123 }, (_, index) => ({ ...report.timeEntries[0], id: `time-${index}`, hours: '0.123456789012345678901234567890' }))
-  report.loggedHoursByPeriod = Array.from({ length: 123 }, (_, index) => ({ ...report.loggedHoursByPeriod[0], startDate: `period-${index}` }))
+  report.loggedHoursByPeriod = Array.from({ length: 123 }, (_, index) => {
+    const date = new Date(Date.UTC(2026, 0, index + 1)).toISOString().slice(0, 10)
+    return { ...report.loggedHoursByPeriod[0], startDate: date, endDate: date }
+  })
   const tables = load('components/page/analysis/report-tables.tsx')
   for (const name of ['WorkItemsTable', 'DailyWorkTable', 'HoursPeriodTable']) {
     const html = renderToStaticMarkup(React.createElement(tables[name], { report }))

@@ -147,17 +147,14 @@ test("target contracts preserve shared enums, relations, status writes, and metr
   assert.match(api, /`period`, `timezone`, `filters` และ `metricVersion`/);
 });
 
-test("target timestamps use the issue's +07:00 API contract and Bangkok persistence policy", async () => {
-  const issue = await read("design/projects/project-management-system/work_items/13_sa_menu-api-validation-contracts.md");
-  const checklist = await read("design/projects/project-management-system/work_items/00_checklist.md");
+test("target timestamps use the versioned +07:00 API contract and Bangkok persistence policy", async () => {
+  // The local planning tree is gitignored; validate the versioned API/rules in clean checkouts.
   const coreRule = await read(".cursor/rules/00-core-product.mdc");
   const dataRule = await read(".cursor/rules/01-data-invariants.mdc");
   const apiRule = await read(".cursor/rules/api-contracts.mdc");
   const settingsRule = await read(".cursor/rules/menu-settings.mdc");
   const dateTimePolicy = api.split("### 2.4")[1]?.split("## 3.")[0];
 
-  assert.match(issue, /API รับ\/แสดง timestamps ด้วย offset `\+07:00`/);
-  assert.match(issue, /ทุก database write ใช้ `Asia\/Bangkok` และห้าม normalize เป็น UTC/);
   assert.match(dateTimePolicy ?? "", /ทุก timestamp field ใน Target request ต้องส่ง ISO 8601 พร้อม offset `\+07:00`/);
   assert.match(dateTimePolicy ?? "", /ทุก timestamp field ใน Target response ต้องแสดง offset `\+07:00`/);
   assert.match(dateTimePolicy ?? "", /timestamp ที่ไม่มี offset นี้หรือใช้ offset อื่นตอบ `400 VALIDATION_ERROR`/);
@@ -167,7 +164,6 @@ test("target timestamps use the issue's +07:00 API contract and Bangkok persiste
   assert.match(apiRule, /Every target API timestamp in a request must use ISO 8601 offset `\+07:00`/);
   assert.match(apiRule, /timestamp fields in responses must also include `\+07:00`/);
   assert.match(apiRule, /Reject missing or different offsets with `400 VALIDATION_ERROR`/);
-  assert.match(checklist, /timestamps เป็น Bangkok local wall-clock และห้ามแปลงข้อมูลที่บันทึกเป็น UTC/);
   assert.match(coreRule, /Persist every date and timestamp using Bangkok calendar\/wall-clock semantics; do not convert stored values to UTC/);
   assert.match(dataRule, /Database timestamps represent Bangkok local wall-clock date\/time/);
   assert.match(settingsRule, /Settings must not allow an override/);
@@ -197,7 +193,6 @@ test("focused API contract runner is reusable and documented", async () => {
   const packageJson = JSON.parse(await read("package.json"));
   const runner = await read("tests/run.mjs");
   const guide = await read("document/development/testing.md");
-  const checklist = await read("design/projects/project-management-system/work_items/00_checklist.md");
   assert.equal(packageJson.scripts["test:api-contracts"], "node tests/run.mjs api-contracts");
   assert.match(runner, /"api-contracts": \{ files:/);
   assert.match(runner, /menu-api-validation\.test\.mjs/);
@@ -205,7 +200,6 @@ test("focused API contract runner is reusable and documented", async () => {
   assert.match(guide, /node tests\/run\.mjs api-contracts/);
   assert.match(api, /`pnpm test:api-contracts`, `pnpm test:contracts`, `pnpm test`/);
   assert.match(api, /`pnpm test:issue-sync`/);
-  assert.ok(checklist.includes("- [x] **#13** [Define Menu API and Validation Contracts]"));
 });
 
 test("Owner Settings route persists only supported profile/preferences and has a handbook", async () => {

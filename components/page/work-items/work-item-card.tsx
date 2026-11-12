@@ -19,11 +19,11 @@ import {
   workItemTypeLabel,
 } from '@/lib/work-items'
 import { cn } from '@/lib/utils'
+import { formatUiDate } from '@/lib/display-date'
 import type { WorkItem } from './types'
 import { ProjectIdentity } from './project-identity'
 import {
   descriptionPreview,
-  formatDisplayDate,
   kindClass,
   priorityClass,
   projectAccentStyle,
@@ -114,7 +114,7 @@ export function WorkItemCard({
               <span className="hidden h-3 w-px bg-border sm:block" />
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Calendar className="h-3 w-3" />
-                <span>Due {formatDisplayDate(item.dueDate)}</span>
+                <span>Due {formatUiDate(item.dueDate)}</span>
               </div>
               <div className="flex min-w-0 max-w-full items-center gap-1.5">
                 <Avatar className="h-5 w-5 shrink-0 border border-primary/20">

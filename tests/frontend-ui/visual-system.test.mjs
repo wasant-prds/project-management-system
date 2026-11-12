@@ -78,6 +78,7 @@ function renderWorkLogCard() {
       if (name === '@/components/ui/label') return { Label: ui.Label }
       if (name === 'lucide-react') return icons
       if (name === '@/lib/utils') return { formatDate: (date) => String(date).slice(0, 10) }
+      if (name === '@/lib/display-date') return moduleLoader()('lib/display-date.ts')
       if (name === '@/lib/decimal-hours') return moduleLoader()('lib/decimal-hours.ts')
       throw new Error(`Unexpected WorkLogCard import: ${name}`)
     },

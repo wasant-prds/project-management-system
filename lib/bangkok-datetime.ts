@@ -163,8 +163,9 @@ export function serializeBangkokTimestamp(value: Date): string {
 export function formatBangkokDateLabel(
   value: Date | string,
   options?: Intl.DateTimeFormatOptions,
+  locale = 'en-US',
 ): string {
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat(locale, {
     ...(options ?? DEFAULT_DATE_FORMAT_OPTIONS),
     timeZone: 'Asia/Bangkok',
   }).format(new Date(bangkokTimestampInput(value)))

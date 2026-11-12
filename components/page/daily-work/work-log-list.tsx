@@ -13,6 +13,7 @@ import { ACTION_LABEL_CLASS } from "@/components/layout/page-layout"
 import { DIALOG_SHELL_WIDE_CLASS } from "@/components/ui/responsive-dialog"
 import { WorkItemDescription } from "@/components/page/work-items/work-item-description"
 import { formatBangkokDateLabel } from "@/lib/bangkok-datetime"
+import { formatUiDate } from '@/lib/display-date'
 import { PageState } from '@/components/layout/page-state'
 import { DataTransferMenu } from '@/components/layout/data-transfer-menu'
 import { formatHours } from '@/lib/decimal-hours'
@@ -140,6 +141,7 @@ type WorkLogListProps = {
   onWorkLogClick: (workLog: WorkLog) => void
   onAddClick: () => void
   buttonLabel: string
+  periodLabel?: string
 }
 
 function useWorkLogExports(workLogs: WorkLog[], buttonLabel: string) {
@@ -210,6 +212,7 @@ export function WorkLogList({
   onWorkLogClick,
   onAddClick,
   buttonLabel,
+  periodLabel = buttonLabel,
 }: Readonly<WorkLogListProps>) {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
 
@@ -222,7 +225,7 @@ export function WorkLogList({
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-base">
-              Work Logs for : <span className="font-bold text-link">{buttonLabel}</span>
+              บันทึกเวลา: <span className="font-bold text-link">{periodLabel}</span>
             </CardTitle>
             {workLogs.length > 0 && (
               <div className="flex flex-wrap gap-2">
@@ -260,7 +263,7 @@ export function WorkLogList({
             <DialogHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <div className="min-w-0 space-y-1.5 text-left">
                 <DialogTitle className="text-xl font-bold sm:text-2xl">
-                  Work Logs for: <span className="text-link">{buttonLabel}</span>
+                  บันทึกเวลา: <span className="text-link">{periodLabel}</span>
                 </DialogTitle>
                 <DialogDescription>
                   View all work logs grouped by project ({' '}
@@ -343,12 +346,7 @@ export function WorkLogList({
                                 </Badge>
                               </div>
                               <div className="text-xs text-muted-foreground">
-                                {formatBangkokDateLabel(log.date, {
-                                  weekday: 'short',
-                                  year: 'numeric',
-                                  month: 'short',
-                                  day: 'numeric'
-                                })}
+                                {formatUiDate(log.date)}
                               </div>
                               {log.status && (
                                 <Badge variant="outline" className="text-xs mt-1">

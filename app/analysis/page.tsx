@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { formatHours } from '@/lib/decimal-hours'
+import { formatUiDate } from '@/lib/display-date'
 import { AnalysisChartsDeferred } from '@/components/page/analysis/analysis-charts-deferred'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 
@@ -317,7 +318,7 @@ export default function AnalysisPage() {
                 </div>
 
                 <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-                  <p>ช่วง {period.startDate} ถึง {period.endDate} · Asia/Bangkok</p>
+                  <p>ช่วง {formatUiDate(period.startDate)} ถึง {formatUiDate(period.endDate)} · Asia/Bangkok</p>
                   <p>Completion rate {report.summary.completionRate.toFixed(1)}% = Completed ÷ (ทั้งหมด − Cancelled) · ชั่วโมงรวมเป็น Decimal แบบไม่ปัดก่อนรวม</p>
                 </div>
                 <p className="break-words text-xs text-muted-foreground">ตัวกรองที่ใช้กับรายงาน: {activeFilterDescription(report)}</p>

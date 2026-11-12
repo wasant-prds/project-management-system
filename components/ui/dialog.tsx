@@ -75,7 +75,7 @@ function DialogContent({
           }
         }}
         className={cn(
-          'cinematic-modal bg-card text-foreground fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border border-border p-4 shadow-lg sm:max-w-lg sm:p-6',
+          'cinematic-modal bg-card text-foreground fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] min-w-0 gap-4 rounded-[var(--radius-modal)] border border-border p-4 shadow-lg sm:max-w-lg sm:p-6',
           className,
         )}
         {...props}
@@ -138,7 +138,7 @@ function DialogDescription({
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn('text-muted-foreground text-sm', className)}
+      className={cn('type-body text-muted-foreground', className)}
       {...props}
     />
   )

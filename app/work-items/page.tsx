@@ -39,6 +39,7 @@ import {
   type WorkItemKindValue,
 } from '@/lib/work-items'
 import { currentBangkokCalendarDate } from '@/lib/bangkok-datetime'
+import { formatUiDate } from '@/lib/display-date'
 import { fetchCollection } from '@/lib/fetch-collection'
 import { WorkItemViewDialog } from '@/components/page/work-items/work-item-view-dialog'
 import { WorkItemGroupedList } from '@/components/page/work-items/work-item-grouped-list'
@@ -1039,7 +1040,7 @@ export default function WorkItemsPage() {
             {dashboardDateRange && (
               <section className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card px-4 py-3 text-sm" aria-label="ตัวกรองจาก Dashboard">
                 <p className="text-muted-foreground">
-                  ตัวกรองจาก Dashboard: {dashboardDateRange.startDate} – {dashboardDateRange.endDate}
+                  ตัวกรองจาก Dashboard: {formatUiDate(dashboardDateRange.startDate)} – {formatUiDate(dashboardDateRange.endDate)}
                   {companyFilter !== 'all' ? ` · Company ${companyFilter}` : ''}
                   {projectFilter !== 'all' ? ` · Project ${projectFilter}` : ''}
                   {roleFilter !== 'all' ? ` · role ${roleFilter}` : ''}

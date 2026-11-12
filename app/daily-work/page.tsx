@@ -23,6 +23,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { toast } from "@/hooks/use-toast"
 import { dateOnlyToPickerDate, formatDate } from "@/lib/utils"
+import { formatUiDate } from '@/lib/display-date'
 import { bangkokCalendarPeriodRange, currentBangkokCalendarDate } from "@/lib/bangkok-datetime"
 import { formatHours, parsePositiveDecimalHours, sumDecimalHours } from "@/lib/decimal-hours"
 import { readWorkLogsResponse } from "@/lib/work-log-response"
@@ -326,6 +327,14 @@ export default function DailyWorkPage() {
     }
   }, [date, viewPeriod])
 
+  const periodLabel = useMemo(() => {
+    if (!date) return 'ทุกวัน'
+    const selected = formatDate(date)
+    if (viewPeriod === 'day') return formatUiDate(selected)
+    const range = bangkokCalendarPeriodRange(selected, viewPeriod)
+    return range ? `${formatUiDate(range.startDate)} – ${formatUiDate(range.endDate)}` : formatUiDate(selected)
+  }, [date, viewPeriod])
+
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -364,8 +373,8 @@ export default function DailyWorkPage() {
                 <Button magnetic onClick={() => handleOpenDialog()}>
                   <Plus className="h-4 w-4" />
                   <span className="truncate">
-                    <span className="sm:hidden">Add</span>
-                    <span className="hidden sm:inline">Add Work Log : {date ? formatDate(date) : buttonLabel}</span>
+                    <span className="sm:hidden">เพิ่ม</span>
+                    <span className="hidden sm:inline">เพิ่มบันทึกเวลา</span>
                   </span>
                 </Button>
               </div>
@@ -374,7 +383,7 @@ export default function DailyWorkPage() {
               <Card className="card-shadow">
                 <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
                   <p className="text-muted-foreground">
-                    ตัวกรองจาก Dashboard: {dashboardFilters.startDate} – {dashboardFilters.endDate}
+                    ตัวกรองจาก Dashboard: {formatUiDate(dashboardFilters.startDate)} – {formatUiDate(dashboardFilters.endDate)}
                     {dashboardFilters.companyId ? ` · Company ${dashboardFilters.companyId}` : ""}
                     {dashboardFilters.projectId ? ` · Project ${dashboardFilters.projectId}` : ""}
                     {dashboardFilters.role ? ` · role ${dashboardFilters.role}` : ""}
@@ -418,6 +427,7 @@ export default function DailyWorkPage() {
                   onWorkLogClick={handleViewDetails}
                   onAddClick={() => handleOpenDialog()}
                   buttonLabel={buttonLabel}
+                  periodLabel={periodLabel}
                 />}
               </div>
             </div>

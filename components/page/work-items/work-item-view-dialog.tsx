@@ -22,8 +22,8 @@ import { ProjectIdentity } from './project-identity'
 import { WORK_ITEM_DIALOG_SHELL_CLASS } from './work-item-dialog-shell'
 import type { WorkItem, WorkItemTimeEntry } from './types'
 import { formatHours, sumDecimalHours } from '@/lib/decimal-hours'
+import { formatUiDate } from '@/lib/display-date'
 import {
-  formatDisplayDate,
   kindClass,
   priorityClass,
 } from './work-item-presentation'
@@ -66,7 +66,7 @@ function DailyWorkEntries({ isLoading, entries }: Readonly<{
       {entries.map((entry) => (
         <li key={entry.id} className="rounded-md border border-border/60 bg-background/70 px-3 py-2 text-sm">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-            <time dateTime={entry.date}>{entry.date}</time>
+            <time dateTime={entry.date}>{formatUiDate(entry.date)}</time>
             <span className="font-medium tabular-nums">{formatHours(entry.hours)} h</span>
           </div>
           {(entry.description || entry.remarks) && (
@@ -175,14 +175,14 @@ export function WorkItemViewDialog({
                   <span className="content-wrap min-w-0">{item.assignee.name}</span>
                 </div>
               </Detail>
-              <Detail label="Work date">{formatDisplayDate(item.workDate)}</Detail>
+              <Detail label="Work date">{formatUiDate(item.workDate)}</Detail>
               <Detail label="Due date">
                 <span className="inline-flex flex-wrap items-center gap-1.5">
                   <Calendar className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  {formatDisplayDate(item.dueDate)}
+                  {formatUiDate(item.dueDate)}
                 </span>
               </Detail>
-              <Detail label="Submitted">{formatDisplayDate(item.submittedAt)}</Detail>
+              <Detail label="Submitted">{formatUiDate(item.submittedAt)}</Detail>
             </div>
 
             <section className="space-y-2 border-t border-border/60 pt-3" aria-label="Daily Work">

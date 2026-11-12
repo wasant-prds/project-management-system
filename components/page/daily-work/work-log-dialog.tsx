@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Clock, Edit, Eye, FileText, MessageSquareText, Trash2, type LucideIcon } from "lucide-react"
-import { formatDate } from "@/lib/utils"
+import { formatUiDate } from '@/lib/display-date'
 import { WORK_ITEM_STATUS_LABELS, type WorkItemKindValue, type WorkItemStatusValue } from "@/lib/work-items"
 import { kindClass } from "@/components/page/work-items/work-item-presentation"
 import { ProjectIdentity } from "@/components/page/work-items/project-identity"
@@ -380,7 +380,7 @@ export function WorkLogDialogBody({
                     )}
                     {workLog.status && <Badge variant="secondary">{workLog.status}</Badge>}
                     <span className="text-sm text-muted-foreground">{workLog.user.name}</span>
-                    <span className="text-xs text-muted-foreground">{formatDate(workLog.date)}</span>
+                    <span className="text-xs text-muted-foreground">{formatUiDate(workLog.date)}</span>
                     <Badge variant="outline" className="shrink-0 gap-1">
                       <Clock className="h-3 w-3" />
                       {formatHours(workLog.hours)}h

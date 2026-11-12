@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { formatDate } from "@/lib/utils"
+import { formatUiDate } from '@/lib/display-date'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatHours } from '@/lib/decimal-hours'
 
@@ -28,7 +29,7 @@ export function StatsCard({ totalHours, totalLogs, date, isLoading = false, unav
         </div>
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">วันที่</span>
-          <span className="text-sm font-semibold">{date ? formatDate(date) : 'ทุกวัน'}</span>
+          <span className="text-sm font-semibold">{date ? formatUiDate(formatDate(date)) : 'ทุกวัน'}</span>
         </div>
       </CardContent>
     </Card>

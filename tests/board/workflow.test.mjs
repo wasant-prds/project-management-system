@@ -30,9 +30,11 @@ function loadTs(path, mocks = {}) {
 
 const workItems = loadTs('../../lib/work-items.ts')
 const bangkokDateTime = loadTs('../../lib/bangkok-datetime.ts')
+const displayDate = loadTs('../../lib/display-date.ts', { './bangkok-datetime': bangkokDateTime })
 const board = loadTs('../../components/page/board/board-workflow.ts', {
   '@/lib/work-items': workItems,
   '@/lib/bangkok-datetime': bangkokDateTime,
+  '@/lib/display-date': displayDate,
 })
 
 function makeWorkItem(overrides = {}) {
@@ -84,9 +86,9 @@ test('Board date labels keep Bangkok date-only and +07:00 calendar boundaries ac
   try {
     for (const timezone of ['America/Los_Angeles', 'Asia/Tokyo']) {
       process.env.TZ = timezone
-      assert.equal(board.formatBoardCalendarDate('2026-09-30'), '2026-09-30')
-      assert.equal(board.formatBoardCalendarDate('2026-09-30T23:59:59.999+07:00'), '2026-09-30')
-      assert.equal(board.formatBoardCalendarDate('2026-10-01T00:00:00.000+07:00'), '2026-10-01')
+      assert.equal(board.formatBoardCalendarDate('2026-09-30'), '30/09/2026')
+      assert.equal(board.formatBoardCalendarDate('2026-09-30T23:59:59.999+07:00'), '30/09/2026')
+      assert.equal(board.formatBoardCalendarDate('2026-10-01T00:00:00.000+07:00'), '01/10/2026')
     }
   } finally {
     if (initialTimezone === undefined) delete process.env.TZ

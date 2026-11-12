@@ -4,6 +4,7 @@ import {
   type WorkItemStatusValue,
 } from '@/lib/work-items'
 import { parseBangkokDateTime, serializeBangkokCalendarDate } from '@/lib/bangkok-datetime'
+import { formatUiDate } from '@/lib/display-date'
 
 export type BoardFilters = {
   companyId: string
@@ -118,7 +119,7 @@ export function groupBoardWorkItems(workItems: WorkItem[]): BoardStatusGroups {
 export function formatBoardCalendarDate(value: string | null | undefined) {
   if (!value) return '—'
   const date = parseBangkokDateTime(value)
-  return date ? serializeBangkokCalendarDate(date) : '—'
+  return date ? formatUiDate(serializeBangkokCalendarDate(date)) : '—'
 }
 
 function replaceWorkItemStatus(

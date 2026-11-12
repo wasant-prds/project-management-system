@@ -6,6 +6,7 @@
     "out/",
     "build/",
     "coverage/",
+    "artifacts/",
     "design/",
     "database/backups/",
     "database/postgres/",

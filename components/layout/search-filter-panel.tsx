@@ -35,10 +35,11 @@ export function SearchFilterPanel({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" className="search-filter-trigger h-10 rounded-[0.875rem] bg-[var(--surface-inset)] shadow-none" disabled={disabled}
-          aria-label={`ค้นหาและตัวกรอง${activeCount ? ` · ใช้อยู่ ${activeCount}` : ''}`} title={summary}>
+          aria-label={`ค้นหาและตัวกรอง${activeCount ? ` · ใช้อยู่ ${activeCount}` : ''}${activeCount > 0 && summary ? ` · ${summary}` : ''}`} title={activeCount > 0 ? summary : undefined}>
           <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           <span className="min-w-0 flex-1 truncate text-left">ค้นหาและตัวกรอง</span>
           {activeCount > 0 && <b className="search-filter-count" aria-hidden="true">{activeCount}</b>}
+          {activeCount > 0 && summary && <span className="search-filter-summary" aria-hidden="true">{summary}</span>}
           <span className="search-filter-divider" aria-hidden="true" />
           <SlidersHorizontal className="size-4 shrink-0" aria-hidden="true" />
         </Button>

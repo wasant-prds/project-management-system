@@ -109,7 +109,7 @@ test('TC-27-08 errors remain visible alerts and never substitute fake aggregate 
 
 test('TC-27-09 portfolio preserves Company, Bangkok calendar date, progress and hours formatted to two decimals', () => {
   const html = render(PortfolioCard, { project, onEdit() {} })
-  for (const value of ['Example', '13/27', '14', '48.1%', '2026-10-31', '123.00']) assert.ok(html.includes(value), value)
+  for (const value of ['Example', '13/27', '14', '48.1%', '31/10/2026', '123.00']) assert.ok(html.includes(value), value)
   assert.ok(!html.includes(project.summary.hours))
   assert.match(html, /href="\/projects\/project-27"/)
   assert.match(html, /aria-valuenow="48.148"/)
@@ -243,7 +243,7 @@ test('TC-27-18 Tailwind emits pressed/hover surfaces, tablet drawer and touch/re
   const css = readFileSync(`${root}/app/globals.css`, 'utf8')
   const result = await require('postcss')([require('@tailwindcss/postcss')()]).process(css, { from: `${root}/app/globals.css` })
   assert.match(result.css, /\.active\\:surface-pressed[\s\S]*?box-shadow:\s*var\(--surface-shadow-pressed\)/)
-  assert.match(result.css, /\.active\\:surface-inset[\s\S]*?box-shadow:\s*var\(--surface-shadow-inset\)/)
+  assert.match(result.css, /\.data-\\\[state\\=active\\\]\\:surface-inset[\s\S]*?box-shadow:\s*var\(--surface-shadow-inset\)/)
   assert.match(result.css, /@media \(pointer:\s*coarse\)[\s\S]*?min-height:\s*2\.75rem/)
   assert.match(result.css, /prefers-reduced-motion:\s*reduce/)
   assert.match(result.css, /\.lg\\:flex[\s\S]*?width >= 64rem/)

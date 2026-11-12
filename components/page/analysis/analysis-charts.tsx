@@ -14,6 +14,7 @@ import { renderHoursChartDot } from './hours-chart-dot'
 import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion'
 import { MOTION_DURATION_MS } from '@/components/ui/motion'
 import { formatHours } from '@/lib/decimal-hours'
+import { formatUiDate } from '@/lib/display-date'
 
 type StatusChartPoint = { href: string; accessibleName: string }
 type StatusBarShapeProps = {
@@ -35,9 +36,9 @@ function StatusChartLinkBar({ x = 0, y = 0, width = 0, height = 0, fill = 'var(-
 }
 
 function shortPeriodLabel(startDate: string, endDate: string, grouping: string) {
-  if (grouping === 'month') return startDate.slice(0, 7)
-  if (startDate === endDate) return startDate.slice(5)
-  return `${startDate.slice(5)}–${endDate.slice(5)}`
+  if (grouping === 'month') return formatUiDate(startDate).slice(3)
+  if (startDate === endDate) return formatUiDate(startDate).slice(0, 5)
+  return `${formatUiDate(startDate).slice(0, 5)}–${formatUiDate(endDate).slice(0, 5)}`
 }
 
 export function AnalysisStatusChart({ report }: Readonly<{ report: AnalysisReport }>) {
@@ -86,7 +87,7 @@ export function AnalysisHoursChart({ report }: Readonly<{ report: AnalysisReport
     label: shortPeriodLabel(row.startDate, row.endDate, report.meta.loggedHoursGrouping),
     plottedHours: Number(row.hours),
     href: analysisDailyWorkHref(sourceFilters, { startDate: row.startDate, endDate: row.endDate }),
-    accessibleName: `เปิด Daily Work ช่วง ${row.startDate} ถึง ${row.endDate} รวม ${formatHours(row.hours)} ชั่วโมง`,
+    accessibleName: `เปิด Daily Work ช่วง ${formatUiDate(row.startDate)} ถึง ${formatUiDate(row.endDate)} รวม ${formatHours(row.hours)} ชั่วโมง`,
   })), [report, sourceFilters])
   const seriesColor = chartColorVariable('secondary')
   const datasetKey = chartDatasetKey('analysis-hours', hoursChartData.length, hoursChartData[0]?.label ?? '', hoursChartData.at(-1)?.label ?? '')
@@ -103,7 +104,7 @@ export function AnalysisHoursChart({ report }: Readonly<{ report: AnalysisReport
         <YAxis {...CHART_AXIS_PROPS} width={56} tickFormatter={formatHours} />
         <Tooltip content={<ChartTooltipContent valueFormatter={(_value, point) => formatHours((point as { hours: string }).hours)} labelFormatter={(_label, payload) => {
           const point = payload?.[0]?.payload as { startDate?: string; endDate?: string } | undefined
-          return point ? `${point.startDate} – ${point.endDate}` : ''
+          return point ? `${formatUiDate(point.startDate)} – ${formatUiDate(point.endDate)}` : ''
         }} />} />
         <Line
           key={motionKey}

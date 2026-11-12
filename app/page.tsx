@@ -22,7 +22,7 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { WorkItemStatusBadge } from '@/components/page/work-items/work-item-status-badge'
 import { ICON_STROKE, loadFailureVisual } from '@/components/ui/product-identity'
 import { progressShiftPercent } from '@/components/ui/cinematic-motion'
-import { formatBangkokDateLabel } from '@/lib/bangkok-datetime'
+import { formatUiDate } from '@/lib/display-date'
 import { WORK_ITEM_ROLE_LABELS } from '@/lib/work-items'
 import type { DashboardFilters } from '@/lib/dashboard'
 
@@ -43,7 +43,7 @@ function DashboardFiltersForm({ data }: Readonly<{ data: DashboardResult }>) {
   const filters = data.meta.filters
   return (
     <SearchFilterPanel showActions={false} activeCount={Object.values(filters).filter(Boolean).length}
-      summary={`${data.meta.period.startDate} – ${data.meta.period.endDate}`}
+      summary={`${formatUiDate(data.meta.period.startDate)} – ${formatUiDate(data.meta.period.endDate)}`}
       description="เลือกช่วงวันและตัวกรอง แล้วกดใช้ตัวกรอง · ปฏิทิน Asia/Bangkok">
       <form action="/" method="get" className="search-filter-fields">
         <label className="grid min-w-0 gap-1" htmlFor="dashboard-start-date">
@@ -120,7 +120,7 @@ function WorkItemList({
                 <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <Badge variant="outline">{item.role ? WORK_ITEM_ROLE_LABELS[item.role as keyof typeof WORK_ITEM_ROLE_LABELS] : 'ไม่ระบุ role'}</Badge>
                   <WorkItemStatusBadge status={item.status} />
-                  <span>กำหนด: {item.dueDate ? formatBangkokDateLabel(item.dueDate) : 'ไม่กำหนด'}</span>
+                  <span>กำหนด: {item.dueDate ? formatUiDate(item.dueDate) : 'ไม่กำหนด'}</span>
                 </div>
               </li>
             ))}
@@ -156,7 +156,7 @@ function RecentProjects({ data, filters }: Readonly<{ data: DashboardResult; fil
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted" aria-label={`ความคืบหน้า ${project.progress.toFixed(1)}%`}>
                   <div className="motion-progress-indicator h-full w-full rounded-full bg-primary" style={{ transform: `translateX(-${progressShiftPercent(project.progress)}%)` }} />
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">กำหนด: {formatBangkokDateLabel(project.dueDate)} · <Link href={dashboardWorkItemsHref(filters)} className="underline underline-offset-4">Work Items ที่กรองแล้ว</Link></p>
+                <p className="mt-2 text-xs text-muted-foreground">กำหนด: {formatUiDate(project.dueDate)} · <Link href={dashboardWorkItemsHref(filters)} className="underline underline-offset-4">Work Items ที่กรองแล้ว</Link></p>
               </li>
             ))}
           </ul>
@@ -217,7 +217,7 @@ async function DashboardContent({ searchParams }: DashboardPageProps) {
               </div>
               <div className="page-header-actions">
                 <div className="min-w-0 text-xs text-muted-foreground sm:text-right">
-                  <p>ช่วง {formatBangkokDateLabel(data.meta.period.startDate)} – {formatBangkokDateLabel(data.meta.period.endDate)}</p>
+                  <p>ช่วง {formatUiDate(data.meta.period.startDate)} – {formatUiDate(data.meta.period.endDate)}</p>
                   <p className="mt-1">{data.meta.timezone}</p>
                 </div>
                 <DashboardFiltersForm data={data} />

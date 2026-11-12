@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { formatHours } from '@/lib/decimal-hours'
+import { formatUiDate } from '@/lib/display-date'
 import { ArrowUpRight, CalendarDays, FolderKanban } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -41,7 +42,7 @@ export function PortfolioCard({ project, onEdit }: Readonly<{ project: Portfolio
           <div className="min-w-0"><dt className="type-caption">ชั่วโมงจริง</dt><dd className="type-data mt-1 break-all tabular-nums">{formatHours(project.summary.hours)}</dd></div>
         </dl>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><CalendarDays aria-hidden="true" className="size-3.5" />กำหนด {project.dueDate}</span>
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><CalendarDays aria-hidden="true" className="size-3.5" />กำหนด {formatUiDate(project.dueDate)}</span>
           <Button type="button" variant="outline" size="sm" onClick={() => onEdit(project.id)}>แก้ไข</Button>
         </div>
       </CardContent>

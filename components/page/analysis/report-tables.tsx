@@ -4,6 +4,7 @@ import { useReportPage, ReportPagination } from '@/components/ui/report-paginati
 import Link from 'next/link'
 import type { AnalysisReport } from '@/lib/analysis-export'
 import { formatHours } from '@/lib/decimal-hours'
+import { formatUiDate } from '@/lib/display-date'
 import { analysisDailyWorkHref, analysisWorkItemsHref } from '@/lib/analysis-links'
 import { WORK_ITEM_PRIORITY_LABELS, WORK_ITEM_ROLE_LABELS, WORK_ITEM_STATUS_LABELS } from '@/lib/work-items'
 import { InlineState } from '@/components/layout/page-state'
@@ -50,7 +51,7 @@ export function WorkItemsTable({ report }: Readonly<{ report: AnalysisReport }>)
               <span className="mt-1 content-wrap block text-xs text-muted-foreground">
                 {item.project.company?.displayName ?? item.project.company?.name ?? 'ไม่ระบุ Company'} · {item.project.name}
               </span>
-              <span className="mt-1 block text-xs text-muted-foreground">วันที่อ้างอิง {item.workDate ?? item.dueDate ?? item.createdAt.slice(0, 10)}</span>
+              <span className="mt-1 block text-xs text-muted-foreground">วันที่อ้างอิง {formatUiDate(item.workDate ?? item.dueDate ?? item.createdAt)}</span>
             </TableCell>
             <TableCell className="content-wrap px-3 py-3"><WorkItemStatusBadge status={item.status} /></TableCell>
             <TableCell className="content-wrap hidden px-3 py-3 sm:table-cell">{WORK_ITEM_PRIORITY_LABELS[item.priority as keyof typeof WORK_ITEM_PRIORITY_LABELS] ?? item.priority}</TableCell>
@@ -87,7 +88,7 @@ export function DailyWorkTable({ report }: Readonly<{ report: AnalysisReport }>)
             <TableRow key={entry.id} className="align-top">
               <TableCell className="px-3 py-3">
                 <Link href={dayHref} className="text-link underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  {entry.date}
+                  {formatUiDate(entry.date)}
                 </Link>
               </TableCell>
               <TableCell className="min-w-0 px-3 py-3">
@@ -128,7 +129,7 @@ export function HoursPeriodTable({ report }: Readonly<{ report: AnalysisReport }
       <TableBody className="divide-y divide-border/60">
         {pagination.rows.map((row) => (
           <TableRow key={row.startDate}>
-            <TableCell className="content-wrap px-3 py-3">{row.startDate} – {row.endDate}</TableCell>
+            <TableCell className="content-wrap px-3 py-3">{formatUiDate(row.startDate)} – {formatUiDate(row.endDate)}</TableCell>
             <TableCell className="px-3 py-3 content-wrap text-right font-medium tabular-nums">{formatHours(row.hours)}</TableCell>
             <TableCell className="px-3 py-3 text-right">
               <Link

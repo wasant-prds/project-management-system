@@ -15,6 +15,8 @@ import { CinematicRuntime } from '@/components/layout/cinematic-runtime'
 import NotFoundPage from '@/app/not-found'
 import ErrorPage from '@/app/error'
 import { WorkLogLayoutAudit } from './work-log-layout-audit'
+import { FoundationPreview } from './foundation-preview'
+import { LoginScreen } from '@/components/auth/login-screen'
 
 const routes: Record<string, React.ComponentType> = { '/': Dashboard, '/projects': Projects, '/work-items': WorkItems, '/board': Board, '/analysis': Analysis, '/daily-work': DailyWork, '/company': Company, '/settings': Settings }
 const route = window.location.pathname
@@ -23,7 +25,11 @@ const theme = new URLSearchParams(window.location.search).get('theme') ?? 'light
 const root = document.getElementById('root')
 const detailParams = Promise.resolve({ id: route.split('/').at(-1) ?? 'project-0' })
 let pageContent = <Page />
-if (route === '/qa/not-found') {
+if (route === '/qa/foundation') {
+  pageContent = <FoundationPreview />
+} else if (route === '/login') {
+  pageContent = <LoginScreen />
+} else if (route === '/qa/not-found') {
   pageContent = <NotFoundPage />
 } else if (route === '/qa/route-error') {
   pageContent = <ErrorPage error={new Error('Synthetic failure')} reset={() => window.location.reload()} />

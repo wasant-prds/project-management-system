@@ -148,7 +148,7 @@ test('TC-29-10 polished Work Item table retains source identity, filters and Ban
   for (const [key, value] of Object.entries({ ...report.meta.filters, ...report.meta.period, workItemId: report.workItems[0].id })) assert.equal(params.get(key), value)
   const html = renderToStaticMarkup(tree)
   assert.ok(html.includes(longText))
-  assert.match(html, /วันที่อ้างอิง 2026-10-03/)
+  assert.match(html, /วันที่อ้างอิง 03\/10\/2026/)
   assert.match(html, /data-slot="table-container"/)
 })
 
@@ -174,7 +174,7 @@ test('TC-29-12 Daily Work missing optional relation and description show a clear
   const html = render(DailyWorkTable, { report })
   assert.match(html, /ไม่มีรายละเอียด/)
   assert.doesNotMatch(html, /undefined|null/)
-  assert.match(html, /2026-10-03/)
+  assert.match(html, /03\/10\/2026/)
 })
 
 test('TC-29-13 period table formats hours and keeps the same inclusive source interval', () => {

@@ -6,6 +6,10 @@
 
 ## คำสั่งหลัก
 
+Issue #47 shared foundation: เริ่ม `pnpm performance:preview` (synthetic fixtures, writes rejected, ไม่มี `.env`/DB) แล้วรัน `pnpm test:shared-foundation-browser`. ต้องมี Playwright หรือกำหนด `PMS_PLAYWRIGHT_MODULE`; Windows ใช้ headless Edge. `node scripts/shared-foundation-browser.mjs --before` เก็บ baseline ก่อนแก้ production sources; คำสั่งปกติเก็บ after พร้อม assertions. Matrix คือ 10 หน้าจริง + shared-control gallery × 3 themes × 390×844, 768×1024, 1440×900 และ Login เพิ่ม 320px. Browser ใช้ timezone `America/Los_Angeles` เพื่อจับวันที่ที่เผลออิงเครื่อง; formatter ต้องยังแสดง Bangkok. ตรวจ bounds, local scroll, keyboard/restore focus, selected tab, focus ring, action hierarchy และ nested elevation. ภาพและ `results.json` อยู่ใน `artifacts/issue-47/{before,after}/`.
+
+Regression คู่กันคือ `pnpm test:header-tools-browser` สำหรับ compact filters, nested Select/Calendar, apply/reset และ import/export; `pnpm test:frontend-ui` รวม color-system/date-picker/display-date, `pnpm test:filter-select`, `pnpm test:board`, `pnpm test`, lint และ typecheck. Preview ไม่จำลอง Next.js server/auth/navigation หรือ production data. ESLint ข้าม generated `artifacts/` ตาม repository ignore แล้ว; รักษา QA outputs เดิมไว้. Contract tests ตรวจ versioned API handbook/rules และไม่พึ่ง planning files ใน ignored `design/` เพื่อให้ clean-checkout CI รันได้
+
 ```sh
 pnpm quality          # lint + typecheck + unit/provider/UI suites
 pnpm test

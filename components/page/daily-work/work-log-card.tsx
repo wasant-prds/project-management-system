@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Label } from "@/components/ui/label"
 import { CheckSquare, Clock, FileText, MessageSquareText, X } from "lucide-react"
-import { formatDate } from "@/lib/utils"
+import { formatUiDate } from '@/lib/display-date'
 import { WorkLog } from "./types"
 import { formatHours } from '@/lib/decimal-hours'
 
@@ -51,7 +51,7 @@ export function WorkLogCard({ workLog, onClick }: Readonly<WorkLogCardProps>) {
                 <p className="truncate text-xs font-medium text-foreground/80">{workLog.workItem.title}</p>
               )}
               <CardDescription className="text-xs">
-                {formatDate(workLog.date)}
+                {formatUiDate(workLog.date)}
               </CardDescription>
             </div>
           </div>
