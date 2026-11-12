@@ -44,7 +44,7 @@ function createReactRuntime() {
   }
 }
 
-function loadProvider({ fetcher, themeChanges, document }) {
+function loadProvider({ fetcher, themeChanges, document, window }) {
   const react = createReactRuntime()
   const source = readFileSync(new URL('../../components/layout/owner-settings-provider.tsx', import.meta.url), 'utf8')
   const output = typescript.transpileModule(source, {
@@ -61,6 +61,7 @@ function loadProvider({ fetcher, themeChanges, document }) {
       throw new Error(`Unexpected import: ${name}`)
     },
     fetch: fetcher,
+    window,
     document,
     console,
     Error,
@@ -76,6 +77,23 @@ const lightSettings = {
   profile: { name: 'Owner', email: 'owner@example.test', phone: null, avatar: null },
   preferences: { theme: 'light', locale: 'th', timezone: 'Asia/Bangkok' },
 }
+
+test('public login does not request private settings or overwrite the locally selected theme', () => {
+  let requests = 0
+  const themeChanges = []
+  const runtime = loadProvider({
+    fetcher: () => { requests++; throw new Error('Private settings must not load on login') },
+    themeChanges,
+    document: { documentElement: { lang: 'th' } },
+    window: { location: { pathname: '/login' } },
+  })
+  runtime.render(runtime.OwnerSettingsProvider)
+  runtime.effects[0]()
+  const tree = runtime.render(runtime.OwnerSettingsProvider)
+  assert.equal(requests, 0)
+  assert.equal(tree.props.value.isLoading, false)
+  assert.deepEqual(themeChanges, [])
+})
 
 test('COLOR-09 Dark to Light saves only the preference and a new provider restores the confirmed theme', async () => {
   let stored = { ...lightSettings, preferences: { ...lightSettings.preferences, theme: 'dark' } }

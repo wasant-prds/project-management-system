@@ -1,9 +1,10 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronRight, UserRound } from 'lucide-react'
+import { ChevronRight, LogOut, UserRound } from 'lucide-react'
+import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { SidebarTrigger } from '@/components/ui/sidebar'
@@ -15,7 +16,21 @@ export const AppHeader = memo(function AppHeader() {
   const pathname = usePathname()
   const route = currentNavigation(pathname)
   const { settings, isLoading, loadError } = useOwnerSettings()
+  const [isSigningOut, setIsSigningOut] = useState(false)
   const profileName = settings?.profile.name || 'เจ้าของระบบ'
+
+  async function signOut() {
+    if (isSigningOut) return
+    setIsSigningOut(true)
+    try {
+      const response = await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
+      if (!response.ok) throw new Error('ออกจากระบบไม่สำเร็จ')
+      window.location.replace('/login')
+    } catch {
+      setIsSigningOut(false)
+      toast({ title: 'ออกจากระบบไม่สำเร็จ', description: 'กรุณาตรวจสอบการเชื่อมต่อแล้วลองใหม่', variant: 'destructive' })
+    }
+  }
   return (
     <header className="cinematic-topbar sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-border/60 bg-background px-4 sm:px-5 lg:px-6">
       <div className="flex min-w-0 items-center gap-3">
@@ -42,6 +57,8 @@ export const AppHeader = memo(function AppHeader() {
             <DropdownMenuItem asChild><Link href="/settings">โปรไฟล์และการแสดงผล</Link></DropdownMenuItem>
             <DropdownMenuItem asChild><Link href="/projects">Projects ของคุณ</Link></DropdownMenuItem>
             <DropdownMenuItem asChild><Link href="/work-items">Work Items ของคุณ</Link></DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem disabled={isSigningOut} onSelect={() => { void signOut() }}><LogOut aria-hidden="true" className="size-4" />{isSigningOut ? 'กำลังออกจากระบบ…' : 'ออกจากระบบ'}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

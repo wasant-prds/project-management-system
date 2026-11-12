@@ -79,6 +79,13 @@ export function OwnerSettingsProvider({ children }: Readonly<{ children: ReactNo
   const loadLock = useRef(true)
 
   useEffect(() => {
+    // Login uses the local theme preference and never reads owner data.
+    // Authentication navigates with a full page load to initialize this provider.
+    if (typeof window !== 'undefined' && window.location.pathname === '/login') {
+      loadLock.current = false
+      setIsLoading(false)
+      return
+    }
     let active = true
     loadLock.current = true
     setIsLoading(true)

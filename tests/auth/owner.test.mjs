@@ -33,6 +33,11 @@ test('middleware denies direct API/page reads and accepts only the gate proof', 
   assert.equal(accepted.forwarded.get('x-pms-owner-authenticated'), '1')
   assert.equal(middleware(request('/work-items', 'server-only-proof')).status, 200)
   assert.equal(middleware(request('/api/health')).status, 200)
+  const publicLogin = middleware(request('/login', 'server-only-proof'))
+  assert.equal(publicLogin.status, 200)
+  assert.equal(publicLogin.forwarded.get('x-pms-owner-proof'), null)
+  assert.equal(publicLogin.forwarded.get('x-pms-owner-authenticated'), null)
+  assert.equal(middleware(request('/login', null, 'POST')).status, 401)
 })
 
 test('owner access audit timestamps use Bangkok wall-clock independently of machine timezone', () => {

@@ -77,10 +77,17 @@ test('real HTTP protects pages/APIs and mutations, strips credentials, rejects b
   const backend = http.createServer((req, res) => { requests++; res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ headers: req.headers })); });
   const gate = createOwnerGate(env, await listen(backend)); const port = await listen(gate);
   t.after(() => { close(gate); close(backend); }); const base = `http://127.0.0.1:${port}`;
-  for (const path of ['/', '/projects', '/api/work-items', '/api/work-logs', '/_next/static/test.js', '/%61pi/users', '/api/health?bypass=1']) {
+  for (const path of ['/api/work-items', '/api/work-logs', '/api/health?bypass=1']) {
     const response = await fetch(base + path, { headers: { 'x-middleware-subrequest': 'middleware:middleware:middleware' } });
-    assert.equal(response.status, 401); assert.match(response.headers.get('www-authenticate'), /PMS owner/);
+    assert.equal(response.status, 401); assert.equal(response.headers.get('www-authenticate'), null);
     assert.equal(response.headers.get('cache-control'), 'no-store'); assert.ok(!(await response.text()).includes(env.GITLAB_TOKEN));
+  }
+  assert.equal(requests, 0);
+  for (const path of ['/', '/projects', '/%61pi/users']) {
+    const response = await fetch(base + path, { redirect: 'manual' });
+    assert.equal(response.status, 307);
+    assert.equal(response.headers.get('location'), `/login?next=${encodeURIComponent(path)}`);
+    assert.equal(response.headers.get('www-authenticate'), null);
   }
   assert.equal(requests, 0);
   for (const authorization of ['Bearer invalid', 'Basic !!!', 'Basic ' + Buffer.from('owner:wrong').toString('base64')]) {

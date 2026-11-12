@@ -10,6 +10,13 @@ function sameProof(actual: string | null, expected: string | undefined) {
 }
 
 export function middleware(request: NextRequest) {
+  if (['/login', '/icon.svg'].includes(request.nextUrl.pathname) && ['GET', 'HEAD'].includes(request.method)) {
+    // Never turn public login rendering into an authenticated server request.
+    const headers = new Headers(request.headers)
+    headers.delete('x-pms-owner-authenticated')
+    headers.delete('x-pms-owner-proof')
+    return NextResponse.next({ request: { headers } })
+  }
   if (request.nextUrl.pathname === '/api/health' && request.method === 'GET') {
     return NextResponse.next()
   }
