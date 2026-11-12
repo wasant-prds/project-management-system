@@ -2,7 +2,7 @@
 
 ## ภาพรวม
 
-ระบบปัจจุบันรองรับ owner หนึ่งคน ไม่ได้ใช้ RBAC หรือ role matrix. Browser เข้าสู่ระบบผ่าน `/login` ด้วย `OWNER_GATE_USERNAME` และ `OWNER_GATE_PASSWORD` ที่ provision ไว้เดิม. Node owner gate ตรวจ credential แล้วออก opaque session cookie ก่อนส่ง request ที่ยืนยันตัวตนไปยัง Next.js ที่ bind กับ loopback; middleware ตรวจ internal proof และ Route Handler เรียก `getOwner()` เพื่อ resolve `User` จาก PostgreSQL. HTTP Basic ยังรองรับสำหรับ scripts/API clients โดยไม่แสดง browser authentication dialog
+ระบบปัจจุบันรองรับ owner หนึ่งคน ไม่ได้ใช้ RBAC หรือ role matrix. Browser เข้าสู่ระบบผ่าน `/login` ด้วย `OWNER_GATE_USERNAME` และ `OWNER_GATE_PASSWORD` ที่ provision ไว้เดิม. Node owner gate ตรวจ credential แล้วออก opaque session cookie ก่อนส่ง request ที่ยืนยันตัวตนไปยัง Next.js ที่ bind กับ loopback; middleware ตรวจ internal proof และ Route Handler เรียก `getOwner()` เพื่อ resolve `User` จาก PostgreSQL. HTTP Basic ยังรองรับสำหรับ non-browser HTTP scripts/API clients โดยไม่แสดง browser authentication dialog
 
 ## Browser login
 
@@ -11,13 +11,14 @@
 - Cookie `pms_owner_session` ใช้ token สุ่ม 256 bits, `HttpOnly`, `SameSite=Strict`, `Path=/` และ `Secure` เมื่อ `APP_ORIGIN` เป็น HTTPS. มีอายุ 8 ชั่วโมง; gate เก็บเฉพาะ SHA-256 ของ token ใน memory. Logout, login ที่แทน session เดิม และ runtime restart ทำให้ session เก่าใช้ไม่ได้. ไม่สร้าง table หรือเปลี่ยนฐานข้อมูล
 - Request หน้าเว็บที่ยังไม่เข้าสู่ระบบ redirect ไป `/login?next=…`; login สำเร็จคืน `redirectTo` เฉพาะ relative workspace URL ที่ผ่าน server validation. Request API ยังคงตอบ `401` JSON
 - `POST /api/auth/logout` ต้องผ่าน same-origin policy; revoke session และล้าง cookie. UI อยู่ในเมนูโปรไฟล์ด้านขวาบน
+- Browser requests ที่มี Fetch Metadata (`Sec-Fetch-Site`, `Sec-Fetch-Dest`, หรือ mode `navigate`), HTML requests และ WebSocket upgrades ต้องใช้ active session; ไม่ fallback ไป cached Basic credentials เมื่อ logout หรือ session หมดอายุ. Node fetch ที่ส่งเพียง `Sec-Fetch-Mode: cors` ยังใช้ explicit Basic สำหรับ HTTP API ได้. `/login` redirect เฉพาะเมื่อมี active session เท่านั้น
 - Password และ session token ไม่ถูกส่งเข้า Next.js, client storage หรือ audit log. UI ใช้ password-manager autocomplete และแสดง loading/error โดยไม่เก็บ credential
 
 ## การยืนยันตัวตนและสิทธิ์
 
 | ชั้น | พฤติกรรมที่ยืนยันจาก implementation |
 | --- | --- |
-| Runtime gate | ตรวจ opaque session หรือ HTTP Basic; credential เดิมใช้ `OWNER_GATE_USERNAME` และ `OWNER_GATE_PASSWORD` ซึ่งต้องยาวอย่างน้อย 32 ตัวอักษร; เปรียบเทียบแบบ timing-safe |
+| Runtime gate | Browser/HTML/WebSocket ใช้ opaque session; non-browser HTTP clients ยังใช้ HTTP Basic ได้. Credential เดิมใช้ `OWNER_GATE_USERNAME` และ `OWNER_GATE_PASSWORD` ซึ่งต้องยาวอย่างน้อย 32 ตัวอักษร; เปรียบเทียบแบบ timing-safe |
 | Request origin | Unsafe methods และ request ที่มี `Origin` ต้องตรงกับ `APP_ORIGIN`; มิฉะนั้นตอบ `403 ACCESS_DENIED` |
 | Next.js middleware | ยอมรับ internal proof ที่ launcher สร้างต่อ process; ปฏิเสธ private page/API ที่ไม่มี proof ด้วย `401`; ยกเว้น read-only `/login` และ `GET /api/health` |
 | Owner resolver | ต้องมี authenticated marker และ proof ถูกต้อง; เลือก `User` เดียว หรือเลือกตาม `OWNER_USER_ID`; ไม่ได้ใช้ `User.role` เป็น permission |

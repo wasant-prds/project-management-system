@@ -23,11 +23,26 @@ function validOrigin(request, env) {
   return !request.headers.origin || request.headers.origin === env.APP_ORIGIN;
 }
 
-export function authorize(request, env, sessions = new Map(), now = Date.now()) {
-  const header = request.headers.authorization ?? '';
+function activeSession(request, sessions, now) {
   const key = sessionKey(request);
   const expiresAt = key && sessions.get(key);
-  if (!basicCredentialsMatch(header, env) && !(expiresAt && expiresAt > now)) return 401;
+  return typeof expiresAt === 'number' && expiresAt > now;
+}
+
+function sessionOnlyRequest(request) {
+  const headers = request.headers;
+  // Browsers can retain Basic credentials after logout. Fetch metadata and HTML
+  // navigations must use revocable sessions, including browser API requests.
+  // Node fetch sends sec-fetch-mode:cors too, so that header alone is insufficient.
+  return headers['sec-fetch-site'] !== undefined || headers['sec-fetch-dest'] !== undefined
+    || headers['sec-fetch-mode'] === 'navigate' || Boolean(headers.upgrade)
+    || /\b(?:text\/html|application\/xhtml\+xml)\b/i.test(headers.accept ?? '');
+}
+
+export function authorize(request, env, sessions = new Map(), now = Date.now()) {
+  const header = request.headers.authorization ?? '';
+  const apiCredentials = !sessionOnlyRequest(request) && basicCredentialsMatch(header, env);
+  if (!activeSession(request, sessions, now) && !apiCredentials) return 401;
   return validOrigin(request, env) ? 200 : 403;
 }
 
@@ -219,7 +234,7 @@ export function createOwnerGate(env, upstreamPort, options = {}) {
     const publicRead = ['GET', 'HEAD'].includes(request.method) && (pathname === '/login' || pathname.startsWith('/_next/static/') || pathname === '/favicon.ico' || pathname === '/icon.svg');
     if (publicRead) {
       if (!validOrigin(request, env)) return reject(response, 403);
-      if (pathname === '/login' && status === 200) {
+      if (pathname === '/login' && status === 200 && activeSession(request, sessions, now().getTime())) {
         const next = new URL(request.url, env.APP_ORIGIN).searchParams.get('next');
         response.writeHead(303, { Location: safeLoginDestination(next, env.APP_ORIGIN), 'Cache-Control': 'no-store' });
         return response.end();

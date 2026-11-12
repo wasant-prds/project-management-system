@@ -113,6 +113,63 @@ test('sessions enforce origin policy, expire and are revoked on logout and repla
   assert.equal((await fetch(base + '/api/projects', { headers: { Cookie: expiring } })).status, 401)
 })
 
+test('cached browser Basic credentials cannot restore access after logout or session expiry', async (t) => {
+  const { base, env, login, advance } = await setup(t)
+  const authorization = `Basic ${Buffer.from(`${env.OWNER_GATE_USERNAME}:${env.OWNER_GATE_PASSWORD}`).toString('base64')}`
+  const browserHeaders = { Authorization: authorization, 'Sec-Fetch-Site': 'same-origin', 'Sec-Fetch-Dest': 'empty', 'Sec-Fetch-Mode': 'cors' }
+  const navigationHeaders = { ...browserHeaders, Accept: 'text/html', 'Sec-Fetch-Dest': 'document', 'Sec-Fetch-Mode': 'navigate' }
+  const response = await login()
+  const cookie = response.headers.get('set-cookie').split(';')[0]
+  assert.equal((await fetch(base + '/api/projects', { headers: { ...browserHeaders, Cookie: cookie } })).status, 200)
+  const logout = await fetch(base + '/api/auth/logout', { method: 'POST', headers: { ...browserHeaders, Cookie: cookie, Origin: env.APP_ORIGIN } })
+  assert.equal(logout.status, 200)
+  assert.match(logout.headers.get('set-cookie'), /Max-Age=0/)
+
+  // The browser keeps sending its old Authorization header after the cookie is cleared.
+  for (const retainedCookie of [undefined, cookie]) {
+    const headers = { ...navigationHeaders, ...(retainedCookie ? { Cookie: retainedCookie } : {}) }
+    const loginPage = await fetch(base + '/login', { headers, redirect: 'manual' })
+    assert.equal(loginPage.status, 200)
+    assert.equal(loginPage.headers.get('location'), null)
+    const privatePage = await fetch(base + '/projects', { headers, redirect: 'manual' })
+    assert.equal(privatePage.status, 307)
+    assert.equal(privatePage.headers.get('location'), '/login?next=%2Fprojects')
+    assert.equal((await fetch(base + '/api/projects', { headers: { ...browserHeaders, ...(retainedCookie ? { Cookie: retainedCookie } : {}) } })).status, 401)
+  }
+
+  const signedInAgain = await login({}, { Authorization: authorization })
+  const newCookie = signedInAgain.headers.get('set-cookie').split(';')[0]
+  assert.equal((await fetch(base + '/api/projects', { headers: { ...browserHeaders, Cookie: newCookie } })).status, 200)
+  advance(8 * 60 * 60 * 1000)
+  assert.equal((await fetch(base + '/api/projects', { headers: { ...browserHeaders, Cookie: newCookie } })).status, 401)
+  assert.equal((await fetch(base + '/login', { headers: { ...navigationHeaders, Cookie: newCookie }, redirect: 'manual' })).status, 200)
+
+  // Metadata signals are independently sufficient; HTML requests also cover
+  // browsers/proxies that omit Fetch Metadata headers on navigations.
+  // WebSocket upgrades must not restore access using cached Basic either.
+  for (const requestHeaders of [
+    { 'Sec-Fetch-Site': 'same-origin' },
+    { 'Sec-Fetch-Dest': 'empty' },
+    { 'Sec-Fetch-Mode': 'navigate' },
+    { Accept: 'text/html,application/xhtml+xml' },
+    { Connection: 'Upgrade', Upgrade: 'websocket', Origin: env.APP_ORIGIN },
+  ]) {
+    // Use raw HTTP here: Node fetch overwrites Sec-Fetch-Mode with "cors".
+    const status = await new Promise((resolve, reject) => {
+      const request = http.get(base + '/api/projects', { headers: { Authorization: authorization, ...requestHeaders } }, (response) => {
+        response.resume()
+        response.on('end', () => resolve(response.statusCode))
+      })
+      request.on('error', reject)
+    })
+    assert.equal(status, 401)
+  }
+
+  // Explicit Basic authentication remains available to non-browser HTTP API clients.
+  assert.equal((await fetch(base + '/api/projects', { headers: { Authorization: authorization } })).status, 200)
+  assert.equal((await fetch(base + '/login', { headers: { Authorization: authorization }, redirect: 'manual' })).status, 200)
+})
+
 test('HTTPS sessions require Secure and login retries are bounded without trusting forwarded IP headers', async (t) => {
   const { login, advance } = await setup(t, true)
   assert.match((await login()).headers.get('set-cookie'), /; Secure$/)
