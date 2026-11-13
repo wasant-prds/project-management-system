@@ -130,9 +130,9 @@ try {
       }
       if (!before) {
         // Sync history is a timestamp surface; opening it must not execute a sync.
-        await page.goto(`${origin}/projects/project-0?theme=${theme}`, { waitUntil: 'networkidle' })
+        await page.goto(`${origin}/projects/project-0?theme=${theme}#integrations`, { waitUntil: 'networkidle' })
         await page.getByRole('button', { name: 'ประวัติ sync', exact: true }).first().click()
-        await page.getByRole('region', { name: 'ประวัติ Issue Sync' }).getByText(/03\/11\/2026, 13:00/).waitFor()
+        await page.getByRole('region', { name: 'ประวัติ Issue Sync' }).locator('summary').filter({ hasText: /03\/11\/2026, 13:00/ }).waitFor()
         results.push({ theme, ...viewport, case: 'Bangkok datetime in read-only sync history', pass: true })
       }
       // Existing Login regression includes the narrower 320px viewport.

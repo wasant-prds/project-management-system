@@ -6,7 +6,9 @@ import { PageState } from '@/components/layout/page-state'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
 import { PAGE_HEADING, PAGE_INNER, PAGE_LEAD, PAGE_MAIN, PAGE_TOOLBAR, collectionCountLabel } from '@/components/layout/page-layout'
-import { DisclosureGlyph } from '@/components/ui/product-icon'
+import { Plus } from 'lucide-react'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { DIALOG_SHELL_SCROLL_CLASS } from '@/components/ui/responsive-dialog'
 import { loadFailureVisual } from '@/components/ui/product-identity'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { Button } from '@/components/ui/button'
@@ -39,6 +41,8 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [formOpen, setFormOpen] = useState(false)
+  const formReturnFocus = useRef<HTMLElement | null>(null)
   const loadGeneration = useRef(0)
   const reload = useCallback(async (fresh = false) => {
     const generation = ++loadGeneration.current
@@ -62,22 +66,23 @@ export default function ProjectsPage() {
   }, [reload])
 
   const submit = async (event: React.FormEvent) => {
-    event.preventDefault(); setSaving(true)
+    event.preventDefault(); if (saving) return; setSaving(true); setMessage('')
     try {
       await apiResponse(await fetch(editing ? `/api/projects/${editing}` : '/api/projects', {
         method: editing ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form),
       }))
-      setEditing(null); setForm(initialForm); await reload(true)
+      setEditing(null); setForm(initialForm); setFormOpen(false); await reload(true)
     } catch (error) { setMessage(error instanceof Error ? error.message : 'บันทึกไม่สำเร็จ') }
     finally { setSaving(false) }
   }
   const editProject = async (id: string) => {
+    formReturnFocus.current = document.activeElement as HTMLElement | null
     try {
       const data = await apiResponse(await fetch(`/api/projects/${id}`))
       const item = data.project
       setEditing(item.id)
       setForm({ name: item.name, companyId: item.companyId ?? '', startDate: item.startDate, dueDate: item.dueDate, status: item.status, priority: item.priority })
-      document.getElementById('project-form')?.scrollIntoView({ block: 'start' })
+      setMessage(''); setFormOpen(true)
     } catch (error) { setMessage(error instanceof Error ? error.message : 'โหลด Project ไม่สำเร็จ') }
   }
   const projectFiltersNarrow = search !== '' || statusFilter !== 'all' || companyFilter !== 'all'
@@ -97,26 +102,28 @@ export default function ProjectsPage() {
   } else {
     projectList = <div className="cinematic-beat-data motion-stagger grid min-w-0 gap-5 md:grid-cols-2 xl:grid-cols-3">{filtered.map((project) => <PortfolioCard key={project.id} project={project} onEdit={editProject} />)}</div>
   }
-  return <SidebarProvider><AppSidebar /><SidebarInset><AppHeader /><main className={PAGE_MAIN}><div className={PAGE_INNER}>
+  return <SidebarProvider><AppSidebar /><SidebarInset><AppHeader /><main className={PAGE_MAIN}><div className={PAGE_INNER}><Dialog open={formOpen} onOpenChange={(open) => { if (!saving) setFormOpen(open) }}>
     <div className={PAGE_TOOLBAR}><div><p className="page-eyebrow mb-2">Project portfolio</p><h1 className={PAGE_HEADING}>Projects</h1><p className={PAGE_LEAD}>แต่ละ Project ผูก Company ที่เลือก พร้อมงานจริง</p></div>
-      <div className="page-header-actions"><SearchFilterPanel activeCount={[search.trim() !== '', statusFilter !== 'all', companyFilter !== 'all'].filter(Boolean).length} onReset={() => { setSearch(''); setStatusFilter('all'); setCompanyFilter('all') }}>
+      <div className="page-header-actions"><SearchFilterPanel summary={[search.trim(), statusFilter !== 'all' ? statusFilter : '', companies.find((company) => company.id === companyFilter)?.displayName ?? companies.find((company) => company.id === companyFilter)?.name].filter(Boolean).join(' · ')} activeCount={[search.trim() !== '', statusFilter !== 'all', companyFilter !== 'all'].filter(Boolean).length} onReset={() => { setSearch(''); setStatusFilter('all'); setCompanyFilter('all') }}>
         <div className="search-filter-fields">
           <FilterField label="คำค้นหา" className="sm:col-span-2"><Input type="search" aria-label="ค้นหา Project" placeholder="ค้นหา Project" value={search} onChange={(event) => setSearch(event.target.value)} /></FilterField>
           <FilterField label="สถานะ"><Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger aria-label="กรองสถานะ"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">ทุกสถานะ</SelectItem>{['Planning', 'In Progress', 'Review', 'Completed', 'On Hold'].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></FilterField>
           <FilterField label="Company"><Select value={companyFilter} onValueChange={setCompanyFilter}><SelectTrigger aria-label="กรอง Company"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">ทุก Company</SelectItem>{companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.displayName ?? company.name}</SelectItem>)}</SelectContent></Select></FilterField>
         </div>
-      </SearchFilterPanel></div>
+      </SearchFilterPanel><DialogTrigger asChild><Button magnetic disabled={loading || Boolean(loadError)} onClick={() => { setEditing(null); setForm(initialForm); setMessage(''); formReturnFocus.current = null }}><Plus aria-hidden="true" />สร้าง Project</Button></DialogTrigger></div>
     </div>
-    {message && <output aria-live="polite" className="surface-inset block rounded-xl border p-4 text-sm">{message}</output>}
-    <details id="project-form" open={editing !== null || undefined} className="cinematic-beat-support surface-raised scroll-mt-4 rounded-[var(--radius-panel)] border border-border/60 bg-card py-4"><summary className="type-card-title flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-5"><span>{editing ? 'แก้ไข Project' : 'สร้าง Project'}</span><DisclosureGlyph /></summary><div className="mt-5 px-4 sm:px-5"><form onSubmit={submit} className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3 [&>div]:min-w-0 [&>div]:space-y-2">
-      <div><Label htmlFor="project-name">ชื่อ Project *</Label><Input id="project-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></div>
-      <div><Label htmlFor="project-company">Company *</Label><Select value={form.companyId} onValueChange={(value) => setForm({ ...form, companyId: value })}><SelectTrigger id="project-company"><SelectValue placeholder="เลือก Company" /></SelectTrigger><SelectContent>{companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.displayName ?? company.name}</SelectItem>)}</SelectContent></Select></div>
-      <div><Label htmlFor="project-start">วันเริ่ม *</Label><DatePicker id="project-start" required value={form.startDate} onValueChange={(startDate) => setForm({ ...form, startDate })} /></div>
-      <div><Label htmlFor="project-due">วันกำหนดเสร็จ *</Label><DatePicker id="project-due" required value={form.dueDate} onValueChange={(dueDate) => setForm({ ...form, dueDate })} /></div>
-      <div><Label htmlFor="project-status">สถานะ</Label><Select value={form.status} onValueChange={(value) => setForm({ ...form, status: value })}><SelectTrigger id="project-status"><SelectValue /></SelectTrigger><SelectContent>{['Planning', 'In Progress', 'Review', 'Completed', 'On Hold'].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></div>
-      <div><Label htmlFor="project-priority">Priority</Label><Select value={form.priority} onValueChange={(value) => setForm({ ...form, priority: value })}><SelectTrigger id="project-priority"><SelectValue /></SelectTrigger><SelectContent>{['Low', 'Medium', 'High', 'Critical'].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></div>
-      <div className="flex items-end gap-2"><Button magnetic disabled={saving || !form.companyId}>{editing ? 'บันทึก' : 'สร้าง Project'}</Button>{editing && <Button type="button" variant="outline" onClick={() => { setEditing(null); setForm(initialForm) }}>ยกเลิก</Button>}</div>
-    </form></div></details>
+    {message && !formOpen && <output aria-live="polite" className="surface-inset block rounded-xl border p-4 text-sm">{message}</output>}
+    <DialogContent onCloseAutoFocus={(event) => { if (formReturnFocus.current?.isConnected) { event.preventDefault(); formReturnFocus.current.focus() } }} className={DIALOG_SHELL_SCROLL_CLASS} onInteractOutside={(event) => { if (saving) event.preventDefault() }} onEscapeKeyDown={(event) => { if (saving) event.preventDefault() }}><DialogHeader><DialogTitle>{editing ? 'แก้ไข Project' : 'สร้าง Project'}</DialogTitle><DialogDescription>เลือก Company และกำหนดช่วงเวลา สถานะ และ Priority ของ Project</DialogDescription></DialogHeader>
+    {message && <p role="alert" className="rounded-lg border border-destructive/40 p-3 text-sm">{message}</p>}
+    <form onSubmit={submit} aria-busy={saving} className="grid min-w-0 gap-4 sm:grid-cols-2 [&>div]:min-w-0 [&>div]:space-y-2">
+      <div><Label htmlFor="project-name">ชื่อ Project *</Label><Input disabled={saving} id="project-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></div>
+      <div><Label htmlFor="project-company">Company *</Label><Select disabled={saving} value={form.companyId} onValueChange={(value) => setForm({ ...form, companyId: value })}><SelectTrigger id="project-company"><SelectValue placeholder="เลือก Company" /></SelectTrigger><SelectContent>{companies.map((company) => <SelectItem key={company.id} value={company.id}>{company.displayName ?? company.name}</SelectItem>)}</SelectContent></Select></div>
+      <div><Label htmlFor="project-start">วันเริ่ม *</Label><DatePicker disabled={saving} id="project-start" required value={form.startDate} onValueChange={(startDate) => setForm({ ...form, startDate })} /></div>
+      <div><Label htmlFor="project-due">วันกำหนดเสร็จ *</Label><DatePicker disabled={saving} id="project-due" required value={form.dueDate} onValueChange={(dueDate) => setForm({ ...form, dueDate })} /></div>
+      <div><Label htmlFor="project-status">สถานะ</Label><Select disabled={saving} value={form.status} onValueChange={(value) => setForm({ ...form, status: value })}><SelectTrigger id="project-status"><SelectValue /></SelectTrigger><SelectContent>{['Planning', 'In Progress', 'Review', 'Completed', 'On Hold'].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></div>
+      <div><Label htmlFor="project-priority">Priority</Label><Select disabled={saving} value={form.priority} onValueChange={(value) => setForm({ ...form, priority: value })}><SelectTrigger id="project-priority"><SelectValue /></SelectTrigger><SelectContent>{['Low', 'Medium', 'High', 'Critical'].map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></div>
+      <div className="flex flex-wrap items-end gap-2 sm:col-span-2"><Button disabled={saving || !form.companyId}>{saving ? 'กำลังบันทึก…' : editing ? 'บันทึก' : 'สร้าง Project'}</Button><Button type="button" variant="outline" disabled={saving} onClick={() => setFormOpen(false)}>ยกเลิก</Button></div>
+    </form></DialogContent></Dialog>
     <div className="flex items-center justify-between gap-2"><h2 className="type-section">Projects ของคุณ</h2><span className="type-data text-muted-foreground">{collectionCountLabel(loading, Boolean(loadError), filtered.length, 'รายการ')}</span></div>
     {projectList}
   </div></main></SidebarInset></SidebarProvider>

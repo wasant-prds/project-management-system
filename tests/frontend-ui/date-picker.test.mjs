@@ -412,13 +412,13 @@ test('TC-40-19 Analysis keeps required draft dates and the original reversed-ran
   assert.match(page, /onValueChange=\{\(endDate\) => setDraftFilters/)
 })
 
-test('TC-40-20 Project forms keep both dates required and preserve the existing disabled behavior', () => {
+test('TC-40-20 Project forms keep required dates and the portfolio dialog locks while saving', () => {
   assert.match(source('app/projects/page.tsx'), /from '@\/components\/ui\/lazy-date-picker'/)
   assert.doesNotMatch(source('app/projects/page.tsx'), /from '@\/components\/ui\/date-picker'/)
   for (const id of ['project-start', 'project-due']) {
     const field = pickerBlock('app/projects/page.tsx', id)
     assert.match(field, /required/)
-    assert.doesNotMatch(field, /disabled/)
+    assert.match(field, /disabled=\{saving\}/)
   }
   for (const id of ['startDate', 'dueDate']) {
     const field = pickerBlock('components/page/projects/project-create-modal.tsx', id)

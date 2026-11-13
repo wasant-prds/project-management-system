@@ -52,6 +52,12 @@ Date picker คง `formatDatePickerDisplay` เดิมที่ให้ DD/M
 
 ไม่คำนวณ filters ใหม่ภายใน shared panel. ไม่เปลี่ยน controlled/uncontrolled state, Escape, portal, initial focus หรือ restore focus ของ Popover/Select/Calendar/Dialog; focus ring, selected border/weight, invalid border และ disabled surfaces ต้องคงอยู่
 
+### Projects และ Project workspace — #49
+
+Projects ใช้ primary action บน toolbar เปิด responsive create/edit dialog แทนแถบสร้างเต็มหน้า โดยคง compact filters. Portfolio cards ใช้ subgrid จัด metadata/progress/counts/hours/due/actions ตรงแนวในแถวเดียวกันและห่อชื่อเต็ม. Project detail แบ่งเป็น tabs ภาพรวม / Work Items / Daily Work / Integrations และมีสรุป Company/status/priority/ช่วงเวลา/progress/hours ก่อน tabs. ลบอยู่ในเมนูจัดการรองและยืนยันผ่าน alert dialog เดิม
+
+Integrations ใช้กลุ่ม provider/source, assignees, enabled/approval, sync/history และ native disclosure สำหรับ config ขั้นสูง. Tab นี้คง mounted และซ่อนเมื่อไม่ได้เลือก เพื่อรักษา stream/progress/review/history/config draft; `#integrations` ยังคงเปิด tab ได้. Daily Work ใช้ชื่อ Work Item ที่มีอยู่ใน DTO หรือข้อความ fallback พร้อม public UUID link; ไม่เพิ่มข้อมูลหรือ API เพื่อเติมชื่อ. [ผลตรวจและข้อจำกัด #49](project-workspace-verification.md)
+
 ### การส่งต่องาน #48–#53
 
 - **#48 Dashboard + Analysis:** นำ surface/type/action roles และวันสั้นบน chart ไปใช้เมื่อจัด KPI, reports และ applied-filter summary; ไม่เปลี่ยน metric formulas

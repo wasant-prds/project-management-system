@@ -6,12 +6,14 @@ import { formatHours } from '@/lib/decimal-hours'
 import { formatUiDate } from '@/lib/display-date'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
-import { PAGE_HEADING, PAGE_INNER, PAGE_MAIN, PAGE_TOOLBAR } from '@/components/layout/page-layout'
+import { PAGE_HEADING, PAGE_INNER, PAGE_MAIN, PAGE_TOOLBAR, TAB_SCROLL_CLASS, TAB_TRIGGER_CLASS } from '@/components/layout/page-layout'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { SummaryStatCard } from '@/components/layout/summary-stat-card'
+import { Progress } from '@/components/ui/progress'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { PageState } from '@/components/layout/page-state'
 import { workItemRoleLabel } from '@/components/page/work-items/work-item-role-label'
 import { WorkItemStatusBadge } from '@/components/page/work-items/work-item-status-badge'
@@ -39,6 +41,26 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [syncRevision, setSyncRevision] = useState(0)
+  const [activeTab, setActiveTab] = useState('overview')
+  const projectLoaded = project !== null
+  useEffect(() => {
+    const followHash = () => {
+      if (window.location.hash === '#integrations') {
+        setActiveTab('integrations')
+        requestAnimationFrame(() => document.getElementById('integrations')?.scrollIntoView({ block: 'start' }))
+      }
+    }
+    followHash()
+    window.addEventListener('hashchange', followHash)
+    return () => window.removeEventListener('hashchange', followHash)
+  }, [projectLoaded])
+  const changeTab = (tab: string) => {
+    setActiveTab(tab)
+    // Remove the deep link when leaving it, so following the same link works again.
+    if (tab === 'integrations' || window.location.hash === '#integrations') {
+      window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${tab === 'integrations' ? '#integrations' : ''}`)
+    }
+  }
   useEffect(() => {
     async function load() {
       try {
@@ -64,33 +86,34 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       router.push('/projects')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'ลบ Project ไม่สำเร็จ')
+      setDeleteOpen(false)
     } finally {
       setDeleting(false)
     }
   }
   return <SidebarProvider><AppSidebar /><SidebarInset><AppHeader /><main className={PAGE_MAIN}><div className={PAGE_INNER}>
-    <div className={PAGE_TOOLBAR}><div className="min-w-0"><p className="page-eyebrow mb-2">Project workspace</p><Link href="/projects" className="text-sm text-link underline">← Projects</Link><h1 id="project-detail-heading" data-shared-id={id} className={PAGE_HEADING}>{project?.name ?? 'Project detail'}</h1></div>{project && <Button variant="destructive" onClick={() => setDeleteOpen(true)}>ลบ Project</Button>}</div>
+    <div className={PAGE_TOOLBAR}><div className="min-w-0"><p className="page-eyebrow mb-2">Project workspace</p><Link href="/projects" className="text-sm text-link underline">← Projects</Link><h1 id="project-detail-heading" data-shared-id={id} className={PAGE_HEADING}>{project?.name ?? 'Project detail'}</h1></div>{project && <DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" disabled={deleting}>จัดการ Project</Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem variant="destructive" disabled={deleting} onSelect={() => setDeleteOpen(true)}>ลบ Project</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}</div>
     {loading && <PageState kind="loading" title="กำลังโหลด Project…" />}
     {message && <PageState kind="error" title="คำขอ Project ไม่สำเร็จ" description={message} />}
     {project && <div className="space-y-5">
-      <section aria-label="สรุป Project" className="cinematic-beat-data grid grid-cols-2 gap-4 lg:grid-cols-3">
-        <SummaryStatCard emphasis="primary" label="ความคืบหน้า" value={`${project.summary.progress.toFixed(1)}%`} hint={`${project.summary.completed}/${project.summary.total} Work Items`} />
-        <SummaryStatCard label="Work Items ทั้งหมด" value={project.summary.total} />
-        <SummaryStatCard label="ชั่วโมงจริง" value={formatHours(project.summary.hours)} />
-      </section>
-      <Card className="surface-raised"><CardHeader><CardTitle>ภาพรวม Project</CardTitle></CardHeader><CardContent className="grid min-w-0 gap-5 text-sm sm:grid-cols-2">
-        <div><p className="mb-2 text-xs text-muted-foreground">Company</p><p className="font-semibold">{project.company?.displayName ?? project.company?.name ?? 'ยังไม่ผูก Company'}</p></div>
-        <div><p className="mb-2 text-xs text-muted-foreground">สถานะและ Priority</p><div className="flex flex-wrap gap-2"><Badge variant="secondary">{project.status}</Badge><Badge variant="outline">{project.priority}</Badge></div></div>
-        <div><p className="mb-2 text-xs text-muted-foreground">ช่วงเวลา · Asia/Bangkok</p><p>{formatUiDate(project.startDate)} → {formatUiDate(project.dueDate)}</p></div>
-        <p className="whitespace-pre-wrap break-words text-muted-foreground">{project.description}</p>
+      <Card className="min-w-0"><CardContent className="grid min-w-0 gap-4 pt-5 lg:grid-cols-[1fr_minmax(16rem,1fr)]">
+        <div className="min-w-0 space-y-3"><p className="content-wrap font-semibold">{project.company?.displayName ?? project.company?.name ?? 'ยังไม่ผูก Company'}</p><div className="flex flex-wrap gap-2"><Badge variant="secondary">{project.status}</Badge><Badge variant="outline">{project.priority}</Badge></div><p className="text-sm text-muted-foreground">{formatUiDate(project.startDate)} → {formatUiDate(project.dueDate)} · Asia/Bangkok</p></div>
+        <section aria-label="สรุป Project" className="min-w-0 space-y-3"><div className="flex flex-wrap items-baseline justify-between gap-2"><span className="type-caption">ความคืบหน้า</span><strong className="type-data">{project.summary.progress.toFixed(1)}%</strong></div><Progress value={project.summary.progress} aria-label="ความคืบหน้า Project" /><div className="flex flex-wrap justify-between gap-3 text-sm"><span className="type-data">{project.summary.completed}/{project.summary.total} Work Items</span><span className="type-data content-wrap">{formatHours(project.summary.hours)} ชั่วโมงจริง</span></div></section>
       </CardContent></Card>
-      <ProjectIssueSync projectId={id} onSynced={() => setSyncRevision((revision) => revision + 1)} />
+      <Tabs value={activeTab} onValueChange={changeTab} className="min-w-0 gap-4">
+        <div className={TAB_SCROLL_CLASS}><TabsList aria-label="พื้นที่ Project" className="w-max"><TabsTrigger className={TAB_TRIGGER_CLASS} value="overview">ภาพรวม</TabsTrigger><TabsTrigger className={TAB_TRIGGER_CLASS} value="work-items">Work Items</TabsTrigger><TabsTrigger className={TAB_TRIGGER_CLASS} value="daily-work">Daily Work</TabsTrigger><TabsTrigger className={TAB_TRIGGER_CLASS} value="integrations">Integrations</TabsTrigger></TabsList></div>
+        <TabsContent value="overview" className="min-w-0 space-y-5">
+          <Card><CardHeader><CardTitle>ภาพรวม Project</CardTitle></CardHeader><CardContent><p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{project.description || 'ยังไม่มีรายละเอียด Project'}</p></CardContent></Card>
       <div className="grid gap-5 md:grid-cols-2">
         <Card><CardHeader><CardTitle>สถานะ Work Items</CardTitle></CardHeader><CardContent>{Object.entries(project.summary.statusCounts).length ? Object.entries(project.summary.statusCounts).map(([status, count]) => <div key={status} className="data-row flex items-center justify-between gap-3 text-sm"><WorkItemStatusBadge status={status} /><Badge variant="secondary" className="tabular-nums">{count}</Badge></div>) : <PageState title="ยังไม่มี Work Items" />}</CardContent></Card>
         <Card><CardHeader><CardTitle>Functional roles</CardTitle></CardHeader><CardContent>{Object.entries(project.summary.roles).map(([role, count]) => <div key={role} className="data-row flex items-center justify-between gap-3 text-sm"><span>{workItemRoleLabel(role)}</span><Badge variant="outline" className="tabular-nums">{count}</Badge></div>)}</CardContent></Card>
       </div>
-      <Card><CardHeader><CardTitle>Work Items</CardTitle></CardHeader><CardContent className="space-y-4">{project.workItems.length ? project.workItems.map((item) => <div key={item.id} className="data-row flex min-w-0 flex-wrap justify-between gap-2 text-sm"><div className="min-w-0"><p className="break-words font-medium">{item.title}</p><p className="mt-1 text-xs text-muted-foreground">{item.kind} · {workItemRoleLabel(item.role)}</p></div><div className="flex items-center gap-2"><WorkItemStatusBadge status={item.status} /><span className="text-xs text-muted-foreground">{item.dueDate ? formatUiDate(item.dueDate) : 'ไม่มีกำหนด'}</span></div></div>) : <PageState title="ยังไม่มี Work Items" />}<Button asChild><Link href={`/work-items?projectId=${project.id}`}>เปิด Work Items</Link></Button></CardContent></Card>
-      <Card><CardHeader><CardTitle>Daily Work</CardTitle></CardHeader><CardContent className="space-y-4">{project.timeEntries.length ? project.timeEntries.map((entry) => <div key={entry.id} className="data-row flex flex-wrap items-center justify-between gap-2 text-sm"><div><p className="font-medium">{formatUiDate(entry.date)}</p><p className="mt-1 break-all text-xs text-muted-foreground">WorkItem {entry.workItemId ?? 'legacy: ไม่ผูกงาน'}</p></div><Badge variant="secondary">{formatHours(entry.hours)} ชั่วโมง</Badge></div>) : <PageState title="ยังไม่มี TimeEntries" />}<Button variant="outline" asChild><Link href="/daily-work">เปิด Daily Work</Link></Button></CardContent></Card>
+      </TabsContent><TabsContent value="work-items" className="min-w-0"><Card><CardHeader><CardTitle>Work Items</CardTitle></CardHeader><CardContent className="space-y-4">{project.workItems.length ? project.workItems.map((item) => <div key={item.id} className="data-row flex min-w-0 flex-wrap justify-between gap-2 text-sm"><div className="min-w-0"><Link href={`/work-items?workItemId=${item.id}`} className="content-wrap font-medium text-link underline">{item.title}</Link><p className="mt-1 text-xs text-muted-foreground">{item.kind} · {workItemRoleLabel(item.role)}</p></div><div className="flex items-center gap-2"><WorkItemStatusBadge status={item.status} /><span className="text-xs text-muted-foreground">{item.dueDate ? formatUiDate(item.dueDate) : 'ไม่มีกำหนด'}</span></div></div>) : <PageState title="ยังไม่มี Work Items" />}<Button asChild><Link href={`/work-items?projectId=${project.id}`}>เปิด Work Items</Link></Button></CardContent></Card>
+      </TabsContent><TabsContent value="daily-work" className="min-w-0"><Card><CardHeader><CardTitle>Daily Work</CardTitle></CardHeader><CardContent className="space-y-4">{project.timeEntries.length ? project.timeEntries.map((entry) => <div key={entry.id} className="data-row flex flex-wrap items-center justify-between gap-2 text-sm"><div className="min-w-0 flex-1"><p className="content-wrap font-medium">{entry.workItemId ? <Link href={`/work-items?workItemId=${entry.workItemId}`} className="text-link underline">{project.workItems.find((item) => item.id === entry.workItemId)?.title || 'เปิด Work Item ที่บันทึกเวลา'}</Link> : 'บันทึกเวลาเดิมที่ไม่ได้ผูก Work Item'}</p><p className="mt-1 text-xs text-muted-foreground">{formatUiDate(entry.date)}</p></div><Badge variant="secondary">{formatHours(entry.hours)} ชั่วโมง</Badge></div>) : <PageState title="ยังไม่มีบันทึกเวลา" />}<Button variant="outline" asChild><Link href={`/daily-work?projectId=${project.id}`}>เปิด Daily Work</Link></Button></CardContent></Card>
+      </TabsContent>
+        {/* Keep sync mounted: changing tabs must not abort streams or discard review/history/form state. */}
+        <TabsContent value="integrations" forceMount hidden={activeTab !== 'integrations'} className="min-w-0"><ProjectIssueSync projectId={id} onSynced={() => setSyncRevision((revision) => revision + 1)} /></TabsContent>
+      </Tabs>
     </div>}
     <AlertDialog open={deleteOpen} onOpenChange={(open) => { if (!deleting) setDeleteOpen(open) }}>
       <AlertDialogContent>

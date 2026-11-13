@@ -51,6 +51,8 @@ Unit tests ไม่แทน browser review หรือ deployment. การ�
 
 ## คำสั่งเฉพาะ suite
 
+`pnpm test:project-workspace-browser` (หรือ `node scripts/project-workspace-browser.mjs`) ตรวจ #49 ผ่าน isolated synthetic preview: Projects create/edit dialog, pending/validation/focus, ชื่อยาว/ชั่วโมงขนาดใหญ่และ alignment ของ portfolio, keyboard tabs/local scroll, `#integrations`, sync approval/progress/review/history/config draft และ delete rejection ในสามธีม × 390×844, 768×1024, 1440×900. ใช้ Playwright/origin ตัวแปรเดียวกับ scripts อื่น; `--before` เก็บ baseline ก่อนแก้ source. POST/PATCH/DELETE/sync/confirm ถูก intercept ใน browser ไม่เรียก provider/DB. ภาพ/JSON/logs อยู่ใน `artifacts/issue-49/`. [ผลตรวจและข้อจำกัด](../frontend/project-workspace-verification.md)
+
 `pnpm test:dashboard-analysis-browser` (หรือ `node scripts/dashboard-analysis-browser.mjs`) ใช้ isolated preview จาก `node scripts/frontend-preview.mjs` และ Playwright ผ่าน `PMS_PLAYWRIGHT_MODULE` เช่นเดียวกับ header regressions. ตรวจ Dashboard/Analysis ใน Light/Dark/Special Dark × 390×844, 768×1024, 1440×900; ลำดับอ่าน, ช่วง/ตัวกรองที่มีผล, draft/apply, source UUIDs, filtered CSV, native disclosures ด้วย keyboard/touch, source tables, axes/tooltips รวมตัวเลขชั่วโมงยาว, empty/closed/cancelled/loading/error. `--before` เก็บ baseline summary/charts โดยไม่บังคับ layout ใหม่. ภาพ/JSON/log อยู่ใน `artifacts/issue-48/`; preview ใช้ synthetic data เท่านั้น ไม่อ่าน `.env` หรือเชื่อม database และไม่ใช่ Next.js navigation/auth acceptance. [ผลตรวจ #48](../frontend/dashboard-analysis-verification.md)
 
 - `pnpm test:contracts` / `node tests/run.mjs contracts` / `bash scripts/test-unit.sh contracts`

@@ -55,6 +55,8 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
   const runtime = createRuntime(initialState)
   const names = [
     'AppSidebar', 'AppHeader', 'SidebarProvider', 'SidebarInset', 'Card', 'CardContent', 'CardHeader', 'CardTitle',
+    'Dialog', 'DialogTrigger', 'DialogContent', 'DialogHeader', 'DialogTitle', 'DialogDescription',
+    'Tabs', 'TabsList', 'TabsTrigger', 'TabsContent', 'DropdownMenu', 'DropdownMenuTrigger', 'DropdownMenuContent', 'DropdownMenuItem',
     'Button', 'Input', 'DatePicker', 'Label', 'Textarea', 'Select', 'SelectContent', 'SelectItem', 'SelectTrigger', 'SelectValue',
     'AlertDialog', 'AlertDialogAction', 'AlertDialogCancel', 'AlertDialogContent', 'AlertDialogDescription',
     'AlertDialogFooter', 'AlertDialogHeader', 'AlertDialogTitle', 'Link', 'Badge', 'Progress',
@@ -80,7 +82,7 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
     '@/components/layout/search-filter-panel': { SearchFilterPanel: component('SearchFilterPanel'), FilterField: component('FilterField') },
     '@/components/page/projects/project-issue-sync': { ProjectIssueSync: component('ProjectIssueSync') },
     '@/components/layout/page-layout': {
-      PAGE_HEADING: 'PAGE_HEADING', PAGE_INNER: 'PAGE_INNER', PAGE_LEAD: 'PAGE_LEAD', PAGE_MAIN: 'PAGE_MAIN', PAGE_TOOLBAR: 'PAGE_TOOLBAR',
+      PAGE_HEADING: 'PAGE_HEADING', PAGE_INNER: 'PAGE_INNER', PAGE_LEAD: 'PAGE_LEAD', PAGE_MAIN: 'PAGE_MAIN', PAGE_TOOLBAR: 'PAGE_TOOLBAR', TAB_SCROLL_CLASS: 'TAB_SCROLL_CLASS', TAB_TRIGGER_CLASS: 'TAB_TRIGGER_CLASS',
       collectionCountLabel(loading, failed, count, noun) {
         if (loading) return 'กำลังโหลด…'
         if (failed) return 'โหลดไม่สำเร็จ'
@@ -116,6 +118,10 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
     '@/lib/work-items': {
       WORK_ITEM_ROLE_LABELS: { Developer: 'Developer', infra: 'Infrastructure', SA: 'System Analyst' },
     },
+    '@/components/ui/dialog': Object.fromEntries(['Dialog', 'DialogTrigger', 'DialogContent', 'DialogHeader', 'DialogTitle', 'DialogDescription'].map((name) => [name, ui[name]])),
+    '@/components/ui/tabs': Object.fromEntries(['Tabs', 'TabsList', 'TabsTrigger', 'TabsContent'].map((name) => [name, ui[name]])),
+    '@/components/ui/dropdown-menu': Object.fromEntries(['DropdownMenu', 'DropdownMenuTrigger', 'DropdownMenuContent', 'DropdownMenuItem'].map((name) => [name, ui[name]])),
+    '@/components/ui/responsive-dialog': { DIALOG_SHELL_SCROLL_CLASS: 'dialog-scroll-shell' },
     '@/components/ui/input': { Input: ui.Input },
     '@/components/ui/date-picker': { DatePicker: ui.DatePicker },
     '@/components/ui/lazy-date-picker': { DatePicker: ui.DatePicker },
@@ -160,7 +166,7 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
       if (!(name in mocks)) throw new Error(`Unexpected UI import: ${name}`)
       return mocks[name]
     },
-    fetch: fetcher, URLSearchParams, encodeURIComponent, window: { scrollTo() {}, location: { search: '' } }, document: { getElementById: () => ({ scrollIntoView() {} }) },
+    fetch: fetcher, URLSearchParams, encodeURIComponent, window: { scrollTo() {}, location: { search: '', hash: '', pathname: '/projects' }, history: { replaceState() {} } }, document: { getElementById: () => ({ scrollIntoView() {} }) },
     console, Date, Error, URL, setTimeout, clearTimeout,
   }, { filename: relativePath })
   return { Page: pageModule.exports.default, runtime, ui, routerCalls }
@@ -205,9 +211,9 @@ test('Project detail confirms deletion, navigates on success, and shows history 
     fetcher: async (path, options) => { calls.push({ path, options }); return nextResult },
   })
   let tree = page.runtime.render(page.Page, { params: Promise.resolve({ id: project.id }) })
-  const open = find(tree, (node) => node.type === page.ui.Button && textContent(node) === 'ลบ Project')
+  const open = find(tree, (node) => node.type === page.ui.DropdownMenuItem && textContent(node) === 'ลบ Project')
   assert.ok(open)
-  open.props.onClick()
+  open.props.onSelect()
   tree = page.runtime.render(page.Page, { params: Promise.resolve({ id: project.id }) })
   const confirm = find(tree, (node) => node.type === page.ui.AlertDialogAction)
   assert.equal(textContent(confirm), 'ยืนยันลบ Project')
@@ -217,7 +223,7 @@ test('Project detail confirms deletion, navigates on success, and shows history 
 
   nextResult = { ok: false, json: async () => ({ error: { code: 'HISTORY_CONFLICT', message: 'Project has history' } }) }
   tree = page.runtime.render(page.Page, { params: Promise.resolve({ id: project.id }) })
-  find(tree, (node) => node.type === page.ui.Button && textContent(node) === 'ลบ Project').props.onClick()
+  find(tree, (node) => node.type === page.ui.DropdownMenuItem && textContent(node) === 'ลบ Project').props.onSelect()
   tree = page.runtime.render(page.Page, { params: Promise.resolve({ id: project.id }) })
   await find(tree, (node) => node.type === page.ui.AlertDialogAction).props.onClick({ preventDefault() {} })
   tree = page.runtime.render(page.Page, { params: Promise.resolve({ id: project.id }) })
@@ -245,6 +251,42 @@ test('Project detail shows shared labels for known, missing and unknown function
   assert.match(text, /ไม่ระบุ role/)
   assert.match(text, /custom-role/)
   assert.equal((text.match(/\binfra\b/g) ?? []).length, 0)
+})
+
+test('Workspace keeps the integration component mounted and hides its panel across tab changes', () => {
+  const page = loadPage('../../app/projects/[id]/page.tsx', { initialState: { 0: project, 2: false } })
+  let tree = page.runtime.render(page.Page)
+  const integrations = () => find(tree, (node) => node.type === page.ui.TabsContent && node.props.value === 'integrations')
+  assert.equal(integrations().props.forceMount, true)
+  assert.equal(integrations().props.hidden, true)
+  assert.ok(find(integrations(), (node) => node.type?.displayName === 'ProjectIssueSync'))
+  find(tree, (node) => node.type === page.ui.Tabs).props.onValueChange('integrations')
+  tree = page.runtime.render(page.Page)
+  assert.equal(integrations().props.hidden, false)
+  find(tree, (node) => node.type === page.ui.Tabs).props.onValueChange('daily-work')
+  tree = page.runtime.render(page.Page)
+  assert.equal(integrations().props.hidden, true)
+  assert.ok(find(integrations(), (node) => node.type?.displayName === 'ProjectIssueSync'))
+})
+
+test('Project Daily Work presents titles and meaningful fallbacks with only public reference links', () => {
+  const known = '49000000-0000-4000-8000-000000000001'
+  const missing = '49000000-0000-4000-8000-000000000002'
+  const detailed = { ...project, workItems: [{ id: known, title: 'ตรวจข้อมูล Project', kind: 'Task', role: null, status: 'todo', dueDate: null }], timeEntries: [
+    { id: 'entry-known', workItemId: known, date: '2026-11-13', hours: '1.005' },
+    { id: 'entry-missing', workItemId: missing, date: '2026-11-13', hours: '2' },
+    { id: 'entry-legacy', workItemId: null, date: '2026-11-13', hours: '0.5' },
+  ] }
+  const page = loadPage('../../app/projects/[id]/page.tsx', { initialState: { 0: detailed, 2: false } })
+  const tree = page.runtime.render(page.Page)
+  const daily = find(tree, (node) => node.type === page.ui.TabsContent && node.props.value === 'daily-work')
+  const text = textContent(daily)
+  assert.match(text, /ตรวจข้อมูล Project/)
+  assert.match(text, /เปิด Work Item ที่บันทึกเวลา/)
+  assert.match(text, /บันทึกเวลาเดิมที่ไม่ได้ผูก Work Item/)
+  assert.match(text, /1\.01/)
+  assert.doesNotMatch(text, /49000000|legacy:/)
+  for (const reference of [known, missing]) assert.ok(find(daily, (node) => node.props?.href === `/work-items?workItemId=${reference}`))
 })
 
 test('Company deletion requires the alert-dialog confirmation', async () => {
@@ -362,10 +404,10 @@ test('Project create and edit persist a Company relation and surface API failure
     },
   })
   tree = editPage.runtime.render(editPage.Page)
-  assert.equal(find(tree, (node) => node.type === 'details').props.open, undefined)
+  assert.equal(find(tree, (node) => node.type === editPage.ui.Dialog).props.open, false)
   await find(tree, (node) => node.type === editPage.ui.Button && textContent(node) === 'แก้ไข').props.onClick()
   tree = editPage.runtime.render(editPage.Page)
-  assert.equal(find(tree, (node) => node.type === 'details').props.open, true)
+  assert.equal(find(tree, (node) => node.type === editPage.ui.Dialog).props.open, true)
   find(tree, (node) => node.type === editPage.ui.Input && node.props.id === 'project-name').props.onChange({ target: { value: 'Updated Project' } })
   tree = editPage.runtime.render(editPage.Page)
   await find(tree, (node) => node.type === 'form').props.onSubmit({ preventDefault() {} })
@@ -375,7 +417,7 @@ test('Project create and edit persist a Company relation and surface API failure
   assert.equal(editRequests[1].options.method, 'PATCH')
   assert.equal(JSON.parse(editRequests[1].options.body).name, 'Updated Project')
   tree = editPage.runtime.render(editPage.Page)
-  assert.match(textContent(find(tree, (node) => node.type === 'output')), /Choose another Company/)
+  assert.match(textContent(find(tree, (node) => node.props?.role === 'alert')), /Choose another Company/)
 })
 
 test('Project list search and Company filters select matching summaries', () => {

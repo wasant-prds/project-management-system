@@ -27,6 +27,7 @@
     "test:header-tools-browser": "node scripts/header-tools-browser.mjs",
     "test:shared-foundation-browser": "node scripts/shared-foundation-browser.mjs",
     "test:dashboard-analysis-browser": "node scripts/dashboard-analysis-browser.mjs",
+    "test:project-workspace-browser": "node scripts/project-workspace-browser.mjs",
     "test:frontend-cinematic": "node tests/run.mjs frontend-cinematic",
     "test:frontend-identity": "node tests/run.mjs frontend-identity",
     "test:frontend-competition": "node tests/run.mjs frontend-competition",
