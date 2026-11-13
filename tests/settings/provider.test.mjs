@@ -22,11 +22,19 @@ function createReactRuntime() {
   const refs = new Map()
   let index = 0
   const effects = []
+  const effectDependencies = new Map()
   return {
     effects,
     createContext: () => ({ Provider: function Provider() {} }),
     useContext: (context) => context.value,
-    useEffect: (effect) => effects.push(effect),
+    useEffect: (effect, dependencies) => {
+      const slot = index++
+      const previous = effectDependencies.get(slot)
+      if (!previous || !dependencies || dependencies.some((value, i) => !Object.is(value, previous[i]))) {
+        effects.push(effect)
+        effectDependencies.set(slot, dependencies)
+      }
+    },
     useRef(initial) {
       const slot = index++
       if (!refs.has(slot)) refs.set(slot, { current: initial })
@@ -77,6 +85,29 @@ const lightSettings = {
   profile: { name: 'Owner', email: 'owner@example.test', phone: null, avatar: null },
   preferences: { theme: 'light', locale: 'th', timezone: 'Asia/Bangkok' },
 }
+
+test('A changing next-themes setter does not reload Settings after a confirmed save; explicit reload still does', async () => {
+  const calls = [], themeChanges = []
+  const runtime = loadProvider({ themeChanges, document: { documentElement: { lang: 'th' } }, fetcher: async (_path, init = {}) => {
+    calls.push(init.method ?? 'GET')
+    return response(init.method === 'PATCH' ? { ...lightSettings, preferences: { ...lightSettings.preferences, theme: 'dark' } } : lightSettings)
+  } })
+  runtime.render(runtime.OwnerSettingsProvider)
+  runtime.effects[0]()
+  await new Promise((resolve) => setImmediate(resolve))
+  let tree = runtime.render(runtime.OwnerSettingsProvider)
+  await tree.props.value.savePreferences({ theme: 'dark' })
+  tree = runtime.render(runtime.OwnerSettingsProvider)
+  assert.equal(tree.props.value.isLoading, false)
+  assert.equal(runtime.effects.length, 1, 'theme setter identity must not schedule a new GET')
+  assert.deepEqual(calls, ['GET', 'PATCH'])
+  tree.props.value.reload()
+  runtime.render(runtime.OwnerSettingsProvider)
+  assert.equal(runtime.effects.length, 2)
+  runtime.effects[1]()
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.deepEqual(calls, ['GET', 'PATCH', 'GET'])
+})
 
 test('public login does not request private settings or overwrite the locally selected theme', () => {
   let requests = 0

@@ -19,6 +19,7 @@ import ErrorPage from '@/app/error'
 import { WorkLogLayoutAudit } from './work-log-layout-audit'
 import { FoundationPreview } from './foundation-preview'
 import { LoginScreen } from '@/components/auth/login-screen'
+import { OwnerSettingsProvider } from '@/components/layout/owner-settings-provider'
 
 const routes: Record<string, React.ComponentType> = { '/': Dashboard, '/projects': Projects, '/work-items': WorkItems, '/board': Board, '/analysis': Analysis, '/daily-work': DailyWork, '/company': Company, '/settings': Settings }
 const route = window.location.pathname
@@ -49,8 +50,9 @@ if (route === '/' && new URLSearchParams(window.location.search).get('qa') === '
 } else if (route.startsWith('/projects/')) {
   pageContent = <ProjectDetail params={detailParams} />
 }
+if (process.env.PMS_PREVIEW_REAL_SETTINGS === '1') pageContent = <OwnerSettingsProvider>{pageContent}</OwnerSettingsProvider>
 if (root) createRoot(root).render(
-  <ThemeProvider attribute="class" defaultTheme="light" forcedTheme={new URLSearchParams(window.location.search).get('themeSwitch') === '1' ? undefined : theme} themes={['light', 'dark', 'special-dark']}>
+  <ThemeProvider attribute="class" storageKey="project-management-theme" defaultTheme="light" forcedTheme={process.env.PMS_PREVIEW_REAL_SETTINGS === '1' || new URLSearchParams(window.location.search).get('themeSwitch') === '1' ? undefined : theme} themes={['light', 'dark', 'special-dark']}>
     <CinematicRuntime />
     <Template>{pageContent}</Template>
     {route === '/daily-work' && new URLSearchParams(window.location.search).get('layoutCheck') === '1' && <WorkLogLayoutAudit />}

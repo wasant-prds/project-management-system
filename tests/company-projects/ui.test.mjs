@@ -331,7 +331,7 @@ test('Company create and edit persist through the form and show API errors', asy
   })
 
   let tree = page.runtime.render(page.Page)
-  assert.equal(find(tree, (node) => node.type === 'details').props.open, undefined)
+  assert.equal(find(tree, (node) => node.type === page.ui.Dialog).props.open, false)
   const name = find(tree, (node) => node.type === page.ui.Input && node.props.id === 'company-name')
   name.props.onChange({ target: { value: 'New Company' } })
   tree = page.runtime.render(page.Page)
@@ -349,7 +349,7 @@ test('Company create and edit persist through the form and show API errors', asy
   find(tree, (node) => node.type === page.ui.Button && textContent(node) === 'แก้ไข').props.onClick()
   tree = page.runtime.render(page.Page)
   const phone = find(tree, (node) => node.type === page.ui.Input && node.props.id === 'company-phone')
-  assert.equal(find(tree, (node) => node.type === 'details').props.open, true)
+  assert.equal(find(tree, (node) => node.type === page.ui.Dialog).props.open, true)
   phone.props.onChange({ target: { value: '02 123 4567' } })
   tree = page.runtime.render(page.Page)
   await find(tree, (node) => node.type === 'form').props.onSubmit({ preventDefault() {} })
@@ -357,7 +357,7 @@ test('Company create and edit persist through the form and show API errors', asy
   assert.equal(requests[1].options.method, 'PATCH')
   assert.equal(JSON.parse(requests[1].options.body).phone, '02 123 4567')
   tree = page.runtime.render(page.Page)
-  assert.match(textContent(find(tree, (node) => node.type === 'output')), /PROJECTS_EXIST: Company has Projects/)
+  assert.match(textContent(find(tree, (node) => node.props?.role === 'alert')), /PROJECTS_EXIST: Company has Projects/)
 })
 
 test('Project create and edit persist a Company relation and surface API failures', async () => {

@@ -68,6 +68,10 @@ function mergePreferences(current: OwnerSettings['preferences'], saved: OwnerSet
 
 export function OwnerSettingsProvider({ children }: Readonly<{ children: ReactNode }>) {
   const { setTheme } = useTheme()
+  // next-themes changes this callback when the theme changes. Reading the latest
+  // setter must not turn a confirmed save into a new GET/loading cycle.
+  const themeSetter = useRef(setTheme)
+  themeSetter.current = setTheme
   const [settings, setSettings] = useState<OwnerSettings | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -97,7 +101,7 @@ export function OwnerSettingsProvider({ children }: Readonly<{ children: ReactNo
         const saved = await readSettingsResponse(response)
         if (!active) return
         setSettings(saved)
-        setTheme(saved.preferences.theme)
+        themeSetter.current(saved.preferences.theme)
         document.documentElement.lang = saved.preferences.locale
       } catch (error) {
         if (active) setLoadError(error instanceof Error ? error.message : 'ไม่สามารถโหลดการตั้งค่าได้')
@@ -113,7 +117,7 @@ export function OwnerSettingsProvider({ children }: Readonly<{ children: ReactNo
     return () => {
       active = false
     }
-  }, [reloadCount, setTheme])
+  }, [reloadCount])
 
   async function patchSettings(patch: OwnerSettingsPatch) {
     const response = await fetch('/api/settings/me', {

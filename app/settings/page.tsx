@@ -29,7 +29,8 @@ type Profile = OwnerSettings['profile']
 type ProfileDraft = Partial<Profile>
 type PreferencesDraft = { theme?: SettingsTheme; locale?: SettingsLocale }
 
-const themeLabels: Record<SettingsTheme, string> = { light: 'สว่าง', dark: 'มืด', 'special-dark': 'มืดพิเศษ' }
+const themeLabels: Record<SettingsTheme, string> = { light: 'Light', dark: 'Dark', 'special-dark': 'Special Dark' }
+const themeDescriptions: Record<SettingsTheme, string> = { light: 'สว่าง อ่านง่าย', dark: 'มืด สบายตา', 'special-dark': 'มืดเข้ม โทนลึก' }
 const localeLabels: Record<SettingsLocale, string> = { th: 'ไทย', en: 'English' }
 
 function getAvatarInitials(name: string) {
@@ -121,7 +122,7 @@ export default function SettingsPage() {
           <div className={PAGE_INNER}>
             <div className="page-toolbar"><p className="page-eyebrow mb-2">Personal workspace</p>
               <h1 className={PAGE_HEADING}>การตั้งค่า</h1>
-              <p className={PAGE_LEAD}>จัดการโปรไฟล์และการตั้งค่าของเจ้าของระบบ</p>
+              <p className={PAGE_LEAD}>ข้อมูลส่วนตัวและหน้าตาพื้นที่ทำงานของคุณ</p>
             </div>
 
             {isLoading && <div role="status" aria-busy="true" className="space-y-4"><p className="text-sm text-muted-foreground">กำลังโหลดการตั้งค่า...</p><ContentLoadingSkeleton layout="profile" /></div>}
@@ -141,24 +142,24 @@ export default function SettingsPage() {
                 <TabsContent value="profile" className="space-y-4">
                   <Card>
                     <CardHeader>
-                      <CardTitle>โปรไฟล์เจ้าของระบบ</CardTitle>
-                      <CardDescription>ข้อมูลนี้ผูกกับ owner account ที่ยืนยันตัวตนอยู่; อีเมลนี้ไม่เปลี่ยน credential ของ access gate</CardDescription>
+                      <CardTitle>โปรไฟล์ของคุณ</CardTitle>
+                      <CardDescription>แก้ไขชื่อ อีเมลติดต่อ และโทรศัพท์ได้ที่นี่ โดยไม่เปลี่ยนวิธีเข้าสู่ระบบ</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <form className="space-y-6" onSubmit={handleProfileSubmit}>
-                        <div className="flex items-center gap-4">
-                          <Avatar className="h-16 w-16 border border-border">
+                        <div className="flex min-w-0 items-center gap-4 border-b border-border/60 pb-5">
+                          <Avatar className="h-14 w-14 shrink-0 border border-border">
                             {profile.avatar && <AvatarImage src={profile.avatar} alt="รูปโปรไฟล์เจ้าของระบบ" />}
                             <AvatarFallback className="bg-primary/10 font-semibold text-link">
                               {getAvatarInitials(profile.name)}
                             </AvatarFallback>
                           </Avatar>
-                          <p className="text-sm text-muted-foreground">รูปโปรไฟล์จะแสดงเมื่อมี avatar ที่บันทึกไว้ในบัญชี</p>
+                          <div className="min-w-0"><p className="content-wrap font-semibold">{settings?.profile.name}</p><p className="content-wrap mt-1 text-sm text-muted-foreground">{settings?.profile.email}</p><p className="mt-1 text-xs text-muted-foreground">ใช้รูปที่บันทึกไว้ หรืออักษรย่อจากชื่อ</p></div>
                         </div>
 
-                        <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid min-w-0 gap-4 sm:grid-cols-2 [&>div]:min-w-0">
                           <div className="space-y-2">
-                            <Label htmlFor="owner-name">ชื่อที่แสดง</Label>
+                            <Label htmlFor="owner-name">ชื่อที่แสดง <span className="text-muted-foreground">(จำเป็น)</span></Label>
                             <Input
                               id="owner-name"
                               autoComplete="name"
@@ -173,7 +174,7 @@ export default function SettingsPage() {
                             />
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="owner-email">อีเมล</Label>
+                            <Label htmlFor="owner-email">อีเมลติดต่อ <span className="text-muted-foreground">(จำเป็น)</span></Label>
                             <Input
                               id="owner-email"
                               type="email"
@@ -227,26 +228,28 @@ export default function SettingsPage() {
                   <Card>
                     <CardHeader>
                       <CardTitle>การแสดงผล</CardTitle>
-                      <CardDescription>ค่าที่บันทึกจะใช้ต่อเมื่อเปิดหน้าเว็บหรือ session ใหม่</CardDescription>
+                      <CardDescription>เลือกหน้าตาที่ต้องการ แล้วกดบันทึกเพื่อใช้กับทุกหน้าและครั้งถัดไป</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <form className="space-y-6" onSubmit={handlePreferencesSubmit}>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label htmlFor="owner-theme">Theme</Label>
-                            <select
-                              id="owner-theme"
-                              className="motion-control shadow-input flex h-10 w-full rounded-md border border-border-strong bg-input px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:border-border disabled:bg-disabled disabled:text-disabled-foreground disabled:opacity-100 disabled:shadow-none"
-                              disabled={isSavingPreferences}
-                              value={preferences.theme}
-                              onChange={(event) => {
-                                const theme = event.currentTarget.value as SettingsTheme
-                                setPreferencesDraft((draft) => ({ ...draft, theme }))
-                              }}
-                            >
-                              {SETTINGS_THEMES.map((theme) => <option key={theme} value={theme}>{themeLabels[theme]}</option>)}
-                            </select>
+                        <fieldset disabled={isSavingPreferences} aria-describedby="theme-draft-hint" className="min-w-0 space-y-3">
+                          <legend className="type-section mb-3">ธีมพื้นที่ทำงาน</legend>
+                          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3">
+                            {SETTINGS_THEMES.map((theme) => <label key={theme} className="relative min-w-0 cursor-pointer">
+                              <input type="radio" name="owner-theme" id={`owner-theme-${theme}`} aria-label={themeLabels[theme]} value={theme} checked={preferences.theme === theme} disabled={isSavingPreferences} onChange={() => setPreferencesDraft((draft) => ({ ...draft, theme }))} className="peer sr-only" />
+                              <span className="motion-control block min-w-0 rounded-xl border-2 border-border bg-card p-3 peer-checked:border-primary peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-ring peer-disabled:cursor-not-allowed peer-disabled:opacity-60">
+                                <span aria-hidden="true" data-theme-preview={theme} className={`${theme === 'light' ? 'theme-preview-light' : theme} mb-3 flex h-24 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--background)] p-2`}>
+                                  <span className="mr-2 flex w-1/4 flex-col gap-2 rounded bg-[var(--surface)] p-2"><span className="h-2 rounded bg-[var(--primary)]" /><span className="h-1 rounded bg-[var(--text-muted)]" /><span className="h-1 rounded bg-[var(--border)]" /></span>
+                                  <span className="flex flex-1 flex-col gap-2"><span className="h-2 w-2/3 rounded bg-[var(--text-primary)]" /><span className="grid flex-1 grid-cols-2 gap-2"><span className="rounded border border-[var(--border)] bg-[var(--surface)]" /><span className="rounded border border-[var(--border)] bg-[var(--surface)]" /></span><span className="h-3 w-1/2 rounded bg-[var(--primary)]" /></span>
+                                </span>
+                                <span className="flex flex-wrap items-center justify-between gap-1 text-sm font-semibold"><span>{themeLabels[theme]}</span><span aria-hidden="true" className="text-xs">{preferences.theme === theme ? '✓ เลือกอยู่' : 'เลือก'}</span></span>
+                                <span className="mt-1 block text-xs text-muted-foreground">{themeDescriptions[theme]}</span>
+                              </span>
+                            </label>)}
                           </div>
+                          <p id="theme-draft-hint" className="text-xs text-muted-foreground">ภาพตัวอย่างเท่านั้น ธีมจะเปลี่ยนเมื่อบันทึก · ยกเลิกเพื่อกลับไปใช้ค่าที่บันทึกไว้</p>
+                        </fieldset>
+                        <div className="grid min-w-0 gap-4 sm:grid-cols-2 [&>div]:min-w-0">
                           <div className="space-y-2">
                             <Label htmlFor="owner-locale">ภาษา</Label>
                             <select
@@ -261,12 +264,12 @@ export default function SettingsPage() {
                             >
                               {SETTINGS_LOCALES.map((locale) => <option key={locale} value={locale}>{localeLabels[locale]}</option>)}
                             </select>
-                            <p className="text-xs text-muted-foreground">บันทึก locale และกำหนด HTML language; ข้อความ UI ปัจจุบันแสดงภาษาไทย</p>
+                            <p className="text-xs text-muted-foreground">บันทึกภาษาที่ต้องการได้ แต่ข้อความส่วนใหญ่ยังแสดงภาษาไทย</p>
                           </div>
-                          <div className="space-y-2 sm:col-span-2">
-                            <Label htmlFor="owner-timezone">Timezone ของระบบ</Label>
+                          <div className="space-y-2">
+                            <Label htmlFor="owner-timezone">เขตเวลา</Label>
                             <Input id="owner-timezone" value={preferences.timezone} readOnly aria-readonly="true" />
-                            <p className="text-xs text-muted-foreground">ระบบใช้ timezone นี้กับวันที่ การบันทึก และการคำนวณทุกเมนู และไม่สามารถเปลี่ยนได้</p>
+                            <p className="text-xs text-muted-foreground">ทุกเมนูใช้เวลาไทยร่วมกัน เปลี่ยนไม่ได้</p>
                           </div>
                         </div>
 

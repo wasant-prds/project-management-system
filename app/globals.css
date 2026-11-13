@@ -4,7 +4,7 @@
 @custom-variant dark (&:where(.dark, .dark *, .special-dark, .special-dark *));
 
 /* Semantic palettes: status labels and solid actions have separate contrast roles. */
-:root {
+.theme-preview-light, :root {
   color-scheme: light;
   --background: #f2f2f7;
   --background-secondary: #e9e9ef;

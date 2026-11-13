@@ -272,7 +272,7 @@ test('Preferences send only changed theme and locale, leaving the fixed timezone
   const controller = makeController({ themeChanges })
   const page = loadPage(controller, themeChanges)
   let tree = page.runtime.render(page.Page)
-  find(tree, (node) => node.type === 'select' && node.props.id === 'owner-theme').props.onChange({ currentTarget: { value: 'special-dark' } })
+  find(tree, (node) => node.props?.id === 'owner-theme-special-dark').props.onChange()
   tree = page.runtime.render(page.Page)
   find(tree, (node) => node.type === 'select' && node.props.id === 'owner-locale').props.onChange({ currentTarget: { value: 'en' } })
   tree = page.runtime.render(page.Page)
@@ -292,7 +292,7 @@ test('Settings reports a failed save and leaves the canonical theme unchanged', 
   })
   const page = loadPage(controller, themeChanges)
   let tree = page.runtime.render(page.Page)
-  find(tree, (node) => node.type === 'select' && node.props.id === 'owner-theme').props.onChange({ currentTarget: { value: 'dark' } })
+  find(tree, (node) => node.props?.id === 'owner-theme-dark').props.onChange()
   tree = page.runtime.render(page.Page)
   await formsIn(tree)[1].props.onSubmit({ preventDefault() {} })
   tree = page.runtime.render(page.Page)
@@ -312,12 +312,12 @@ test('Header theme changes and Settings share canonical preferences across Cance
   await byComponent(toggleTree, toggle.ui, 'DropdownMenuItem', (node) => textContent(node) === 'Dark').props.onClick()
 
   let tree = page.runtime.render(page.Page)
-  assert.equal(find(tree, (node) => node.type === 'select' && node.props.id === 'owner-theme').props.value, 'dark')
+  assert.equal(find(tree, (node) => node.props?.id === 'owner-theme-dark').props.checked, true)
   find(tree, (node) => node.type === 'select' && node.props.id === 'owner-locale').props.onChange({ currentTarget: { value: 'en' } })
   tree = page.runtime.render(page.Page)
   byComponent(formsIn(tree)[1], page.ui, 'Button', (node) => textContent(node) === 'ยกเลิก').props.onClick()
   tree = page.runtime.render(page.Page)
-  assert.equal(find(tree, (node) => node.type === 'select' && node.props.id === 'owner-theme').props.value, 'dark')
+  assert.equal(find(tree, (node) => node.props?.id === 'owner-theme-dark').props.checked, true)
   assert.equal(find(tree, (node) => node.type === 'select' && node.props.id === 'owner-locale').props.value, 'th')
   assert.deepEqual(themeChanges, ['dark'])
 
@@ -335,7 +335,6 @@ test('Settings change handlers capture event values before deferred state update
     { id: 'owner-name', value: 'New Owner', expected: 'New Owner', component: 'Input' },
     { id: 'owner-email', value: 'new@example.test', expected: 'new@example.test', component: 'Input' },
     { id: 'owner-phone', value: '0801234567', expected: '0801234567', component: 'Input' },
-    { id: 'owner-theme', value: 'dark', expected: 'dark', component: 'select' },
     { id: 'owner-locale', value: 'en', expected: 'en', component: 'select' },
   ]
 
@@ -366,8 +365,8 @@ test('Settings fields are disabled while their shared save request is pending', 
 
   const preferencesPage = loadPage(makeController({ isSavingPreferences: true }))
   const preferencesTree = preferencesPage.runtime.render(preferencesPage.Page)
-  for (const id of ['owner-theme', 'owner-locale']) {
-    assert.equal(find(preferencesTree, (node) => node.type === 'select' && node.props.id === id).props.disabled, true)
+  for (const id of ['owner-theme-light', 'owner-theme-dark', 'owner-theme-special-dark', 'owner-locale']) {
+    assert.equal(find(preferencesTree, (node) => node.props?.id === id).props.disabled, true)
   }
 })
 
@@ -382,4 +381,28 @@ test('Header theme control uses the shared save method and applies the theme aft
   assert.deepEqual(JSON.parse(JSON.stringify(controller.preferenceCalls[0])), { theme: 'dark' })
   assert.deepEqual(themeChanges, ['dark'])
   assert.equal(toastCalls.length, 0)
+})
+
+
+test('Theme radios keep all three choices local until Save and Cancel restores canonical selection', async () => {
+  const themeChanges = []
+  const controller = makeController({ themeChanges })
+  const page = loadPage(controller, themeChanges)
+  for (const theme of ['dark', 'special-dark', 'light']) {
+    let tree = page.runtime.render(page.Page)
+    find(tree, (node) => node.props?.id === `owner-theme-${theme}`).props.onChange()
+    tree = page.runtime.render(page.Page)
+    assert.equal(find(tree, (node) => node.props?.id === `owner-theme-${theme}`).props.checked, true)
+    assert.equal(controller.settings.preferences.theme, 'light')
+    assert.deepEqual(controller.preferenceCalls, [])
+    assert.deepEqual(themeChanges, [])
+  }
+  let tree = page.runtime.render(page.Page)
+  find(tree, (node) => node.props?.id === 'owner-theme-special-dark').props.onChange()
+  tree = page.runtime.render(page.Page)
+  byComponent(formsIn(tree)[1], page.ui, 'Button', (node) => textContent(node) === 'ยกเลิก').props.onClick()
+  tree = page.runtime.render(page.Page)
+  assert.equal(find(tree, (node) => node.props?.id === 'owner-theme-light').props.checked, true)
+  assert.deepEqual(controller.preferenceCalls, [])
+  assert.deepEqual(themeChanges, [])
 })

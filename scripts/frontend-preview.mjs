@@ -14,7 +14,7 @@ const tailwind = require('@tailwindcss/postcss')
 const fixturePath = resolve(root, 'tests/frontend-ui/preview-fixtures.mjs').replaceAll('\\', '/')
 const bundle = await esbuild.build({
   absWorkingDir: root, entryPoints: ['tests/frontend-ui/preview-entry.tsx'], bundle: true, write: false,
-  platform: 'browser', format: 'esm', splitting: true, outdir: 'preview-build', entryNames: 'preview', jsx: 'automatic', define: { 'process.env.NODE_ENV': '"development"' },
+  platform: 'browser', format: 'esm', splitting: true, outdir: 'preview-build', entryNames: 'preview', jsx: 'automatic', define: { 'process.env.NODE_ENV': '"development"', 'process.env.PMS_PREVIEW_REAL_SETTINGS': JSON.stringify(process.env.PMS_PREVIEW_REAL_SETTINGS ?? '') },
   plugins: [{ name: 'isolated-preview-boundaries', setup(build) {
     const boundaries = {
       'next/link': 'export default function Link({href, children, ...props}) { return <a href={href} {...props}>{children}</a> }',
@@ -28,9 +28,9 @@ const bundle = await esbuild.build({
         }; export class DashboardQueryError extends Error {}`,
       '@/components/layout/owner-settings-provider': `import {previewData} from ${JSON.stringify(fixturePath)}; import {useTheme} from 'next-themes'; export const useOwnerSettings = () => { const {setTheme} = useTheme(); return ({settings: previewData(new URLSearchParams(window.location.search).get('qa')).settings, isLoading: false, loadError: null, isSavingProfile: false, isSavingPreferences: false, reload() {}, async saveProfile() {throw new Error("Preview ไม่บันทึกข้อมูล")}, async savePreferences(preferences) {if(new URLSearchParams(window.location.search).get("themeSwitch") === "1") {setTheme(preferences.theme); return} throw new Error("เปลี่ยน theme ผ่าน URL ?theme=dark หรือ special-dark")}}) };`,
     }
-    build.onResolve({ filter: /^(next\/link|next\/navigation|@\/lib\/(owner|dashboard)|@\/components\/layout\/owner-settings-provider)$/ }, (args) => ({ path: args.path, namespace: 'preview-boundary' }))
-    build.onResolve({ filter: /^\.\/owner-settings-provider$/ }, () => ({ path: '@/components/layout/owner-settings-provider', namespace: 'preview-boundary' }))
-    build.onLoad({ filter: /.*/, namespace: 'preview-boundary' }, (args) => ({ contents: boundaries[args.path], loader: 'tsx', resolveDir: root }))
+    build.onResolve({ filter: /^(next\/link|next\/navigation|@\/lib\/(owner|dashboard)|@\/components\/layout\/owner-settings-provider)$/ }, (args) => process.env.PMS_PREVIEW_REAL_SETTINGS === '1' && args.path.endsWith('/owner-settings-provider') ? undefined : ({ path: args.path, namespace: 'preview-boundary' }))
+    build.onResolve({ filter: /^\.\/owner-settings-provider$/ }, () => process.env.PMS_PREVIEW_REAL_SETTINGS === '1' ? undefined : ({ path: '@/components/layout/owner-settings-provider', namespace: 'preview-boundary' }))
+    build.onLoad({ filter: /.*/, namespace: 'preview-boundary' }, (args) => ({ contents: boundaries[args.path] + (args.path.endsWith('/owner-settings-provider') ? '\nexport function OwnerSettingsProvider({children}) {return children}' : ''), loader: 'tsx', resolveDir: root }))
     build.onLoad({ filter: /app[\\/]page\.tsx$/ }, async (args) => {
       const original = await readFile(args.path, 'utf8')
       const contents = original.replace('async function DashboardContent', 'function DashboardContent').replace('await searchParams', 'searchParams').replace('await getOwner()', 'getOwner()').replace('await getDashboardSummary', 'getDashboardSummary')

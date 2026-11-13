@@ -115,7 +115,7 @@ test('TC-36-05 Work Item sticky headers stay opaque without blur and subgroup la
   assert.doesNotMatch(list, /backdrop-blur|uppercase|tracking-\[0\.12em\]/)
 })
 
-test('TC-36-06 Company disclosure and Project toolbar dialog keep accessible action controls', () => {
+test('TC-36-06 Company and Project toolbar dialogs keep accessible action controls', () => {
   const { DisclosureGlyph } = load('components/ui/product-icon.tsx')
   const glyph = renderToStaticMarkup(React.createElement(DisclosureGlyph))
   assert.match(glyph, /data-slot="disclosure-glyph"/)
@@ -124,9 +124,10 @@ test('TC-36-06 Company disclosure and Project toolbar dialog keep accessible act
   assert.doesNotMatch(glyph, />\+</)
   for (const path of ['../../app/company/page.tsx']) {
     const page = source(path)
-    assert.match(page, /<DisclosureGlyph \/>/)
-    assert.match(page, /focus-visible:ring-2 focus-visible:ring-ring/)
-    assert.doesNotMatch(page, /text-link">\+<\/span>|focus-visible:outline-2/)
+    assert.match(page, /<DialogTrigger asChild><Button magnetic /)
+    assert.match(page, /<Plus aria-hidden="true" \/>เพิ่มบริษัท/)
+    assert.match(page, /DIALOG_SHELL_SCROLL_CLASS/)
+    assert.doesNotMatch(page, /<details id="company-form"/)
   }
   const projects = source('../../app/projects/page.tsx')
   assert.match(projects, /<DialogTrigger asChild><Button magnetic /)
