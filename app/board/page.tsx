@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 import { ArrowRightLeft, CalendarDays, Loader2 } from 'lucide-react'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
@@ -270,6 +271,7 @@ export default function BoardPage() {
   }, [filters, boardRetry])
 
   const groupedWorkItems = useMemo(() => groupBoardWorkItems(workItems), [workItems])
+  const activeFilterCount = Object.values(filters).filter((value) => value !== 'all').length
   const selectedItem = useMemo(
     () => getSelectedBoardWorkItem(workItems, selectedItemId),
     [selectedItemId, workItems],
@@ -349,7 +351,7 @@ export default function BoardPage() {
                   filters.companyId !== 'all' ? companies.find((company) => company.id === filters.companyId)?.displayName || companies.find((company) => company.id === filters.companyId)?.name || 'Company ที่เลือก' : '',
                   filters.projectId !== 'all' ? projects.find((project) => project.id === filters.projectId)?.name || 'Project ที่เลือก' : '',
                   filters.role === 'none' ? 'ไม่ระบุบทบาท' : filters.role !== 'all' ? WORK_ITEM_ROLE_LABELS[filters.role as keyof typeof WORK_ITEM_ROLE_LABELS] : '',
-                ].filter(Boolean).join(' · ')} activeCount={Object.values(filters).filter((value) => value !== 'all').length} disabled={pendingIds.size > 0} onReset={() => setFilters(INITIAL_FILTERS)}>
+                ].filter(Boolean).join(' · ')} activeCount={activeFilterCount} disabled={pendingIds.size > 0} onReset={() => setFilters(INITIAL_FILTERS)}>
                   <section aria-label="ตัวกรอง Board" className="search-filter-fields">
                     <BoardFilter
                       id="board-company-filter"
@@ -399,6 +401,14 @@ export default function BoardPage() {
               {boardLoading && <div role="status" aria-busy="true" className="min-h-0 space-y-3 overflow-hidden"><p className="text-sm text-muted-foreground">กำลังโหลด Work Items…</p><ContentLoadingSkeleton layout="board" /></div>}
               {!boardLoading && boardError && (
                 <PageState kind="error" visual={loadFailureVisual(boardError)} title="โหลด Board ไม่สำเร็จ" description={boardError} action={<Button type="button" variant="outline" onClick={() => setBoardRetry((value) => value + 1)}>ลองอีกครั้ง</Button>} />
+              )}
+              {!boardLoading && !boardError && workItems.length === 0 && (
+                <InlineState live className="mb-3 shrink-0" visual={activeFilterCount > 0 ? 'search' : 'records'}
+                  title={activeFilterCount > 0 ? 'ไม่พบ Work Item ที่ตรงกับตัวกรอง' : 'ยังไม่มี Work Item บน Board'}
+                  description={activeFilterCount > 0 ? 'ตัวกรองยังคงอยู่ ปรับหรือคืนค่าตัวกรองเพื่อดูงานในสถานะอื่น' : 'สร้าง Work Item จากหน้า Work Items แล้วงานจะแสดงตามสถานะ'}
+                  action={activeFilterCount > 0
+                    ? <Button type="button" variant="outline" size="sm" disabled={pendingIds.size > 0} onClick={() => setFilters(INITIAL_FILTERS)}>คืนค่าตัวกรอง</Button>
+                    : <Button asChild variant="outline" size="sm"><Link href="/work-items">ไปที่ Work Items</Link></Button>} />
               )}
               {!boardLoading && !boardError && (
                 <div className="motion-data-enter min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain">

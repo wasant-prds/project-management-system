@@ -106,7 +106,7 @@ function loadPage(relativePath, { initialState, fetcher = async () => ({ ok: tru
     },
     './content-loading-skeleton': { ContentLoadingSkeleton: component('ContentLoadingSkeleton') },
     '@/lib/utils': { cn: (...values) => values.filter(Boolean).join(' ') },
-    'lucide-react': Object.fromEntries(['ArrowUpRight', 'CalendarDays', 'FolderKanban', 'Building2', 'MapPin', 'Phone', 'CircleAlert', 'Inbox', 'LoaderCircle', 'Plus'].map((name) => [name, component(name)])),
+    'lucide-react': Object.fromEntries(['ArrowUpRight', 'CalendarDays', 'FolderKanban', 'Building2', 'MapPin', 'Phone', 'CircleAlert', 'Inbox', 'LoaderCircle', 'Plus', 'ChartNoAxesColumn', 'CircleCheck', 'Compass', 'History', 'SearchX', 'ShieldAlert', 'WifiOff'].map((name) => [name, component(name)])),
     '@/components/ui/product-icon': {
       DisclosureGlyph: Object.assign(() => ({ type: 'span', props: { 'data-slot': 'disclosure-glyph', 'aria-hidden': 'true' } }), { renderInTest: true }),
       ProductIcon: component('ProductIcon'),
@@ -498,4 +498,71 @@ test('Project collection failures show an alert instead of a false empty state a
   assert.match(textContent(tree), /0 รายการ/)
   assert.match(textContent(tree), /ไม่พบ Project/)
   assert.equal(find(tree, (node) => node.props?.role === 'alert'), undefined)
+})
+
+async function runProjectLoad(page) {
+  // Effect 0 follows the #integrations hash; effect 1 loads the Project.
+  const [, load] = page.runtime.effects.splice(0)
+  load()
+  await new Promise((resolve) => setImmediate(resolve))
+}
+
+test('TC-53-01 Project detail load failures offer retry or a way back and keep loaded data on refresh failure', async () => {
+  const responses = [
+    { ok: false, status: 503, json: async () => ({ error: { code: 'UNAVAILABLE', message: 'Failed to fetch' } }) },
+    { ok: true, status: 200, json: async () => ({ project }) },
+    { ok: false, status: 503, json: async () => ({ error: { code: 'UNAVAILABLE', message: 'Unavailable' } }) },
+  ]
+  const calls = []
+  const page = loadPage('../../app/projects/[id]/page.tsx', { fetcher: async (path) => { calls.push(path); return responses.shift() } })
+  page.runtime.render(page.Page)
+  await runProjectLoad(page)
+  let tree = page.runtime.render(page.Page)
+  const alert = find(tree, (node) => node.props?.role === 'alert')
+  assert.equal(alert.props['data-slot'], 'page-state')
+  assert.equal(alert.props['data-visual'], 'network')
+  assert.match(textContent(alert), /โหลด Project ไม่สำเร็จ/)
+  assert.doesNotMatch(textContent(alert), /Failed to fetch/)
+  assert.ok(find(alert, (node) => node.type === page.ui.Link && node.props.href === '/projects'))
+  find(alert, (node) => node.type === page.ui.Button && textContent(node) === 'ลองโหลดอีกครั้ง').props.onClick()
+  page.runtime.effects.splice(0)
+  tree = page.runtime.render(page.Page)
+  assert.equal(find(tree, (node) => node.props?.['data-slot'] === 'page-state').props['aria-busy'], true)
+  await runProjectLoad(page)
+  tree = page.runtime.render(page.Page)
+  assert.equal(find(tree, (node) => node.props?.role === 'alert'), undefined)
+  assert.match(textContent(tree), /Project Alpha/)
+  // A failed refresh (for example after a sync) keeps the workspace and adds one compact partial alert.
+  await runProjectLoad(page)
+  tree = page.runtime.render(page.Page)
+  const partial = find(tree, (node) => node.props?.role === 'alert')
+  assert.equal(partial.props['data-slot'], 'inline-state')
+  assert.equal(partial.props['data-visual'], 'partial')
+  assert.match(textContent(tree), /Project Alpha/)
+  assert.deepEqual(calls, ['/api/projects/project-1', '/api/projects/project-1', '/api/projects/project-1'])
+})
+
+test('TC-53-02 a missing Project shows a not-found state with a link back instead of a retry loop', async () => {
+  const page = loadPage('../../app/projects/[id]/page.tsx', { fetcher: async () => ({ ok: false, status: 404, json: async () => ({ error: { code: 'NOT_FOUND', message: 'ไม่พบ Project' } }) }) })
+  page.runtime.render(page.Page)
+  await runProjectLoad(page)
+  const tree = page.runtime.render(page.Page)
+  const state = find(tree, (node) => node.props?.['data-slot'] === 'page-state')
+  assert.equal(state.props['data-visual'], 'not-found')
+  assert.equal(state.props.role, 'status')
+  assert.match(textContent(state), /ไม่พบ Project นี้/)
+  assert.ok(find(state, (node) => node.type === page.ui.Link && node.props.href === '/projects'))
+  assert.equal(find(state, (node) => node.type === page.ui.Button && /ลองโหลด/.test(textContent(node))), undefined)
+})
+
+test('TC-53-03 empty Project sections use compact states sized for cards and tab panels', () => {
+  const page = loadPage('../../app/projects/[id]/page.tsx', { initialState: { 0: project, 2: false } })
+  const tree = page.runtime.render(page.Page)
+  const inline = []
+  walk(tree, (node) => { if (node.props?.['data-slot'] === 'inline-state') inline.push(textContent(node)) })
+  assert.deepEqual(inline.map((text) => text.split('สถานะ')[0].split('role จะ')[0]), ['ยังไม่มี Work Items', 'ยังไม่มี functional role'])
+  const sections = []
+  walk(tree, (node) => { if (node.props?.['data-slot'] === 'page-state') sections.push(node.props['data-density']) })
+  assert.deepEqual(sections, ['section', 'section'])
+  assert.equal(find(tree, (node) => node.props?.['data-slot'] === 'inline-state').props.role, undefined)
 })

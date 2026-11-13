@@ -31,6 +31,7 @@
     "test:work-items-board-browser": "node scripts/work-items-board-browser.mjs",
     "test:daily-work-browser": "node scripts/daily-work-browser.mjs",
     "test:company-settings-browser": "node scripts/company-settings-browser.mjs",
+    "test:application-states-browser": "node scripts/application-states-browser.mjs",
     "test:frontend-cinematic": "node tests/run.mjs frontend-cinematic",
     "test:frontend-identity": "node tests/run.mjs frontend-identity",
     "test:frontend-competition": "node tests/run.mjs frontend-competition",
