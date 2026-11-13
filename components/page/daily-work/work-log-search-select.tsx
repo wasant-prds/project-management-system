@@ -15,6 +15,7 @@ export type SearchSelectOption = {
 }
 
 type SearchSelectProps = {
+  id?: string
   value: string
   options: SearchSelectOption[]
   onSelect: (id: string) => void
@@ -26,6 +27,7 @@ type SearchSelectProps = {
 }
 
 export function SearchSelect({
+  id,
   value,
   options,
   onSelect,
@@ -58,6 +60,7 @@ export function SearchSelect({
     >
       <PopoverTrigger asChild>
         <Button
+          id={id}
           type="button"
           variant="ghost"
           aria-expanded={open}

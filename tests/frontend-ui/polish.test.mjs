@@ -232,12 +232,12 @@ test('TC-29-17 focused polish suite reuses the existing runner and remains in fu
 })
 
 test('TC-29-18 Daily Work card formats hours and retains long details and the selected record callback', () => {
-  const { WorkLogCard } = createComponentLoader({ react: { ...React, useState: () => [true, () => {}] } })('components/page/daily-work/work-log-card.tsx')
+  const { WorkLogCard } = createComponentLoader({ react: { ...React, useState: () => [true, () => {}], useId: () => 'remarks-test' } })('components/page/daily-work/work-log-card.tsx')
   const workLog = { ...previewData().workLogs[0], hours: exactHours, description: longText, remarks: longText }
   const calls = []
   const tree = WorkLogCard({ workLog, onClick: (item) => calls.push(item) })
   const values = descendants(tree)
-  const hours = values.find((node) => node.type === 'span' && textContent(node) === `${displayedHours}h`)
+  const hours = values.find((node) => node.type === 'span' && textContent(node) === `${displayedHours} ชม.`)
   assert.match(hours.props.className, /content-wrap min-w-0/)
   for (const node of values.filter((node) => node.type === 'p' && textContent(node) === longText)) assert.match(node.props.className, /content-wrap/)
   assert.equal(values.filter((node) => node.type === 'p' && textContent(node) === longText).length, 2)
@@ -335,15 +335,15 @@ test('TC-29-23 dialog respects custom autofocus, detached openers and the normal
 })
 
 test('TC-29-24 browser geometry verdict rejects the reviewed zero-width Project regression and accepts readable cards', () => {
-  const readable = { titleWidth: 616, titleHeight: 72, headerHeight: 152, cardWidth: 708, contentWidth: 708, hours: `${displayedHours}h` }
+  const readable = { titleWidth: 616, titleHeight: 72, headerHeight: 152, cardWidth: 708, contentWidth: 708, hours: `${displayedHours} ชม.` }
   assert.equal(checkWorkLogLayout([readable], [displayedHours]).status, 'pass')
   const reviewed = { ...readable, titleWidth: 0, titleHeight: 4464, headerHeight: 4512 }
   const result = checkWorkLogLayout([reviewed], [displayedHours])
   assert.equal(result.status, 'fail')
   assert.ok(result.failures.includes('Card 1: Project identity collapsed'))
-  const card = createComponentLoader({ react: { ...React, useState: () => [false, () => {}] } })('components/page/daily-work/work-log-card.tsx').WorkLogCard({ workLog: previewData('edge').workLogs[0], onClick() {} })
+  const card = createComponentLoader({ react: { ...React, useState: () => [false, () => {}], useId: () => 'remarks-test' } })('components/page/daily-work/work-log-card.tsx').WorkLogCard({ workLog: previewData('edge').workLogs[0], onClick() {} })
   const identity = descendants(card).find((node) => Object.hasOwn(node.props, 'data-work-log-identity'))
-  assert.match(identity.props.className, /sm:basis-64/)
+  assert.match(identity.props.className, /min-w-0 flex-1/)
   assert.doesNotMatch(identity.props.className, /sm:basis-0/)
 })
 

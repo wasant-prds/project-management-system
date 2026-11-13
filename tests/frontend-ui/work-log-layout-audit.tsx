@@ -17,7 +17,7 @@ export function WorkLogLayoutAudit() {
       const cards = Array.from(root.querySelectorAll<HTMLElement>('[data-work-log-card]')).map((card) => {
         const header = card.querySelector<HTMLElement>('[data-slot="card-header"]')!
         const title = card.querySelector<HTMLElement>('[data-work-log-identity] [data-slot="card-title"]')!
-        const hours = card.querySelector<HTMLElement>('[data-slot="badge"] .tabular-nums')!
+        const hours = card.querySelector<HTMLElement>('[data-work-log-hours]')!
         return { titleWidth: title.offsetWidth, titleHeight: title.offsetHeight, headerHeight: header.offsetHeight, cardWidth: card.clientWidth, contentWidth: card.scrollWidth, hours: hours.textContent }
       })
       const next = checkWorkLogLayout(cards, expectedHours)

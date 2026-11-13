@@ -68,36 +68,37 @@ function DialogActions({
     return (
       <>
         <Button
+          disabled={isLoading}
           onClick={() => {
             onOpenChange(false)
             onEdit?.(workLog)
           }}
         >
           <Edit className="mr-2 h-4 w-4" />
-          Edit
+          แก้ไข
         </Button>
-        <Button variant="destructive" onClick={() => onDelete?.(workLog.id)}>
+        <Button variant="destructive" disabled={isLoading} onClick={() => onDelete?.(workLog.id)}>
           <Trash2 className="mr-2 h-4 w-4" />
-          Delete
+          {isLoading ? "กำลังลบ…" : "ลบ"}
         </Button>
       </>
     )
   }
 
-  let submitButtonText = "Save"
-  if (isLoading) submitButtonText = "Saving..."
-  else if (isEditMode) submitButtonText = "Update"
+  let submitButtonText = "บันทึก"
+  if (isLoading) submitButtonText = "กำลังบันทึก…"
+  else if (isEditMode) submitButtonText = "บันทึกการแก้ไข"
 
   return (
     <>
       {isEditMode && onViewDetails && (
         <Button variant="secondary" onClick={onViewDetails} disabled={isLoading}>
           <Eye className="mr-2 h-4 w-4" />
-          View Details
+          ดูรายละเอียด
         </Button>
       )}
       <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
-        Cancel
+        ยกเลิก
       </Button>
       <Button onClick={onSubmit} disabled={isLoading}>
         {submitButtonText}
@@ -219,27 +220,27 @@ function DetailsAndRemarks({
     <div className="flex min-w-0 flex-1 flex-col gap-4">
       <BodySection
         id="description"
-        label="Details"
+        label="รายละเอียด"
         icon={FileText}
         required
         isView={isView}
         viewText={workLog?.description}
-        emptyLabel="No description"
+        emptyLabel="ไม่มีรายละเอียด"
         value={formData?.description}
-        placeholder="Title or short summary of this daily work..."
+        placeholder="สรุปงานที่ทำในวันนี้…"
         onChange={(description) => onFormDataChange?.({ ...formData!, description })}
         disabled={isLoading}
       />
       <BodySection
         id="remarks"
-        label="Remarks"
+        label="หมายเหตุ"
         icon={MessageSquareText}
         primary
         isView={isView}
         viewText={workLog?.remarks}
-        emptyLabel="No remarks"
+        emptyLabel="ไม่มีหมายเหตุ"
         value={formData?.remarks}
-        placeholder="Describe the work completed, progress, results, or follow-up..."
+        placeholder="ผลการทำงาน ความคืบหน้า หรือสิ่งที่ต้องติดตาม…"
         onChange={(remarks) => onFormDataChange?.({ ...formData!, remarks })}
         disabled={isLoading}
       />
@@ -338,9 +339,9 @@ export function WorkLogDialogBody({
 
   if (isViewMode && !workLog) return null
 
-  let dialogTitle = "Add Work Log"
-  if (isViewMode) dialogTitle = "Work Log Details"
-  else if (isEditMode) dialogTitle = "Edit Work Log"
+  let dialogTitle = "เพิ่มบันทึกงาน"
+  if (isViewMode) dialogTitle = "รายละเอียดบันทึกงาน"
+  else if (isEditMode) dialogTitle = "แก้ไขบันทึกงาน"
 
   const selectedWorkItem = isViewMode
     ? workLog?.workItem
@@ -357,8 +358,8 @@ export function WorkLogDialogBody({
           <DialogTitle className="text-xl leading-snug">{dialogTitle}</DialogTitle>
           <DialogDescription>
             {isViewMode
-              ? "Review this work log"
-              : "Link hours to a project work item"}
+              ? "รายละเอียดและเวลาที่บันทึก"
+              : "ระบุเวลาและเชื่อมโยงงานใน Project"}
           </DialogDescription>
         </DialogHeader>
       )}
@@ -381,12 +382,12 @@ export function WorkLogDialogBody({
                     {workLog.status && <Badge variant="secondary">{workLog.status}</Badge>}
                     <span className="text-sm text-muted-foreground">{workLog.user.name}</span>
                     <span className="text-xs text-muted-foreground">{formatUiDate(workLog.date)}</span>
-                    <Badge variant="outline" className="shrink-0 gap-1">
-                      <Clock className="h-3 w-3" />
-                      {formatHours(workLog.hours)}h
+                    <Badge variant="outline" className="max-w-full items-start gap-1 whitespace-normal">
+                      <Clock className="mt-0.5 h-3 w-3 shrink-0" />
+                      <span className="content-wrap min-w-0 tabular-nums">{formatHours(workLog.hours)} ชม.</span>
                     </Badge>
                   </div>
-                  <DialogDescription className="sr-only">Work log details</DialogDescription>
+                  <DialogDescription className="sr-only">รายละเอียดบันทึกงาน</DialogDescription>
                 </div>
               </div>
               <DetailsAndRemarks
@@ -402,7 +403,7 @@ export function WorkLogDialogBody({
               <div className="grid min-w-0 content-start grid-cols-2 gap-3 md:gap-4">
                 <div className="col-span-2 grid grid-cols-[minmax(0,1fr)_5.5rem] gap-3">
                   <div className="min-w-0 space-y-1.5">
-                    <Label htmlFor="date">Date <span className="text-danger">*</span></Label>
+                    <Label htmlFor="date">วันที่ <span className="text-danger">*</span></Label>
                     <DatePicker
                       id="date"
                       required
@@ -412,7 +413,7 @@ export function WorkLogDialogBody({
                     />
                   </div>
                   <div className="min-w-0 space-y-1.5">
-                    <Label htmlFor="hours">Hours <span className="text-danger">*</span></Label>
+                    <Label htmlFor="hours">ชั่วโมง <span className="text-danger">*</span></Label>
                     <Input
                       id="hours"
                       type="number"
@@ -426,21 +427,22 @@ export function WorkLogDialogBody({
                 </div>
 
                 <div className="col-span-2 min-w-0 space-y-1.5">
-                  <Label>Project <span className="text-danger">*</span></Label>
+                  <Label htmlFor="work-log-project">Project <span className="text-danger">*</span></Label>
                   <SearchSelect
+                    id="work-log-project"
                     value={formData?.projectId || ""}
                     options={projectOptions}
                     onSelect={handleProjectSelect}
-                    placeholder="Select project..."
-                    searchPlaceholder="Search projects..."
-                    emptyText="No project found."
+                    placeholder="เลือก Project…"
+                    searchPlaceholder="ค้นหา Project…"
+                    emptyText="ไม่พบ Project"
                     disabled={isLoading}
                   />
                 </div>
 
                 <div className="col-span-2 min-w-0 space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Label>Work item <span className="text-danger">*</span></Label>
+                    <Label htmlFor="work-log-work-item">งาน <span className="text-danger">*</span></Label>
                     {selectedWorkItem && (
                       <Badge variant="outline" className={kindClass(selectedWorkItem.kind as WorkItemKindValue)}>
                         {selectedWorkItem.kind}
@@ -448,26 +450,27 @@ export function WorkLogDialogBody({
                     )}
                   </div>
                   <SearchSelect
+                    id="work-log-work-item"
                     value={formData?.workItemId || ""}
                     options={workItemOptions}
                     onSelect={handleWorkItemSelect}
-                    placeholder={loadingWorkItems ? "Loading work items..." : "Select work item..."}
-                    searchPlaceholder="Search work items..."
-                    emptyText="No work items in this project."
+                    placeholder={loadingWorkItems ? "กำลังโหลดงาน…" : "เลือกงาน…"}
+                    searchPlaceholder="ค้นหางาน…"
+                    emptyText="ไม่พบงานใน Project นี้"
                     disabled={isLoading || !formData?.projectId || loadingWorkItems}
-                    disabledHint="Select a project first"
+                    disabledHint="เลือก Project ก่อน"
                   />
                 </div>
 
                 <div className="col-span-2 min-w-0 space-y-1.5">
-                  <Label htmlFor="status">Status <span className="text-danger">*</span></Label>
+                  <Label htmlFor="status">สถานะ <span className="text-danger">*</span></Label>
                   <Select
                     value={formData?.status || ""}
                     onValueChange={(value) => onFormDataChange?.({ ...formData!, status: value })}
                     disabled={isLoading}
                   >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select status" />
+                    <SelectTrigger id="status" className="w-full">
+                      <SelectValue placeholder="เลือกสถานะ" />
                     </SelectTrigger>
                     <SelectContent>
                       {workLogStatuses.map((status) => (

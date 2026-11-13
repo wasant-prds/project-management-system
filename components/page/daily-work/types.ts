@@ -30,6 +30,7 @@ export type Project = {
   id: string
   name: string
   colorProject?: string | null
+  company?: { id: string; name: string } | null
 }
 
 export type User = {

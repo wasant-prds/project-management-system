@@ -239,7 +239,7 @@ test('Daily Work card detail and remarks actions render as native keyboard butto
   const markup = renderWorkLogCard()
   const buttons = [...markup.matchAll(/<button\b/g)]
   assert.equal(buttons.length, 2)
-  assert.match(markup, /<button[^>]*type="button"[^>]*>.*?Remarks[\s\S]*?<\/button>/)
+  assert.match(markup, /<button[^>]*type="button"[^>]*>.*?หมายเหตุ[\s\S]*?<\/button>/)
   assert.match(markup, /<button[^>]*type="button"[^>]*>ดูรายละเอียด<\/button>/)
   assert.doesNotMatch(markup, /<div[^>]*role="button"/)
 })

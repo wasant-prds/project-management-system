@@ -63,9 +63,9 @@ function workLogQuery(date: Date | undefined, period: ViewPeriod, dashboardFilte
 
 function workLogFormError(form: WorkLogFormData) {
   if (!form.date || !form.hours || !form.description || !form.projectId || !form.workItemId) {
-    return "Please fill in date, hours, project, work item, and description"
+    return "กรุณาระบุวันที่ ชั่วโมง Project งาน และรายละเอียดให้ครบ"
   }
-  if (parsePositiveDecimalHours(form.hours) === null) return "Hours must be a positive decimal number"
+  if (parsePositiveDecimalHours(form.hours) === null) return "ชั่วโมงต้องเป็นเลขทศนิยมที่มากกว่า 0"
   return null
 }
 
@@ -88,7 +88,7 @@ async function saveWorkLog(form: WorkLogFormData, selected: WorkLog | null) {
   if (response.ok) return
   const data = await response.json()
   const message = typeof data.error === "string" ? data.error : data.error?.message
-  throw new Error(message || "Failed to save work log")
+  throw new Error(message || "บันทึกงานไม่สำเร็จ กรุณาลองอีกครั้ง")
 }
 
 export default function DailyWorkPage() {
@@ -102,6 +102,7 @@ export default function DailyWorkPage() {
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false)
   const [selectedWorkLog, setSelectedWorkLog] = useState<WorkLog | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [listLoading, setListLoading] = useState(true)
   const [listError, setListError] = useState<string | null>(null)
   const latestListLoad = useRef(0)
@@ -162,8 +163,8 @@ export default function DailyWorkPage() {
       setListError("โหลด Daily Work ไม่สำเร็จ กรุณาลองอีกครั้ง")
       console.error("Error fetching work logs:", error)
       toast({
-        title: "Error",
-        description: "Failed to fetch work logs",
+        title: "เกิดข้อผิดพลาด",
+        description: "โหลดบันทึกงานไม่สำเร็จ กรุณาลองอีกครั้ง",
         variant: "destructive",
       })
     } finally {
@@ -218,7 +219,7 @@ export default function DailyWorkPage() {
     const validationError = workLogFormError(submission)
     if (validationError) {
       toast({
-        title: "Validation Error",
+        title: "ตรวจสอบข้อมูล",
         description: validationError,
         variant: "destructive",
       })
@@ -230,15 +231,15 @@ export default function DailyWorkPage() {
     try {
       await saveWorkLog(submission, selectedWorkLog)
       toast({
-        title: "Success",
-        description: `Work log ${selectedWorkLog ? "updated" : "created"} successfully`,
+        title: "บันทึกสำเร็จ",
+        description: selectedWorkLog ? "อัปเดตบันทึกงานแล้ว" : "เพิ่มบันทึกงานแล้ว",
       })
       setIsDialogOpen(false)
       await fetchWorkLogs()
     } catch (error) {
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to save work log",
+        title: "เกิดข้อผิดพลาด",
+        description: error instanceof Error ? error.message : "บันทึกงานไม่สำเร็จ กรุณาลองอีกครั้ง",
         variant: "destructive",
       })
     } finally {
@@ -247,10 +248,12 @@ export default function DailyWorkPage() {
   }, [fetchWorkLogs, formData, selectedWorkLog])
 
   const handleDelete = useCallback(async (id: string) => {
-    if (!confirm("Are you sure you want to delete this work log?")) {
+    if (isDeleting) return
+    if (!confirm("ยืนยันลบบันทึกงานนี้หรือไม่?")) {
       return
     }
 
+    setIsDeleting(true)
     try {
       const response = await fetch(`/api/work-logs/${id}`, {
         method: "DELETE",
@@ -258,22 +261,24 @@ export default function DailyWorkPage() {
 
       if (response.ok) {
         toast({
-          title: "Success",
-          description: "Work log deleted successfully",
+          title: "ลบสำเร็จ",
+          description: "ลบบันทึกงานแล้ว",
         })
         setIsDetailsDialogOpen(false)
         await fetchWorkLogs()
       } else {
-        throw new Error("Failed to delete work log")
+        throw new Error("ลบบันทึกงานไม่สำเร็จ กรุณาลองอีกครั้ง")
       }
     } catch (error) {
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete work log",
+        title: "เกิดข้อผิดพลาด",
+        description: error instanceof Error ? error.message : "ลบบันทึกงานไม่สำเร็จ กรุณาลองอีกครั้ง",
         variant: "destructive",
       })
+    } finally {
+      setIsDeleting(false)
     }
-  }, [fetchWorkLogs])
+  }, [fetchWorkLogs, isDeleting])
 
   const handleViewDetails = useCallback((workLog: WorkLog) => {
     setSelectedWorkLog(workLog)
@@ -328,12 +333,21 @@ export default function DailyWorkPage() {
   }, [date, viewPeriod])
 
   const periodLabel = useMemo(() => {
+    if (dashboardFilters) return `${formatUiDate(dashboardFilters.startDate)} – ${formatUiDate(dashboardFilters.endDate)}`
     if (!date) return 'ทุกวัน'
     const selected = formatDate(date)
     if (viewPeriod === 'day') return formatUiDate(selected)
     const range = bangkokCalendarPeriodRange(selected, viewPeriod)
     return range ? `${formatUiDate(range.startDate)} – ${formatUiDate(range.endDate)}` : formatUiDate(selected)
-  }, [date, viewPeriod])
+  }, [date, viewPeriod, dashboardFilters])
+
+  const filterSummary = [
+    searchQuery.trim() ? `ค้นหา: ${searchQuery.trim()}` : '',
+    dashboardFilters ? 'ช่วงจาก Dashboard' : ({ day: 'วัน', week: 'สัปดาห์', month: 'เดือน', year: 'ปี' })[viewPeriod],
+    periodLabel,
+  ].filter(Boolean).join(' · ')
+  const contextProject = projects.find((project) => project.id === dashboardFilters?.projectId)
+  const contextCompany = projects.find((project) => project.company?.id === dashboardFilters?.companyId)?.company
 
   return (
     <SidebarProvider>
@@ -347,10 +361,11 @@ export default function DailyWorkPage() {
                 <p className="page-eyebrow mb-2">Daily journal</p>
                 <h1 className={PAGE_HEADING}>Daily Work</h1>
                 <p className={PAGE_LEAD}>บันทึกเวลาทำงานและติดตามกิจกรรมในแต่ละวัน</p>
+                <p data-selected-period="" className="content-wrap mt-2 text-sm font-medium text-link">{dashboardFilters ? 'ช่วงจาก Dashboard' : ({ day: 'วัน', week: 'สัปดาห์', month: 'เดือน', year: 'ปี' })[viewPeriod]}: {periodLabel}</p>
               </div>
 
               <div className="page-header-actions">
-                <SearchFilterPanel activeCount={[searchQuery.trim() !== '', viewPeriod !== 'day', Boolean(date && formatDate(date) !== currentBangkokCalendarDate()), Boolean(dashboardFilters)].filter(Boolean).length}
+                <SearchFilterPanel summary={filterSummary} activeCount={[searchQuery.trim() !== '', viewPeriod !== 'day', Boolean(date && formatDate(date) !== currentBangkokCalendarDate()), Boolean(dashboardFilters)].filter(Boolean).length}
                   onReset={() => { setSearchQuery(''); setViewPeriod('day'); clearDashboardFilters(currentBangkokCalendarDate()); setDate(dateOnlyToPickerDate(currentBangkokCalendarDate()) ?? undefined) }}>
                   <div className="search-filter-fields">
                     <FilterField label="คำค้นหา" className="sm:col-span-2"><Input type="search" aria-label="ค้นหา Daily Work" placeholder="ค้นหาบันทึก งาน หรือ Project…" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} /></FilterField>
@@ -361,20 +376,20 @@ export default function DailyWorkPage() {
                         clearDashboardFilters(date ? formatDate(date) : null)
                         setViewPeriod(value as ViewPeriod)
                       }} className="w-full justify-start overflow-x-auto">
-                        <ToggleGroupItem value="day" aria-label="Day view">Day</ToggleGroupItem>
-                        <ToggleGroupItem value="week" aria-label="Week view">Week</ToggleGroupItem>
-                        <ToggleGroupItem value="month" aria-label="Month view">Month</ToggleGroupItem>
-                        <ToggleGroupItem value="year" aria-label="Year view">Year</ToggleGroupItem>
+                        <ToggleGroupItem value="day" aria-label="มุมมองวัน">วัน</ToggleGroupItem>
+                        <ToggleGroupItem value="week" aria-label="มุมมองสัปดาห์">สัปดาห์</ToggleGroupItem>
+                        <ToggleGroupItem value="month" aria-label="มุมมองเดือน">เดือน</ToggleGroupItem>
+                        <ToggleGroupItem value="year" aria-label="มุมมองปี">ปี</ToggleGroupItem>
                       </ToggleGroup>
                     </FilterField>
                   </div>
                 </SearchFilterPanel>
                 <WorkLogExportMenu workLogs={filteredWorkLogs} buttonLabel={buttonLabel} disabled={listLoading || Boolean(listError)} />
-                <Button magnetic onClick={() => handleOpenDialog()}>
+                <Button magnetic aria-label="เพิ่มบันทึกงาน" onClick={() => handleOpenDialog()}>
                   <Plus className="h-4 w-4" />
                   <span className="truncate">
                     <span className="sm:hidden">เพิ่ม</span>
-                    <span className="hidden sm:inline">เพิ่มบันทึกเวลา</span>
+                    <span className="hidden sm:inline">เพิ่มบันทึกงาน</span>
                   </span>
                 </Button>
               </div>
@@ -382,11 +397,11 @@ export default function DailyWorkPage() {
             {dashboardFilters && (
               <Card className="card-shadow">
                 <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
-                  <p className="text-muted-foreground">
+                  <p className="content-wrap min-w-0 text-muted-foreground">
                     ตัวกรองจาก Dashboard: {formatUiDate(dashboardFilters.startDate)} – {formatUiDate(dashboardFilters.endDate)}
-                    {dashboardFilters.companyId ? ` · Company ${dashboardFilters.companyId}` : ""}
-                    {dashboardFilters.projectId ? ` · Project ${dashboardFilters.projectId}` : ""}
-                    {dashboardFilters.role ? ` · role ${dashboardFilters.role}` : ""}
+                    {dashboardFilters.companyId ? ` · ${contextCompany?.name || 'Company ที่เลือก'}` : ""}
+                    {dashboardFilters.projectId ? ` · ${contextProject?.name || 'Project ที่เลือก'}` : ""}
+                    {dashboardFilters.role ? ` · บทบาท ${dashboardFilters.role}` : ""}
                     {dashboardFilters.kind ? ` · ${dashboardFilters.kind}` : ""}
                   </p>
                   <button type="button" onClick={() => clearDashboardFilters(currentBangkokCalendarDate())} className="text-link underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">ล้างตัวกรอง Dashboard</button>
@@ -394,9 +409,9 @@ export default function DailyWorkPage() {
               </Card>
             )}
 
-            <div className="cinematic-beat-data grid gap-6 lg:grid-cols-3">
+            <div className="cinematic-beat-data grid items-start gap-4 lg:grid-cols-[minmax(17rem,20rem)_minmax(0,1fr)] lg:gap-6">
               {/* Calendar and Stats */}
-              <div className="space-y-4">
+              <div className="grid min-w-0 items-start gap-4 sm:grid-cols-2 lg:grid-cols-1">
                 <Card className="card-shadow">
                   <Calendar
                     selectedDate={date}
@@ -411,14 +426,14 @@ export default function DailyWorkPage() {
                 <StatsCard
                   totalHours={totalHours}
                   totalLogs={totalTasks}
-                  date={date}
+                  periodLabel={periodLabel}
                   isLoading={listLoading}
                   unavailable={Boolean(listError)}
                 />
               </div>
 
               {/* Work Logs */}
-              <div className="space-y-4 lg:col-span-2">
+              <div className="min-w-0 space-y-4">
                 {listLoading ? <PageState kind="loading" title="กำลังโหลด Daily Work…" /> : listError ? (
                   <PageState kind="error" visual={loadFailureVisual(listError)} title="โหลด Daily Work ไม่สำเร็จ" description={listError} action={<Button type="button" variant="outline" onClick={() => void fetchWorkLogs()}>ลองอีกครั้ง</Button>} />
                 ) : <WorkLogList
@@ -453,8 +468,9 @@ export default function DailyWorkPage() {
         {/* Work Log Details Dialog */}
         <WorkLogDialog
           open={isDetailsDialogOpen}
-          onOpenChange={setIsDetailsDialogOpen}
+          onOpenChange={(open) => { if (!isDeleting) setIsDetailsDialogOpen(open) }}
           mode="view"
+          isLoading={isDeleting}
           workLog={selectedWorkLog}
           onEdit={handleOpenDialog}
           onDelete={handleDelete}

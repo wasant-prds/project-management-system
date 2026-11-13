@@ -9,7 +9,6 @@ import { WorkLogCard } from "./work-log-card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { ACTION_LABEL_CLASS } from "@/components/layout/page-layout"
 import { DIALOG_SHELL_WIDE_CLASS } from "@/components/ui/responsive-dialog"
 import { WorkItemDescription } from "@/components/page/work-items/work-item-description"
 import { formatBangkokDateLabel } from "@/lib/bangkok-datetime"
@@ -221,11 +220,11 @@ export function WorkLogList({
 
   return (
     <div className="motion-data-enter space-y-3">
-      <Card className="card-shadow">
-        <CardHeader>
+      <Card className="card-shadow py-3">
+        <CardHeader className="px-4 py-0">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-base">
-              บันทึกเวลา: <span className="font-bold text-link">{periodLabel}</span>
+              บันทึกงาน: <span className="font-bold text-link">{periodLabel}</span>
             </CardTitle>
             {workLogs.length > 0 && (
               <div className="flex flex-wrap gap-2">
@@ -233,10 +232,10 @@ export function WorkLogList({
                   onClick={handleOpenModal}
                   variant="neutral"
                   size="sm"
-                  aria-label="View work logs"
+                  aria-label="ดูบันทึกงานรวมตาม Project"
                 >
                   <Eye className="h-4 w-4" />
-                  <span className={ACTION_LABEL_CLASS}>View</span>
+                  <span>ดูรวม</span>
                 </Button>
               </div>
             )}
@@ -248,7 +247,7 @@ export function WorkLogList({
           description={searchQuery.trim() ? 'ลองเปลี่ยนคำค้นหาเพื่อดูบันทึกอื่น' : 'เพิ่มบันทึกเวลาทำงานของ Work Item ในวันที่เลือก'}
           action={<Button type="button" className="gap-2" onClick={onAddClick}>
               <Plus className="h-4 w-4" />
-              เพิ่ม Daily Work
+              เพิ่มบันทึกงาน
             </Button>}
         />
       ) : (
@@ -263,12 +262,10 @@ export function WorkLogList({
             <DialogHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <div className="min-w-0 space-y-1.5 text-left">
                 <DialogTitle className="text-xl font-bold sm:text-2xl">
-                  บันทึกเวลา: <span className="text-link">{periodLabel}</span>
+                  บันทึกงาน: <span className="text-link">{periodLabel}</span>
                 </DialogTitle>
                 <DialogDescription>
-                  View all work logs grouped by project ({' '}
-                  <span className="font-bold text-link">{groupedByProject.length}</span> projects
-                  ). Within each project, entries are ordered by # tags in description or remarks, otherwise by date.
+                  บันทึกจาก {groupedByProject.length} Projects เรียงตาม # ในรายละเอียดหรือหมายเหตุ แล้วตามวันที่
                 </DialogDescription>
               </div>
               <Button
@@ -290,10 +287,10 @@ export function WorkLogList({
               <div key={projectName} className="space-y-4">
                 {/* Project Header */}
                 <div className="sticky top-0 z-10 border-b-2 border-info bg-card pb-2">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-bold text-link flex items-center gap-2">
+                  <div className="flex min-w-0 items-start justify-between gap-2">
+                    <h3 className="content-wrap min-w-0 text-base font-semibold text-link flex items-start gap-2">
                       <div
-                        className="w-4 h-4 rounded-full"
+                        className="mt-1 h-3 w-3 shrink-0 rounded-full"
                         style={{
                           backgroundColor: logs[0]?.project?.colorProject || DEFAULT_PROJECT_COLOR
                         }}
@@ -301,13 +298,13 @@ export function WorkLogList({
                       {projectName}
                     </h3>
                     <Badge variant="secondary" className="text-sm">
-                      {logs.length} {logs.length === 1 ? 'entry' : 'entries'}
+                      {logs.length} รายการ
                     </Badge>
                   </div>
                 </div>
 
                 {/* Work Logs for this project */}
-                <div className="space-y-4 pl-4">
+                <div className="space-y-3">
                   {logs.map((log) => (
                     <Card
                       key={log.id}
@@ -319,11 +316,11 @@ export function WorkLogList({
                       <CardContent className="pt-4">
                         <div className="space-y-3">
                           {/* Header Row */}
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1 space-y-1">
+                          <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1 basis-full space-y-1 sm:basis-64">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-semibold text-sm text-muted-foreground">Work item:</span>
-                                <Badge variant="outline" className="font-normal">
+                                <span className="font-semibold text-sm text-muted-foreground">งาน:</span>
+                                <Badge variant="outline" className="content-wrap min-w-0 max-w-full justify-start whitespace-normal text-left font-normal">
                                   {log.workItem?.title || "No work item"}
                                 </Badge>
                                 {log.workItem?.kind && (
@@ -333,16 +330,15 @@ export function WorkLogList({
                                 )}
                               </div>
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-semibold text-sm text-muted-foreground">User:</span>
+                                <span className="font-semibold text-sm text-muted-foreground">ผู้บันทึก:</span>
                                 <span className="font-medium">{log.user.name}</span>
-                                <span className="text-xs text-muted-foreground">({log.user.email})</span>
+                                <span className="content-wrap min-w-0 text-xs text-muted-foreground">({log.user.email})</span>
                               </div>
                             </div>
-                            <div className="text-right space-y-1">
+                            <div className="min-w-0 max-w-full space-y-1 text-right">
                               <div className="flex items-center gap-2">
-                                <span className="font-semibold text-sm text-muted-foreground">Hours:</span>
-                                <Badge variant="secondary" className="font-semibold">
-                                  {formatHours(log.hours)}h
+                                <Badge variant="secondary" className="content-wrap max-w-full whitespace-normal font-semibold tabular-nums">
+                                  {formatHours(log.hours)} ชม.
                                 </Badge>
                               </div>
                               <div className="text-xs text-muted-foreground">
@@ -360,7 +356,7 @@ export function WorkLogList({
 
                           {log.description && (
                             <div className="space-y-1">
-                              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Details</div>
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">รายละเอียด</div>
                               <WorkItemDescription
                                 text={log.description}
                                 className="text-foreground"
@@ -370,7 +366,7 @@ export function WorkLogList({
 
                           {log.remarks && (
                             <div className="space-y-1">
-                              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Remarks</div>
+                              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">หมายเหตุ</div>
                               <WorkItemDescription
                                 text={log.remarks}
                                 className="text-foreground"
@@ -381,7 +377,7 @@ export function WorkLogList({
                           {/* Show placeholders if no description or remarks */}
                           {!log.description && !log.remarks && (
                             <div className="text-xs text-muted-foreground italic">
-                              No description or remarks provided
+                              ไม่มีรายละเอียดหรือหมายเหตุ
                             </div>
                           )}
                         </div>
