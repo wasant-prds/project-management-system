@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { formatHours } from '@/lib/decimal-hours'
-import { formatUiDate } from '@/lib/display-date'
 import { AnalysisChartsDeferred } from '@/components/page/analysis/analysis-charts-deferred'
+import { ReportContext } from '@/components/page/analysis/report-context'
+import { WorkMetricDefinitions } from '@/components/layout/work-metric-definitions'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 
 import { RefreshCw } from 'lucide-react'
@@ -24,7 +25,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { DatePicker } from '@/components/ui/date-picker'
-import { WorkItemsTable, DailyWorkTable, displayRole, displayStatus } from '@/components/page/analysis/report-tables'
+import { WorkItemsTable, DailyWorkTable, displayStatus } from '@/components/page/analysis/report-tables'
 import { PageState } from '@/components/layout/page-state'
 import { loadFailureVisual } from '@/components/ui/product-identity'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -76,23 +77,6 @@ function analysisQuery(filters: AnalysisFilters) {
   return params.toString()
 }
 
-function activeFilterDescription(report: AnalysisReport) {
-  const company = report.meta.filters.companyId
-    ? report.filterOptions.companies.find((item) => item.id === report.meta.filters.companyId)?.displayName
-      ?? report.filterOptions.companies.find((item) => item.id === report.meta.filters.companyId)?.name
-      ?? report.meta.filters.companyId
-    : 'ทุก Company'
-  const project = report.meta.filters.projectId
-    ? report.filterOptions.projects.find((item) => item.id === report.meta.filters.projectId)?.name
-      ?? report.meta.filters.projectId
-    : 'ทุก Project'
-  let role = 'ทุก role'
-  if (report.meta.filters.role === 'none') role = 'ไม่ระบุ role'
-  else if (report.meta.filters.role) role = displayRole(report.meta.filters.role)
-  const kind = report.meta.filters.kind ?? 'ทุกชนิดงาน'
-  return `Company: ${company} · Project: ${project} · Functional role: ${role} · ชนิดงาน: ${kind}`
-}
-
 function BreakdownCard({
   title,
   rows,
@@ -106,7 +90,6 @@ function BreakdownCard({
     <Card className="min-w-0 card-shadow">
       <CardHeader>
         <CardTitle className="text-base">{title}</CardTitle>
-        <CardDescription>จำนวน Work Item ตามตัวกรองปัจจุบัน</CardDescription>
       </CardHeader>
       <CardContent>
         <ul className="divide-y divide-border/60">
@@ -309,20 +292,15 @@ export default function AnalysisPage() {
 
             {report && (
               <>
+                <ReportContext report={report} />
+                {filtersDirty && <p className="text-xs text-warning">มีการเปลี่ยนตัวกรองที่ยังไม่ถูกใช้กับรายงาน กด “ใช้ตัวกรอง” ก่อนส่งออก</p>}
                 <div className="cinematic-beat-data motion-stagger grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
                   <SummaryStatCard emphasis="primary" label="Work Items ทั้งหมด" value={report.summary.total} />
                   <SummaryStatCard label="Open" value={report.summary.open} />
                   <SummaryStatCard label="Completed" value={report.summary.completed} hint={<span className="text-xs text-muted-foreground">ไม่นับ Cancelled</span>} />
                   <SummaryStatCard label="Overdue" value={report.summary.overdue} />
-                  <SummaryStatCard label="Logged hours" value={<span className="break-all">{formatHours(report.summary.loggedHours)}</span>} hint={<span className="text-xs text-muted-foreground">ชั่วโมงจาก Daily Work</span>} />
+                  <SummaryStatCard label="ชั่วโมงที่บันทึก" value={<span className="break-all">{formatHours(report.summary.loggedHours)}</span>} hint="ชั่วโมงจาก Daily Work" />
                 </div>
-
-                <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-                  <p>ช่วง {formatUiDate(period.startDate)} ถึง {formatUiDate(period.endDate)} · Asia/Bangkok</p>
-                  <p>Completion rate {report.summary.completionRate.toFixed(1)}% = Completed ÷ (ทั้งหมด − Cancelled) · ชั่วโมงรวมเป็น Decimal แบบไม่ปัดก่อนรวม</p>
-                </div>
-                <p className="break-words text-xs text-muted-foreground">ตัวกรองที่ใช้กับรายงาน: {activeFilterDescription(report)}</p>
-                {filtersDirty && <p className="text-xs text-warning">มีการเปลี่ยนตัวกรองที่ยังไม่ถูกใช้กับรายงาน กด “ใช้ตัวกรอง” ก่อนส่งออก</p>}
 
                 <Tabs defaultValue="overview" className="min-w-0 space-y-4">
                   <div className={TAB_SCROLL_CLASS}>
@@ -353,14 +331,13 @@ export default function AnalysisPage() {
                         hrefForValue={(value) => analysisWorkItemsHref(sourceFilters, period, { kind: value })}
                       />
                     </div>
-                    <p className="rounded-md border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">สถานะในรายงานเป็นสถานะปัจจุบันของ Work Item; ยังไม่แสดง throughput หรือกราฟการเปลี่ยนสถานะย้อนหลัง เพราะระบบยังไม่มี status history หรือ completedAt</p>
                   </TabsContent>
 
                   <TabsContent value="work-items" className="min-w-0 space-y-3">
                     <Card className="min-w-0 card-shadow">
                       <CardHeader>
                         <CardTitle>Work Items ต้นทาง</CardTitle>
-                        <CardDescription>วันที่อ้างอิงใช้ workDate → dueDate → createdAt; เลือกชื่อเพื่อเปิด Work Item รายการนั้น</CardDescription>
+                        <CardDescription>เลือกชื่องานเพื่อเปิดรายการพร้อมตัวกรองที่ใช้กับรายงาน</CardDescription>
                       </CardHeader>
                       <CardContent className="min-w-0"><WorkItemsTable report={report} /></CardContent>
                     </Card>
@@ -370,12 +347,13 @@ export default function AnalysisPage() {
                     <Card className="min-w-0 card-shadow">
                       <CardHeader>
                         <CardTitle>Daily Work ต้นทาง</CardTitle>
-                        <CardDescription>แสดง TimeEntry จริง ชั่วโมงยังเป็น Decimal และเลือกวันที่เพื่อเปิด Daily Work ของวันนั้น</CardDescription>
+                        <CardDescription>ชั่วโมงที่บันทึกจริง เลือกวันที่เพื่อเปิด Daily Work ของวันนั้น</CardDescription>
                       </CardHeader>
                       <CardContent className="min-w-0"><DailyWorkTable report={report} /></CardContent>
                     </Card>
                   </TabsContent>
                 </Tabs>
+                <WorkMetricDefinitions />
               </>
             )}
 

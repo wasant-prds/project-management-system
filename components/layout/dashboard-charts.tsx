@@ -10,6 +10,7 @@ import type { DashboardFilters } from '@/lib/dashboard'
 import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion'
 import { MOTION_DURATION_MS } from '@/components/ui/motion'
 import { formatHours } from '@/lib/decimal-hours'
+import { formatHoursAxisTick } from '@/components/ui/hours-axis'
 import { formatUiDate } from '@/lib/display-date'
 
 type LoggedHoursPoint = { date: string; hours: string }
@@ -26,6 +27,7 @@ export function DashboardCharts({ data }: Readonly<{ data: LoggedHoursPoint[]; f
   return (
     <ChartContainer
       config={{ plottedHours: { label: 'ชั่วโมง', color: seriesColor } }}
+      aria-label="ชั่วโมงที่บันทึกตามวัน หน่วยชั่วโมง"
       className="h-[260px] min-w-0 w-full"
     >
       <BarChart data={chartData} margin={{ top: 8, right: 8, bottom: 4, left: 0 }}>
@@ -36,7 +38,7 @@ export function DashboardCharts({ data }: Readonly<{ data: LoggedHoursPoint[]; f
           minTickGap={18}
           tickFormatter={(date: string) => formatUiDate(date).slice(0, 5)}
         />
-        <YAxis {...CHART_AXIS_PROPS} width={56} tickFormatter={formatHours} />
+        <YAxis {...CHART_AXIS_PROPS} width={64} tickFormatter={formatHoursAxisTick} />
         <Tooltip
           content={<ChartTooltipContent valueFormatter={(_value, point) => formatHours((point as LoggedHoursPoint).hours)} />}
           labelFormatter={(date: string) => `วันที่ ${formatUiDate(date)}`}

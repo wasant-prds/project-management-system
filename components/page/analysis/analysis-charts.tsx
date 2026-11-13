@@ -14,6 +14,7 @@ import { renderHoursChartDot } from './hours-chart-dot'
 import { usePrefersReducedMotion } from '@/hooks/use-prefers-reduced-motion'
 import { MOTION_DURATION_MS } from '@/components/ui/motion'
 import { formatHours } from '@/lib/decimal-hours'
+import { formatHoursAxisTick } from '@/components/ui/hours-axis'
 import { formatUiDate } from '@/lib/display-date'
 
 type StatusChartPoint = { href: string; accessibleName: string }
@@ -58,7 +59,7 @@ export function AnalysisStatusChart({ report }: Readonly<{ report: AnalysisRepor
     return <PageState visual="chart" title={VISUAL_STATES.chart.title} description={VISUAL_STATES.chart.description} />
   }
   return (
-    <ChartContainer config={{ value: { label: 'Work Items', color: seriesColor } }} className="h-[320px] min-w-0 w-full">
+    <ChartContainer config={{ value: { label: 'Work Items', color: seriesColor } }} aria-label="สถานะปัจจุบันของ Work Items หน่วยรายการ" className="h-[320px] min-w-0 w-full">
       <BarChart data={statusChartData} layout="vertical" margin={{ top: 4, right: 12, bottom: 4, left: 4 }}>
         <CartesianGrid {...CHART_GRID_PROPS} />
         <XAxis {...CHART_AXIS_PROPS} type="number" allowDecimals={false} />
@@ -97,11 +98,11 @@ export function AnalysisHoursChart({ report }: Readonly<{ report: AnalysisReport
     return <PageState visual="chart" title={VISUAL_STATES.chart.title} description={VISUAL_STATES.chart.description} />
   }
   return (
-    <ChartContainer config={{ plottedHours: { label: 'ชั่วโมง', color: seriesColor } }} className="h-[320px] min-w-0 w-full">
+    <ChartContainer config={{ plottedHours: { label: 'ชั่วโมง', color: seriesColor } }} aria-label="ชั่วโมงที่บันทึกตามช่วงเวลา หน่วยชั่วโมง" className="h-[320px] min-w-0 w-full">
       <LineChart data={hoursChartData} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
         <CartesianGrid {...CHART_GRID_PROPS} />
         <XAxis {...CHART_AXIS_PROPS} dataKey="label" minTickGap={16} />
-        <YAxis {...CHART_AXIS_PROPS} width={56} tickFormatter={formatHours} />
+        <YAxis {...CHART_AXIS_PROPS} width={64} tickFormatter={formatHoursAxisTick} />
         <Tooltip content={<ChartTooltipContent valueFormatter={(_value, point) => formatHours((point as { hours: string }).hours)} labelFormatter={(_label, payload) => {
           const point = payload?.[0]?.payload as { startDate?: string; endDate?: string } | undefined
           return point ? `${formatUiDate(point.startDate)} – ${formatUiDate(point.endDate)}` : ''
@@ -116,6 +117,7 @@ export function AnalysisHoursChart({ report }: Readonly<{ report: AnalysisReport
           animationDuration={MOTION_DURATION_MS.chart}
           isAnimationActive={!prefersReducedMotion && hoursChartData.length <= 100}
           dot={renderHoursChartDot}
+          activeDot={false}
         />
       </LineChart>
     </ChartContainer>

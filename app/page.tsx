@@ -15,6 +15,7 @@ import { SearchFilterPanel } from '@/components/layout/search-filter-panel'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { SummaryStatCard } from '@/components/layout/summary-stat-card'
+import { WorkMetricDefinitions } from '@/components/layout/work-metric-definitions'
 import { getOwner, ownerErrorMessage } from '@/lib/owner'
 import { DashboardQueryError, getDashboardSummary } from '@/lib/dashboard'
 import { dashboardDailyWorkHref, dashboardWorkItemsHref } from '@/lib/dashboard-links'
@@ -105,22 +106,22 @@ function WorkItemList({
       </CardHeader>
       <CardContent>
         {items.length === 0 ? (
-          <InlineState visual="search" title="ไม่มี Work Item ในตัวกรองนี้" description="ลองปรับช่วงวันหรือตัวกรองเพื่อดูรายการจริง" />
+          <InlineState visual="search" title={`ไม่มี ${title} ในตัวกรองนี้`} description="ลองปรับช่วงวันหรือตัวกรองเพื่อดูรายการจริง" />
         ) : (
           <ul>
             {items.map((item) => (
               <li key={item.id} className="data-row min-w-0 first:pt-0 last:pb-0">
                 <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
                   <Link href={href} className="min-w-0 flex-1 break-words font-medium text-link underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{item.title}</Link>
-                  <Badge variant={item.priority === 'urgent' ? 'destructive' : 'secondary'}>{item.priority === 'urgent' ? 'เร่งด่วน' : item.kind}</Badge>
+                  <WorkItemStatusBadge status={item.status} />
                 </div>
                 <p className="mt-1.5 break-words text-sm text-muted-foreground">
-                  Project: {item.project.name} · Company: {item.project.company?.displayName ?? item.project.company?.name ?? '—'}
+                  {item.project.company?.displayName ?? item.project.company?.name ?? 'ไม่ระบุ Company'} · {item.project.name}
                 </p>
                 <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <Badge variant="outline">{item.role ? WORK_ITEM_ROLE_LABELS[item.role as keyof typeof WORK_ITEM_ROLE_LABELS] : 'ไม่ระบุ role'}</Badge>
-                  <WorkItemStatusBadge status={item.status} />
                   <span>กำหนด: {item.dueDate ? formatUiDate(item.dueDate) : 'ไม่กำหนด'}</span>
+                  <Badge variant={item.priority === 'urgent' ? 'destructive' : 'outline'}>{item.priority === 'urgent' ? 'เร่งด่วน' : item.kind}</Badge>
+                  <span>{item.role ? WORK_ITEM_ROLE_LABELS[item.role as keyof typeof WORK_ITEM_ROLE_LABELS] : 'ไม่ระบุ role'}</span>
                 </div>
               </li>
             ))}
@@ -137,7 +138,7 @@ function RecentProjects({ data, filters }: Readonly<{ data: DashboardResult; fil
     <Card className="min-w-0 gap-3 py-4 card-shadow">
       <CardHeader>
         <CardTitle>Projects ล่าสุด</CardTitle>
-        <CardDescription>ความคืบหน้า = completed ÷ (total − cancelled)</CardDescription>
+        <CardDescription>ความคืบหน้าจากงานทั้งหมดของแต่ละ Project</CardDescription>
       </CardHeader>
       <CardContent>
         {projects.length === 0 ? (
@@ -149,7 +150,7 @@ function RecentProjects({ data, filters }: Readonly<{ data: DashboardResult; fil
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <Link href={`/projects/${encodeURIComponent(project.id)}`} className="break-words font-medium text-link underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{project.name}</Link>
-                    <p className="mt-1 break-words text-sm text-muted-foreground">Company: {project.company?.displayName ?? project.company?.name ?? '—'}</p>
+                    <p className="mt-1 break-words text-sm text-muted-foreground">{project.company?.displayName ?? project.company?.name ?? 'ไม่ระบุ Company'}</p>
                   </div>
                   <span className="shrink-0 text-sm font-semibold tabular-nums">{project.progress.toFixed(1)}%</span>
                 </div>
@@ -249,13 +250,17 @@ async function DashboardContent({ searchParams }: DashboardPageProps) {
             )}
 
 
-            <div className="cinematic-beat-actions grid min-w-0 items-start gap-4 xl:grid-cols-12">
-              <div className="min-w-0 xl:col-span-7 2xl:col-span-6"><WorkItemList title="Work Items ล่าสุด" description="เรียงตามเวลาที่แก้ไขล่าสุด" items={summary.recentWorkItems} href={dashboardWorkItemsHref(filters)} /></div>
-              <div className="min-w-0 xl:col-span-5 2xl:col-span-3"><RecentProjects data={data} filters={filters} /></div>
-              <div className="min-w-0 xl:col-span-12 2xl:col-span-3"><DashboardCharts data={summary.loggedHoursByDate} filters={filters} /></div>
-              <div className="min-w-0 xl:col-span-6"><WorkItemList title="Work Items เร่งด่วน" description="priority urgent ที่ยังเปิดอยู่" items={summary.urgentWorkItems} href={dashboardWorkItemsHref(filters, { priority: 'urgent', openOnly: true })} /></div>
-              <div className="min-w-0 xl:col-span-6"><WorkItemList title="Work Items เกินกำหนด" description="dueDate ก่อนวันปัจจุบันและยังไม่ปิด" items={summary.overdueWorkItems} href={dashboardWorkItemsHref(filters, { overdue: true })} /></div>
+            <section aria-label="งานที่ควรจัดการก่อน" className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
+              <WorkItemList title="Work Items เร่งด่วน" description="งานเร่งด่วนที่ยังเปิดอยู่" items={summary.urgentWorkItems} href={dashboardWorkItemsHref(filters, { priority: 'urgent', openOnly: true })} />
+              <WorkItemList title="Work Items เกินกำหนด" description="เลยกำหนดส่งและยังไม่เสร็จหรือยกเลิก" items={summary.overdueWorkItems} href={dashboardWorkItemsHref(filters, { overdue: true })} />
+            </section>
+
+            <div className="cinematic-beat-actions grid min-w-0 items-start gap-4 lg:grid-cols-2">
+              <WorkItemList title="Work Items ล่าสุด" description="เรียงตามเวลาที่แก้ไขล่าสุด" items={summary.recentWorkItems} href={dashboardWorkItemsHref(filters)} />
+              <RecentProjects data={data} filters={filters} />
+              <div className="min-w-0 lg:col-span-2"><DashboardCharts data={summary.loggedHoursByDate} filters={filters} /></div>
             </div>
+            <WorkMetricDefinitions />
           </div>
         </main>
       </SidebarInset>

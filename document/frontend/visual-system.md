@@ -87,6 +87,12 @@ Root layout โหลด `GeistSans` และ `GeistMono`; Tailwind `font-sans`
 
 ## Responsive layout และ charts
 
+Dashboard จัด summary → งานเร่งด่วน/เกินกำหนด → รายการล่าสุด/Projects → กราฟชั่วโมง ตามลำดับ DOM เดียวกันทุก viewport. ความคืบหน้า Project ใช้งานทั้งหมดของเจ้าของใน Project ตามสัญญาเดิม ไม่ใช่เฉพาะช่วงรายงาน
+
+Analysis แสดงช่วงวัน Asia/Bangkok, ชื่อ Company/Project/role/kind ที่ใช้จริง หน่วย และอัตราสำเร็จก่อน KPI โดยอ่านจาก metadata ของ report ที่โหลดสำเร็จ. ตัวกรองใน compact panel ยังเป็น draft จนกดใช้ตัวกรอง; draft ไม่เปลี่ยน summary และปิดการส่งออกไว้. กราฟคง bar/line และ series เดิม พร้อมคำอธิบายหน่วยและสีประจำ series
+
+Dashboard/Analysis เปิดอ่าน “วิธีคำนวณและขอบเขตข้อมูล” ด้วย native disclosure (`details`/`summary`) บนหน้าเดิมได้ทั้ง keyboard/touch. ตารางชั่วโมงรายช่วงอยู่ใน disclosure ใต้กราฟ ส่วน source tables อยู่ใน tabs เดิม. ใช้คำว่า “ชั่วโมงที่บันทึก” และ “อ้างอิงบันทึก” ใน UI แทนศัพท์ storage. Hour axes ใช้ scientific notation เฉพาะค่าที่ใหญ่มาก/เล็กมากเพื่อรักษาพื้นที่ โดย KPI, tables, tooltip และ CSV จัดรูปแบบจาก decimal string เดิมเป็น 2 ตำแหน่ง ไม่ปัดก่อนรวม. จุด hours chart ยังคงเป็น source link โดยไม่มี decorative active dot ทับลิงก์
+
 [Shared page layout](../../components/layout/page-layout.ts) ใช้ขนาด phone ต่ำกว่า 640 px, tablet 640–1023 px และ desktop ตั้งแต่ 1024 px พร้อม `min-w-0` และ page-level horizontal overflow handling. ทั้งแปดเมนูใช้ shared shell; tabs ที่มีเนื้อหากว้างเลื่อนได้ภายใน tab list. Dialog shells จำกัดขนาดตาม viewport และ form dialog เลื่อนได้ภายในตัวเอง ดู [responsive dialog](../../components/ui/responsive-dialog.ts).
 
 [ChartContainer](../../components/ui/chart.tsx) เป็นเจ้าของ `ResponsiveContainer` เพียงชั้นเดียว และกำหนดความกว้างขั้นต่ำ/สูงสุดให้ยุบตาม parent. Dashboard และ Analysis ใช้ chart component นี้; legend ห่อบรรทัดได้ ส่วน tooltip และข้อความยาวถูกจำกัดให้อยู่ใน chart frame. ไม่ควรเพิ่ม `ResponsiveContainer` ซ้อนในหน้าที่ใช้ `ChartContainer`.

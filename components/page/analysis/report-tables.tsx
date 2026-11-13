@@ -99,7 +99,7 @@ export function DailyWorkTable({ report }: Readonly<{ report: AnalysisReport }>)
                   </span>
                 )}
                 {entry.remarks && <span className="mt-1 content-wrap block text-xs text-muted-foreground">หมายเหตุ: {entry.remarks}</span>}
-                <span className="content-wrap mt-1 block text-xs text-muted-foreground">TimeEntry {entry.id}</span>
+                <span className="content-wrap mt-1 block text-xs text-muted-foreground">อ้างอิงบันทึก {entry.id}</span>
               </TableCell>
               <TableCell className="px-3 py-3 content-wrap text-right font-medium tabular-nums">{formatHours(entry.hours)}</TableCell>
             </TableRow>

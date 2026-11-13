@@ -49,7 +49,7 @@ test('TC-36-01 compact empty and error states use the identity mark without a da
 
 test('TC-36-02 Dashboard keeps live empty copy, shell error, inset dates and status glyphs', () => {
   const page = source('../../app/page.tsx')
-  assert.match(page, /ไม่มี Work Item ในตัวกรองนี้/)
+  assert.match(page, /title=\{`ไม่มี \$\{title\} ในตัวกรองนี้`\}/)
   assert.match(page, /ไม่มี Project ในตัวกรองนี้/)
   assert.match(page, /ไม่พบ Work Items, Daily Work หรือ Projects ในช่วงและตัวกรองนี้/)
   assert.match(page, /ไม่สามารถเชื่อมต่อเพื่ออ่านข้อมูลจริงได้/)

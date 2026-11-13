@@ -161,7 +161,7 @@ test('TC-29-11 polished Daily Work numeric cell wraps hours formatted to two dec
   assert.match(numeric.props.className, /content-wrap text-right font-medium tabular-nums/)
   const html = renderToStaticMarkup(tree)
   assert.ok(html.includes(displayedHours))
-  assert.ok(html.includes(`TimeEntry ${longText}`))
+  assert.ok(html.includes(`อ้างอิงบันทึก ${longText}`))
   const params = new URL(descendants(tree).find((node) => node.type === Link).props.href, 'https://unit.test').searchParams
   assert.equal(params.get('startDate'), report.timeEntries[0].date)
   assert.equal(params.get('endDate'), report.timeEntries[0].date)

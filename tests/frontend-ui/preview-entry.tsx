@@ -1,5 +1,7 @@
 import { createRoot } from 'react-dom/client'
+import { Suspense } from 'react'
 import Dashboard from '@/app/page'
+import { DashboardLoading } from '@/components/layout/dashboard-loading'
 import Projects from '@/app/projects/page'
 import WorkItems from '@/app/work-items/page'
 import Board from '@/app/board/page'
@@ -24,8 +26,19 @@ const Page = routes[route] ?? Projects
 const theme = new URLSearchParams(window.location.search).get('theme') ?? 'light'
 const root = document.getElementById('root')
 const detailParams = Promise.resolve({ id: route.split('/').at(-1) ?? 'project-0' })
+let dashboardReady = false
+let dashboardPending: Promise<void> | undefined
+function SlowDashboardPreview() {
+  if (!dashboardReady) {
+    dashboardPending ??= new Promise<void>((resolve) => setTimeout(() => { dashboardReady = true; resolve() }, 1500))
+    throw dashboardPending
+  }
+  return <Dashboard />
+}
 let pageContent = <Page />
-if (route === '/qa/foundation') {
+if (route === '/' && new URLSearchParams(window.location.search).get('qa') === 'slow') {
+  pageContent = <Suspense fallback={<DashboardLoading />}><SlowDashboardPreview /></Suspense>
+} else if (route === '/qa/foundation') {
   pageContent = <FoundationPreview />
 } else if (route === '/login') {
   pageContent = <LoginScreen />

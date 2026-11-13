@@ -14,9 +14,10 @@ const loadHoursChart = () => import('./analysis-charts').then((module) => ({ def
 const plotLoading = <Skeleton className="h-[320px] w-full" />
 
 export function AnalysisChartsDeferred({ report }: Readonly<{ report: AnalysisReport }>) {
+  const grouping = { day: 'รายวัน', week: 'รายสัปดาห์', month: 'รายเดือน' }[report.meta.loggedHoursGrouping]
   return <div className="grid min-w-0 gap-4 xl:grid-cols-2" aria-label="กราฟ Analysis">
     <Card className="motion-content-enter min-w-0 overflow-hidden card-shadow">
-      <CardHeader><CardTitle>สถานะ Work Items</CardTitle><CardDescription>สถานะปัจจุบันของรายการที่ตรงกับช่วงและตัวกรอง</CardDescription></CardHeader>
+      <CardHeader><CardTitle>สถานะ Work Items</CardTitle><CardDescription><span aria-hidden="true" className="mr-2 inline-block h-2 w-2 rounded-sm bg-[var(--chart-primary)]" />สถานะปัจจุบัน · หน่วย: รายการ</CardDescription></CardHeader>
       <CardContent className="min-w-0 overflow-hidden">
         {report.summary.total ? <DeferredSection fallback={plotLoading}>
           <RetryableLazy loader={loadStatusChart} componentProps={{ report }} loading={plotLoading}
@@ -25,13 +26,16 @@ export function AnalysisChartsDeferred({ report }: Readonly<{ report: AnalysisRe
       </CardContent>
     </Card>
     <Card className="motion-content-enter min-w-0 overflow-hidden card-shadow">
-      <CardHeader><CardTitle>Logged hours ตามช่วงเวลา</CardTitle><CardDescription>รวมจาก TimeEntry.date ด้วย grouping แบบ {report.meta.loggedHoursGrouping} ตาม Asia/Bangkok</CardDescription></CardHeader>
+      <CardHeader><CardTitle>ชั่วโมงที่บันทึกตามช่วงเวลา</CardTitle><CardDescription><span aria-hidden="true" className="mr-2 inline-block h-2 w-2 rounded-sm bg-[var(--chart-secondary)]" />ชั่วโมงที่บันทึก{grouping} · หน่วย: ชั่วโมง</CardDescription></CardHeader>
       <CardContent className="min-w-0 overflow-hidden">
         {report.loggedHoursByPeriod.length ? <DeferredSection fallback={plotLoading}>
           <RetryableLazy loader={loadHoursChart} componentProps={{ report }} loading={plotLoading}
             error={(retry) => <ChartLoadError heightClass="h-[320px]" onRetry={retry} />} />
-        </DeferredSection> : <InlineState visual="chart" title="ไม่มี Daily Work ให้แสดงในกราฟนี้" description="กราฟจะแสดงเมื่อมี TimeEntry ในช่วงที่เลือก" />}
-        <HoursPeriodTable report={report} />
+        </DeferredSection> : <InlineState visual="chart" title="ไม่มี Daily Work ให้แสดงในกราฟนี้" description="กราฟจะแสดงเมื่อมีการบันทึกชั่วโมงในช่วงที่เลือก" />}
+        {report.loggedHoursByPeriod.length > 0 && <details className="mt-3 border-t border-border/60 pt-3">
+          <summary className="cursor-pointer rounded-sm text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">ชั่วโมงและข้อมูลต้นทาง ({report.loggedHoursByPeriod.length} ช่วง)</summary>
+          <div className="mt-3 min-w-0"><HoursPeriodTable report={report} /></div>
+        </details>}
       </CardContent>
     </Card>
   </div>

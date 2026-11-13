@@ -20,7 +20,12 @@ const bundle = await esbuild.build({
       'next/link': 'export default function Link({href, children, ...props}) { return <a href={href} {...props}>{children}</a> }',
       'next/navigation': 'export const usePathname = () => window.location.pathname; export const useSearchParams = () => new URLSearchParams(window.location.search); export const useRouter = () => ({push: (url) => window.location.assign(url), replace: (url) => window.history.replaceState(null, "", url), refresh: () => window.location.reload()});',
       '@/lib/owner': 'export const getOwner = () => ({id: "owner-preview"}); export const ownerErrorMessage = () => null;',
-      '@/lib/dashboard': `import {previewData} from ${JSON.stringify(fixturePath)}; export const getDashboardSummary = () => previewData(new URLSearchParams(window.location.search).get('qa')).dashboard; export class DashboardQueryError extends Error {}`,
+      '@/lib/dashboard': `import {previewData} from ${JSON.stringify(fixturePath)};
+        export const getDashboardSummary = () => {
+          const mode = new URLSearchParams(window.location.search).get('qa');
+          if (mode === 'error') throw new Error('Synthetic dashboard read failure');
+          return previewData(mode).dashboard;
+        }; export class DashboardQueryError extends Error {}`,
       '@/components/layout/owner-settings-provider': `import {previewData} from ${JSON.stringify(fixturePath)}; import {useTheme} from 'next-themes'; export const useOwnerSettings = () => { const {setTheme} = useTheme(); return ({settings: previewData(new URLSearchParams(window.location.search).get('qa')).settings, isLoading: false, loadError: null, isSavingProfile: false, isSavingPreferences: false, reload() {}, async saveProfile() {throw new Error("Preview ไม่บันทึกข้อมูล")}, async savePreferences(preferences) {if(new URLSearchParams(window.location.search).get("themeSwitch") === "1") {setTheme(preferences.theme); return} throw new Error("เปลี่ยน theme ผ่าน URL ?theme=dark หรือ special-dark")}}) };`,
     }
     build.onResolve({ filter: /^(next\/link|next\/navigation|@\/lib\/(owner|dashboard)|@\/components\/layout\/owner-settings-provider)$/ }, (args) => ({ path: args.path, namespace: 'preview-boundary' }))

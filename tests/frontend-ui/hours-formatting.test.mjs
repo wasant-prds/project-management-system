@@ -24,11 +24,15 @@ test('hour charts format raw decimal totals in tooltips, axes and accessible nam
     const nodes = descendants(tree)
     const axis = nodes.find((node) => node.type === recharts.YAxis)
     assert.equal(axis.props.tickFormatter(1.005), '1.01')
+    assert.equal(axis.props.tickFormatter(1e34), '1.0e+34', 'large plotted values have bounded axis labels')
+    assert.equal(axis.props.tickFormatter(1e-30), '1.0e-30', 'tiny plotted values remain distinguishable from zero')
     const tooltip = nodes.find((node) => node.type === recharts.Tooltip).props.content
     assert.equal(tooltip.type, ChartTooltipContent)
     assert.equal(tooltip.props.valueFormatter(Number(hours), { hours }), '9007199254740993.13')
   }
   assert.match(trees[1].props.children.props.data[0].accessibleName, /9007199254740993\.13 ชั่วโมง$/)
+  const line = descendants(trees[1]).find((node) => node.type === recharts.Line)
+  assert.equal(line.props.activeDot, false, 'a decorative active dot must not cover the source link')
 })
 
 function dailyWorkRuntime() {

@@ -11,6 +11,34 @@ export const analysis = { ...dashboard, breakdowns: { status: ['todo', 'in-progr
 
 export function previewData(mode) {
   const data = structuredClone({ settings, companies, projects, workItems, workLogs, dashboard, analysis })
+  if (mode === 'report-filtered' || mode === 'report-closed') {
+    // Issue #48 boundary fixtures; these do not implement production filtering or aggregates.
+    const publicIds = new Map(['company-preview', ...projects.map((row) => row.id), ...workItems.map((row) => row.id), ...workLogs.map((row) => row.id), 'owner-preview']
+      .map((id, index) => [id, `48000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`]))
+    const visited = new WeakSet()
+    const identify = (value) => {
+      if (!value || typeof value !== 'object' || visited.has(value)) return
+      visited.add(value)
+      for (const [key, child] of Object.entries(value)) {
+        if (typeof child === 'string' && ['id', 'companyId', 'projectId'].includes(key) && publicIds.has(child)) value[key] = publicIds.get(child)
+        else identify(child)
+      }
+    }
+    identify(data)
+    const closed = mode === 'report-closed'
+    const items = data.workItems.slice(0, closed ? 2 : 1)
+    if (closed) {
+      items[0].status = 'completed'
+      Object.assign(items[1], { status: 'cancelled', project: items[0].project, role: 'Developer', kind: 'Task' })
+    }
+    const entries = [{ ...data.workLogs[0], hours: '1.005' }]
+    for (const report of [data.dashboard, data.analysis]) {
+      report.meta.period = { startDate: '2026-10-03', endDate: '2026-10-03' }
+      report.meta.filters = { companyId: data.companies[0].id, projectId: data.projects[0].id, role: 'Developer', kind: 'Task' }
+      Object.assign(report.summary, { total: items.length, open: closed ? 0 : 1, completed: closed ? 1 : 0, cancelled: closed ? 1 : 0, overdue: closed ? 0 : 1, completionRate: closed ? 100 : 0, loggedHours: '1.005', recentWorkItems: items, urgentWorkItems: closed ? [] : items, overdueWorkItems: closed ? [] : items, recentProjects: [data.dashboard.summary.recentProjects[0]], loggedHoursByDate: [{ date: '2026-10-03', hours: '1.005' }] })
+    }
+    Object.assign(data.analysis, { workItems: items, timeEntries: entries, loggedHoursByPeriod: [{ startDate: '2026-10-03', endDate: '2026-10-03', hours: '1.005' }], breakdowns: { status: closed ? [{ value: 'completed', count: 1 }, { value: 'cancelled', count: 1 }] : [{ value: 'todo', count: 1 }], priority: closed ? [{ value: 'urgent', count: 1 }, { value: 'medium', count: 1 }] : [{ value: 'urgent', count: 1 }], kind: [{ value: 'Task', count: items.length }] } })
+  }
   if (mode === 'edge') {
     // Unbroken identifiers and exact Decimals expose clipping that ordinary Thai prose hides.
     const visited = new WeakSet()

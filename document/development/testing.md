@@ -51,6 +51,8 @@ Unit tests ไม่แทน browser review หรือ deployment. การ�
 
 ## คำสั่งเฉพาะ suite
 
+`pnpm test:dashboard-analysis-browser` (หรือ `node scripts/dashboard-analysis-browser.mjs`) ใช้ isolated preview จาก `node scripts/frontend-preview.mjs` และ Playwright ผ่าน `PMS_PLAYWRIGHT_MODULE` เช่นเดียวกับ header regressions. ตรวจ Dashboard/Analysis ใน Light/Dark/Special Dark × 390×844, 768×1024, 1440×900; ลำดับอ่าน, ช่วง/ตัวกรองที่มีผล, draft/apply, source UUIDs, filtered CSV, native disclosures ด้วย keyboard/touch, source tables, axes/tooltips รวมตัวเลขชั่วโมงยาว, empty/closed/cancelled/loading/error. `--before` เก็บ baseline summary/charts โดยไม่บังคับ layout ใหม่. ภาพ/JSON/log อยู่ใน `artifacts/issue-48/`; preview ใช้ synthetic data เท่านั้น ไม่อ่าน `.env` หรือเชื่อม database และไม่ใช่ Next.js navigation/auth acceptance. [ผลตรวจ #48](../frontend/dashboard-analysis-verification.md)
+
 - `pnpm test:contracts` / `node tests/run.mjs contracts` / `bash scripts/test-unit.sh contracts`
 - `pnpm test:api-contracts` / `node tests/run.mjs api-contracts` / `bash scripts/test-unit.sh api-contracts`
 - `pnpm test:issue-sync` / `node tests/run.mjs issue-sync` / `bash scripts/test-unit.sh issue-sync`

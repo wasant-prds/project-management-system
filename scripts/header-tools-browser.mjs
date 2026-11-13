@@ -38,6 +38,7 @@ try {
       page.on('pageerror', (error) => errors.push(error.message))
       for (const route of routes) {
         await page.goto(`${origin}${route}?theme=${theme}`, { waitUntil: 'networkidle' })
+        await page.getByRole('button', { name: /^ค้นหาและตัวกรอง/ }).waitFor()
         assert.equal(await page.locator('.search-filter-panel').count(), 0, 'filters start collapsed')
         assert.equal(await page.locator('.page-toolbar .search-filter-trigger').count(), 1, 'filters belong to the heading')
         assert.equal(await page.locator('main input[type="search"]').count(), 0, 'no standalone search row remains')
