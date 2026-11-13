@@ -297,7 +297,7 @@ test('TC-27-22 Board Work Item detail uses the same responsive width shell as Wo
   const workItemViewDialogSource = readFileSync(`${root}/components/page/work-items/work-item-view-dialog.tsx`, 'utf8')
   const item = {
     id: 'work-item-27', title: 'Review responsive dialog', kind: 'Task', status: 'todo', priority: 'medium', role: null,
-    description: 'Modal content', workDate: '2026-10-03', dueDate: '2026-10-04', assignee: { name: 'Owner' },
+    description: 'Modal content', types: ['documentation'], workDate: '2026-10-03', dueDate: '2026-10-04', assignee: { name: 'Owner' },
     project: { name: 'Project Alpha', company: { name: 'Example Company' } },
   }
 

@@ -13,10 +13,10 @@ import type { WorkItem } from './types'
 import { observeStickyHeader } from './sticky-header-observer'
 
 const URGENCY_SUBGROUP_BAR_CLASS: Record<UrgencySubgroup, string> = {
-  overdue: 'border-l-4 border-danger bg-danger-subtle text-danger',
-  'near-due': 'border-l-4 border-warning bg-warning-subtle text-warning',
-  'on-track': 'border-l-4 border-info bg-info-subtle text-info',
-  complete: 'border-l-4 border-success bg-success-subtle text-success',
+  overdue: 'border-l-2 border-danger text-danger',
+  'near-due': 'border-l-2 border-warning text-warning',
+  'on-track': 'border-l-2 border-info text-info',
+  complete: 'border-l-2 border-success text-success',
 }
 
 const STUCK_SURFACE = 'bg-card shadow-md'
@@ -122,7 +122,7 @@ function SubgroupBranch({
   const { ref, stuck } = useStickyHeader(open, stickyOffset)
 
   return (
-    <Collapsible open={open} onOpenChange={onOpenChange} className="overflow-visible">
+    <Collapsible data-urgency-group={subgroup.key} open={open} onOpenChange={onOpenChange} className="overflow-visible">
       <div
         ref={ref}
         className={cn('z-10', open && 'sticky', stuck && STUCK_SURFACE, stuck && 'rounded-md')}
@@ -142,7 +142,7 @@ function SubgroupBranch({
             <button
               type="button"
               className={cn(
-                'type-label flex h-8 min-w-0 flex-1 items-center gap-1.5 rounded-md px-2 text-left',
+                'type-label flex min-h-9 min-w-0 flex-1 items-center gap-1.5 rounded-sm px-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 URGENCY_SUBGROUP_BAR_CLASS[subgroup.key],
               )}
             >
@@ -206,18 +206,18 @@ function ProjectBranch({
   const { ref, height, stuck } = useStickyHeader(open, 0)
 
   return (
-    <section className="relative">
+    <section data-project-group={group.projectId} className="relative">
       <Collapsible open={open} onOpenChange={onProjectOpenChange} className="overflow-visible">
         <div
           ref={ref}
           className={cn(
-            'z-20 rounded-xl border border-border/70 bg-card',
+            'z-20 rounded-md border-b border-border/70',
             open && 'sticky top-0',
             stuck && STUCK_SURFACE,
           )}
         >
           <CollapsibleTrigger asChild>
-            <button type="button" className="flex w-full min-w-0 items-stretch text-left">
+            <button type="button" className="flex w-full min-w-0 items-stretch rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <span className="flex w-9 shrink-0 items-center justify-center text-muted-foreground">
                 <ChevronRight
                   strokeWidth={ICON_STROKE}
@@ -227,8 +227,8 @@ function ProjectBranch({
               <ProjectIdentity
                 name={group.projectName}
                 color={group.projectColor}
-                size="md"
-                className="min-w-0 flex-1 border-b-0 px-3 py-2.5 pr-2"
+                size="sm"
+                className="min-w-0 flex-1 border-b-0 px-2 py-2 pr-2"
               />
               <span className="flex shrink-0 items-center pr-3 text-xs tabular-nums text-muted-foreground">
                 {count}
@@ -319,7 +319,7 @@ export function WorkItemGroupedList({
   }
 
   return (
-    <div className="motion-data-enter min-w-0 space-y-4">
+    <div className="motion-data-enter min-w-0 space-y-3">
       {groups.map((group) => (
         <ProjectBranch
           key={group.projectId}

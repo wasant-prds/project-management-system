@@ -94,12 +94,11 @@ test('TC-36-03 Analysis empty frames and table status use the shared identity la
 test('TC-36-04 Board empty, filter failure and card status stay inside the current identity system', () => {
   const page = source('../../app/board/page.tsx')
   assert.match(page, /role="status" aria-busy="true"[^\n]*ContentLoadingSkeleton layout="board"/)
-  assert.match(page, /<InlineState visual="records" title="ยังไม่มี Work Item ในสถานะนี้"/)
-  assert.doesNotMatch(page, /<InlineState visual="records"[^>]*live/)
+  assert.match(page, /<p className="px-2 py-4 text-center text-xs text-muted-foreground">ยังไม่มี Work Item ในสถานะนี้/)
   assert.match(page, /<PageState kind="error" visual=\{loadFailureVisual\(boardError\)\} title="โหลด Board ไม่สำเร็จ"/)
   assert.match(page, /title="โหลดตัวกรองไม่สำเร็จ"/)
   assert.match(page, /ลองโหลดตัวกรองอีกครั้ง/)
-  assert.match(page, /<WorkItemStatusBadge status=\{item\.status\} \/>/)
+  assert.doesNotMatch(page, /<WorkItemStatusBadge status=\{item\.status\} \/>/)
   assert.match(page, /<WorkItemStatusBadge status=\{status\} \/>/)
   assert.match(page, /strokeWidth=\{ICON_STROKE\}/)
   assert.match(page, /<span className="type-label">\{label\}<\/span>/)
@@ -110,7 +109,7 @@ test('TC-36-04 Board empty, filter failure and card status stay inside the curre
 test('TC-36-05 Work Item sticky headers stay opaque without blur and subgroup labels use the type role', () => {
   const list = source('../../components/page/work-items/work-item-grouped-list.tsx')
   assert.match(list, /const STUCK_SURFACE = 'bg-card shadow-md'/)
-  assert.match(list, /type-label flex h-8/)
+  assert.match(list, /type-label flex min-h-9/)
   assert.match(list, /strokeWidth=\{ICON_STROKE\}/)
   assert.match(list, /visual="search"/)
   assert.doesNotMatch(list, /backdrop-blur|uppercase|tracking-\[0\.12em\]/)

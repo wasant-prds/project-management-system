@@ -389,7 +389,7 @@ test('TC-28-26 data and expanded groups stay visible without replaying route mot
     if (rule.params.includes('prefers-reduced-motion: reduce') && rule.toString().includes('.motion-data-enter') && rule.toString().includes('animation: none')) disabled = true
   })
   assert.equal(disabled, true)
-  assert.match(source('../../components/page/work-items/work-item-grouped-list.tsx'), /motion-data-enter min-w-0 space-y-4/)
+  assert.match(source('../../components/page/work-items/work-item-grouped-list.tsx'), /motion-data-enter min-w-0 space-y-3/)
 })
 
 test('TC-28-27 tooltip and toast exit timing overrides entrance while accordion shares centralized timing', async () => {

@@ -922,6 +922,22 @@ export default function WorkItemsPage() {
   const resultsAreCurrent = loadedFilterKey === filterKey
   const isListLoading = isWorkItemListLoading(loadedFilterKey, loadingFilterKey, filterKey, loadError)
   const countsAvailable = !isListLoading && !loadError
+  const filterSummary = [
+    debouncedSearchQuery.trim() ? `ค้นหา: ${debouncedSearchQuery.trim()}` : '',
+    companyFilter !== 'all' ? companies.find((company) => company.id === companyFilter)?.displayName || companies.find((company) => company.id === companyFilter)?.name || 'Company ที่เลือก' : '',
+    projectFilter !== 'all' ? projects.find((project) => project.id === projectFilter)?.name || 'Project ที่เลือก' : '',
+    dashboardDateRange ? `${formatUiDate(dashboardDateRange.startDate)} – ${formatUiDate(dashboardDateRange.endDate)}` : [
+      monthFilter !== 'all' ? MONTH_OPTIONS.find((month) => month.value === monthFilter)?.label : '',
+      yearFilter !== 'all' ? yearFilter : '',
+    ].filter(Boolean).join(' '),
+    statusFilter !== 'all' ? WORK_ITEM_STATUS_LABELS[statusFilter as keyof typeof WORK_ITEM_STATUS_LABELS] : '',
+    priorityFilter !== 'all' ? WORK_ITEM_PRIORITY_LABELS[priorityFilter as keyof typeof WORK_ITEM_PRIORITY_LABELS] : '',
+    roleFilter === 'none' ? 'ไม่ระบุบทบาท' : roleFilter !== 'all' ? WORK_ITEM_ROLE_LABELS[roleFilter as keyof typeof WORK_ITEM_ROLE_LABELS] : '',
+    kindTab !== 'all' ? kindTab : '',
+    dashboardOpenOnly ? 'เฉพาะงานที่ยังเปิด' : '',
+    dashboardOverdueOnly ? 'เฉพาะเกินกำหนด' : '',
+    sortMode !== DEFAULT_WORK_ITEM_SORT_MODE ? WORK_ITEM_SORT_LABELS[sortMode] : '',
+  ].filter(Boolean).join(' · ')
 
   let listContent = (
     <WorkItemGroupedList
@@ -962,6 +978,7 @@ export default function WorkItemsPage() {
                   onChange={handleImportFile}
                 />
                 <SearchFilterPanel
+                  summary={filterSummary}
                   activeCount={[searchQuery.trim() !== '', companyFilter !== 'all', yearFilter !== 'all', monthFilter !== 'all', projectFilter !== 'all', statusFilter !== 'all', priorityFilter !== 'all', roleFilter !== 'all', dashboardKindFilter !== 'all', Boolean(dashboardDateRange), dashboardOpenOnly, dashboardOverdueOnly, sortMode !== DEFAULT_WORK_ITEM_SORT_MODE].filter(Boolean).length}
                   onReset={() => {
                     setSearchQuery(''); setCompanyFilter('all'); setYearFilter('all'); setMonthFilter('all');

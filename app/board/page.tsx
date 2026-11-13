@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRightLeft, CalendarDays, ChevronDown, Flag } from 'lucide-react'
+import { ArrowRightLeft, CalendarDays, Loader2 } from 'lucide-react'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { AppHeader } from '@/components/layout/app-header'
 import { ContentLoadingSkeleton } from '@/components/layout/content-loading-skeleton'
@@ -48,7 +48,7 @@ import {
   WORK_ITEM_STATUS_LABELS,
   type WorkItemStatusValue,
 } from '@/lib/work-items'
-import { kindClass, priorityClass } from '@/components/page/work-items/work-item-presentation'
+import { descriptionPreview } from '@/components/page/work-items/work-item-presentation'
 import { WorkItemStatusBadge } from '@/components/page/work-items/work-item-status-badge'
 import { ICON_STROKE, loadFailureVisual } from '@/components/ui/product-identity'
 
@@ -97,30 +97,35 @@ function BoardWorkItemCard({
 }>) {
   const company = item.project.company?.displayName || item.project.company?.name
   return (
-    <Card className="motion-card min-w-0 border-border-strong bg-card hover:border-primary/30">
-      <CardContent className="space-y-3 p-3 sm:p-4">
-        <div className="flex min-w-0 items-start justify-between gap-2">
+    <Card data-work-item-card={item.id} aria-busy={saving} className="motion-card min-w-0 gap-0 border-border-strong bg-card py-0 shadow-none hover:border-primary/30">
+      <CardContent className="min-w-0 space-y-2 p-3">
           <button
             type="button"
-            className="min-w-0 flex-1 text-left text-sm font-semibold leading-snug text-foreground underline-offset-4 hover:text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="content-wrap line-clamp-2 w-full min-w-0 rounded-sm text-left text-sm font-semibold leading-snug text-foreground underline-offset-4 hover:text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-haspopup="dialog"
             onClick={() => onOpen(item)}
           >
             {item.title}
           </button>
+        {item.description && <p className="content-wrap line-clamp-1 text-xs text-muted-foreground">{descriptionPreview(item.description, 120)}</p>}
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs font-medium">
+            <CalendarDays aria-hidden strokeWidth={ICON_STROKE} className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            {item.dueDate
+              ? <time dateTime={item.dueDate}>กำหนดส่ง {formatBoardCalendarDate(item.dueDate)}</time>
+              : <span>ไม่กำหนดวันส่ง</span>}
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 shrink-0 gap-1.5 px-2"
+                variant="ghost"
+                size="icon"
+                className="size-9 shrink-0"
                 disabled={saving}
                 aria-label={`เปลี่ยนสถานะ ${item.title}`}
               >
-                <ArrowRightLeft strokeWidth={ICON_STROKE} className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">ย้ายสถานะ</span>
-                <ChevronDown strokeWidth={ICON_STROKE} className="h-3 w-3" />
+                {saving ? <Loader2 aria-hidden className="size-4 animate-spin motion-reduce:animate-none" /> : <ArrowRightLeft aria-hidden strokeWidth={ICON_STROKE} className="size-4" />}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="max-h-72 overflow-y-auto">
@@ -140,25 +145,14 @@ function BoardWorkItemCard({
           </DropdownMenu>
         </div>
 
-        {item.description && <p className="line-clamp-2 break-words text-xs text-muted-foreground">{item.description}</p>}
-        <div className="flex flex-wrap gap-1.5">
-          <Badge variant="outline" className={kindClass(item.kind)}>{item.kind}</Badge>
-          <WorkItemStatusBadge status={item.status} />
-          <Badge variant="outline" className={priorityClass(item.priority)}>
-            <Flag strokeWidth={ICON_STROKE} className="mr-1 h-3 w-3" />{WORK_ITEM_PRIORITY_LABELS[item.priority]}
-          </Badge>
-          {item.role && <Badge variant="secondary">{WORK_ITEM_ROLE_LABELS[item.role]}</Badge>}
+        <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+          <span className="shrink-0">{item.kind} · {WORK_ITEM_PRIORITY_LABELS[item.priority]}</span>
+          {item.role && <span className="truncate" title={WORK_ITEM_ROLE_LABELS[item.role]}>{WORK_ITEM_ROLE_LABELS[item.role]}</span>}
         </div>
-        <div className="space-y-1 border-t border-border/60 pt-2 text-xs text-muted-foreground">
-          <p className="truncate font-medium text-foreground">{item.project.name}</p>
-          {company && <p className="truncate">{company}</p>}
-          <div className="flex min-w-0 items-center gap-1.5">
-            <CalendarDays strokeWidth={ICON_STROKE} className="h-3.5 w-3.5 shrink-0" />
-            {item.dueDate
-              ? <time dateTime={item.dueDate}>กำหนดส่ง {formatBoardCalendarDate(item.dueDate)}</time>
-              : <span>ไม่กำหนดวันส่ง</span>}
-          </div>
+        <div className="min-w-0 border-t border-border/60 pt-2 text-xs text-muted-foreground">
+          <p className="truncate" title={[item.project.name, company].filter(Boolean).join(' · ')}>{item.project.name}{company ? ` · ${company}` : ''}</p>
         </div>
+        {saving && <span role="status" className="sr-only">กำลังบันทึกสถานะ {item.title}</span>}
       </CardContent>
     </Card>
   )
@@ -178,16 +172,16 @@ function BoardStatusColumn({
   onMove: (item: WorkItem, nextStatus: WorkItemStatusValue) => void
 }>) {
   return (
-    <Card className="flex surface-inset min-h-60 w-[18rem] shrink-0 flex-col gap-0 border-border-strong bg-muted/30 py-0 sm:w-80">
-      <CardHeader className="shrink-0 border-b border-border/60 px-3 py-3 sm:px-4">
+    <Card data-board-status={status} className="flex w-[18rem] shrink-0 flex-col gap-0 border-border-strong bg-muted/30 py-0 shadow-none sm:w-80">
+      <CardHeader className="grid-rows-1 shrink-0 border-b border-border/60 px-3 py-2 [.border-b]:pb-2">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle><WorkItemStatusBadge status={status} /></CardTitle>
+          <CardTitle><h2><WorkItemStatusBadge status={status} /></h2></CardTitle>
           <Badge variant="secondary" aria-label={`${items.length} Work Items`} className="tabular-nums">{items.length}</Badge>
         </div>
       </CardHeader>
-      <CardContent className="min-h-0 flex-1 space-y-3 p-3">
+      <CardContent className="min-h-0 flex-1 space-y-2 p-2">
         {items.length === 0
-          ? <InlineState visual="records" title="ยังไม่มี Work Item ในสถานะนี้" description="รายการจะปรากฏเมื่อมี Work Item ในสถานะนี้" />
+          ? <p className="px-2 py-4 text-center text-xs text-muted-foreground">ยังไม่มี Work Item ในสถานะนี้</p>
           : items.map((item) => (
             <BoardWorkItemCard
               key={item.id}
@@ -351,7 +345,11 @@ export default function BoardPage() {
                 <p className={PAGE_LEAD}>ดูและเปลี่ยนสถานะของ Work Item จากระบบหลัก</p>
               </div>
               <div className="page-header-actions">
-                <SearchFilterPanel activeCount={Object.values(filters).filter((value) => value !== 'all').length} disabled={pendingIds.size > 0} onReset={() => setFilters(INITIAL_FILTERS)}>
+                <SearchFilterPanel summary={[
+                  filters.companyId !== 'all' ? companies.find((company) => company.id === filters.companyId)?.displayName || companies.find((company) => company.id === filters.companyId)?.name || 'Company ที่เลือก' : '',
+                  filters.projectId !== 'all' ? projects.find((project) => project.id === filters.projectId)?.name || 'Project ที่เลือก' : '',
+                  filters.role === 'none' ? 'ไม่ระบุบทบาท' : filters.role !== 'all' ? WORK_ITEM_ROLE_LABELS[filters.role as keyof typeof WORK_ITEM_ROLE_LABELS] : '',
+                ].filter(Boolean).join(' · ')} activeCount={Object.values(filters).filter((value) => value !== 'all').length} disabled={pendingIds.size > 0} onReset={() => setFilters(INITIAL_FILTERS)}>
                   <section aria-label="ตัวกรอง Board" className="search-filter-fields">
                     <BoardFilter
                       id="board-company-filter"

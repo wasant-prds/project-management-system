@@ -60,7 +60,7 @@ function DailyWorkEntries({ isLoading, entries }: Readonly<{
   return (
     <ul className="space-y-2">
       <li className="flex items-center justify-between border-b border-border/50 pb-2 text-sm">
-        <span className="text-muted-foreground">Total logged</span>
+        <span className="text-muted-foreground">ชั่วโมงรวม</span>
         <strong className="tabular-nums">{formatHours(totalHours)} h</strong>
       </li>
       {entries.map((entry) => (
@@ -106,18 +106,18 @@ export function WorkItemViewDialog({
             <div className="space-y-2">
               {item.project.company && (
                 <p className="content-wrap text-xs text-muted-foreground">
-                  Company: {item.project.company.displayName
+                  บริษัท: {item.project.company.displayName
                     ? `${item.project.company.displayName} — ${item.project.company.name}`
                     : item.project.company.name}
                 </p>
               )}
               <div className="flex min-w-0 flex-wrap items-start gap-2">
-                <DialogTitle className="min-w-0 text-left text-lg leading-snug tracking-tight sm:text-xl">
+                <DialogTitle className="content-wrap min-w-0 text-left text-lg leading-snug tracking-tight sm:text-xl">
                   {item.title}
                 </DialogTitle>
                 <Badge variant="outline" className={kindClass(item.kind)}>{item.kind}</Badge>
               </div>
-              <DialogDescription className="sr-only">Work item details</DialogDescription>
+              <DialogDescription className="sr-only">รายละเอียด Work Item</DialogDescription>
 
               <div className="flex flex-wrap items-center gap-2">
                 <WorkItemStatusBadge status={item.status} />
@@ -129,7 +129,7 @@ export function WorkItemViewDialog({
                   <Badge variant="outline">{WORK_ITEM_ROLE_LABELS[item.role]}</Badge>
                 )}
                 {item.types.map((type) => (
-                  <Badge key={type} variant="secondary">{workItemTypeLabel(type)}</Badge>
+                  <Badge key={type} variant="secondary" className="content-wrap max-w-full whitespace-normal">{workItemTypeLabel(type)}</Badge>
                 ))}
               </div>
               {item.source && (
@@ -150,22 +150,22 @@ export function WorkItemViewDialog({
             <section aria-labelledby="work-item-details-heading" className="flex min-w-0 flex-1 flex-col">
               <div className="mb-2 flex shrink-0 items-center gap-2">
                 <FileText className="h-4 w-4 text-primary" />
-                <h2 id="work-item-details-heading" className="text-base font-semibold text-foreground">Details</h2>
+                <h2 id="work-item-details-heading" className="text-base font-semibold text-foreground">รายละเอียด</h2>
               </div>
-              <div className="min-h-64 min-w-0 flex-1 rounded-xl border border-primary/25 bg-muted/20">
+              <div className="min-h-40 min-w-0 flex-1 rounded-lg border border-border/60 bg-muted/20">
                 {item.description ? (
                   <WorkItemDescription
                     text={item.description}
                     className="content-wrap rounded-none border-0 bg-transparent px-4 py-3 text-base leading-relaxed text-foreground [&_h4]:text-base [&_h4]:normal-case [&_h4]:tracking-normal [&_table]:w-full [&_table]:min-w-[32rem] [&_table]:[overflow-wrap:normal] [&_th]:whitespace-nowrap [&_code]:text-sm"
                   />
                 ) : (
-                  <p className="px-4 py-6 text-sm italic text-muted-foreground">No description</p>
+                  <p className="px-4 py-4 text-sm italic text-muted-foreground">ไม่มีรายละเอียด</p>
                 )}
               </div>
             </section>
 
             <div className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5 sm:grid-cols-4">
-              <Detail label="Assignee">
+              <Detail label="ผู้รับผิดชอบ">
                 <div className="flex min-w-0 items-center gap-2">
                   <Avatar className="h-6 w-6 shrink-0 border border-primary/20">
                     <AvatarFallback className="bg-primary/10 text-xs text-link">
@@ -175,20 +175,20 @@ export function WorkItemViewDialog({
                   <span className="content-wrap min-w-0">{item.assignee.name}</span>
                 </div>
               </Detail>
-              <Detail label="Work date">{formatUiDate(item.workDate)}</Detail>
-              <Detail label="Due date">
+              <Detail label="วันที่ทำงาน">{formatUiDate(item.workDate)}</Detail>
+              <Detail label="กำหนดส่ง">
                 <span className="inline-flex flex-wrap items-center gap-1.5">
                   <Calendar className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   {formatUiDate(item.dueDate)}
                 </span>
               </Detail>
-              <Detail label="Submitted">{formatUiDate(item.submittedAt)}</Detail>
+              <Detail label="ส่งงานเมื่อ">{formatUiDate(item.submittedAt)}</Detail>
             </div>
 
             <section className="space-y-2 border-t border-border/60 pt-3" aria-label="Daily Work">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="type-card-title">Daily Work</h2>
-                {!isLoading && <span className="text-xs text-muted-foreground">{item.timeEntries?.length ?? 0} entries</span>}
+                {!isLoading && <span className="text-xs text-muted-foreground">{item.timeEntries?.length ?? 0} รายการ</span>}
               </div>
               <DailyWorkEntries isLoading={isLoading} entries={item.timeEntries} />
             </section>
@@ -196,8 +196,8 @@ export function WorkItemViewDialog({
         </div>
 
         <DialogFooter className="shrink-0 flex-row justify-end border-t border-border/60 px-4 py-3 data-[slot=dialog-footer]:pt-3 sm:px-6">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-          <Button onClick={() => onEdit(item)}>Edit</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>ปิด</Button>
+          <Button onClick={() => onEdit(item)}>แก้ไข</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

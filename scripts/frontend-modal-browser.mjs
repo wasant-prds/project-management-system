@@ -7,6 +7,7 @@ const { chromium } = require(process.env.PMS_PLAYWRIGHT_MODULE || 'playwright')
 const origin = process.env.PMS_PREVIEW_ORIGIN || 'http://127.0.0.1:3791'
 if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin)) throw new Error('Use the isolated synthetic preview')
 const directory = 'artifacts/frontend-modal'
+const workItemsBoardOnly = process.argv.includes('--work-items-board-only')
 await mkdir(directory, { recursive: true })
 const browser = await chromium.launch({ headless: true, channel: process.env.PMS_BROWSER_CHANNEL || (process.platform === 'win32' ? 'msedge' : undefined) })
 const results = []
@@ -51,7 +52,10 @@ async function startAudit(page, contentSlot = 'dialog-content', overlaySlot = 'd
 }
 
 async function verifyAudit(page, reduced = false) {
-  await page.waitForFunction(() => window.__surfaceAudit.frames >= 45)
+  await page.waitForFunction(() => window.__surfaceAudit.frames >= 45).catch(async (error) => {
+    console.error(await page.evaluate(() => ({ audit: window.__surfaceAudit, visibility: document.visibilityState, dialogs: [...document.querySelectorAll('[role="dialog"]')].map((node) => ({ slot: node.dataset.slot, state: node.dataset.state })) })))
+    throw error
+  })
   const audit = await page.evaluate(() => { window.__stopSurfaceAudit(); return window.__surfaceAudit })
   assert.equal(audit.contents.length, 1, 'the modal surface was remounted')
   assert.equal(audit.overlays.length, 1, 'the backdrop was remounted')
@@ -138,10 +142,12 @@ async function otherSurfaces(context, theme, width, reduced) {
 
     await page.goto(`${origin}/board?theme=${theme}`, { waitUntil: 'networkidle' })
     await startAudit(page)
-    await page.locator('main button[aria-haspopup="dialog"]').first().click()
+    await page.locator('[data-work-item-card] button[aria-haspopup="dialog"]').first().click()
     await page.getByRole('dialog').waitFor()
     await verifyAudit(page, reduced)
     results.push({ case: 'Board detail modal', theme, width, reduced, pass: true })
+
+    if (workItemsBoardOnly) return
 
     await page.route('**/api/company*', async (route) => {
       const response = await route.fetch()
@@ -175,9 +181,9 @@ try {
       for (const reduced of (theme === 'light' ? [false, true] : [false])) {
         const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: reduced ? 'reduce' : 'no-preference' })
         try {
-          await dailyWork(context, theme, width, reduced)
+          if (!workItemsBoardOnly) await dailyWork(context, theme, width, reduced)
           await otherSurfaces(context, theme, width, reduced)
-          if (theme === 'light' && width === 1440 && !reduced) await retryDialog(context)
+          if (!workItemsBoardOnly && theme === 'light' && width === 1440 && !reduced) await retryDialog(context)
           console.log(`PASS modal interactions ${theme} ${width} reduced=${reduced}`)
         } finally { await context.close() }
       }

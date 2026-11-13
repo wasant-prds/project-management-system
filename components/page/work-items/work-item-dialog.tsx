@@ -108,8 +108,8 @@ export function WorkItemDialog({
     event.preventDefault()
     if (!form.title.trim() || !form.projectId) {
       toast({
-        title: 'Validation Error',
-        description: 'Title and project are required',
+        title: 'กรุณาตรวจข้อมูล',
+        description: 'ระบุชื่องานและ Project ก่อนบันทึก',
         variant: 'destructive',
       })
       return
@@ -140,19 +140,19 @@ export function WorkItemDialog({
       const data = await response.json()
       if (!response.ok) {
         const message = typeof data.error === 'string' ? data.error : data.error?.message
-        throw new Error(message || 'Failed to save work item')
+        throw new Error(message || 'บันทึก Work Item ไม่สำเร็จ')
       }
 
       toast({
-        title: 'Success',
-        description: mode === 'edit' ? 'Work item updated' : 'Work item created',
+        title: 'บันทึกแล้ว',
+        description: mode === 'edit' ? 'แก้ไข Work Item แล้ว' : 'สร้าง Work Item แล้ว',
       })
       onOpenChange(false)
       onSaved()
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to save work item',
+        title: 'บันทึกไม่สำเร็จ',
+        description: error instanceof Error ? error.message : 'บันทึก Work Item ไม่สำเร็จ',
         variant: 'destructive',
       })
     } finally {
@@ -165,7 +165,7 @@ export function WorkItemDialog({
       <DialogContent className={WORK_ITEM_DIALOG_SHELL_CLASS}>
         <form className="flex h-full min-h-0 flex-1 flex-col overflow-hidden" onSubmit={handleSubmit}>
           <DialogHeader className="shrink-0 space-y-1 px-4 pt-5 pr-12 sm:px-6">
-            <DialogTitle>{mode === 'edit' ? 'Edit Work Item' : 'New Work Item'}</DialogTitle>
+            <DialogTitle>{mode === 'edit' ? 'แก้ไข Work Item' : 'สร้าง Work Item'}</DialogTitle>
             <DialogDescription>
               Incident, Issue หรือ Task ใน Project โดยเจ้าของระบบเป็นผู้รับผิดชอบ
             </DialogDescription>
@@ -173,37 +173,39 @@ export function WorkItemDialog({
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
             <div className="grid gap-4 sm:grid-cols-2">
+            <h2 className="type-label sm:col-span-2">รายละเอียดงาน</h2>
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="title">Title <span className="text-danger">*</span></Label>
+              <Label htmlFor="title">ชื่องาน <span className="text-danger">*</span></Label>
               <Input
                 id="title"
                 value={form.title}
                 onChange={(event) => setForm({ ...form, title: event.target.value })}
-                placeholder="Work item title"
+                placeholder="ระบุชื่องาน"
                 disabled={isLoading}
               />
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">รายละเอียด</Label>
               <Textarea
                 id="description"
                 value={form.description}
                 onChange={(event) => setForm({ ...form, description: event.target.value })}
-                placeholder="Optional details. Markdown is supported (headings, lists, **bold**, `code`)."
+                placeholder="เพิ่มรายละเอียด รองรับ Markdown เช่น หัวข้อ รายการ **ตัวหนา** และ `code`"
                 className="min-h-[120px] whitespace-pre-wrap sm:min-h-[160px]"
                 disabled={isLoading}
               />
             </div>
 
+            <h2 className="type-label border-t border-border/60 pt-3 sm:col-span-2">การจัดหมวดหมู่</h2>
             <div className="space-y-2">
-              <Label>Kind <span className="text-danger">*</span></Label>
+              <Label htmlFor="work-item-kind">ชนิดงาน <span className="text-danger">*</span></Label>
               <Select
                 value={form.kind}
                 onValueChange={(value) => setForm({ ...form, kind: value as WorkItemKindValue })}
                 disabled={isLoading}
               >
-                <SelectTrigger>
+                <SelectTrigger id="work-item-kind">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -215,14 +217,14 @@ export function WorkItemDialog({
             </div>
 
             <div className="space-y-2">
-              <Label>Project <span className="text-danger">*</span></Label>
+              <Label htmlFor="work-item-project">Project <span className="text-danger">*</span></Label>
               <Select
                 value={form.projectId}
                 onValueChange={(value) => setForm({ ...form, projectId: value })}
                 disabled={isLoading}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select project" />
+                <SelectTrigger id="work-item-project">
+                  <SelectValue placeholder="เลือก Project" />
                 </SelectTrigger>
                 <SelectContent>
                   {projects.map((project) => (
@@ -232,16 +234,14 @@ export function WorkItemDialog({
               </Select>
             </div>
 
-            <p className="text-sm text-muted-foreground">ผู้รับผิดชอบ: เจ้าของระบบ</p>
-
             <div className="space-y-2">
-              <Label>Priority</Label>
+              <Label htmlFor="work-item-priority">ความสำคัญ</Label>
               <Select
                 value={form.priority}
                 onValueChange={(value) => setForm({ ...form, priority: value as WorkItemPriorityValue })}
                 disabled={isLoading}
               >
-                <SelectTrigger>
+                <SelectTrigger id="work-item-priority">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -255,17 +255,17 @@ export function WorkItemDialog({
             </div>
 
             <div className="space-y-2">
-              <Label>Role</Label>
+              <Label htmlFor="work-item-role">บทบาท</Label>
               <Select
                 value={form.role || 'none'}
                 onValueChange={(value) => setForm({ ...form, role: value === 'none' ? '' : value as WorkItemRoleValue })}
                 disabled={isLoading}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select role" />
+                <SelectTrigger id="work-item-role">
+                  <SelectValue placeholder="เลือกบทบาท" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Not set</SelectItem>
+                  <SelectItem value="none">ไม่ระบุบทบาท</SelectItem>
                   {WORK_ITEM_ROLES.map((role) => (
                     <SelectItem key={role} value={role}>
                       {WORK_ITEM_ROLE_LABELS[role]}
@@ -276,13 +276,13 @@ export function WorkItemDialog({
             </div>
 
             <div className="space-y-2">
-              <Label>Status</Label>
+              <Label htmlFor="work-item-status">สถานะ</Label>
               <Select
                 value={form.status}
                 onValueChange={(value) => setForm({ ...form, status: value as WorkItemStatusValue })}
                 disabled={isLoading}
               >
-                <SelectTrigger>
+                <SelectTrigger id="work-item-status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -295,8 +295,10 @@ export function WorkItemDialog({
               </Select>
             </div>
 
+            <p className="self-center text-xs text-muted-foreground">ผู้รับผิดชอบ: เจ้าของระบบ</p>
+            <h2 className="type-label border-t border-border/60 pt-3 sm:col-span-2">กำหนดการ</h2>
             <div className="space-y-2">
-              <Label htmlFor="workDate">Work date</Label>
+              <Label htmlFor="workDate">วันที่ทำงาน</Label>
               <DatePicker
                 id="workDate"
                 clearable
@@ -307,7 +309,7 @@ export function WorkItemDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="dueDate">Due date</Label>
+              <Label htmlFor="dueDate">กำหนดส่ง</Label>
               <DatePicker
                 id="dueDate"
                 clearable
@@ -318,8 +320,8 @@ export function WorkItemDialog({
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-              <Label>Types</Label>
-              <div className="flex flex-wrap gap-2">
+              <Label id="work-item-types-label">ประเภทงาน</Label>
+              <div role="group" aria-labelledby="work-item-types-label" className="flex flex-wrap gap-2">
                 {[...new Set([...WORK_ITEM_TYPES, ...initialValues.types, ...form.types])].map((type) => {
                   const selected = form.types.includes(type)
                   return (
@@ -328,6 +330,7 @@ export function WorkItemDialog({
                       type="button"
                       size="sm"
                       variant={selected ? 'default' : 'outline'}
+                      aria-pressed={selected}
                       onClick={() => toggleType(type)}
                       disabled={isLoading}
                     >
@@ -342,11 +345,11 @@ export function WorkItemDialog({
 
           <DialogFooter className="shrink-0 flex-row justify-end border-t border-border/60 px-4 py-3 sm:px-6 sm:py-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
-              Cancel
+              ยกเลิก
             </Button>
             <Button type="submit" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {mode === 'edit' ? 'Save changes' : 'Create'}
+              {mode === 'edit' ? 'บันทึกการแก้ไข' : 'สร้าง Work Item'}
             </Button>
           </DialogFooter>
         </form>

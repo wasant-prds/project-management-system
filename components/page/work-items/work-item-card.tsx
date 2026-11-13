@@ -3,7 +3,6 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Calendar, Flag, MoreVertical } from 'lucide-react'
+import { Calendar, MoreVertical } from 'lucide-react'
 import {
   WORK_ITEM_PRIORITY_LABELS,
   WORK_ITEM_ROLE_LABELS,
@@ -24,8 +23,6 @@ import type { WorkItem } from './types'
 import { ProjectIdentity } from './project-identity'
 import {
   descriptionPreview,
-  kindClass,
-  priorityClass,
   projectAccentStyle,
 } from './work-item-presentation'
 import { WorkItemStatusBadge } from './work-item-status-badge'
@@ -50,11 +47,13 @@ export function WorkItemCard({
   const accent = projectAccentStyle(item.project.colorProject)
   const previewMaxLength = compact ? 120 : 180
   const preview = item.description ? descriptionPreview(item.description, previewMaxLength) : ''
+  const secondary = [item.assignee.name, item.role ? WORK_ITEM_ROLE_LABELS[item.role] : '', ...item.types.map(workItemTypeLabel)].filter(Boolean).join(' · ')
 
   return (
     <Card
       data-spatial="pointer"
-      className="cinematic-pointer card-shadow motion-card relative min-w-0 cursor-pointer gap-0 overflow-hidden py-0 hover:border-primary/30"
+      data-work-item-card={item.id}
+      className="cinematic-pointer motion-card relative min-w-0 cursor-pointer gap-0 overflow-hidden py-0 shadow-none hover:border-primary/30"
       onClick={() => onView(item)}
     >
       <span
@@ -71,84 +70,46 @@ export function WorkItemCard({
         />
       )}
 
-      <CardContent className={cn(compact ? 'space-y-2 p-3 pl-4' : 'space-y-3 p-4 pl-5')}>
-        <div className="flex items-start justify-between gap-3">
-          <div className={cn('min-w-0 flex-1', compact ? 'space-y-1.5' : 'space-y-2.5')}>
-            <div className="flex min-w-0 items-start gap-2">
-              <h3
-                className={cn(
-                  'content-wrap min-w-0 flex-1 font-semibold leading-snug text-foreground line-clamp-2',
-                  compact ? 'text-sm' : 'text-[15px]',
-                )}
-              >
-                {item.title}
-              </h3>
-              <Badge variant="outline" className={`shrink-0 ${kindClass(item.kind)}`}>
-                {item.kind}
-              </Badge>
-            </div>
+      <CardContent className={cn('relative min-w-0 space-y-1.5', compact ? 'p-2.5 pl-3.5' : 'p-3 pl-4')}>
+        <button type="button" className="block w-full min-w-0 rounded-sm pr-9 text-left hover:text-link focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-haspopup="dialog" onClick={(event) => { event.stopPropagation(); onView(item) }}>
+          <h3 className={cn('content-wrap min-w-0 font-semibold leading-snug text-foreground line-clamp-2', compact ? 'text-sm' : 'text-[15px]')}>
+            {item.title}
+          </h3>
+        </button>
+        {preview && <p className="content-wrap line-clamp-1 text-xs leading-relaxed text-muted-foreground">{preview}</p>}
 
-            {preview && (
-              <p
-                className={cn(
-                  'content-wrap leading-relaxed text-muted-foreground',
-                  compact ? 'line-clamp-1 text-xs' : 'line-clamp-2 text-sm',
-                )}
-              >
-                {preview}
-              </p>
-            )}
-
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <WorkItemStatusBadge status={item.status} />
-              <Badge variant="outline" className={priorityClass(item.priority)}>
-                <Flag className="mr-1 h-3 w-3" />
-                {WORK_ITEM_PRIORITY_LABELS[item.priority]}
-              </Badge>
-              {item.role && (
-                <Badge variant="outline">{WORK_ITEM_ROLE_LABELS[item.role]}</Badge>
-              )}
-              {item.types.map((type) => (
-                <Badge key={type} variant="secondary">{workItemTypeLabel(type)}</Badge>
-              ))}
-              <span className="hidden h-3 w-px bg-border sm:block" />
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Calendar className="h-3 w-3" />
-                <span>Due {formatUiDate(item.dueDate)}</span>
-              </div>
-              <div className="flex min-w-0 max-w-full items-center gap-1.5">
-                <Avatar className="h-5 w-5 shrink-0 border border-primary/20">
-                  <AvatarFallback className="bg-primary/10 text-[10px] text-link">
-                    {(item.assignee.avatar || item.assignee.name).slice(0, 2)}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="min-w-0 truncate text-xs text-muted-foreground">{item.assignee.name}</span>
-              </div>
-            </div>
+        <div className="flex min-h-6 min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+          <WorkItemStatusBadge status={item.status} />
+          <div className="flex min-w-0 items-center gap-1 text-xs font-medium text-foreground">
+            <Calendar aria-hidden className="h-3 w-3 shrink-0 text-muted-foreground" />
+            <span>กำหนดส่ง {formatUiDate(item.dueDate)}</span>
           </div>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={compact ? 'h-7 w-7 shrink-0' : 'h-8 w-8 shrink-0'}
-                onClick={(event) => event.stopPropagation()}
-              >
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onView(item)}>View</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onEdit(item)}>Edit</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-danger" onClick={() => onDelete(item)}>
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1 size-9 shrink-0"
+              aria-label={`จัดการ Work Item ${item.title}`}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
+            <DropdownMenuLabel>จัดการ Work Item</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onView(item)}>ดูรายละเอียด</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onEdit(item)}>แก้ไข</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="text-danger" onClick={() => onDelete(item)}>ลบ</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+          <Badge variant="secondary" className="shrink-0 font-normal">{item.kind}</Badge>
+          <span className="shrink-0">{WORK_ITEM_PRIORITY_LABELS[item.priority]}</span>
+          <span className="min-w-0 truncate" title={secondary}>{secondary}</span>
         </div>
       </CardContent>
     </Card>
