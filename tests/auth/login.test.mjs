@@ -42,7 +42,7 @@ test('browser login sets an opaque HttpOnly session and preserves the requested 
   assert.equal(response.headers.get('cache-control'), 'no-store')
   assert.deepEqual(await response.json(), { redirectTo: '/projects?status=active' })
   const cookie = response.headers.get('set-cookie')
-  assert.match(cookie, /^pms_owner_session=[a-f0-9]{64}; Path=\/; HttpOnly; SameSite=Strict; Max-Age=28800$/)
+  assert.match(cookie, /^pms_owner_session=[a-f0-9]{64}; Path=\/; HttpOnly; SameSite=Strict; Max-Age=2592000$/)
   assert.doesNotMatch(cookie, /synthetic|owner:/)
   const accepted = await fetch(base + '/api/projects', { headers: { Cookie: cookie.split(';')[0] + '; preference=test', 'x-pms-owner-proof': 'forged', 'x-pms-owner-authenticated': '1' } })
   assert.equal(accepted.status, 200)
@@ -104,12 +104,18 @@ test('sessions enforce origin policy, expire and are revoked on logout and repla
   const newCookie = second.headers.get('set-cookie').split(';')[0]
   assert.notEqual(cookie, newCookie)
   assert.equal((await fetch(base + '/api/projects', { headers: { Cookie: cookie } })).status, 401)
+  advance(29 * 24 * 60 * 60 * 1000)
+  assert.equal((await fetch(base + '/api/projects', { headers: { Cookie: newCookie } })).status, 200)
   const logout = await fetch(base + '/api/auth/logout', { method: 'POST', headers: { Cookie: newCookie, Origin: env.APP_ORIGIN } })
   assert.equal(logout.status, 200)
   assert.match(logout.headers.get('set-cookie'), /Max-Age=0/)
   assert.equal((await fetch(base + '/api/projects', { headers: { Cookie: newCookie } })).status, 401)
   const expiring = (await login()).headers.get('set-cookie').split(';')[0]
   advance(8 * 60 * 60 * 1000)
+  assert.equal((await fetch(base + '/api/projects', { headers: { Cookie: expiring } })).status, 200)
+  advance((30 * 24 - 8) * 60 * 60 * 1000 - 1)
+  assert.equal((await fetch(base + '/api/projects', { headers: { Cookie: expiring } })).status, 200)
+  advance(1)
   assert.equal((await fetch(base + '/api/projects', { headers: { Cookie: expiring } })).status, 401)
 })
 
@@ -140,7 +146,7 @@ test('cached browser Basic credentials cannot restore access after logout or ses
   const signedInAgain = await login({}, { Authorization: authorization })
   const newCookie = signedInAgain.headers.get('set-cookie').split(';')[0]
   assert.equal((await fetch(base + '/api/projects', { headers: { ...browserHeaders, Cookie: newCookie } })).status, 200)
-  advance(8 * 60 * 60 * 1000)
+  advance(30 * 24 * 60 * 60 * 1000)
   assert.equal((await fetch(base + '/api/projects', { headers: { ...browserHeaders, Cookie: newCookie } })).status, 401)
   assert.equal((await fetch(base + '/login', { headers: { ...navigationHeaders, Cookie: newCookie }, redirect: 'manual' })).status, 200)
 

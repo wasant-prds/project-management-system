@@ -18,6 +18,11 @@ type Config = { id: string; provider: 'gitlab' | 'github'; instanceUrl: string; 
 type Run = { id: string; status: string; startedAt: string; finishedAt: string | null; configSnapshot: { sourceProject: string; assignees: string[] }; counts: { created: number; updated: number; skipped: number; failed: number; pending?: number }; runError: { code: string; message: string } | null; results: Array<{ issueId: string | null; candidates?: IssueReviewCandidate[]; outcome: string; title: string; sourceUrl: string | null; reason: string; warnings: string[] }> }
 type LegacyMapping = { id: string; provider: string; externalProjectId: string; instanceUrl: string }
 
+const sourceDefaults = {
+  gitlab: { instanceUrl: 'https://gitlab.dhas.com', tokenEnvVar: 'GITLAB_DHAS_TOKEN', assignees: 'wasant_p' },
+  github: { instanceUrl: 'https://github.com', tokenEnvVar: 'GITHUB_PRDS_TOKEN', assignees: 'wasant-prds' },
+}
+
 async function api<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, { cache: 'no-store', ...options })
   const payload = await response.json()
@@ -43,10 +48,10 @@ export function ProjectIssueSync({ projectId, onSynced }: Readonly<{ projectId: 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Config | null>(null)
   const [provider, setProvider] = useState<'gitlab' | 'github'>('gitlab')
-  const [instanceUrl, setInstanceUrl] = useState('https://gitlab.com')
-  const [tokenEnvVar, setTokenEnvVar] = useState('GITLAB_TOKEN')
+  const [instanceUrl, setInstanceUrl] = useState(sourceDefaults.gitlab.instanceUrl)
+  const [tokenEnvVar, setTokenEnvVar] = useState(sourceDefaults.gitlab.tokenEnvVar)
   const [sourceProject, setSourceProject] = useState('')
-  const [assignees, setAssignees] = useState('')
+  const [assignees, setAssignees] = useState(sourceDefaults.gitlab.assignees)
   const [labels, setLabels] = useState<Array<{ label: string; type: string }>>([])
   const [reviewGroups, setReviewGroups] = useState<IssueReviewGroup[]>([])
   const [reviewError, setReviewError] = useState('')
@@ -66,10 +71,18 @@ export function ProjectIssueSync({ projectId, onSynced }: Readonly<{ projectId: 
     return () => { active = false; requests.current++; generation.current++; abort.current?.abort() }
   }, [load])
 
+  function selectProvider(value: Config['provider']) {
+    const defaults = sourceDefaults[value]
+    setProvider(value); setInstanceUrl(defaults.instanceUrl); setTokenEnvVar(defaults.tokenEnvVar)
+    setSourceProject(''); setAssignees(defaults.assignees); setLabels([])
+  }
+
   function openForm(config: Config | null) {
-    setEditing(config); setProvider(config?.provider ?? 'gitlab'); setInstanceUrl(config?.instanceUrl ?? 'https://gitlab.com')
-    setTokenEnvVar(config?.tokenEnvVar ?? (config?.provider === 'github' ? 'GITHUB_TOKEN' : 'GITLAB_TOKEN'))
-    setSourceProject(config?.sourceProject ?? ''); setAssignees(config?.assignees.join(', ') ?? '')
+    setEditing(config)
+    if (config) {
+      setProvider(config.provider); setInstanceUrl(config.instanceUrl); setTokenEnvVar(config.tokenEnvVar ?? '')
+      setSourceProject(config.sourceProject); setAssignees(config.assignees.join(', '))
+    } else selectProvider('gitlab')
     setLabels(Object.entries(config?.approvedLabelMap ?? {}).map(([label, type]) => ({ label, type })))
     setFormOpen(true); setError(''); setNotice('')
   }
@@ -199,8 +212,8 @@ export function ProjectIssueSync({ projectId, onSynced }: Readonly<{ projectId: 
       </section>)}</div>
 
       {formOpen && <form onSubmit={save} className="space-y-4 rounded-lg border bg-muted/30 p-4"><h3 className="font-semibold">{editing ? 'แก้ไข config' : 'เพิ่มแหล่ง Issues'}</h3><div className="grid min-w-0 gap-4 sm:grid-cols-2">
-          <div className="space-y-2"><label htmlFor={`${fieldId}-provider`} className="text-sm">Provider</label><Select value={provider} disabled={busy || Boolean(editing)} onValueChange={(value: 'gitlab' | 'github') => { setProvider(value); setInstanceUrl(value === 'github' ? 'https://github.com' : 'https://gitlab.com'); if (tokenEnvVar === 'GITLAB_TOKEN' || tokenEnvVar === 'GITHUB_TOKEN') setTokenEnvVar(value === 'github' ? 'GITHUB_TOKEN' : 'GITLAB_TOKEN') }}><SelectTrigger id={`${fieldId}-provider`} className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="gitlab">GitLab</SelectItem><SelectItem value="github">GitHub</SelectItem></SelectContent></Select></div>
-          <div className="space-y-2"><label htmlFor={`${fieldId}-instance`} className="text-sm">Instance URL</label><Input id={`${fieldId}-instance`} type="url" required maxLength={500} value={instanceUrl} onChange={(event) => setInstanceUrl(event.target.value)} disabled={busy || Boolean(editing) || provider === 'github'} placeholder="https://gitlab.example.com" /></div>
+          <div className="space-y-2"><label htmlFor={`${fieldId}-provider`} className="text-sm">Provider</label><Select value={provider} disabled={busy || Boolean(editing)} onValueChange={selectProvider}><SelectTrigger id={`${fieldId}-provider`} className="w-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="gitlab">GitLab</SelectItem><SelectItem value="github">GitHub</SelectItem></SelectContent></Select></div>
+          <div className="space-y-2"><label htmlFor={`${fieldId}-instance`} className="text-sm">Instance URL</label><Input id={`${fieldId}-instance`} type="url" required maxLength={500} value={instanceUrl} onChange={(event) => setInstanceUrl(event.target.value)} disabled={busy || Boolean(editing)} placeholder="https://gitlab.example.com" /></div>
           <div className="space-y-2"><label htmlFor={`${fieldId}-source`} className="text-sm">{provider === 'github' ? 'GitHub owner/repository' : 'GitLab Project ID หรือ group/project'}</label><Input id={`${fieldId}-source`} required maxLength={500} value={sourceProject} onChange={(event) => setSourceProject(event.target.value)} disabled={busy || Boolean(editing)} placeholder="group/project" /></div>
           <div className="space-y-2"><label htmlFor={`${fieldId}-token-env`} className="text-sm">ชื่อตัวแปร token ใน .env *</label><Input id={`${fieldId}-token-env`} required maxLength={128} pattern="(?:GITLAB|GITHUB|ISSUE_SYNC)_[A-Z0-9_]*TOKEN(?:_[A-Z0-9]+)*" value={tokenEnvVar} onChange={(event) => setTokenEnvVar(event.target.value)} disabled={busy} placeholder="GITLAB_PROJECT_A_TOKEN" /><p className="text-xs text-muted-foreground">ใช้ชื่อขึ้นต้น GITLAB_, GITHUB_ หรือ ISSUE_SYNC_ และมี TOKEN เช่น GITHUB_TEAM_TOKEN · ใส่เฉพาะชื่อ ส่วน token จริงตั้งใน .env ของ app</p></div>
         </div><div className="space-y-2"><label htmlFor={`${fieldId}-assignees`} className="text-sm">Assignee usernames ที่อนุญาต *</label><Input id={`${fieldId}-assignees`} required maxLength={13000} value={assignees} onChange={(event) => setAssignees(event.target.value)} disabled={busy} placeholder="username1, username2" /><p className="text-xs text-muted-foreground">คั่นด้วย comma หรือช่องว่าง ไม่ใช้ display name · ไม่รับ issues ที่ไม่มี assignee</p></div>

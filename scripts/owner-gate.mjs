@@ -3,7 +3,7 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
 const digest = (value) => createHash('sha256').update(value).digest();
 const SESSION_COOKIE = 'pms_owner_session';
-const SESSION_DURATION = 8 * 60 * 60 * 1000;
+const SESSION_DURATION = 30 * 24 * 60 * 60 * 1000;
 const LOGIN_WINDOW = 60 * 1000;
 
 function basicCredentialsMatch(header, env) {
@@ -176,7 +176,7 @@ export function createOwnerGate(env, upstreamPort, options = {}) {
   const internalProof = env.PMS_INTERNAL_OWNER_PROOF || randomBytes(32).toString('hex');
   const audit = options.audit ?? ((event) => console.info(JSON.stringify(event)));
   const now = options.now ?? (() => new Date());
-  // Only opaque token hashes live in memory. Sessions expire after eight hours
+  // Only opaque token hashes live in memory. Sessions expire 30 days after login
   // and are invalidated on logout or runtime restart; credentials never reach Next.
   const sessions = new Map();
   const loginAttempts = new Map();

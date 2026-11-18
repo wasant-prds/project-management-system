@@ -70,6 +70,10 @@ Source writes และ per-issue history checkpoint commit ใน Serializable 
 
 Progress UI ใช้ Progress component และสีของระบบ แบ่งสี่ขั้นตอน: เชื่อมต่อต้นทาง, อ่านและบันทึก Issues, ตรวจประวัติเดิม, สรุปผล. Bar แสดงสัดส่วนขั้นตอนที่ผ่านกับจำนวนแหล่งที่เลือก พร้อม counts จริงรายแหล่ง; ไม่คาดเดาจำนวน issues ทั้งหมดหรือเวลาเสร็จ. ระหว่างอ่านหลายหน้าแสดง active stage และจำนวนรายการที่ทำแล้ว. จบทั้งที่มี errors หรือรอยืนยันจะแสดงสถานะนั้นอย่างชัดเจน. ถ้า stream ขาดก่อน result ให้ตรวจประวัติ Sync; browser disconnect ไม่ย้อนธุรกรรมที่ commit แล้ว. การเปลี่ยน Project/ออกจากหน้าหยุด reader ใน browser แต่ประวัติฝั่ง server ยังคงเก็บงานที่ทำแล้ว.
 
+## ค่าเริ่มต้นเมื่อเพิ่มแหล่ง Issues
+
+ฟอร์มเพิ่มแหล่ง Issues ใช้ค่าเริ่มต้นตามตัวอย่างใน sql-master: GitLab ใช้ instance `https://gitlab.dhas.com`, assignee `wasant_p` และ token env `GITLAB_DHAS_TOKEN`; GitHub ใช้ instance `https://github.com`, assignee `wasant-prds` และ token env `GITHUB_PRDS_TOKEN`. เว้น `source_project_path` (ช่อง Project ID / group/project หรือ owner/repository) ว่างให้กรอกเอง. ค่าในฟอร์มเพิ่มแก้ไขได้และยังผ่าน validation เดิม; GitHub รองรับ GitHub.com. การสลับ provider เติมค่าเริ่มต้นของ provider ใหม่และล้าง project path กับ label mapping. การแก้ไข config เดิมแสดงค่าที่บันทึกไว้. ไม่อ่านไฟล์ SQL ส่วนตัวใน browser และไม่ส่ง token จริงมาในฟอร์ม.
+
 ## Legacy และ rollout
 
 `POST /api/integrations/gitlab/sync` เดิมถูกปิดด้วย `409 PROJECT_SYNC_REQUIRED` หลังตรวจ owner; ไม่มี unfiltered fallback. Mapping เดิมยังเก็บไว้ และเพิ่ม config จากหน้า Project ด้วย source เดิมเพื่อใช้ histories เดิม. ก่อนมี config และ assignees จะ sync ไม่ได้.
